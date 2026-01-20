@@ -2,7 +2,7 @@
 const Config = {
 
   options: {
-    base: '$$main.def.servers.0.url$$',
+    base: 'http://localhost:8901',
 
     auth: {
       prefix: 'Bearer',

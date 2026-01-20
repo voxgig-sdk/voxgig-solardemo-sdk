@@ -1,0 +1,791 @@
+{
+  "name": "solardemo",
+  "origin": "voxgig-sdk",
+  "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
+  "main": {
+    "kit": {
+      "info": {
+        "title": "Solar System API",
+        "version": "1.0.0",
+        "servers": [
+          {
+            "url": "http://localhost:8901"
+          }
+        ]
+      },
+      "entity": {
+        "moon": {
+          "alias": {
+            "field": {}
+          },
+          "fields": [
+            {
+              "name": "diameter",
+              "req": false,
+              "type": "`$NUMBER`",
+              "active": true
+            },
+            {
+              "name": "id",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "kind",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "name",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "planet_id",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            }
+          ],
+          "id": {
+            "field": "id",
+            "name": "id"
+          },
+          "name": "moon",
+          "op": {
+            "create": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "planet_id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "POST",
+                  "orig": "/api/planet/{planet_id}/moon",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{planet_id}",
+                    "moon"
+                  ],
+                  "select": {
+                    "exist": [
+                      "planet_id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "create"
+            },
+            "list": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "planet_id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "GET",
+                  "orig": "/api/planet/{planet_id}/moon",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{planet_id}",
+                    "moon"
+                  ],
+                  "select": {
+                    "exist": [
+                      "planet_id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "list"
+            },
+            "load": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "planet_id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "GET",
+                  "orig": "/api/planet/{planet_id}/moon/{moon_id}",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{planet_id}",
+                    "moon",
+                    "{id}"
+                  ],
+                  "rename": {
+                    "param": {
+                      "moon_id": "id"
+                    }
+                  },
+                  "select": {
+                    "exist": [
+                      "planet_id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "load"
+            },
+            "update": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "planet_id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "PUT",
+                  "orig": "/api/planet/{planet_id}/moon/{moon_id}",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{planet_id}",
+                    "moon",
+                    "{id}"
+                  ],
+                  "select": {
+                    "exist": [
+                      "planet_id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "update"
+            }
+          },
+          "relations": {
+            "ancestors": [
+              [
+                "planet"
+              ]
+            ]
+          },
+          "active": true
+        },
+        "planet": {
+          "alias": {
+            "field": {}
+          },
+          "fields": [
+            {
+              "name": "diameter",
+              "req": false,
+              "type": "`$NUMBER`",
+              "active": true
+            },
+            {
+              "name": "forbid",
+              "req": false,
+              "type": "`$BOOLEAN`",
+              "active": true
+            },
+            {
+              "name": "id",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "kind",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "name",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "ok",
+              "req": false,
+              "type": "`$BOOLEAN`",
+              "active": true
+            },
+            {
+              "name": "start",
+              "req": false,
+              "type": "`$BOOLEAN`",
+              "active": true
+            },
+            {
+              "name": "state",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            },
+            {
+              "name": "stop",
+              "req": false,
+              "type": "`$BOOLEAN`",
+              "active": true
+            },
+            {
+              "name": "why",
+              "req": false,
+              "type": "`$STRING`",
+              "active": true
+            }
+          ],
+          "id": {
+            "field": "id",
+            "name": "id"
+          },
+          "name": "planet",
+          "op": {
+            "create": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "POST",
+                  "orig": "/api/planet/{planet_id}/forbid",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{id}",
+                    "forbid"
+                  ],
+                  "rename": {
+                    "param": {
+                      "planet_id": "id"
+                    }
+                  },
+                  "select": {
+                    "$action": "forbid",
+                    "exist": [
+                      "id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                },
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "POST",
+                  "orig": "/api/planet/{planet_id}/terraform",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{id}",
+                    "terraform"
+                  ],
+                  "rename": {
+                    "param": {
+                      "planet_id": "id"
+                    }
+                  },
+                  "select": {
+                    "$action": "terraform",
+                    "exist": [
+                      "id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                },
+                {
+                  "method": "POST",
+                  "orig": "/api/planet",
+                  "parts": [
+                    "api",
+                    "planet"
+                  ],
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "args": {
+                    "param": []
+                  },
+                  "relations": [],
+                  "select": {}
+                }
+              ],
+              "name": "create"
+            },
+            "list": {
+              "alts": [
+                {
+                  "method": "GET",
+                  "orig": "/api/planet",
+                  "parts": [
+                    "api",
+                    "planet"
+                  ],
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "args": {
+                    "param": []
+                  },
+                  "relations": [],
+                  "select": {}
+                }
+              ],
+              "name": "list"
+            },
+            "load": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "GET",
+                  "orig": "/api/planet/{planet_id}",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{id}"
+                  ],
+                  "rename": {
+                    "param": {
+                      "planet_id": "id"
+                    }
+                  },
+                  "select": {
+                    "exist": [
+                      "id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "load"
+            },
+            "update": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "id",
+                        "orig": "planet_id",
+                        "req": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "PUT",
+                  "orig": "/api/planet/{planet_id}",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{id}"
+                  ],
+                  "select": {
+                    "exist": [
+                      "id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "update"
+            }
+          },
+          "active": true
+        }
+      },
+      "flow": {
+        "BasicMoonFlow": {
+          "name": "BasicMoonFlow",
+          "active": true,
+          "param": {
+            "SOLARDEMO_TEST_MOON_ENTID": {
+              "moon01": "MOON01",
+              "moon02": "MOON02",
+              "moon03": "MOON03"
+            },
+            "SOLARDEMO_TEST_LIVE": "FALSE",
+            "SOLARDEMO_TEST_EXPLAIN": "FALSE"
+          },
+          "test": {
+            "entity": {
+              "moon": {
+                "MOON01": {
+                  "diameter": "s0",
+                  "id": "MOON01",
+                  "kind": "s2",
+                  "name": "s3",
+                  "planet_id": "s4"
+                },
+                "MOON02": {
+                  "diameter": "s32",
+                  "id": "MOON02",
+                  "kind": "s34",
+                  "name": "s35",
+                  "planet_id": "s36"
+                },
+                "MOON03": {
+                  "diameter": "s64",
+                  "id": "MOON03",
+                  "kind": "s66",
+                  "name": "s67",
+                  "planet_id": "s68"
+                }
+              }
+            }
+          },
+          "step": [
+            {
+              "name": "load_moon0",
+              "kind": "entity",
+              "entity": "moon",
+              "action": "load",
+              "match": {
+                "id": "`dm$=p.SOLARDEMO_TEST_MOON_ENTID.moon01`"
+              },
+              "valid": {
+                "`$OPEN`": true,
+                "id": "`dm$=s.load_moon0.match.id`"
+              }
+            },
+            {
+              "name": "update_moon1",
+              "ref": "load_moon0",
+              "action": "update",
+              "reqdata": {},
+              "valid": {
+                "`$OPEN`": true,
+                "id": "`dm$=s.load_moon0.match.id`"
+              }
+            },
+            {
+              "name": "load_moon2",
+              "kind": "entity",
+              "entity": "moon",
+              "action": "load",
+              "match": {
+                "id": "`dm$=p.SOLARDEMO_TEST_MOON_ENTID.moon01`"
+              },
+              "valid": {
+                "`$OPEN`": true,
+                "id": "`dm$=s.load_moon0.match.id`"
+              }
+            }
+          ],
+          "setp": []
+        },
+        "BasicPlanetFlow": {
+          "name": "BasicPlanetFlow",
+          "active": true,
+          "param": {
+            "SOLARDEMO_TEST_PLANET_ENTID": {
+              "planet01": "PLANET01",
+              "planet02": "PLANET02",
+              "planet03": "PLANET03"
+            },
+            "SOLARDEMO_TEST_LIVE": "FALSE",
+            "SOLARDEMO_TEST_EXPLAIN": "FALSE"
+          },
+          "test": {
+            "entity": {
+              "planet": {
+                "PLANET01": {
+                  "diameter": "s0",
+                  "forbid": "s1",
+                  "id": "PLANET01",
+                  "kind": "s3",
+                  "name": "s4",
+                  "ok": "s5",
+                  "start": "s6",
+                  "state": "s7",
+                  "stop": "s8",
+                  "why": "s9"
+                },
+                "PLANET02": {
+                  "diameter": "s64",
+                  "forbid": "s65",
+                  "id": "PLANET02",
+                  "kind": "s67",
+                  "name": "s68",
+                  "ok": "s69",
+                  "start": "s6a",
+                  "state": "s6b",
+                  "stop": "s6c",
+                  "why": "s6d"
+                },
+                "PLANET03": {
+                  "diameter": "sc8",
+                  "forbid": "sc9",
+                  "id": "PLANET03",
+                  "kind": "scb",
+                  "name": "scc",
+                  "ok": "scd",
+                  "start": "sce",
+                  "state": "scf",
+                  "stop": "sd0",
+                  "why": "sd1"
+                }
+              }
+            }
+          },
+          "step": [
+            {
+              "name": "load_planet0",
+              "kind": "entity",
+              "entity": "planet",
+              "action": "load",
+              "match": {
+                "id": "`dm$=p.SOLARDEMO_TEST_PLANET_ENTID.planet01`"
+              },
+              "valid": {
+                "`$OPEN`": true,
+                "id": "`dm$=s.load_planet0.match.id`"
+              }
+            },
+            {
+              "name": "update_planet1",
+              "ref": "load_planet0",
+              "action": "update",
+              "reqdata": {},
+              "valid": {
+                "`$OPEN`": true,
+                "id": "`dm$=s.load_planet0.match.id`"
+              }
+            },
+            {
+              "name": "load_planet2",
+              "kind": "entity",
+              "entity": "planet",
+              "action": "load",
+              "match": {
+                "id": "`dm$=p.SOLARDEMO_TEST_PLANET_ENTID.planet01`"
+              },
+              "valid": {
+                "`$OPEN`": true,
+                "id": "`dm$=s.load_planet0.match.id`"
+              }
+            }
+          ],
+          "setp": []
+        }
+      },
+      "target": {
+        "ts": {
+          "title": "TypeScript",
+          "ext": "ts",
+          "comment": {
+            "line": "//"
+          },
+          "module": {
+            "name": "solardemo"
+          },
+          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "deps": {
+            "dotenv": {
+              "active": true,
+              "version": "^16.4.5",
+              "kind": "dev"
+            },
+            "typescript": {
+              "active": true,
+              "version": "^5.8.3",
+              "kind": "dev"
+            },
+            "@types/node": {
+              "active": true,
+              "version": "^22.15.3",
+              "kind": "dev"
+            }
+          },
+          "name": "ts",
+          "active": true
+        }
+      },
+      "feature": {
+        "test": {
+          "name": "test",
+          "title": "Test",
+          "version": "0.0.1",
+          "active": true,
+          "hook": {
+            "PostConstruct": {
+              "active": true,
+              "await": false
+            },
+            "PostConstructEntity": {
+              "active": true,
+              "await": false
+            },
+            "SetData": {
+              "active": true,
+              "await": false
+            },
+            "GetData": {
+              "active": true,
+              "await": false
+            },
+            "SetMatch": {
+              "active": true,
+              "await": false
+            },
+            "GetMatch": {
+              "active": true,
+              "await": false
+            },
+            "PreOperation": {
+              "active": true,
+              "await": false
+            },
+            "PreSpec": {
+              "active": true,
+              "await": false
+            },
+            "PreRequest": {
+              "active": true,
+              "await": false
+            },
+            "PreResponse": {
+              "active": true,
+              "await": false
+            },
+            "PreResult": {
+              "active": true,
+              "await": false
+            },
+            "PostOperation": {
+              "active": true,
+              "await": false
+            }
+          },
+          "target": {
+            "ts": {
+              "deps": {}
+            }
+          }
+        }
+      },
+      "option": {},
+      "config": {
+        "auth": {
+          "prefix": "Bearer"
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    "def": {
+      "desc": ""
+    }
+  }
+}

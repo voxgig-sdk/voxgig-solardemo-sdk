@@ -10,16 +10,16 @@ origin: 'voxgig-sdk'
 def: 'solardemo-1.0.0-openapi-3.0.0.yaml'
 
 
-# API Definition
-@"api/api-def.jsonic"
-
-
-# API Entities
-@"api/api-entity-index.jsonic"
+# API Information
+@"api/api-info.jsonic"
 
 
 # SDK Configuration.
 @"config.jsonic"
+
+
+# SDK Entities
+@"entity/entity-index.jsonic"
 
 
 # SDK Features.
