@@ -136,7 +136,7 @@ class PlanetEntity {
                 "kind": "param",
                 "name": "id",
                 "orig": "planet_id",
-                "req": true,
+                "reqd": true,
                 "type": "`$STRING`",
                 "active": true
               }
@@ -428,7 +428,7 @@ class PlanetEntity {
                 "kind": "param",
                 "name": "id",
                 "orig": "planet_id",
-                "req": true,
+                "reqd": true,
                 "type": "`$STRING`",
                 "active": true
               }
@@ -467,7 +467,7 @@ class PlanetEntity {
                 "kind": "param",
                 "name": "id",
                 "orig": "planet_id",
-                "req": true,
+                "reqd": true,
                 "type": "`$STRING`",
                 "active": true
               }
@@ -642,7 +642,7 @@ class PlanetEntity {
                 "kind": "param",
                 "name": "id",
                 "orig": "planet_id",
-                "req": true,
+                "reqd": true,
                 "type": "`$STRING`",
                 "active": true
               }
@@ -763,6 +763,159 @@ class PlanetEntity {
     }
   }
 
+
+
+  async remove(this: any, reqmatch?: any, ctrl?: Control) {
+
+    const utility = this.#utility
+
+    const {
+      makeContext,
+      makeOperation,
+      done,
+      error,
+      featureHook,
+      selection,
+      request,
+      response,
+      result,
+      spec,
+    } = utility
+
+    let fres: Promise<any> | undefined = undefined
+
+    let op: Operation = makeOperation({
+      entity: 'planet',
+      name: 'remove',
+      select: 'match',
+      alts: [
+        {
+          "args": {
+            "param": [
+              {
+                "kind": "param",
+                "name": "id",
+                "orig": "planet_id",
+                "reqd": true,
+                "type": "`$STRING`",
+                "active": true
+              }
+            ]
+          },
+          "method": "DELETE",
+          "orig": "/api/planet/{planet_id}",
+          "parts": [
+            "api",
+            "planet",
+            "{id}"
+          ],
+          "select": {
+            "exist": [
+              "id"
+            ]
+          },
+          "transform": {
+            "req": "`reqdata`",
+            "res": "`body`"
+          },
+          "active": true,
+          "relations": []
+        }
+      ],
+    })
+
+    let ctx: Context = makeContext({
+      current: new WeakMap(),
+      ctrl,
+      op,
+      match: this.#match,
+      data: this.#data,
+      reqmatch
+    }, this._entctx)
+
+    try {
+
+
+      fres = featureHook(ctx, 'PreOperation')
+      if (fres instanceof Promise) { await fres }
+
+      ctx.out.selected = selection(ctx)
+      if (ctx.out.selected instanceof Error) {
+        return error(ctx, ctx.out.selected)
+      }
+
+
+
+      fres = featureHook(ctx, 'PreSpec')
+      if (fres instanceof Promise) { await fres }
+
+      ctx.out.spec = spec(ctx)
+      if (ctx.out.spec instanceof Error) {
+        return error(ctx, ctx.out.spec)
+      }
+
+
+
+      fres = featureHook(ctx, 'PreRequest')
+      if (fres instanceof Promise) { await fres }
+
+      ctx.out.request = await request(ctx)
+      if (ctx.out.request instanceof Error) {
+        return error(ctx, ctx.out.request)
+      }
+
+
+
+      fres = featureHook(ctx, 'PreResponse')
+      if (fres instanceof Promise) { await fres }
+
+      ctx.out.response = await response(ctx)
+      if (ctx.out.response instanceof Error) {
+        return error(ctx, ctx.out.response)
+      }
+
+
+
+      fres = featureHook(ctx, 'PreResult')
+      if (fres instanceof Promise) { await fres }
+
+      ctx.out.result = await result(ctx)
+      if (ctx.out.result instanceof Error) {
+        return error(ctx, ctx.out.result)
+      }
+
+
+
+      fres = featureHook(ctx, 'PreDone')
+      if (fres instanceof Promise) { await fres }
+
+      if (null != ctx.result) {
+        if (null != ctx.result.resmatch) {
+          this.#match = ctx.result.resmatch
+        }
+
+        if (null != ctx.result.resdata) {
+          this.#data = ctx.result.resdata
+        }
+      }
+
+      return done(ctx)
+    }
+    catch (err: any) {
+
+      fres = featureHook(ctx, 'PreSelection')
+      if (fres instanceof Promise) { await fres }
+
+      err = this.#unexpected(ctx, err)
+
+      if (err) {
+        throw err
+      }
+      else {
+        return undefined
+      }
+    }
+  }
 
 
 

@@ -1,0 +1,25 @@
+{
+  "entity": {
+    "MOON01": {
+      "diameter": "s0",
+      "id": "MOON01",
+      "kind": "s2",
+      "name": "s3",
+      "planet_id": "s4"
+    },
+    "MOON02": {
+      "diameter": "s32",
+      "id": "MOON02",
+      "kind": "s34",
+      "name": "s35",
+      "planet_id": "s36"
+    },
+    "MOON03": {
+      "diameter": "s64",
+      "id": "MOON03",
+      "kind": "s66",
+      "name": "s67",
+      "planet_id": "s68"
+    }
+  }
+}

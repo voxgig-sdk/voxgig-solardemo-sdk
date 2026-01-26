@@ -48,7 +48,7 @@ main: kit: entity: moon: {
                 kind: "param"
                 name: "planet_id"
                 orig: "planet_id"
-                req: true
+                reqd: true
                 type: "`$STRING`"
               }
             ]
@@ -83,7 +83,7 @@ main: kit: entity: moon: {
                 kind: "param"
                 name: "planet_id"
                 orig: "planet_id"
-                req: true
+                reqd: true
                 type: "`$STRING`"
               }
             ]
@@ -116,9 +116,16 @@ main: kit: entity: moon: {
             param: [
               {
                 kind: "param"
+                name: "id"
+                orig: "moon_id"
+                reqd: true
+                type: "`$STRING`"
+              }
+              {
+                kind: "param"
                 name: "planet_id"
                 orig: "planet_id"
-                req: true
+                reqd: true
                 type: "`$STRING`"
               }
             ]
@@ -139,6 +146,7 @@ main: kit: entity: moon: {
           }
           select: {
             exist: [
+              "id"
               "planet_id"
             ]
           }
@@ -150,6 +158,50 @@ main: kit: entity: moon: {
       ]
       name: "load"
     }
+    remove: {
+      alts: [
+        {
+          args: {
+            param: [
+              {
+                kind: "param"
+                name: "id"
+                orig: "moon_id"
+                reqd: true
+                type: "`$STRING`"
+              }
+              {
+                kind: "param"
+                name: "planet_id"
+                orig: "planet_id"
+                reqd: true
+                type: "`$STRING`"
+              }
+            ]
+          }
+          method: "DELETE"
+          orig: "/api/planet/{planet_id}/moon/{moon_id}"
+          parts: [
+            "api"
+            "planet"
+            "{planet_id}"
+            "moon"
+            "{id}"
+          ]
+          select: {
+            exist: [
+              "id"
+              "planet_id"
+            ]
+          }
+          transform: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+      name: "remove"
+    }
     update: {
       alts: [
         {
@@ -157,9 +209,16 @@ main: kit: entity: moon: {
             param: [
               {
                 kind: "param"
+                name: "id"
+                orig: "moon_id"
+                reqd: true
+                type: "`$STRING`"
+              }
+              {
+                kind: "param"
                 name: "planet_id"
                 orig: "planet_id"
-                req: true
+                reqd: true
                 type: "`$STRING`"
               }
             ]
@@ -175,6 +234,7 @@ main: kit: entity: moon: {
           ]
           select: {
             exist: [
+              "id"
               "planet_id"
             ]
           }

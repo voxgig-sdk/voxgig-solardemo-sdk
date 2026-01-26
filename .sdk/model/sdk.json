@@ -65,7 +65,7 @@
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -103,7 +103,7 @@
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -139,9 +139,17 @@
                     "param": [
                       {
                         "kind": "param",
+                        "name": "id",
+                        "orig": "moon_id",
+                        "reqd": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      },
+                      {
+                        "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -163,6 +171,7 @@
                   },
                   "select": {
                     "exist": [
+                      "id",
                       "planet_id"
                     ]
                   },
@@ -176,6 +185,54 @@
               ],
               "name": "load"
             },
+            "remove": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "id",
+                        "orig": "moon_id",
+                        "reqd": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      },
+                      {
+                        "kind": "param",
+                        "name": "planet_id",
+                        "orig": "planet_id",
+                        "reqd": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "DELETE",
+                  "orig": "/api/planet/{planet_id}/moon/{moon_id}",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{planet_id}",
+                    "moon",
+                    "{id}"
+                  ],
+                  "select": {
+                    "exist": [
+                      "id",
+                      "planet_id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "remove"
+            },
             "update": {
               "alts": [
                 {
@@ -183,9 +240,17 @@
                     "param": [
                       {
                         "kind": "param",
+                        "name": "id",
+                        "orig": "moon_id",
+                        "reqd": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      },
+                      {
+                        "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -202,6 +267,7 @@
                   ],
                   "select": {
                     "exist": [
+                      "id",
                       "planet_id"
                     ]
                   },
@@ -306,7 +372,7 @@
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -345,7 +411,7 @@
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -430,7 +496,7 @@
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -463,6 +529,43 @@
               ],
               "name": "load"
             },
+            "remove": {
+              "alts": [
+                {
+                  "args": {
+                    "param": [
+                      {
+                        "kind": "param",
+                        "name": "id",
+                        "orig": "planet_id",
+                        "reqd": true,
+                        "type": "`$STRING`",
+                        "active": true
+                      }
+                    ]
+                  },
+                  "method": "DELETE",
+                  "orig": "/api/planet/{planet_id}",
+                  "parts": [
+                    "api",
+                    "planet",
+                    "{id}"
+                  ],
+                  "select": {
+                    "exist": [
+                      "id"
+                    ]
+                  },
+                  "transform": {
+                    "req": "`reqdata`",
+                    "res": "`body`"
+                  },
+                  "active": true,
+                  "relations": []
+                }
+              ],
+              "name": "remove"
+            },
             "update": {
               "alts": [
                 {
@@ -472,7 +575,7 @@
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
-                        "req": true,
+                        "reqd": true,
                         "type": "`$STRING`",
                         "active": true
                       }
@@ -504,181 +607,7 @@
           "active": true
         }
       },
-      "flow": {
-        "BasicMoonFlow": {
-          "name": "BasicMoonFlow",
-          "active": true,
-          "param": {
-            "SOLARDEMO_TEST_MOON_ENTID": {
-              "moon01": "MOON01",
-              "moon02": "MOON02",
-              "moon03": "MOON03"
-            },
-            "SOLARDEMO_TEST_LIVE": "FALSE",
-            "SOLARDEMO_TEST_EXPLAIN": "FALSE"
-          },
-          "test": {
-            "entity": {
-              "moon": {
-                "MOON01": {
-                  "diameter": "s0",
-                  "id": "MOON01",
-                  "kind": "s2",
-                  "name": "s3",
-                  "planet_id": "s4"
-                },
-                "MOON02": {
-                  "diameter": "s32",
-                  "id": "MOON02",
-                  "kind": "s34",
-                  "name": "s35",
-                  "planet_id": "s36"
-                },
-                "MOON03": {
-                  "diameter": "s64",
-                  "id": "MOON03",
-                  "kind": "s66",
-                  "name": "s67",
-                  "planet_id": "s68"
-                }
-              }
-            }
-          },
-          "step": [
-            {
-              "name": "load_moon0",
-              "kind": "entity",
-              "entity": "moon",
-              "action": "load",
-              "match": {
-                "id": "`dm$=p.SOLARDEMO_TEST_MOON_ENTID.moon01`"
-              },
-              "valid": {
-                "`$OPEN`": true,
-                "id": "`dm$=s.load_moon0.match.id`"
-              }
-            },
-            {
-              "name": "update_moon1",
-              "ref": "load_moon0",
-              "action": "update",
-              "reqdata": {},
-              "valid": {
-                "`$OPEN`": true,
-                "id": "`dm$=s.load_moon0.match.id`"
-              }
-            },
-            {
-              "name": "load_moon2",
-              "kind": "entity",
-              "entity": "moon",
-              "action": "load",
-              "match": {
-                "id": "`dm$=p.SOLARDEMO_TEST_MOON_ENTID.moon01`"
-              },
-              "valid": {
-                "`$OPEN`": true,
-                "id": "`dm$=s.load_moon0.match.id`"
-              }
-            }
-          ],
-          "setp": []
-        },
-        "BasicPlanetFlow": {
-          "name": "BasicPlanetFlow",
-          "active": true,
-          "param": {
-            "SOLARDEMO_TEST_PLANET_ENTID": {
-              "planet01": "PLANET01",
-              "planet02": "PLANET02",
-              "planet03": "PLANET03"
-            },
-            "SOLARDEMO_TEST_LIVE": "FALSE",
-            "SOLARDEMO_TEST_EXPLAIN": "FALSE"
-          },
-          "test": {
-            "entity": {
-              "planet": {
-                "PLANET01": {
-                  "diameter": "s0",
-                  "forbid": "s1",
-                  "id": "PLANET01",
-                  "kind": "s3",
-                  "name": "s4",
-                  "ok": "s5",
-                  "start": "s6",
-                  "state": "s7",
-                  "stop": "s8",
-                  "why": "s9"
-                },
-                "PLANET02": {
-                  "diameter": "s64",
-                  "forbid": "s65",
-                  "id": "PLANET02",
-                  "kind": "s67",
-                  "name": "s68",
-                  "ok": "s69",
-                  "start": "s6a",
-                  "state": "s6b",
-                  "stop": "s6c",
-                  "why": "s6d"
-                },
-                "PLANET03": {
-                  "diameter": "sc8",
-                  "forbid": "sc9",
-                  "id": "PLANET03",
-                  "kind": "scb",
-                  "name": "scc",
-                  "ok": "scd",
-                  "start": "sce",
-                  "state": "scf",
-                  "stop": "sd0",
-                  "why": "sd1"
-                }
-              }
-            }
-          },
-          "step": [
-            {
-              "name": "load_planet0",
-              "kind": "entity",
-              "entity": "planet",
-              "action": "load",
-              "match": {
-                "id": "`dm$=p.SOLARDEMO_TEST_PLANET_ENTID.planet01`"
-              },
-              "valid": {
-                "`$OPEN`": true,
-                "id": "`dm$=s.load_planet0.match.id`"
-              }
-            },
-            {
-              "name": "update_planet1",
-              "ref": "load_planet0",
-              "action": "update",
-              "reqdata": {},
-              "valid": {
-                "`$OPEN`": true,
-                "id": "`dm$=s.load_planet0.match.id`"
-              }
-            },
-            {
-              "name": "load_planet2",
-              "kind": "entity",
-              "entity": "planet",
-              "action": "load",
-              "match": {
-                "id": "`dm$=p.SOLARDEMO_TEST_PLANET_ENTID.planet01`"
-              },
-              "valid": {
-                "`$OPEN`": true,
-                "id": "`dm$=s.load_planet0.match.id`"
-              }
-            }
-          ],
-          "setp": []
-        }
-      },
+      "flow": {},
       "target": {
         "ts": {
           "title": "TypeScript",
