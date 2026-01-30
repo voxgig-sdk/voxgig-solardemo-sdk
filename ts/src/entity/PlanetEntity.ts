@@ -526,7 +526,7 @@ class PlanetEntity {
       op,
       match: this.#match,
       data: this.#data,
-      reqdata
+      reqdata: reqdata ?? {}
     }, this._entctx)
 
 

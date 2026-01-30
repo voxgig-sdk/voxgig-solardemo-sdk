@@ -607,7 +607,243 @@
           "active": true
         }
       },
-      "flow": {},
+      "flow": {
+        "BasicMoonFlow": {
+          "entity": "moon",
+          "kind": "basic",
+          "name": "BasicMoonFlow",
+          "step": [
+            {
+              "input": {
+                "ref": "moon_ref01"
+              },
+              "op": "create",
+              "active": true,
+              "match": {},
+              "data": {},
+              "spec": [],
+              "valid": []
+            },
+            {
+              "match": {
+                "planet_id": "planet01"
+              },
+              "op": "list",
+              "valid": [
+                {
+                  "apply": "ItemExists",
+                  "def": {
+                    "ref": "moon_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "data": {},
+              "input": {},
+              "spec": []
+            },
+            {
+              "data": {
+                "id": "moon01",
+                "planet_id": "planet01"
+              },
+              "input": {
+                "ref": "moon_ref01",
+                "srcdatavar": "moon_ref01_data",
+                "suffix": "_up0",
+                "textfield": "kind"
+              },
+              "op": "update",
+              "spec": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-moon_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "match": {},
+              "valid": []
+            },
+            {
+              "input": {
+                "ref": "moon_ref01",
+                "srcdatavar": "moon_ref01_data",
+                "suffix": "_dt0"
+              },
+              "match": {
+                "id": "moon01",
+                "planet_id": "planet01"
+              },
+              "op": "load",
+              "valid": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-moon_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "data": {},
+              "spec": []
+            },
+            {
+              "input": {
+                "ref": "moon_ref01",
+                "suffix": "_rm0"
+              },
+              "match": {
+                "id": "moon01",
+                "planet_id": "planet01"
+              },
+              "op": "remove",
+              "active": true,
+              "data": {},
+              "spec": [],
+              "valid": []
+            },
+            {
+              "input": {
+                "suffix": "_rt0"
+              },
+              "match": {
+                "planet_id": "planet01"
+              },
+              "op": "list",
+              "valid": [
+                {
+                  "apply": "ItemNotExists",
+                  "def": {
+                    "ref": "moon_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "data": {},
+              "spec": []
+            }
+          ],
+          "key$": "BasicMoonFlow",
+          "active": true,
+          "param": {}
+        },
+        "BasicPlanetFlow": {
+          "entity": "planet",
+          "kind": "basic",
+          "name": "BasicPlanetFlow",
+          "step": [
+            {
+              "input": {
+                "ref": "planet_ref01"
+              },
+              "op": "create",
+              "active": true,
+              "match": {},
+              "data": {},
+              "spec": [],
+              "valid": []
+            },
+            {
+              "op": "list",
+              "valid": [
+                {
+                  "apply": "ItemExists",
+                  "def": {
+                    "ref": "planet_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "match": {},
+              "data": {},
+              "input": {},
+              "spec": []
+            },
+            {
+              "data": {
+                "id": "planet01"
+              },
+              "input": {
+                "ref": "planet_ref01",
+                "srcdatavar": "planet_ref01_data",
+                "suffix": "_up0",
+                "textfield": "kind"
+              },
+              "op": "update",
+              "spec": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-planet_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "match": {},
+              "valid": []
+            },
+            {
+              "input": {
+                "ref": "planet_ref01",
+                "srcdatavar": "planet_ref01_data",
+                "suffix": "_dt0"
+              },
+              "match": {
+                "id": "planet01"
+              },
+              "op": "load",
+              "valid": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-planet_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "data": {},
+              "spec": []
+            },
+            {
+              "input": {
+                "ref": "planet_ref01",
+                "suffix": "_rm0"
+              },
+              "match": {
+                "id": "planet01"
+              },
+              "op": "remove",
+              "active": true,
+              "data": {},
+              "spec": [],
+              "valid": []
+            },
+            {
+              "input": {
+                "suffix": "_rt0"
+              },
+              "op": "list",
+              "valid": [
+                {
+                  "apply": "ItemNotExists",
+                  "def": {
+                    "ref": "planet_ref01"
+                  }
+                }
+              ],
+              "active": true,
+              "match": {},
+              "data": {},
+              "spec": []
+            }
+          ],
+          "key$": "BasicPlanetFlow",
+          "active": true,
+          "param": {}
+        }
+      },
       "target": {
         "ts": {
           "title": "TypeScript",

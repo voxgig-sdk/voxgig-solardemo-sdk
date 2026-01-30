@@ -1,40 +1,57 @@
 {
-  "entity": {
-    "PLANET01": {
-      "diameter": "s0",
-      "forbid": "s1",
-      "id": "PLANET01",
-      "kind": "s3",
-      "name": "s4",
-      "ok": "s5",
-      "start": "s6",
-      "state": "s7",
-      "stop": "s8",
-      "why": "s9"
-    },
-    "PLANET02": {
-      "diameter": "s64",
-      "forbid": "s65",
-      "id": "PLANET02",
-      "kind": "s67",
-      "name": "s68",
-      "ok": "s69",
-      "start": "s6a",
-      "state": "s6b",
-      "stop": "s6c",
-      "why": "s6d"
-    },
-    "PLANET03": {
-      "diameter": "sc8",
-      "forbid": "sc9",
-      "id": "PLANET03",
-      "kind": "scb",
-      "name": "scc",
-      "ok": "scd",
-      "start": "sce",
-      "state": "scf",
-      "stop": "sd0",
-      "why": "sd1"
+  "existing": {
+    "planet": {
+      "PLANET01": {
+        "diameter": "s64",
+        "forbid": "s65",
+        "id": "PLANET01",
+        "kind": "s67",
+        "name": "s68",
+        "ok": "s69",
+        "start": "s6a",
+        "state": "s6b",
+        "stop": "s6c",
+        "why": "s6d"
+      },
+      "PLANET02": {
+        "diameter": "sc8",
+        "forbid": "sc9",
+        "id": "PLANET02",
+        "kind": "scb",
+        "name": "scc",
+        "ok": "scd",
+        "start": "sce",
+        "state": "scf",
+        "stop": "sd0",
+        "why": "sd1"
+      },
+      "PLANET03": {
+        "diameter": "s12c",
+        "forbid": "s12d",
+        "id": "PLANET03",
+        "kind": "s12f",
+        "name": "s130",
+        "ok": "s131",
+        "start": "s132",
+        "state": "s133",
+        "stop": "s134",
+        "why": "s135"
+      }
+    }
+  },
+  "new": {
+    "planet": {
+      "planet_ref01": {
+        "diameter": "s190",
+        "forbid": "s191",
+        "kind": "s193",
+        "name": "s194",
+        "ok": "s195",
+        "start": "s196",
+        "state": "s197",
+        "stop": "s198",
+        "why": "s199"
+      }
     }
   }
 }

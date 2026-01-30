@@ -10,7 +10,7 @@ describe('exists', async () => {
 
   test('test-mode', async () => {
     const testsdk = await SolardemoSDK.test()
-    // console.log('testsdk', testsdk)
+    console.log('testsdk', testsdk)
     equal(null !== testsdk, true)
   })
 

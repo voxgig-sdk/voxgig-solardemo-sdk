@@ -1,25 +1,37 @@
 {
-  "entity": {
-    "MOON01": {
-      "diameter": "s0",
-      "id": "MOON01",
-      "kind": "s2",
-      "name": "s3",
-      "planet_id": "s4"
-    },
-    "MOON02": {
-      "diameter": "s32",
-      "id": "MOON02",
-      "kind": "s34",
-      "name": "s35",
-      "planet_id": "s36"
-    },
-    "MOON03": {
-      "diameter": "s64",
-      "id": "MOON03",
-      "kind": "s66",
-      "name": "s67",
-      "planet_id": "s68"
+  "existing": {
+    "moon": {
+      "MOON01": {
+        "diameter": "s32",
+        "id": "MOON01",
+        "kind": "s34",
+        "name": "s35",
+        "planet_id": "s36"
+      },
+      "MOON02": {
+        "diameter": "s64",
+        "id": "MOON02",
+        "kind": "s66",
+        "name": "s67",
+        "planet_id": "s68"
+      },
+      "MOON03": {
+        "diameter": "s96",
+        "id": "MOON03",
+        "kind": "s98",
+        "name": "s99",
+        "planet_id": "s9a"
+      }
+    }
+  },
+  "new": {
+    "moon": {
+      "moon_ref01": {
+        "diameter": "sc8",
+        "kind": "sca",
+        "name": "scb",
+        "planet_id": "scc"
+      }
     }
   }
 }
