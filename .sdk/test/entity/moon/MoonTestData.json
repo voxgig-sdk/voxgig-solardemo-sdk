@@ -1,26 +1,26 @@
 {
   "existing": {
     "moon": {
-      "MOON01": {
+      "MOON00": {
         "diameter": "s32",
-        "id": "MOON01",
+        "id": "MOON00",
         "kind": "s34",
         "name": "s35",
-        "planet_id": "s36"
+        "planet_id": "PLANET01"
       },
-      "MOON02": {
+      "MOON01": {
         "diameter": "s64",
-        "id": "MOON02",
+        "id": "MOON01",
         "kind": "s66",
         "name": "s67",
-        "planet_id": "s68"
+        "planet_id": "PLANET01"
       },
-      "MOON03": {
+      "MOON02": {
         "diameter": "s96",
-        "id": "MOON03",
+        "id": "MOON02",
         "kind": "s98",
         "name": "s99",
-        "planet_id": "s9a"
+        "planet_id": "PLANET01"
       }
     }
   },
@@ -30,7 +30,7 @@
         "diameter": "sc8",
         "kind": "sca",
         "name": "scb",
-        "planet_id": "scc"
+        "planet_id": "PLANET01"
       }
     }
   }

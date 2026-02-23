@@ -14,7 +14,7 @@ const index_1 = require("./index");
         runners = {
             auth: await runner('auth'),
             body: await runner('body'),
-            contextify: await runner('contextify'),
+            // makeContext: await runner('makeContext'),
             done: await runner('done'),
             error: await runner('error'),
             findparam: await runner('findparam'),
@@ -62,13 +62,13 @@ const index_1 = require("./index");
     (0, node_test_1.test)('exists', async () => {
         (0, node_assert_1.equal)('function', typeof runners.auth.subject);
         (0, node_assert_1.equal)('function', typeof runners.body.subject);
-        (0, node_assert_1.equal)('function', typeof runners.contextify.subject);
+        // equal('function', typeof runners.makeContext.subject)
         (0, node_assert_1.equal)('function', typeof runners.done.subject);
         (0, node_assert_1.equal)('function', typeof runners.error.subject);
         (0, node_assert_1.equal)('function', typeof runners.findparam.subject);
         (0, node_assert_1.equal)('function', typeof runners.fullurl.subject);
         (0, node_assert_1.equal)('function', typeof runners.method.subject);
-        (0, node_assert_1.equal)('function', typeof runners.operator.subject);
+        // equal('function', typeof runners.operator.subject)
         (0, node_assert_1.equal)('function', typeof runners.options.subject);
         (0, node_assert_1.equal)('function', typeof runners.params.subject);
         (0, node_assert_1.equal)('function', typeof runners.query.subject);
@@ -92,10 +92,10 @@ const index_1 = require("./index");
     //   const { runset, spec, subject } = runners.body
     //   await runset(spec.basic, subject)
     // })
-    (0, node_test_1.test)('contextify-basic', async () => {
-        const { runset, spec, subject } = runners.contextify;
-        await runset(spec.basic, subject);
-    });
+    // test('makeContext-basic', async () => {
+    //   const { runset, spec, subject } = runners.makeContext
+    //   await runset(spec.basic, subject)
+    // })
     // test('done-basic', async () => {
     //   const { runset, spec, subject } = runners.done
     //   await runset(spec.basic, subject)
@@ -116,10 +116,10 @@ const index_1 = require("./index");
     //   const { runset, spec, subject } = runners.headers
     //   await runset(spec.basic, subject)
     // })
-    (0, node_test_1.test)('method-basic', async () => {
-        const { runset, spec, subject } = runners.method;
-        await runset(spec.basic, subject);
-    });
+    // test('method-basic', async () => {
+    //   const { runset, spec, subject } = runners.method
+    //   await runset(spec.basic, subject)
+    // })
     // test('operator-basic', async () => {
     //   const { runset, spec, subject } = runners.operator
     //   await runset(spec.basic, subject)

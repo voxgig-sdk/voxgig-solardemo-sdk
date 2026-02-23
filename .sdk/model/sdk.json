@@ -88,8 +88,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "create"
@@ -126,8 +125,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "list"
@@ -179,8 +177,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "load"
@@ -227,8 +224,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "remove"
@@ -275,8 +271,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "update"
@@ -401,8 +396,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 },
                 {
                   "args": {
@@ -440,8 +434,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 },
                 {
                   "method": "POST",
@@ -458,7 +451,6 @@
                   "args": {
                     "param": []
                   },
-                  "relations": [],
                   "select": {}
                 }
               ],
@@ -481,7 +473,6 @@
                   "args": {
                     "param": []
                   },
-                  "relations": [],
                   "select": {}
                 }
               ],
@@ -523,8 +514,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "load"
@@ -560,8 +550,7 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "remove"
@@ -597,14 +586,16 @@
                     "req": "`reqdata`",
                     "res": "`body`"
                   },
-                  "active": true,
-                  "relations": []
+                  "active": true
                 }
               ],
               "name": "update"
             }
           },
-          "active": true
+          "active": true,
+          "relations": {
+            "ancestors": []
+          }
         }
       },
       "flow": {
@@ -882,6 +873,11 @@
           "title": "Test",
           "version": "0.0.1",
           "active": true,
+          "config": {
+            "options": {
+              "active": false
+            }
+          },
           "hook": {
             "PostConstruct": {
               "active": true,

@@ -17,7 +17,10 @@ import type {
 } from '../types'
 
 
+// TODO: needs Entity superclass
 class PlanetEntity {
+  name = 'planet'
+
   #client: SolardemoSDK
   #utility: Utility
   #entopts: any
@@ -62,37 +65,40 @@ class PlanetEntity {
 
 
   data(this: any, data?: any) {
+    const struct = this.#utility.struct
     const featureHook = this.#utility.featureHook
 
     if (null != data) {
+      this.#data = struct.clone(data)
       featureHook(this._entctx, 'SetData')
-      this.#data = { ...data }
     }
 
-    let out = { ...this.#data }
-
     featureHook(this._entctx, 'GetData')
+    let out = struct.clone(this.#data)
+
     return out
   }
 
 
   match(match?: any) {
+    const struct = this.#utility.struct
     const featureHook = this.#utility.featureHook
 
     if (null != match) {
+      this.#match = struct.clone(match)
       featureHook(this._entctx, 'SetMatch')
-      this.#match = { ...match }
     }
 
-    let out = { ...this.#match }
-
     featureHook(this._entctx, 'GetMatch')
+    let out = struct.clone(this.#match)
+
     return out
   }
 
 
   toJSON() {
-    return { ...(this.#data || {}), _entity: 'Planet' }
+    const struct = this.#utility.struct
+    return struct.merge([{}, struct.getdef(this.#data, {}), { $entity: 'Planet' }])
   }
 
   toString() {
@@ -111,7 +117,6 @@ class PlanetEntity {
 
     const {
       makeContext,
-      makeOperation,
       done,
       error,
       featureHook,
@@ -124,55 +129,9 @@ class PlanetEntity {
 
     let fres: Promise<any> | undefined = undefined
 
-    const op: Operation = makeOperation({
-      entity: 'planet',
-      name: 'load',
-      select: 'match',
-      alts: [
-        {
-          "args": {
-            "param": [
-              {
-                "kind": "param",
-                "name": "id",
-                "orig": "planet_id",
-                "reqd": true,
-                "type": "`$STRING`",
-                "active": true
-              }
-            ]
-          },
-          "method": "GET",
-          "orig": "/api/planet/{planet_id}",
-          "parts": [
-            "api",
-            "planet",
-            "{id}"
-          ],
-          "rename": {
-            "param": {
-              "planet_id": "id"
-            }
-          },
-          "select": {
-            "exist": [
-              "id"
-            ]
-          },
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "relations": []
-        }
-      ],
-    })
-
     let ctx: Context = makeContext({
-      current: new WeakMap(),
+      opname: 'load',
       ctrl,
-      op,
       match: this.#match,
       data: this.#data,
       reqmatch
@@ -269,7 +228,6 @@ class PlanetEntity {
 
     const {
       makeContext,
-      makeOperation,
       done,
       error,
       featureHook,
@@ -282,41 +240,13 @@ class PlanetEntity {
 
     let fres: Promise<any> | undefined = undefined
 
-    let op: Operation = makeOperation({
-      entity: 'planet',
-      name: 'list',
-      select: 'match',
-      alts: [
-        {
-          "method": "GET",
-          "orig": "/api/planet",
-          "parts": [
-            "api",
-            "planet"
-          ],
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "args": {
-            "param": []
-          },
-          "relations": [],
-          "select": {}
-        }
-      ],
-    })
-
     let ctx: Context = makeContext({
-      current: new WeakMap(),
+      opname: 'list',
       ctrl,
-      op,
       match: this.#match,
       data: this.#data,
       reqmatch
     }, this._entctx)
-
 
     try {
 
@@ -369,6 +299,7 @@ class PlanetEntity {
       }
 
 
+
       fres = featureHook(ctx, 'PreDone')
       if (fres instanceof Promise) { await fres }
 
@@ -403,7 +334,6 @@ class PlanetEntity {
     const utility = this.#utility
     const {
       makeContext,
-      makeOperation,
       done,
       error,
       featureHook,
@@ -416,119 +346,13 @@ class PlanetEntity {
 
     let fres: Promise<any> | undefined = undefined
 
-    let op: Operation = makeOperation({
-      entity: 'planet',
-      name: 'create',
-      select: 'data',
-      alts: [
-        {
-          "args": {
-            "param": [
-              {
-                "kind": "param",
-                "name": "id",
-                "orig": "planet_id",
-                "reqd": true,
-                "type": "`$STRING`",
-                "active": true
-              }
-            ]
-          },
-          "method": "POST",
-          "orig": "/api/planet/{planet_id}/forbid",
-          "parts": [
-            "api",
-            "planet",
-            "{id}",
-            "forbid"
-          ],
-          "rename": {
-            "param": {
-              "planet_id": "id"
-            }
-          },
-          "select": {
-            "$action": "forbid",
-            "exist": [
-              "id"
-            ]
-          },
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "relations": []
-        },
-        {
-          "args": {
-            "param": [
-              {
-                "kind": "param",
-                "name": "id",
-                "orig": "planet_id",
-                "reqd": true,
-                "type": "`$STRING`",
-                "active": true
-              }
-            ]
-          },
-          "method": "POST",
-          "orig": "/api/planet/{planet_id}/terraform",
-          "parts": [
-            "api",
-            "planet",
-            "{id}",
-            "terraform"
-          ],
-          "rename": {
-            "param": {
-              "planet_id": "id"
-            }
-          },
-          "select": {
-            "$action": "terraform",
-            "exist": [
-              "id"
-            ]
-          },
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "relations": []
-        },
-        {
-          "method": "POST",
-          "orig": "/api/planet",
-          "parts": [
-            "api",
-            "planet"
-          ],
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "args": {
-            "param": []
-          },
-          "relations": [],
-          "select": {}
-        }
-      ],
-    })
-
     let ctx: Context = makeContext({
-      current: new WeakMap(),
+      opname: 'create',
       ctrl,
-      op,
       match: this.#match,
       data: this.#data,
-      reqdata: reqdata ?? {}
+      reqdata
     }, this._entctx)
-
 
     try {
 
@@ -617,7 +441,6 @@ class PlanetEntity {
 
     const {
       makeContext,
-      makeOperation,
       done,
       error,
       featureHook,
@@ -630,50 +453,9 @@ class PlanetEntity {
 
     let fres: Promise<any> | undefined = undefined
 
-    let op: Operation = makeOperation({
-      entity: 'planet',
-      name: 'update',
-      select: 'data',
-      alts: [
-        {
-          "args": {
-            "param": [
-              {
-                "kind": "param",
-                "name": "id",
-                "orig": "planet_id",
-                "reqd": true,
-                "type": "`$STRING`",
-                "active": true
-              }
-            ]
-          },
-          "method": "PUT",
-          "orig": "/api/planet/{planet_id}",
-          "parts": [
-            "api",
-            "planet",
-            "{id}"
-          ],
-          "select": {
-            "exist": [
-              "id"
-            ]
-          },
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "relations": []
-        }
-      ],
-    })
-
     let ctx: Context = makeContext({
-      current: new WeakMap(),
+      opname: 'update',
       ctrl,
-      op,
       match: this.#match,
       data: this.#data,
       reqdata
@@ -771,7 +553,6 @@ class PlanetEntity {
 
     const {
       makeContext,
-      makeOperation,
       done,
       error,
       featureHook,
@@ -784,50 +565,9 @@ class PlanetEntity {
 
     let fres: Promise<any> | undefined = undefined
 
-    let op: Operation = makeOperation({
-      entity: 'planet',
-      name: 'remove',
-      select: 'match',
-      alts: [
-        {
-          "args": {
-            "param": [
-              {
-                "kind": "param",
-                "name": "id",
-                "orig": "planet_id",
-                "reqd": true,
-                "type": "`$STRING`",
-                "active": true
-              }
-            ]
-          },
-          "method": "DELETE",
-          "orig": "/api/planet/{planet_id}",
-          "parts": [
-            "api",
-            "planet",
-            "{id}"
-          ],
-          "select": {
-            "exist": [
-              "id"
-            ]
-          },
-          "transform": {
-            "req": "`reqdata`",
-            "res": "`body`"
-          },
-          "active": true,
-          "relations": []
-        }
-      ],
-    })
-
     let ctx: Context = makeContext({
-      current: new WeakMap(),
+      opname: 'remove',
       ctrl,
-      op,
       match: this.#match,
       data: this.#data,
       reqmatch
@@ -919,35 +659,37 @@ class PlanetEntity {
 
 
 
-
-
-
-
   #unexpected(this: any, ctx: Context, err: any) {
+    const clean = this.#utility.clean
+    const struct = this.#utility.struct
+
+    const delprop = struct.delprop
+    const clone = struct.clone
+    const merge = struct.merge
+
     const ctrl = ctx.ctrl
 
     ctrl.err = err
 
     if (ctrl.explain) {
-      const { clean, struct } = this.#utility
-      const { delprop, clone } = struct
-
       ctx.ctrl.explain = clean(ctx, ctx.ctrl.explain)
       delprop(ctx.ctrl.explain.result, 'err')
 
       if (null != ctx.result && null != ctx.result.err) {
-        ctrl.explain.err = clean(ctx, {
-          ...clone({ err: ctx.result.err }).err,
-          message: ctx.result.err.message,
-          stack: ctx.result.err.stack,
-        })
+        ctrl.explain.err = clean(ctx, merge([
+          clone({ err: ctx.result.err }).err,
+          {
+            message: ctx.result.err.message,
+            stack: ctx.result.err.stack,
+          }]))
       }
 
-      const cleanerr = clean(ctx, {
-        ...clone({ err }).err,
-        message: err.message,
-        stack: err.stack,
-      })
+      const cleanerr = clean(ctx, merge([
+        clone({ err }).err,
+        {
+          message: err.message,
+          stack: err.stack,
+        }]))
 
       if (null == ctrl.explain.err) {
         ctrl.explain.err = cleanerr
@@ -965,8 +707,6 @@ class PlanetEntity {
   }
 
 }
-
-
 
 
 export {

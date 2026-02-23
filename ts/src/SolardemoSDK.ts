@@ -1,7 +1,5 @@
 // Solardemo Ts SDK
 
-import { TestFeature } from './feature/test/TestFeature'
-
 import { MoonEntity } from './entity/MoonEntity'
 import { PlanetEntity } from './entity/PlanetEntity'
 
@@ -10,19 +8,20 @@ import { inspect } from 'node:util'
 
 import type { Context, Feature } from './types'
 
-import { Config } from './Config'
+import { config } from './Config'
 import { Utility } from './utility/Utility'
 
 
 import { BaseFeature } from './feature/base/BaseFeature'
 
-const utility = new Utility()
+
+const stdutil = new Utility()
 
 
 class SolardemoSDK {
   _mode: string = 'live'
   _options: any
-  _utility = utility
+  _utility = stdutil
   _features: Feature[]
   _rootctx: Context
 
@@ -31,14 +30,16 @@ class SolardemoSDK {
     this._rootctx = this._utility.makeContext({
       client: this,
       utility: this._utility,
-      config: Config,
+      config,
       options,
       shared: new WeakMap()
     })
 
     this._options = this._utility.options(this._rootctx)
 
-    const getpath = this._utility.struct.getpath
+    const struct = this._utility.struct
+    const getpath = struct.getpath
+    const items = struct.items
 
     if (true === getpath(this._options.feature, 'test.active')) {
       this._mode = 'test'
@@ -51,7 +52,13 @@ class SolardemoSDK {
     const addfeature = this._utility.addfeature
     const initfeature = this._utility.initfeature
 
-    addfeature(this._rootctx, new TestFeature())
+    items(this._options.feature, (fitem: [string, any]) => {
+      const fname = fitem[0]
+      const fopts = fitem[1]
+      if (fopts.active) {
+        addfeature(this._rootctx, this._rootctx.config.makeFeature(fname))
+      }
+    })
 
     if (null != this._options.extend) {
       for (let f of this._options.extend) {
@@ -69,12 +76,12 @@ class SolardemoSDK {
 
 
   options() {
-    return { ...this._options }
+    return this._utility.struct.clone(this._options)
   }
 
 
   utility() {
-    return { ...this._utility }
+    return this._utility.struct.clone(this._utility)
   }
 
 
@@ -93,11 +100,17 @@ class SolardemoSDK {
 
 
 
-  static test(testopts?: any, sdkopts?: any) {
-    sdkopts = sdkopts || {}
-    sdkopts.feature = sdkopts.feature || {}
-    sdkopts.feature.test = testopts || {}
-    sdkopts.feature.test.active = true
+  static test(testoptsarg?: any, sdkoptsarg?: any) {
+    const struct = stdutil.struct
+    const setpath = struct.setpath
+    const getdef = struct.getdef
+    const clone = struct.clone
+    const setprop = struct.setprop
+
+    const sdkopts = getdef(clone(sdkoptsarg), {})
+    const testopts = getdef(clone(testoptsarg), {})
+    setprop(testopts, 'active', true)
+    setpath(sdkopts, 'feature.test', testopts)
 
     const testsdk = new SolardemoSDK(sdkopts)
     testsdk._mode = 'test'
@@ -131,11 +144,11 @@ class SolardemoEntity {
 }
 
 
-
 const SDK = SolardemoSDK
 
+
 export {
-  utility,
+  stdutil,
 
   BaseFeature,
   SolardemoEntity,

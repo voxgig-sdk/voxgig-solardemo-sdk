@@ -1,10 +1,10 @@
 {
   "existing": {
     "planet": {
-      "PLANET01": {
+      "PLANET00": {
         "diameter": "s64",
         "forbid": "s65",
-        "id": "PLANET01",
+        "id": "PLANET00",
         "kind": "s67",
         "name": "s68",
         "ok": "s69",
@@ -13,10 +13,10 @@
         "stop": "s6c",
         "why": "s6d"
       },
-      "PLANET02": {
+      "PLANET01": {
         "diameter": "sc8",
         "forbid": "sc9",
-        "id": "PLANET02",
+        "id": "PLANET01",
         "kind": "scb",
         "name": "scc",
         "ok": "scd",
@@ -25,10 +25,10 @@
         "stop": "sd0",
         "why": "sd1"
       },
-      "PLANET03": {
+      "PLANET02": {
         "diameter": "s12c",
         "forbid": "s12d",
-        "id": "PLANET03",
+        "id": "PLANET02",
         "kind": "s12f",
         "name": "s130",
         "ok": "s131",

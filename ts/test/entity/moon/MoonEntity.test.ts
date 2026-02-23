@@ -9,15 +9,15 @@ import { test, describe } from 'node:test'
 import assert from 'node:assert'
 
 
-import { SolardemoSDK, BaseFeature, utility } from '../../..'
+import { SolardemoSDK, BaseFeature, stdutil } from '../../..'
 
 import {
-  makeStepData,
+  envOverride,
+  makeCtrl,
   makeMatch,
   makeReqdata,
+  makeStepData,
   makeValid,
-  makeCtrl,
-  envOverride,
 } from '../../utility'
 
 
@@ -34,34 +34,40 @@ describe('MoonEntity', async () => {
 
     const setup = basicSetup()
     const client = setup.client
+    const struct = setup.struct
+
+    const isempty = struct.isempty
+    const select = struct.select
 
 
     // CREATE
     const moon_ref01_ent = client.Moon()
-    const moon_ref01_data = 
+    const moon_ref01_data =
       await moon_ref01_ent.create(setup.data.new.moon['moon_ref01'])
     assert(null != moon_ref01_data.id)
-
+  
 
     // LIST
-    const moon_ref01_match = {}
+    const moon_ref01_match: any = {}
+      moon_ref01_match['planet_id'] = setup.idmap['planet_id']
+  
     const moon_ref01_list = await moon_ref01_ent.list(moon_ref01_match)
 
-    assert(null != moon_ref01_list.find((entdata: any) =>
-      entdata.data().id == moon_ref01_data.id))
+    assert(!isempty(select(moon_ref01_list, { id: moon_ref01_data.id })))
 
 
     // UPDATE
     const moon_ref01_data_up0: any = {}
     moon_ref01_data_up0.id = moon_ref01_data.id
+    moon_ref01_data_up0 ['planet_id'] = setup.idmap['planet_id']
 
-    const moon_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-moon_ref01_'+setup.now }
-    moon_ref01_data_up0[moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value
+    const moon_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-moon_ref01_' + setup.now }
+    moon_ref01_data_up0 [moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value
 
     const moon_ref01_resdata_up0 = await moon_ref01_ent.update(moon_ref01_data_up0)
-    assert.equal(moon_ref01_resdata_up0.id, moon_ref01_data_up0.id)
+    assert(moon_ref01_resdata_up0.id === moon_ref01_data_up0.id)
 
-    assert.equal(moon_ref01_resdata_up0[moon_ref01_markdef_up0.name], moon_ref01_markdef_up0.value)
+    assert(moon_ref01_resdata_up0[moon_ref01_markdef_up0.name] === moon_ref01_markdef_up0.value)
 
 
     // LOAD
@@ -69,20 +75,21 @@ describe('MoonEntity', async () => {
     moon_ref01_match_dt0.id = moon_ref01_data.id
     const moon_ref01_data_dt0 = await moon_ref01_ent.load(moon_ref01_match_dt0)
     assert(moon_ref01_data_dt0.id === moon_ref01_data.id)
-    
+
 
     // REMOVE
     const moon_ref01_match_rm0: any = {}
     moon_ref01_match_rm0.id = moon_ref01_data.id
     await moon_ref01_ent.remove(moon_ref01_match_rm0)
-    
+  
 
     // LIST
-    const moon_ref01_match_rt0 = {}
+    const moon_ref01_match_rt0: any = {}
+      moon_ref01_match_rt0['planet_id'] = setup.idmap['planet_id']
+  
     const moon_ref01_list_rt0 = await moon_ref01_ent.list(moon_ref01_match_rt0)
 
-    assert(null == moon_ref01_list_rt0.find((entdata: any) =>
-      entdata.data().id == moon_ref01_data.id))
+    assert(isempty(select(moon_ref01_list_rt0, { id: moon_ref01_data.id })))
 
 
   })
@@ -91,49 +98,65 @@ describe('MoonEntity', async () => {
 
 
 function basicSetup(extra?: any) {
-  extra = extra || {}
-
+  // TODO: fix test def options
   const options: any = {} // null
 
+  // TODO: needs test utility to resolve path
   const entityDataFile =
     Path.resolve(__dirname, 
-      '../../../../.sdk/test/entity/planet/MoonTestData.json')
+      '../../../../.sdk/test/entity/moon/MoonTestData.json')
 
-  const entityDataSource =
-    Fs.readFileSync(entityDataFile).toString('utf8')
+  // TODO: file ready util needed?
+  const entityDataSource = Fs.readFileSync(entityDataFile).toString('utf8')
 
   // TODO: need a xlang JSON parse utility in voxgig/struct with better error msgs
   const entityData = JSON.parse(entityDataSource)
 
   options.entity = entityData.existing
 
-  const setup: any = {
-    dm: {
-      // p: envOverride($ {jsonify(basicflow.param, { offset: 2 + indent })}),
-      p: {},
-      s: {},
-    },
-    options,
+  let client = SolardemoSDK.test(options, extra)
+  const struct = client.utility().struct
+  const merge = struct.merge
+  const transform = struct.transform
+
+  let idmap = transform(
+    ['${entity.name}01','${entity.name}02','${entity.name}03','planet01','planet02','planet03'],
+    {
+      '`$PACK`': ['', {
+        '`$KEY`': '`$COPY`',
+        '`$VAL`': ['`$FORMAT`', 'upper', '`$COPY`']
+      }]
+    })
+
+  const env = envOverride({
+    'SOLARDEMO_TEST_MOON_ENTID': idmap,
+    'SOLARDEMO_TEST_LIVE': 'FALSE',
+    'SOLARDEMO_TEST_EXPLAIN': 'FALSE',
+    'SOLARDEMO_APIKEY': 'NONE',
+  })
+
+  idmap = env['SOLARDEMO_TEST_MOON_ENTID']
+
+  if ('TRUE' === env.SOLARDEMO_TEST_LIVE) {
+    client = new SolardemoSDK(merge([
+      {
+        apikey: env.SOLARDEMO_APIKEY,
+      },
+      extra
+    ]))
   }
 
-  const { merge } = utility.struct
-
-  let client = SolardemoSDK.test(options, extra)
-  // if ('TRUE' === setup.dm.p.SOLARDEMO_TEST_LIVE) {
-  //   client = new SolardemoSDK(merge([
-  //     {
-  //       apikey: process.env.SOLARDEMO_APIKEY,
-  //     },
-  //     extra])
-  //   )
-  // }
-
-  setup.data = entityData  
-  setup.client = client    
-  setup.struct = client.utility().struct
-  setup.explain = 'TRUE' === setup.dm.p.SOLARDEMO_TEST_EXPLAIN
-  setup.now = Date.now()
+  const setup = {
+    idmap,
+    env,
+    options,
+    client,
+    struct,
+    data: entityData,
+    explain: 'TRUE' === env.SOLARDEMO_TEST_EXPLAIN,
+    now: Date.now(),
+  }
 
   return setup
 }
-
+  
