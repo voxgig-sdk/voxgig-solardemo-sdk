@@ -23,9 +23,8 @@ export const planetSchemas = {
   create: {
     body: {
       type: 'object',
-      required: ['id', 'name', 'kind', 'diameter'],
+      required: ['name', 'kind', 'diameter'],
       properties: {
-        id: { type: 'string' },
         name: { type: 'string' },
         kind: { type: 'string' },
         diameter: { type: 'number' },
@@ -47,7 +46,6 @@ export const planetSchemas = {
     },
     body: {
       type: 'object',
-      required: ['id', 'name', 'kind', 'diameter'],
       properties: {
         id: { type: 'string' },
         name: { type: 'string' },

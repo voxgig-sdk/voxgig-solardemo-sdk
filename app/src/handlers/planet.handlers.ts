@@ -1,6 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { Planet, TerraformRequest, ForbidRequest } from '../types.js'
+import type { CreatePlanetInput, UpdatePlanetInput, TerraformRequest, ForbidRequest } from '../types.js'
 import { NotFoundError } from '../utils/errors.js'
+import Nid from 'nid'
+const nid = (Nid as any).default || Nid
 
 export const planetHandlers = {
   async list(request: FastifyRequest, reply: FastifyReply) {
@@ -24,16 +26,16 @@ export const planetHandlers = {
   },
 
   async create(
-    request: FastifyRequest<{ Body: Planet }>,
+    request: FastifyRequest<{ Body: CreatePlanetInput }>,
     reply: FastifyReply
   ) {
     const planetStore = request.server.planetStore
-    const planet = planetStore.create(request.body)
+    const planet = planetStore.create({ ...request.body, id: nid(8) })
     reply.code(201).send(planet)
   },
 
   async update(
-    request: FastifyRequest<{ Params: { planet_id: string }; Body: Planet }>,
+    request: FastifyRequest<{ Params: { planet_id: string }; Body: UpdatePlanetInput }>,
     reply: FastifyReply
   ) {
     const planetStore = request.server.planetStore

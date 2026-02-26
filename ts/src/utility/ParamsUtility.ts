@@ -11,19 +11,21 @@ function params(ctx: Context) {
 
   const { alt } = ctx
 
-  let { params } = alt
+  let { param } = alt.args
   let { reqmatch } = ctx
 
-  params = params || []
+  param = param || []
   reqmatch = reqmatch || {}
 
   let out: any = {}
-  for (let key of params) {
-    let val = findparam(ctx, key)
+  for (let pd of param) {
+    let val = findparam(ctx, pd)
     if (null != val) {
-      out[key] = val
+      out[pd.name] = val
     }
   }
+
+  console.log('PARAMS', alt, param, out)
 
   // out = validate(out, op.validate.params)
 

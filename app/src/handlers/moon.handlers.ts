@@ -1,6 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { Moon } from '../types.js'
+import type { CreateMoonInput, UpdateMoonInput } from '../types.js'
 import { NotFoundError, ValidationError } from '../utils/errors.js'
+import Nid from 'nid'
+const nid = (Nid as any).default || Nid
 
 export const moonHandlers = {
   async list(
@@ -36,7 +38,7 @@ export const moonHandlers = {
   },
 
   async create(
-    request: FastifyRequest<{ Params: { planet_id: string }; Body: Moon }>,
+    request: FastifyRequest<{ Params: { planet_id: string }; Body: CreateMoonInput }>,
     reply: FastifyReply
   ) {
     const planetStore = request.server.planetStore
@@ -53,14 +55,14 @@ export const moonHandlers = {
       )
     }
 
-    const moon = moonStore.create(request.body)
+    const moon = moonStore.create({ ...request.body, id: nid(8) })
     reply.code(201).send(moon)
   },
 
   async update(
     request: FastifyRequest<{
       Params: { planet_id: string; moon_id: string }
-      Body: Moon
+      Body: UpdateMoonInput
     }>,
     reply: FastifyReply
   ) {

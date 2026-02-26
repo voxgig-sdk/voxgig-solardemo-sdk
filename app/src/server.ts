@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Readable } from 'node:stream'
 import { config } from './config.js'
 import { PlanetStore } from './store/PlanetStore.js'
 import { MoonStore } from './store/MoonStore.js'
@@ -52,6 +53,24 @@ export async function build() {
   fastify.decorate('planetStore', planetStore)
   fastify.decorate('moonStore', moonStore)
 
+  fastify.addHook('preParsing', async (request, _reply, payload) => {
+    if (
+      request.method === 'DELETE' &&
+      request.headers['content-type']?.includes('application/json')
+    ) {
+      const chunks: Buffer[] = []
+      for await (const chunk of payload) {
+        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk as Buffer)
+      }
+      const body = Buffer.concat(chunks).toString().trim()
+      if (body === '') {
+        return Readable.from(Buffer.from('{}'))
+      }
+      return Readable.from(Buffer.from(body))
+    }
+    return payload
+  })
+
   await fastify.register(routes)
 
   return fastify
@@ -65,6 +84,7 @@ export async function main() {
       host: config.server.host,
       port: config.server.port,
     })
+    console.log(`Base URL: http://${config.server.host}:${config.server.port}`)
   } catch (err) {
     fastify.log.error(err)
     process.exit(1)

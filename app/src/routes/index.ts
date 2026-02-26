@@ -38,6 +38,15 @@ export default async function routes(fastify: FastifyInstance) {
     },
   })
 
+  fastify.get('/debug', async (request, reply) => {
+    reply.send({
+      data: {
+        planet: fastify.planetStore.getAll(),
+        moon: fastify.moonStore.getAll(),
+      },
+    })
+  })
+
   await fastify.register(planetRoutes)
   await fastify.register(moonRoutes)
 }

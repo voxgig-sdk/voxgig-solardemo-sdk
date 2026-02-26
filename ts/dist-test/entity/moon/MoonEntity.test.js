@@ -117,6 +117,7 @@ function basicSetup(extra) {
         'SOLARDEMO_APIKEY': 'NONE',
     });
     idmap = env['SOLARDEMO_TEST_MOON_ENTID'];
+    console.log('ENV', env);
     if ('TRUE' === env.SOLARDEMO_TEST_LIVE) {
         client = new __1.SolardemoSDK(merge([
             {
@@ -124,6 +125,7 @@ function basicSetup(extra) {
             },
             extra
         ]));
+        console.log('LIVE CLIENT', extra, client.options(), client.utility().fetcher);
     }
     const setup = {
         idmap,

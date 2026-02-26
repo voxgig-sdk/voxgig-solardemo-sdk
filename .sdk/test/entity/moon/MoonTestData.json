@@ -2,21 +2,21 @@
   "existing": {
     "moon": {
       "MOON00": {
-        "diameter": "s32",
+        "diameter": 50,
         "id": "MOON00",
         "kind": "s34",
         "name": "s35",
         "planet_id": "PLANET01"
       },
       "MOON01": {
-        "diameter": "s64",
+        "diameter": 100,
         "id": "MOON01",
         "kind": "s66",
         "name": "s67",
         "planet_id": "PLANET01"
       },
       "MOON02": {
-        "diameter": "s96",
+        "diameter": 150,
         "id": "MOON02",
         "kind": "s98",
         "name": "s99",
@@ -27,7 +27,7 @@
   "new": {
     "moon": {
       "moon_ref01": {
-        "diameter": "sc8",
+        "diameter": 200,
         "kind": "sca",
         "name": "scb",
         "planet_id": "PLANET01"

@@ -2,39 +2,39 @@
   "existing": {
     "planet": {
       "PLANET00": {
-        "diameter": "s64",
-        "forbid": "s65",
+        "diameter": 100,
+        "forbid": false,
         "id": "PLANET00",
         "kind": "s67",
         "name": "s68",
-        "ok": "s69",
-        "start": "s6a",
+        "ok": false,
+        "start": true,
         "state": "s6b",
-        "stop": "s6c",
+        "stop": true,
         "why": "s6d"
       },
       "PLANET01": {
-        "diameter": "sc8",
-        "forbid": "sc9",
+        "diameter": 200,
+        "forbid": false,
         "id": "PLANET01",
         "kind": "scb",
         "name": "scc",
-        "ok": "scd",
-        "start": "sce",
+        "ok": false,
+        "start": true,
         "state": "scf",
-        "stop": "sd0",
+        "stop": true,
         "why": "sd1"
       },
       "PLANET02": {
-        "diameter": "s12c",
-        "forbid": "s12d",
+        "diameter": 300,
+        "forbid": false,
         "id": "PLANET02",
         "kind": "s12f",
         "name": "s130",
-        "ok": "s131",
-        "start": "s132",
+        "ok": false,
+        "start": true,
         "state": "s133",
-        "stop": "s134",
+        "stop": true,
         "why": "s135"
       }
     }
@@ -42,14 +42,14 @@
   "new": {
     "planet": {
       "planet_ref01": {
-        "diameter": "s190",
-        "forbid": "s191",
+        "diameter": 400,
+        "forbid": false,
         "kind": "s193",
         "name": "s194",
-        "ok": "s195",
-        "start": "s196",
+        "ok": false,
+        "start": true,
         "state": "s197",
-        "stop": "s198",
+        "stop": true,
         "why": "s199"
       }
     }

@@ -28,6 +28,8 @@ function fullurl(ctx: Context): Error | string {
 
   const params = spec.params
 
+  console.log('FULLURL-A', url, params)
+
   for (let key in params) {
     const val = params[key]
     if (null != val) {
@@ -36,6 +38,7 @@ function fullurl(ctx: Context): Error | string {
     }
   }
 
+  /*
   let qsep = '?'
   for (let key in spec.query) {
     if (null == spec.alias[key]) {
@@ -47,8 +50,11 @@ function fullurl(ctx: Context): Error | string {
       }
     }
   }
+  */
 
   result.resmatch = resmatch
+
+  console.log('FULLURL-B', url, params)
 
   return url
 }

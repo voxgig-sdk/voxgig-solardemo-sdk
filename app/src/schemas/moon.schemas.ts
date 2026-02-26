@@ -39,9 +39,8 @@ export const moonSchemas = {
     },
     body: {
       type: 'object',
-      required: ['id', 'name', 'planet_id', 'kind', 'diameter'],
+      required: ['name', 'planet_id', 'kind', 'diameter'],
       properties: {
-        id: { type: 'string' },
         name: { type: 'string' },
         planet_id: { type: 'string' },
         kind: { type: 'string' },
@@ -66,7 +65,6 @@ export const moonSchemas = {
     },
     body: {
       type: 'object',
-      required: ['id', 'name', 'planet_id', 'kind', 'diameter'],
       properties: {
         id: { type: 'string' },
         name: { type: 'string' },

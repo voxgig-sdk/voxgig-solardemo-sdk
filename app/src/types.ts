@@ -39,9 +39,9 @@ export interface ForbidResponse {
   state: string
 }
 
-export type CreatePlanetInput = Planet
+export type CreatePlanetInput = Omit<Planet, 'id'>
 export type UpdatePlanetInput = Partial<Planet>
-export type CreateMoonInput = Moon
+export type CreateMoonInput = Omit<Moon, 'id'>
 export type UpdateMoonInput = Partial<Moon>
 
 declare module 'fastify' {

@@ -38,6 +38,8 @@ function spec(ctx: Context): Spec | Error {
       '" not allowed by SDK option allow.method value: "' + options.allow.method + '"')
   }
 
+  console.log('SPEC', op, alt, ctx.reqdata)
+
 
   ctx.spec.params = params(ctx)
   ctx.spec.query = query(ctx)

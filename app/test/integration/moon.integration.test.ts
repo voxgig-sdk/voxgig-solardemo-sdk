@@ -62,7 +62,6 @@ describe('Moon API Integration', () => {
       method: 'POST',
       url: '/api/planet/earth/moon',
       payload: {
-        id: 'test-moon',
         name: 'Test Moon',
         planet_id: 'earth',
         kind: 'rock',
@@ -70,10 +69,12 @@ describe('Moon API Integration', () => {
       },
     })
     strictEqual(createRes.statusCode, 201)
+    const created = JSON.parse(createRes.payload)
+    const moonId = created.id
 
     const getRes = await app.inject({
       method: 'GET',
-      url: '/api/planet/earth/moon/test-moon',
+      url: `/api/planet/earth/moon/${moonId}`,
     })
     strictEqual(getRes.statusCode, 200)
     const moon = JSON.parse(getRes.payload)
@@ -81,9 +82,8 @@ describe('Moon API Integration', () => {
 
     const updateRes = await app.inject({
       method: 'PUT',
-      url: '/api/planet/earth/moon/test-moon',
+      url: `/api/planet/earth/moon/${moonId}`,
       payload: {
-        id: 'test-moon',
         name: 'Updated Moon',
         planet_id: 'earth',
         kind: 'rock',
@@ -96,13 +96,13 @@ describe('Moon API Integration', () => {
 
     const deleteRes = await app.inject({
       method: 'DELETE',
-      url: '/api/planet/earth/moon/test-moon',
+      url: `/api/planet/earth/moon/${moonId}`,
     })
     strictEqual(deleteRes.statusCode, 204)
 
     const notFoundRes = await app.inject({
       method: 'GET',
-      url: '/api/planet/earth/moon/test-moon',
+      url: `/api/planet/earth/moon/${moonId}`,
     })
     strictEqual(notFoundRes.statusCode, 404)
   })
@@ -112,7 +112,6 @@ describe('Moon API Integration', () => {
       method: 'POST',
       url: '/api/planet/non-existent/moon',
       payload: {
-        id: 'test-moon',
         name: 'Test Moon',
         planet_id: 'non-existent',
         kind: 'rock',
@@ -128,7 +127,6 @@ describe('Moon API Integration', () => {
       method: 'POST',
       url: '/api/planet/earth/moon',
       payload: {
-        id: 'test-moon-mismatch',
         name: 'Test Moon',
         planet_id: 'mars',
         kind: 'rock',

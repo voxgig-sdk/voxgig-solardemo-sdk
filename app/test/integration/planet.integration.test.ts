@@ -1,5 +1,5 @@
 import { describe, test, before, after } from 'node:test'
-import { strictEqual } from 'node:assert'
+import { strictEqual, ok } from 'node:assert'
 import { build } from '../../src/server.js'
 import type { FastifyInstance } from 'fastify'
 
@@ -51,17 +51,18 @@ describe('Planet API Integration', () => {
       method: 'POST',
       url: '/api/planet',
       payload: {
-        id: 'test-planet',
         name: 'Test Planet',
         kind: 'rock',
         diameter: 5000,
       },
     })
     strictEqual(createRes.statusCode, 201)
+    const created = JSON.parse(createRes.payload)
+    const planetId = created.id
 
     const getRes = await app.inject({
       method: 'GET',
-      url: '/api/planet/test-planet',
+      url: `/api/planet/${planetId}`,
     })
     strictEqual(getRes.statusCode, 200)
     const planet = JSON.parse(getRes.payload)
@@ -69,9 +70,8 @@ describe('Planet API Integration', () => {
 
     const updateRes = await app.inject({
       method: 'PUT',
-      url: '/api/planet/test-planet',
+      url: `/api/planet/${planetId}`,
       payload: {
-        id: 'test-planet',
         name: 'Updated Planet',
         kind: 'rock',
         diameter: 5000,
@@ -83,13 +83,13 @@ describe('Planet API Integration', () => {
 
     const deleteRes = await app.inject({
       method: 'DELETE',
-      url: '/api/planet/test-planet',
+      url: `/api/planet/${planetId}`,
     })
     strictEqual(deleteRes.statusCode, 204)
 
     const notFoundRes = await app.inject({
       method: 'GET',
-      url: '/api/planet/test-planet',
+      url: `/api/planet/${planetId}`,
     })
     strictEqual(notFoundRes.statusCode, 404)
   })
@@ -144,6 +144,36 @@ describe('Planet API Integration', () => {
     const body = JSON.parse(res.payload)
     strictEqual(body.ok, true)
     strictEqual(body.state, 'allowed')
+  })
+
+  test('POST /api/planet creates a planet visible in /debug', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/planet',
+      payload: {
+        name: 'Debug Test Planet',
+        kind: 'gas',
+        diameter: 9999,
+      },
+    })
+    strictEqual(createRes.statusCode, 201)
+    const created = JSON.parse(createRes.payload)
+    const planetId = created.id
+
+    const debugRes = await app.inject({
+      method: 'GET',
+      url: '/debug',
+    })
+    strictEqual(debugRes.statusCode, 200)
+    const debug = JSON.parse(debugRes.payload)
+    const debugPlanet = debug.data.planet.find((p: any) => p.id === planetId)
+    ok(debugPlanet, 'New planet should appear in debug output')
+    strictEqual(debugPlanet.name, 'Debug Test Planet')
+    strictEqual(debugPlanet.kind, 'gas')
+    strictEqual(debugPlanet.diameter, 9999)
+
+    // Clean up
+    await app.inject({ method: 'DELETE', url: `/api/planet/${planetId}` })
   })
 
   test('terraform on non-existent planet returns 404', async () => {
