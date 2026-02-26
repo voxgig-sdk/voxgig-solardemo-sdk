@@ -42,14 +42,18 @@ describe('MoonEntity', async () => {
 
     // CREATE
     const moon_ref01_ent = client.Moon()
-    const moon_ref01_data =
-      await moon_ref01_ent.create(setup.data.new.moon['moon_ref01'])
+    let moon_ref01_data = setup.data.new.moon['moon_ref01']
+    moon_ref01_data['planet_id'] = setup.idmap['planet01']
+    console.log('moon_ref01_data', moon_ref01_data)
+    moon_ref01_data =
+      await moon_ref01_ent.create(moon_ref01_data)
+    console.log('moon_ref01_data-OUT', moon_ref01_data)
     assert(null != moon_ref01_data.id)
 
 
     // LIST
     const moon_ref01_match: any = {}
-    moon_ref01_match['planet_id'] = setup.idmap['planet_id']
+    moon_ref01_match['planet_id'] = setup.idmap['planet01']
 
     const moon_ref01_list = await moon_ref01_ent.list(moon_ref01_match)
 
@@ -59,7 +63,7 @@ describe('MoonEntity', async () => {
     // UPDATE
     const moon_ref01_data_up0: any = {}
     moon_ref01_data_up0.id = moon_ref01_data.id
-    moon_ref01_data_up0['planet_id'] = setup.idmap['planet_id']
+    moon_ref01_data_up0['planet_id'] = setup.idmap['planet01']
 
     const moon_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-moon_ref01_' + setup.now }
     moon_ref01_data_up0[moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value
@@ -160,6 +164,8 @@ function basicSetup(extra?: any) {
     explain: 'TRUE' === env.SOLARDEMO_TEST_EXPLAIN,
     now: Date.now(),
   }
+
+  console.log('SETUP IDMAP', setup.idmap)
 
   return setup
 }

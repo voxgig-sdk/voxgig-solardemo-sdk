@@ -58,17 +58,22 @@ const utility_1 = require("../../utility");
         const select = struct.select;
         // CREATE
         const moon_ref01_ent = client.Moon();
-        const moon_ref01_data = await moon_ref01_ent.create(setup.data.new.moon['moon_ref01']);
+        let moon_ref01_data = setup.data.new.moon['moon_ref01'];
+        moon_ref01_data['planet_id'] = setup.idmap['planet01'];
+        console.log('moon_ref01_data', moon_ref01_data);
+        moon_ref01_data =
+            await moon_ref01_ent.create(moon_ref01_data);
+        console.log('moon_ref01_data-OUT', moon_ref01_data);
         (0, node_assert_1.default)(null != moon_ref01_data.id);
         // LIST
         const moon_ref01_match = {};
-        moon_ref01_match['planet_id'] = setup.idmap['planet_id'];
+        moon_ref01_match['planet_id'] = setup.idmap['planet01'];
         const moon_ref01_list = await moon_ref01_ent.list(moon_ref01_match);
         (0, node_assert_1.default)(!isempty(select(moon_ref01_list, { id: moon_ref01_data.id })));
         // UPDATE
         const moon_ref01_data_up0 = {};
         moon_ref01_data_up0.id = moon_ref01_data.id;
-        moon_ref01_data_up0['planet_id'] = setup.idmap['planet_id'];
+        moon_ref01_data_up0['planet_id'] = setup.idmap['planet01'];
         const moon_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-moon_ref01_' + setup.now };
         moon_ref01_data_up0[moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value;
         const moon_ref01_resdata_up0 = await moon_ref01_ent.update(moon_ref01_data_up0);
@@ -137,6 +142,7 @@ function basicSetup(extra) {
         explain: 'TRUE' === env.SOLARDEMO_TEST_EXPLAIN,
         now: Date.now(),
     };
+    console.log('SETUP IDMAP', setup.idmap);
     return setup;
 }
 //# sourceMappingURL=MoonEntity.test.js.map
