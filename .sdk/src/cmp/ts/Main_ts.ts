@@ -30,8 +30,6 @@ const Main = cmp(async function Main(props: any) {
   const { target } = props
   const { model } = props.ctx$
 
-  // console.log('MODEL-main_ts', model)
-
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
   const feature = getModelPath(model, `main.${KIT}.feature`)
 
@@ -44,10 +42,6 @@ const Main = cmp(async function Main(props: any) {
     File({ name: model.const.Name + 'SDK.' + target.name }, () => {
 
       Line(`// ${model.const.Name} ${target.Name} SDK\n`)
-
-      // List({ item: feature }, ({ item }: any) =>
-      //   Line(`import { ${item.Name + 'Feature'} } ` +
-      //     `from './feature/${item.name}/${item.Name}Feature'`))
 
       List({ item: entity }, ({ item }: any) =>
         Line(`import { ${item.Name}Entity } from './entity/${item.Name}Entity'`))

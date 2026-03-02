@@ -56,25 +56,19 @@ const utility_1 = require("../../utility");
         const struct = setup.struct;
         const isempty = struct.isempty;
         const select = struct.select;
-        console.log('SETUP');
-        console.dir(setup.data, { depth: null });
         // CREATE
-        const d01 = setup.data.new.planet['planet_ref01'];
-        console.log('d01', d01);
         const planet_ref01_ent = client.Planet();
-        const planet_ref01_data = await planet_ref01_ent.create(d01);
+        const planet_ref01_data = await planet_ref01_ent.create(setup.data.new.planet['planet_ref01']);
         (0, node_assert_1.default)(null != planet_ref01_data.id);
         // LIST
         const planet_ref01_match = {};
         const planet_ref01_list = await planet_ref01_ent.list(planet_ref01_match);
-        console.log('l01', planet_ref01_list);
         (0, node_assert_1.default)(!isempty(select(planet_ref01_list, { id: planet_ref01_data.id })));
         // UPDATE
         const planet_ref01_data_up0 = {};
         planet_ref01_data_up0.id = planet_ref01_data.id;
         const planet_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-planet_ref01_' + setup.now };
         planet_ref01_data_up0[planet_ref01_markdef_up0.name] = planet_ref01_markdef_up0.value;
-        console.log('UP-A', planet_ref01_data_up0);
         const planet_ref01_resdata_up0 = await planet_ref01_ent.update(planet_ref01_data_up0);
         (0, node_assert_1.default)(planet_ref01_resdata_up0.id === planet_ref01_data_up0.id);
         (0, node_assert_1.default)(planet_ref01_resdata_up0[planet_ref01_markdef_up0.name] === planet_ref01_markdef_up0.value);

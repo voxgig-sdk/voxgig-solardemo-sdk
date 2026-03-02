@@ -39,16 +39,11 @@ describe('PlanetEntity', async () => {
     const isempty = struct.isempty
     const select = struct.select
 
-    console.log('SETUP')
-    console.dir(setup.data, { depth: null })
 
     // CREATE
-    const d01 = setup.data.new.planet['planet_ref01']
-    console.log('d01', d01)
-
     const planet_ref01_ent = client.Planet()
     const planet_ref01_data =
-      await planet_ref01_ent.create(d01)
+      await planet_ref01_ent.create(setup.data.new.planet['planet_ref01'])
     assert(null != planet_ref01_data.id)
 
 
@@ -56,7 +51,6 @@ describe('PlanetEntity', async () => {
     const planet_ref01_match: any = {}
 
     const planet_ref01_list = await planet_ref01_ent.list(planet_ref01_match)
-    console.log('l01', planet_ref01_list)
 
     assert(!isempty(select(planet_ref01_list, { id: planet_ref01_data.id })))
 
@@ -68,7 +62,6 @@ describe('PlanetEntity', async () => {
     const planet_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-planet_ref01_' + setup.now }
     planet_ref01_data_up0[planet_ref01_markdef_up0.name] = planet_ref01_markdef_up0.value
 
-    console.log('UP-A', planet_ref01_data_up0)
     const planet_ref01_resdata_up0 = await planet_ref01_ent.update(planet_ref01_data_up0)
     assert(planet_ref01_resdata_up0.id === planet_ref01_data_up0.id)
 
@@ -80,6 +73,7 @@ describe('PlanetEntity', async () => {
     planet_ref01_match_dt0.id = planet_ref01_data.id
     const planet_ref01_data_dt0 = await planet_ref01_ent.load(planet_ref01_match_dt0)
     assert(planet_ref01_data_dt0.id === planet_ref01_data.id)
+
 
     // REMOVE
     const planet_ref01_match_rm0: any = {}
@@ -93,6 +87,7 @@ describe('PlanetEntity', async () => {
     const planet_ref01_list_rt0 = await planet_ref01_ent.list(planet_ref01_match_rt0)
 
     assert(isempty(select(planet_ref01_list_rt0, { id: planet_ref01_data.id })))
+
 
   })
 })

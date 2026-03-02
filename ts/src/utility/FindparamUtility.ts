@@ -14,8 +14,9 @@ import { setprop, getprop } from './StructUtility'
 function findparam(ctx: Context, param: any) {
   let { alt, spec, match, reqmatch, data, reqdata } = ctx
 
-  const key = param.name
+  // TODO: review this search algorithm
 
+  const key = param.name
 
   let akey = getprop(alt.alias, key)
 
@@ -49,8 +50,6 @@ function findparam(ctx: Context, param: any) {
       val = getprop(data, akey)
     }
   }
-
-  console.log('FP', key, val)
 
   return val
 }

@@ -135,9 +135,6 @@ class TestFeature extends BaseFeature {
       else if ('create' === op.name) {
         const args = self.buildArgs(ctx, op, ctx.reqdata)
         let id = findparam(ctx, 'id')
-
-        console.log('TEST CREATE', ctx)
-
         if (null == id) {
           id = ((1e4 * Math.random() | 0).toString(16) +
             (1e4 * Math.random() | 0).toString(16) +
@@ -150,9 +147,6 @@ class TestFeature extends BaseFeature {
         setprop(entmap, id, ent)
         delprop(ent, '$KEY')
         const out = clone(ent)
-
-        console.log('TEST CREATE OUT', out)
-
         return respond(200, out)
       }
     }

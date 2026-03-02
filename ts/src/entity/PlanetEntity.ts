@@ -354,8 +354,6 @@ class PlanetEntity {
       reqdata
     }, this._entctx)
 
-    console.log('CREATE-A', ctx.data, reqdata)
-
     try {
 
       fres = featureHook(ctx, 'PreSelection')
@@ -483,7 +481,6 @@ class PlanetEntity {
       if (ctx.out.spec instanceof Error) {
         return error(ctx, ctx.out.spec)
       }
-
 
 
       fres = featureHook(ctx, 'PreRequest')

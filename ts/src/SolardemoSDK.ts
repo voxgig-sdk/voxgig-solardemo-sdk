@@ -88,13 +88,13 @@ class SolardemoSDK {
 
   Moon(data?: any) {
     const self = this
-    return new MoonEntity(self,data)
+    return new MoonEntity(self, data)
   }
 
 
   Planet(data?: any) {
     const self = this
-    return new PlanetEntity(self,data)
+    return new PlanetEntity(self, data)
   }
 
 

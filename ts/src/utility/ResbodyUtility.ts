@@ -7,7 +7,6 @@ async function resbody(ctx: Context) {
 
   if (result) {
     if (response && response.json && null != response.body) {
-      console.log(response)
       const json = await response.json()
       result.body = json
     }

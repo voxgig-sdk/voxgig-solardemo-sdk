@@ -58,6 +58,7 @@ class TestFeature extends BaseFeature {
             status,
             statusText: 'OK',
             json: async () => data,
+            body: 'not-used',
           },
           getdef(res, {})
         ])

@@ -6,13 +6,13 @@ function params(ctx: Context) {
   const utility = ctx.utility
   const findparam = utility.findparam
 
-  const struct = utility.struct
+  // const struct = utility.struct
   // const { validate } = struct
 
-  const { alt } = ctx
+  const alt = ctx.alt
 
-  let { param } = alt.args
-  let { reqmatch } = ctx
+  let param = alt.args.param
+  let reqmatch = ctx.reqmatch
 
   param = param || []
   reqmatch = reqmatch || {}
@@ -25,8 +25,7 @@ function params(ctx: Context) {
     }
   }
 
-  console.log('PARAMS', alt, param, out)
-
+  // TODO: review
   // out = validate(out, op.validate.params)
 
   return out

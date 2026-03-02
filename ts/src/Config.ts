@@ -20,6 +20,11 @@ class Config {
   }
 
 
+  main = {
+    name: 'ProjectName',
+  }
+
+
   feature = {
      test:     {
       "options": {

@@ -64,10 +64,11 @@ const Root = cmp(function Root(props: any) {
   })
 
   names(model, model.name)
+  // console.log('MODEL name', model.name, model.Name)
 
   // Standard Replacements
   ctx$.stdrep = {}
-  names(ctx$.stdrep, model.Name, 'ProjectName')
+  names(ctx$.stdrep, model.Name, 'Project' + 'Name')
   // console.log('STDREP', stdrep)
 
   Project({}, () => {
