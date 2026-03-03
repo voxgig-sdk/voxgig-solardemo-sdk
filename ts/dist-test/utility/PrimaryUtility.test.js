@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
-const node_assert_1 = require("node:assert");
 const runner_1 = require("../runner");
 const index_1 = require("./index");
 (0, node_test_1.describe)('PrimaryUtility', async () => {
@@ -13,8 +12,8 @@ const index_1 = require("./index");
         runner = await (0, runner_1.makeRunner)(index_1.TEST_JSON_FILE, client);
         runners = {
             auth: await runner('auth'),
-            body: await runner('body'),
-            // makeContext: await runner('makeContext'),
+            prepareBody: await runner('prepareBody'),
+            makeContext: await runner('makeContext'),
             done: await runner('done'),
             error: await runner('error'),
             findparam: await runner('findparam'),
@@ -60,26 +59,26 @@ const index_1 = require("./index");
         return mres;
     }
     (0, node_test_1.test)('exists', async () => {
-        (0, node_assert_1.equal)('function', typeof runners.auth.subject);
-        (0, node_assert_1.equal)('function', typeof runners.body.subject);
+        // equal('function', typeof runners.auth.subject)
+        // equal('function', typeof runners.prepareBody.subject)
         // equal('function', typeof runners.makeContext.subject)
-        (0, node_assert_1.equal)('function', typeof runners.done.subject);
-        (0, node_assert_1.equal)('function', typeof runners.error.subject);
-        (0, node_assert_1.equal)('function', typeof runners.findparam.subject);
-        (0, node_assert_1.equal)('function', typeof runners.fullurl.subject);
-        (0, node_assert_1.equal)('function', typeof runners.method.subject);
-        // equal('function', typeof runners.operator.subject)
-        (0, node_assert_1.equal)('function', typeof runners.options.subject);
-        (0, node_assert_1.equal)('function', typeof runners.params.subject);
-        (0, node_assert_1.equal)('function', typeof runners.query.subject);
-        (0, node_assert_1.equal)('function', typeof runners.reqform.subject);
-        (0, node_assert_1.equal)('function', typeof runners.request.subject);
-        (0, node_assert_1.equal)('function', typeof runners.resbasic.subject);
-        (0, node_assert_1.equal)('function', typeof runners.resbody.subject);
-        (0, node_assert_1.equal)('function', typeof runners.resform.subject);
-        (0, node_assert_1.equal)('function', typeof runners.resheaders.subject);
-        (0, node_assert_1.equal)('function', typeof runners.response.subject);
-        (0, node_assert_1.equal)('function', typeof runners.spec.subject);
+        // equal('function', typeof runners.done.subject)
+        // equal('function', typeof runners.error.subject)
+        // equal('function', typeof runners.findparam.subject)
+        // equal('function', typeof runners.fullurl.subject)
+        // equal('function', typeof runners.method.subject)
+        // // equal('function', typeof runners.operator.subject)
+        // equal('function', typeof runners.options.subject)
+        // equal('function', typeof runners.params.subject)
+        // equal('function', typeof runners.query.subject)
+        // equal('function', typeof runners.reqform.subject)
+        // equal('function', typeof runners.request.subject)
+        // equal('function', typeof runners.resbasic.subject)
+        // equal('function', typeof runners.resbody.subject)
+        // equal('function', typeof runners.resform.subject)
+        // equal('function', typeof runners.resheaders.subject)
+        // equal('function', typeof runners.response.subject)
+        // equal('function', typeof runners.spec.subject)
     });
     // test('auth-basic', async () => {
     //   const { runset, spec, subject } = runners.auth

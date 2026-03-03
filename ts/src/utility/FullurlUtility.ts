@@ -53,7 +53,6 @@ function fullurl(ctx: Context): Error | string {
 
   result.resmatch = resmatch
 
-
   return url
 }
 

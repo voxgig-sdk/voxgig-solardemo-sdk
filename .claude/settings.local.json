@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(npm test)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(npm run validate:*)",
+      "Bash(npm run validate:full:*)",
+      "Bash(timeout 5 npm run server:*)"
+    ]
+  }
+}

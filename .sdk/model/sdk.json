@@ -849,17 +849,17 @@
           "deps": {
             "dotenv": {
               "active": true,
-              "version": "^16.4.5",
+              "version": "^17.3.1",
               "kind": "dev"
             },
             "typescript": {
               "active": true,
-              "version": "^5.8.3",
+              "version": "^5.9.3",
               "kind": "dev"
             },
             "@types/node": {
               "active": true,
-              "version": "^22.15.3",
+              "version": "^25.3.3",
               "kind": "dev"
             }
           },
