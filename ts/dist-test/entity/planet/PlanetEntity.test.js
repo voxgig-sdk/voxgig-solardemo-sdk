@@ -58,7 +58,8 @@ const utility_1 = require("../../utility");
         const select = struct.select;
         // CREATE
         const planet_ref01_ent = client.Planet();
-        const planet_ref01_data = await planet_ref01_ent.create(setup.data.new.planet['planet_ref01']);
+        let planet_ref01_data = setup.data.new.planet['planet_ref01'];
+        planet_ref01_data = await planet_ref01_ent.create(planet_ref01_data);
         (0, node_assert_1.default)(null != planet_ref01_data.id);
         // LIST
         const planet_ref01_match = {};

@@ -42,8 +42,9 @@ describe('PlanetEntity', async () => {
 
     // CREATE
     const planet_ref01_ent = client.Planet()
-    const planet_ref01_data =
-      await planet_ref01_ent.create(setup.data.new.planet['planet_ref01'])
+    let planet_ref01_data = setup.data.new.planet['planet_ref01']
+
+    planet_ref01_data = await planet_ref01_ent.create(planet_ref01_data)
     assert(null != planet_ref01_data.id)
 
 
@@ -60,7 +61,7 @@ describe('PlanetEntity', async () => {
     planet_ref01_data_up0.id = planet_ref01_data.id
 
     const planet_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-planet_ref01_' + setup.now }
-    planet_ref01_data_up0[planet_ref01_markdef_up0.name] = planet_ref01_markdef_up0.value
+    planet_ref01_data_up0 [planet_ref01_markdef_up0.name] = planet_ref01_markdef_up0.value
 
     const planet_ref01_resdata_up0 = await planet_ref01_ent.update(planet_ref01_data_up0)
     assert(planet_ref01_resdata_up0.id === planet_ref01_data_up0.id)
@@ -79,7 +80,7 @@ describe('PlanetEntity', async () => {
     const planet_ref01_match_rm0: any = {}
     planet_ref01_match_rm0.id = planet_ref01_data.id
     await planet_ref01_ent.remove(planet_ref01_match_rm0)
-
+  
 
     // LIST
     const planet_ref01_match_rt0: any = {}
@@ -100,7 +101,7 @@ function basicSetup(extra?: any) {
 
   // TODO: needs test utility to resolve path
   const entityDataFile =
-    Path.resolve(__dirname,
+    Path.resolve(__dirname, 
       '../../../../.sdk/test/entity/planet/PlanetTestData.json')
 
   // TODO: file ready util needed?
@@ -117,7 +118,7 @@ function basicSetup(extra?: any) {
   const transform = struct.transform
 
   let idmap = transform(
-    ['${entity.name}01', '${entity.name}02', '${entity.name}03'],
+    ['${entity.name}01','${entity.name}02','${entity.name}03'],
     {
       '`$PACK`': ['', {
         '`$KEY`': '`$COPY`',
@@ -156,4 +157,4 @@ function basicSetup(extra?: any) {
 
   return setup
 }
-
+  

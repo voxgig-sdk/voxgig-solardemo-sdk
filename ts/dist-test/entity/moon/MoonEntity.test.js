@@ -58,11 +58,13 @@ const utility_1 = require("../../utility");
         const select = struct.select;
         // CREATE
         const moon_ref01_ent = client.Moon();
-        const moon_ref01_data = await moon_ref01_ent.create(setup.data.new.moon['moon_ref01']);
+        let moon_ref01_data = setup.data.new.moon['moon_ref01'];
+        moon_ref01_data['planet_id'] = setup.idmap['planet01'];
+        moon_ref01_data = await moon_ref01_ent.create(moon_ref01_data);
         (0, node_assert_1.default)(null != moon_ref01_data.id);
         // LIST
         const moon_ref01_match = {};
-        moon_ref01_match['planet_id'] = setup.idmap['planet_id'];
+        moon_ref01_match['planet_id'] = setup.idmap['planet01'];
         const moon_ref01_list = await moon_ref01_ent.list(moon_ref01_match);
         (0, node_assert_1.default)(!isempty(select(moon_ref01_list, { id: moon_ref01_data.id })));
         // UPDATE
@@ -85,7 +87,7 @@ const utility_1 = require("../../utility");
         await moon_ref01_ent.remove(moon_ref01_match_rm0);
         // LIST
         const moon_ref01_match_rt0 = {};
-        moon_ref01_match_rt0['planet_id'] = setup.idmap['planet_id'];
+        moon_ref01_match_rt0['planet_id'] = setup.idmap['planet01'];
         const moon_ref01_list_rt0 = await moon_ref01_ent.list(moon_ref01_match_rt0);
         (0, node_assert_1.default)(isempty(select(moon_ref01_list_rt0, { id: moon_ref01_data.id })));
     });

@@ -120,11 +120,11 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      selection,
-      request,
-      response,
-      result,
-      spec,
+      makeSelection,
+      makeRequest,
+      makeResponse,
+      makeResult,
+      makeSpec,
     } = utility
 
     let fres: Promise<any> | undefined = undefined
@@ -142,7 +142,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = selection(ctx)
+      ctx.out.selected = makeSelection(ctx)
       if (ctx.out.selected instanceof Error) {
         return error(ctx, ctx.out.selected)
       }
@@ -152,7 +152,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSpec')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.spec = spec(ctx)
+      ctx.out.spec = makeSpec(ctx)
       if (ctx.out.spec instanceof Error) {
         return error(ctx, ctx.out.spec)
       }
@@ -162,7 +162,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreRequest')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.request = await request(ctx)
+      ctx.out.request = await makeRequest(ctx)
       if (ctx.out.request instanceof Error) {
         return error(ctx, ctx.out.request)
       }
@@ -172,7 +172,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResponse')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.response = await response(ctx)
+      ctx.out.response = await makeResponse(ctx)
       if (ctx.out.response instanceof Error) {
         return error(ctx, ctx.out.response)
       }
@@ -182,7 +182,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResult')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.result = await result(ctx)
+      ctx.out.result = await makeResult(ctx)
       if (ctx.out.result instanceof Error) {
         return error(ctx, ctx.out.result)
       }
@@ -231,11 +231,11 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      selection,
-      request,
-      response,
-      result,
-      spec,
+      makeSelection,
+      makeRequest,
+      makeResponse,
+      makeResult,
+      makeSpec,
     } = utility
 
     let fres: Promise<any> | undefined = undefined
@@ -253,7 +253,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = selection(ctx)
+      ctx.out.selected = makeSelection(ctx)
       if (ctx.out.selected instanceof Error) {
         return error(ctx, ctx.out.selected)
       }
@@ -263,7 +263,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSpec')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.spec = spec(ctx)
+      ctx.out.spec = makeSpec(ctx)
       if (ctx.out.spec instanceof Error) {
         return error(ctx, ctx.out.spec)
       }
@@ -273,7 +273,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreRequest')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.request = await request(ctx)
+      ctx.out.request = await makeRequest(ctx)
       if (ctx.out.request instanceof Error) {
         return error(ctx, ctx.out.request)
       }
@@ -283,7 +283,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResponse')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.response = await response(ctx)
+      ctx.out.response = await makeResponse(ctx)
       if (ctx.out.response instanceof Error) {
         return error(ctx, ctx.out.response)
       }
@@ -293,7 +293,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResult')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.result = await result(ctx)
+      ctx.out.result = await makeResult(ctx)
       if (ctx.out.result instanceof Error) {
         return error(ctx, ctx.out.result)
       }
@@ -337,11 +337,11 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      selection,
-      request,
-      response,
-      result,
-      spec,
+      makeSelection,
+      makeRequest,
+      makeResponse,
+      makeResult,
+      makeSpec,
     } = utility
 
     let fres: Promise<any> | undefined = undefined
@@ -359,7 +359,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = selection(ctx)
+      ctx.out.selected = makeSelection(ctx)
       if (ctx.out.selected instanceof Error) {
         return error(ctx, ctx.out.selected)
       }
@@ -369,7 +369,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSpec')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.spec = spec(ctx)
+      ctx.out.spec = makeSpec(ctx)
       if (ctx.out.spec instanceof Error) {
         return error(ctx, ctx.out.spec)
       }
@@ -379,7 +379,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreRequest')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.request = await request(ctx)
+      ctx.out.request = await makeRequest(ctx)
       if (ctx.out.request instanceof Error) {
         return error(ctx, ctx.out.request)
       }
@@ -389,7 +389,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResponse')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.response = await response(ctx)
+      ctx.out.response = await makeResponse(ctx)
       if (ctx.out.response instanceof Error) {
         return error(ctx, ctx.out.response)
       }
@@ -399,7 +399,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResult')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.result = await result(ctx)
+      ctx.out.result = await makeResult(ctx)
       if (ctx.out.result instanceof Error) {
         return error(ctx, ctx.out.result)
       }
@@ -444,11 +444,11 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      selection,
-      request,
-      response,
-      result,
-      spec,
+      makeSelection,
+      makeRequest,
+      makeResponse,
+      makeResult,
+      makeSpec,
     } = utility
 
     let fres: Promise<any> | undefined = undefined
@@ -467,7 +467,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = selection(ctx)
+      ctx.out.selected = makeSelection(ctx)
       if (ctx.out.selected instanceof Error) {
         return error(ctx, ctx.out.selected)
       }
@@ -477,16 +477,17 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSpec')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.spec = spec(ctx)
+      ctx.out.spec = makeSpec(ctx)
       if (ctx.out.spec instanceof Error) {
         return error(ctx, ctx.out.spec)
       }
 
 
+
       fres = featureHook(ctx, 'PreRequest')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.request = await request(ctx)
+      ctx.out.request = await makeRequest(ctx)
       if (ctx.out.request instanceof Error) {
         return error(ctx, ctx.out.request)
       }
@@ -496,7 +497,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResponse')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.response = await response(ctx)
+      ctx.out.response = await makeResponse(ctx)
       if (ctx.out.response instanceof Error) {
         return error(ctx, ctx.out.response)
       }
@@ -506,7 +507,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResult')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.result = await result(ctx)
+      ctx.out.result = await makeResult(ctx)
       if (ctx.out.result instanceof Error) {
         return error(ctx, ctx.out.result)
       }
@@ -555,11 +556,11 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      selection,
-      request,
-      response,
-      result,
-      spec,
+      makeSelection,
+      makeRequest,
+      makeResponse,
+      makeResult,
+      makeSpec,
     } = utility
 
     let fres: Promise<any> | undefined = undefined
@@ -578,7 +579,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreOperation')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = selection(ctx)
+      ctx.out.selected = makeSelection(ctx)
       if (ctx.out.selected instanceof Error) {
         return error(ctx, ctx.out.selected)
       }
@@ -588,7 +589,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSpec')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.spec = spec(ctx)
+      ctx.out.spec = makeSpec(ctx)
       if (ctx.out.spec instanceof Error) {
         return error(ctx, ctx.out.spec)
       }
@@ -598,7 +599,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreRequest')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.request = await request(ctx)
+      ctx.out.request = await makeRequest(ctx)
       if (ctx.out.request instanceof Error) {
         return error(ctx, ctx.out.request)
       }
@@ -608,7 +609,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResponse')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.response = await response(ctx)
+      ctx.out.response = await makeResponse(ctx)
       if (ctx.out.response instanceof Error) {
         return error(ctx, ctx.out.response)
       }
@@ -618,7 +619,7 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreResult')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.result = await result(ctx)
+      ctx.out.result = await makeResult(ctx)
       if (ctx.out.result instanceof Error) {
         return error(ctx, ctx.out.result)
       }

@@ -42,15 +42,17 @@ describe('MoonEntity', async () => {
 
     // CREATE
     const moon_ref01_ent = client.Moon()
-    const moon_ref01_data =
-      await moon_ref01_ent.create(setup.data.new.moon['moon_ref01'])
+    let moon_ref01_data = setup.data.new.moon['moon_ref01']
+    moon_ref01_data['planet_id'] = setup.idmap['planet01']
+
+    moon_ref01_data = await moon_ref01_ent.create(moon_ref01_data)
     assert(null != moon_ref01_data.id)
-  
+
 
     // LIST
     const moon_ref01_match: any = {}
-      moon_ref01_match['planet_id'] = setup.idmap['planet_id']
-  
+    moon_ref01_match['planet_id'] = setup.idmap['planet01']
+
     const moon_ref01_list = await moon_ref01_ent.list(moon_ref01_match)
 
     assert(!isempty(select(moon_ref01_list, { id: moon_ref01_data.id })))
@@ -59,10 +61,10 @@ describe('MoonEntity', async () => {
     // UPDATE
     const moon_ref01_data_up0: any = {}
     moon_ref01_data_up0.id = moon_ref01_data.id
-    moon_ref01_data_up0 ['planet_id'] = setup.idmap['planet_id']
+    moon_ref01_data_up0['planet_id'] = setup.idmap['planet_id']
 
     const moon_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-moon_ref01_' + setup.now }
-    moon_ref01_data_up0 [moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value
+    moon_ref01_data_up0[moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value
 
     const moon_ref01_resdata_up0 = await moon_ref01_ent.update(moon_ref01_data_up0)
     assert(moon_ref01_resdata_up0.id === moon_ref01_data_up0.id)
@@ -81,12 +83,12 @@ describe('MoonEntity', async () => {
     const moon_ref01_match_rm0: any = {}
     moon_ref01_match_rm0.id = moon_ref01_data.id
     await moon_ref01_ent.remove(moon_ref01_match_rm0)
-  
+
 
     // LIST
     const moon_ref01_match_rt0: any = {}
-      moon_ref01_match_rt0['planet_id'] = setup.idmap['planet_id']
-  
+    moon_ref01_match_rt0['planet_id'] = setup.idmap['planet01']
+
     const moon_ref01_list_rt0 = await moon_ref01_ent.list(moon_ref01_match_rt0)
 
     assert(isempty(select(moon_ref01_list_rt0, { id: moon_ref01_data.id })))
@@ -103,7 +105,7 @@ function basicSetup(extra?: any) {
 
   // TODO: needs test utility to resolve path
   const entityDataFile =
-    Path.resolve(__dirname, 
+    Path.resolve(__dirname,
       '../../../../.sdk/test/entity/moon/MoonTestData.json')
 
   // TODO: file ready util needed?
@@ -120,7 +122,7 @@ function basicSetup(extra?: any) {
   const transform = struct.transform
 
   let idmap = transform(
-    ['${entity.name}01','${entity.name}02','${entity.name}03','planet01','planet02','planet03'],
+    ['${entity.name}01', '${entity.name}02', '${entity.name}03', 'planet01', 'planet02', 'planet03'],
     {
       '`$PACK`': ['', {
         '`$KEY`': '`$COPY`',
@@ -159,4 +161,4 @@ function basicSetup(extra?: any) {
 
   return setup
 }
-  
+
