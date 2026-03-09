@@ -65,10 +65,11 @@ main: kit: entity: planet: {
   name: "planet"
   op: {
     create: {
-      alts: [
+      name: "create"
+      targets: [
         {
           args: {
-            param: [
+            params: [
               {
                 kind: "param"
                 name: "id"
@@ -104,7 +105,7 @@ main: kit: entity: planet: {
         }
         {
           args: {
-            param: [
+            params: [
               {
                 kind: "param"
                 name: "id"
@@ -151,10 +152,10 @@ main: kit: entity: planet: {
           }
         }
       ]
-      name: "create"
     }
     list: {
-      alts: [
+      name: "list"
+      targets: [
         {
           method: "GET"
           orig: "/api/planet"
@@ -168,13 +169,13 @@ main: kit: entity: planet: {
           }
         }
       ]
-      name: "list"
     }
     load: {
-      alts: [
+      name: "load"
+      targets: [
         {
           args: {
-            param: [
+            params: [
               {
                 kind: "param"
                 name: "id"
@@ -207,13 +208,13 @@ main: kit: entity: planet: {
           }
         }
       ]
-      name: "load"
     }
     remove: {
-      alts: [
+      name: "remove"
+      targets: [
         {
           args: {
-            param: [
+            params: [
               {
                 kind: "param"
                 name: "id"
@@ -241,13 +242,13 @@ main: kit: entity: planet: {
           }
         }
       ]
-      name: "remove"
     }
     update: {
-      alts: [
+      name: "update"
+      targets: [
         {
           args: {
-            param: [
+            params: [
               {
                 kind: "param"
                 name: "id"
@@ -275,7 +276,6 @@ main: kit: entity: planet: {
           }
         }
       ]
-      name: "update"
     }
   }
 

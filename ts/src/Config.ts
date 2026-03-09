@@ -100,10 +100,11 @@ class Config {
       "name": "moon",
       "op": {
         "create": {
-          "alts": [
+          "name": "create",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "planet_id",
@@ -133,14 +134,14 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "create"
+          ]
         },
         "list": {
-          "alts": [
+          "name": "list",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "planet_id",
@@ -170,14 +171,14 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "list"
+          ]
         },
         "load": {
-          "alts": [
+          "name": "load",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -222,14 +223,14 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "load"
+          ]
         },
         "remove": {
-          "alts": [
+          "name": "remove",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -269,14 +270,14 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "remove"
+          ]
         },
         "update": {
-          "alts": [
+          "name": "update",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -316,8 +317,7 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "update"
+          ]
         }
       },
       "relations": {
@@ -404,10 +404,11 @@ class Config {
       "name": "planet",
       "op": {
         "create": {
-          "alts": [
+          "name": "create",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -445,7 +446,7 @@ class Config {
             },
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -494,15 +495,15 @@ class Config {
               },
               "active": true,
               "args": {
-                "param": []
+                "params": []
               },
               "select": {}
             }
-          ],
-          "name": "create"
+          ]
         },
         "list": {
-          "alts": [
+          "name": "list",
+          "targets": [
             {
               "method": "GET",
               "orig": "/api/planet",
@@ -516,18 +517,18 @@ class Config {
               },
               "active": true,
               "args": {
-                "param": []
+                "params": []
               },
               "select": {}
             }
-          ],
-          "name": "list"
+          ]
         },
         "load": {
-          "alts": [
+          "name": "load",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -561,14 +562,14 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "load"
+          ]
         },
         "remove": {
-          "alts": [
+          "name": "remove",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -597,14 +598,14 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "remove"
+          ]
         },
         "update": {
-          "alts": [
+          "name": "update",
+          "targets": [
             {
               "args": {
-                "param": [
+                "params": [
                   {
                     "kind": "param",
                     "name": "id",
@@ -633,8 +634,7 @@ class Config {
               },
               "active": true
             }
-          ],
-          "name": "update"
+          ]
         }
       },
       "relations": {

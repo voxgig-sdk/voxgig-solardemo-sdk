@@ -120,7 +120,7 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      makeSelection,
+      makeTarget,
       makeRequest,
       makeResponse,
       makeResult,
@@ -142,9 +142,9 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = makeSelection(ctx)
-      if (ctx.out.selected instanceof Error) {
-        return error(ctx, ctx.out.selected)
+      ctx.out.target = makeTarget(ctx)
+      if (ctx.out.target instanceof Error) {
+        return error(ctx, ctx.out.target)
       }
 
 
@@ -231,7 +231,7 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      makeSelection,
+      makeTarget,
       makeRequest,
       makeResponse,
       makeResult,
@@ -253,9 +253,9 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = makeSelection(ctx)
-      if (ctx.out.selected instanceof Error) {
-        return error(ctx, ctx.out.selected)
+      ctx.out.target = makeTarget(ctx)
+      if (ctx.out.target instanceof Error) {
+        return error(ctx, ctx.out.target)
       }
 
 
@@ -337,7 +337,7 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      makeSelection,
+      makeTarget,
       makeRequest,
       makeResponse,
       makeResult,
@@ -359,9 +359,9 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = makeSelection(ctx)
-      if (ctx.out.selected instanceof Error) {
-        return error(ctx, ctx.out.selected)
+      ctx.out.target = makeTarget(ctx)
+      if (ctx.out.target instanceof Error) {
+        return error(ctx, ctx.out.target)
       }
 
 
@@ -444,7 +444,7 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      makeSelection,
+      makeTarget,
       makeRequest,
       makeResponse,
       makeResult,
@@ -467,9 +467,9 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreSelection')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = makeSelection(ctx)
-      if (ctx.out.selected instanceof Error) {
-        return error(ctx, ctx.out.selected)
+      ctx.out.target = makeTarget(ctx)
+      if (ctx.out.target instanceof Error) {
+        return error(ctx, ctx.out.target)
       }
 
 
@@ -556,7 +556,7 @@ class PlanetEntity {
       done,
       error,
       featureHook,
-      makeSelection,
+      makeTarget,
       makeRequest,
       makeResponse,
       makeResult,
@@ -579,9 +579,9 @@ class PlanetEntity {
       fres = featureHook(ctx, 'PreOperation')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.selected = makeSelection(ctx)
-      if (ctx.out.selected instanceof Error) {
-        return error(ctx, ctx.out.selected)
+      ctx.out.target = makeTarget(ctx)
+      if (ctx.out.target instanceof Error) {
+        return error(ctx, ctx.out.target)
       }
 
 

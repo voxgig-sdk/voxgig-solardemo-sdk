@@ -7,7 +7,7 @@ import { clean } from './CleanUtility'
 import { clone, delprop } from './StructUtility'
 
 
-function error(ctx: Context, err?: any) {
+function makeError(ctx: Context, err?: any) {
 
   ctx = ctx || {}
   const op = ctx.op || {}
@@ -59,5 +59,5 @@ function error(ctx: Context, err?: any) {
 
 
 export {
-  error
+  makeError
 }
