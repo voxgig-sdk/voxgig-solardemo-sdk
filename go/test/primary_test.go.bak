@@ -1,0 +1,221 @@
+package runner
+
+import (
+	"testing"
+)
+
+func TestPrimaryUtility(t *testing.T) {
+	client, err := TestSDK(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	utility := client.Utility().(*SDKUtility)
+
+	runner := MakeRunner(TEST_JSON_FILE, client)
+	runPack, err := runner("primary", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spec := runPack.Spec
+
+	t.Run("context-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["context"].(map[string]any)["basic"],
+			utility.MakeContext)
+	})
+
+	t.Run("method-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["method"].(map[string]any)["basic"],
+			utility.PrepareMethod)
+	})
+
+	t.Run("headers-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["headers"].(map[string]any)["basic"],
+			utility.PrepareHeaders)
+	})
+
+	t.Run("auth-basic", func(t *testing.T) {
+		setup, _ := spec["auth"].(map[string]any)
+		def, _ := setup["DEF"].(map[string]any)
+		setupOpts, _ := def["setup"].(map[string]any)
+		sdkopts, _ := setupOpts["a"].(map[string]any)
+		if sdkopts == nil {
+			sdkopts = map[string]any{}
+		}
+		authClient, _ := TestSDK(sdkopts)
+
+		runPack.RunSet(t, setup["basic"],
+			func(ctx map[string]any) (any, error) {
+				ctx["client"] = authClient
+				if ctx["options"] == nil {
+					ctx["options"] = authClient.Options()
+				}
+				return utility.PrepareAuth(ctx)
+			})
+	})
+
+	t.Run("params-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["params"].(map[string]any)["basic"],
+			utility.PrepareParams)
+	})
+
+	t.Run("query-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["query"].(map[string]any)["basic"],
+			utility.PrepareQuery)
+	})
+
+	t.Run("body-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["body"].(map[string]any)["basic"],
+			func(ctx map[string]any) any {
+				if ctx["options"] == nil && ctx["client"] != nil {
+					if c, ok := ctx["client"].(interface{ Options() map[string]any }); ok {
+						ctx["options"] = c.Options()
+					}
+				}
+				return utility.PrepareBody(ctx)
+			})
+	})
+
+	t.Run("findparam-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["findparam"].(map[string]any)["basic"],
+			utility.Param)
+	})
+
+	t.Run("fullurl-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["fullurl"].(map[string]any)["basic"],
+			utility.MakeUrl)
+	})
+
+	t.Run("operator-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["operator"].(map[string]any)["basic"],
+			func(opmap map[string]any) map[string]any {
+				entity, _ := opmap["entity"].(string)
+				if entity == "" {
+					entity = "_"
+				}
+				name, _ := opmap["name"].(string)
+				if name == "" {
+					name = "_"
+				}
+				input, _ := opmap["input"].(string)
+				if input == "" {
+					input = "_"
+				}
+				targets, _ := opmap["targets"].([]any)
+				if targets == nil {
+					targets = []any{}
+				}
+				return map[string]any{
+					"entity":  entity,
+					"name":    name,
+					"input":   input,
+					"targets": targets,
+				}
+			})
+	})
+
+	t.Run("options-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["options"].(map[string]any)["basic"],
+			func(vin map[string]any) map[string]any {
+				options, _ := vin["options"].(map[string]any)
+				config, _ := vin["config"].(map[string]any)
+				ctx := utility.MakeContext(map[string]any{
+					"options": options,
+					"config":  config,
+				})
+				ctx["client"] = client
+				ctx["utility"] = utility
+				return utility.MakeOptions(ctx)
+			})
+	})
+
+	t.Run("spec-basic", func(t *testing.T) {
+		setup, _ := spec["spec"].(map[string]any)
+		def, _ := setup["DEF"].(map[string]any)
+		setupOpts, _ := def["setup"].(map[string]any)
+		sdkopts, _ := setupOpts["a"].(map[string]any)
+		if sdkopts == nil {
+			sdkopts = map[string]any{}
+		}
+		specClient, _ := TestSDK(sdkopts)
+
+		runPack.RunSet(t, setup["basic"],
+			func(ctx map[string]any) (any, error) {
+				ctx["client"] = specClient
+				ctx["options"] = specClient.Options()
+				return utility.MakeSpec(ctx)
+			})
+	})
+
+	t.Run("reqform-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["reqform"].(map[string]any)["basic"],
+			utility.TransformRequest)
+	})
+
+	t.Run("resform-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["resform"].(map[string]any)["basic"],
+			utility.TransformResponse)
+	})
+
+	t.Run("resbasic-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["resbasic"].(map[string]any)["basic"],
+			func(ctx map[string]any) any {
+				if ctx["options"] == nil && ctx["client"] != nil {
+					if c, ok := ctx["client"].(interface{ Options() map[string]any }); ok {
+						ctx["options"] = c.Options()
+					}
+				}
+				return utility.ResultBasic(ctx)
+			})
+	})
+
+	t.Run("resheaders-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["resheaders"].(map[string]any)["basic"],
+			func(ctx map[string]any) any {
+				return utility.ResultHeaders(ctx)
+			})
+	})
+
+	t.Run("resbody-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["resbody"].(map[string]any)["basic"],
+			func(ctx map[string]any) any {
+				return utility.ResultBody(ctx)
+			})
+	})
+
+	t.Run("done-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["done"].(map[string]any)["basic"],
+			func(ctx map[string]any) (any, error) {
+				if ctx["options"] == nil && ctx["client"] != nil {
+					if c, ok := ctx["client"].(interface{ Options() map[string]any }); ok {
+						ctx["options"] = c.Options()
+					}
+				}
+				return utility.Done(ctx)
+			})
+	})
+
+	t.Run("error-basic", func(t *testing.T) {
+		runPack.RunSet(t, spec["error"].(map[string]any)["basic"],
+			func(args ...any) (any, error) {
+				if len(args) == 0 {
+					return nil, nil
+				}
+				ctx, _ := args[0].(map[string]any)
+				if ctx == nil {
+					return nil, nil
+				}
+				if ctx["options"] == nil && ctx["client"] != nil {
+					if c, ok := ctx["client"].(interface{ Options() map[string]any }); ok {
+						ctx["options"] = c.Options()
+					}
+				}
+				var errArg any
+				if len(args) > 1 {
+					errArg = args[1]
+				}
+				return utility.MakeError(ctx, errArg)
+			})
+	})
+}

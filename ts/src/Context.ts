@@ -75,6 +75,11 @@ class Context {
     this.match = getprop(ctxmap, 'match', {})
     this.reqmatch = getprop(ctxmap, 'reqmatch', {})
 
+    this.target = getprop(ctxmap, 'target', getprop(basectx, 'target'))
+    this.spec = getprop(ctxmap, 'spec', getprop(basectx, 'spec'))
+    this.result = getprop(ctxmap, 'result', getprop(basectx, 'result'))
+    this.response = getprop(ctxmap, 'response', getprop(basectx, 'response'))
+
     const opname = getprop(ctxmap, 'opname')
     this.op = this.resolveOp(opname)
   }
@@ -86,16 +91,16 @@ class Context {
     if (null == op && null != opname) {
       const entname = getprop(this.entity, 'name', '')
       const opcfg = getpath(this.config, ['entity', entname, 'op', opname])
-      let select = 'match'
+      let input = 'match'
 
       if ('update' === opname || 'create' === opname) {
-        select = 'data'
+        input = 'data'
       }
 
       op = new Operation({
         entity: entname,
         name: opname,
-        select,
+        input,
         targets: getprop(opcfg, 'targets', [])
       })
 

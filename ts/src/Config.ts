@@ -134,7 +134,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         },
         "list": {
           "name": "list",
@@ -171,7 +172,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         },
         "load": {
           "name": "load",
@@ -223,7 +225,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         },
         "remove": {
           "name": "remove",
@@ -270,7 +273,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         },
         "update": {
           "name": "update",
@@ -317,7 +321,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         }
       },
       "relations": {
@@ -499,7 +504,8 @@ class Config {
               },
               "select": {}
             }
-          ]
+          ],
+          "input": "data"
         },
         "list": {
           "name": "list",
@@ -521,7 +527,8 @@ class Config {
               },
               "select": {}
             }
-          ]
+          ],
+          "input": "data"
         },
         "load": {
           "name": "load",
@@ -562,7 +569,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         },
         "remove": {
           "name": "remove",
@@ -598,7 +606,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         },
         "update": {
           "name": "update",
@@ -634,7 +643,8 @@ class Config {
               },
               "active": true
             }
-          ]
+          ],
+          "input": "data"
         }
       },
       "relations": {

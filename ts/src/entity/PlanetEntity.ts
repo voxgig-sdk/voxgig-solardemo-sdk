@@ -576,7 +576,7 @@ class PlanetEntity {
     try {
 
 
-      fres = featureHook(ctx, 'PreOperation')
+      fres = featureHook(ctx, 'PreTarget')
       if (fres instanceof Promise) { await fres }
 
       ctx.out.target = makeTarget(ctx)

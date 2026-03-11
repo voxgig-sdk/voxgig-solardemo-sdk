@@ -91,7 +91,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             },
             "list": {
               "name": "list",
@@ -128,7 +129,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             },
             "load": {
               "name": "load",
@@ -180,7 +182,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             },
             "remove": {
               "name": "remove",
@@ -227,7 +230,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             },
             "update": {
               "name": "update",
@@ -274,7 +278,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             }
           },
           "relations": {
@@ -454,7 +459,8 @@
                   },
                   "select": {}
                 }
-              ]
+              ],
+              "input": "data"
             },
             "list": {
               "name": "list",
@@ -476,7 +482,8 @@
                   },
                   "select": {}
                 }
-              ]
+              ],
+              "input": "data"
             },
             "load": {
               "name": "load",
@@ -517,7 +524,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             },
             "remove": {
               "name": "remove",
@@ -553,7 +561,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             },
             "update": {
               "name": "update",
@@ -589,7 +598,8 @@
                   },
                   "active": true
                 }
-              ]
+              ],
+              "input": "data"
             }
           },
           "active": true,
@@ -867,6 +877,25 @@
           },
           "name": "ts",
           "active": true
+        },
+        "go": {
+          "title": "Golang",
+          "ext": "go",
+          "comment": {
+            "line": "//"
+          },
+          "module": {
+            "name": "solardemo"
+          },
+          "deps": {
+            "github.com/stretchr/testify": {
+              "active": true,
+              "version": "v1.9.0",
+              "kind": "dev"
+            }
+          },
+          "name": "go",
+          "active": true
         }
       },
       "feature": {
@@ -905,7 +934,7 @@
               "active": true,
               "await": false
             },
-            "PreOperation": {
+            "PreTarget": {
               "active": true,
               "await": false
             },
@@ -932,6 +961,9 @@
           },
           "target": {
             "ts": {
+              "deps": {}
+            },
+            "go": {
               "deps": {}
             }
           }

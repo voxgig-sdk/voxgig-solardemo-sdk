@@ -28,7 +28,7 @@ interface Feature {
   GetData: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
   GetMatch: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
 
-  PreOperation: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
+  PreTarget: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
   PreSpec: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
   PreRequest: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
   PreResponse: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
