@@ -877,25 +877,6 @@
           },
           "name": "ts",
           "active": true
-        },
-        "go": {
-          "title": "Golang",
-          "ext": "go",
-          "comment": {
-            "line": "//"
-          },
-          "module": {
-            "name": "solardemo"
-          },
-          "deps": {
-            "github.com/stretchr/testify": {
-              "active": true,
-              "version": "v1.9.0",
-              "kind": "dev"
-            }
-          },
-          "name": "go",
-          "active": true
         }
       },
       "feature": {
@@ -961,9 +942,6 @@
           },
           "target": {
             "ts": {
-              "deps": {}
-            },
-            "go": {
               "deps": {}
             }
           }

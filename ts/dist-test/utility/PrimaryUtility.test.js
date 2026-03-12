@@ -1,11 +1,7 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const node_assert_1 = require("node:assert");
-const node_assert_2 = __importDefault(require("node:assert"));
 const runner_1 = require("../runner");
 const index_1 = require("./index");
 (0, node_test_1.describe)('PrimaryUtility', async () => {
@@ -44,134 +40,11 @@ const index_1 = require("./index");
             (0, node_assert_1.equal)('function', typeof utility[fn], fn + ' should be a function');
         }
     });
-    (0, node_test_1.test)('context-basic', async () => {
-        await runset(spec.context.basic, utility.makeContext);
-    });
-    (0, node_test_1.test)('method-basic', async () => {
-        await runset(spec.method.basic, utility.prepareMethod);
-    });
-    (0, node_test_1.test)('headers-basic', async () => {
-        await runset(spec.headers.basic, utility.prepareHeaders);
-    });
-    (0, node_test_1.test)('auth-basic', async () => {
-        const sdkopts = spec.auth?.DEF?.setup?.a || {};
-        const authClient = index_1.SDK.test({}, sdkopts);
-        await runset(spec.auth.basic, (ctx) => {
-            ctx.client = authClient;
-            fixctx(ctx);
-            return utility.prepareAuth(ctx);
-        });
-    });
-    (0, node_test_1.test)('params-basic', async () => {
-        await runset(spec.params.basic, utility.prepareParams);
-    });
-    (0, node_test_1.test)('query-basic', async () => {
-        await runset(spec.query.basic, utility.prepareQuery);
-    });
-    (0, node_test_1.test)('body-basic', async () => {
-        await runset(spec.body.basic, (ctx) => {
-            fixctx(ctx);
-            return utility.prepareBody(ctx);
-        });
-    });
-    (0, node_test_1.test)('findparam-basic', async () => {
-        await runset(spec.findparam.basic, utility.param);
-    });
-    (0, node_test_1.test)('fullurl-basic', async () => {
-        await runset(spec.fullurl.basic, utility.makeUrl);
-    });
-    (0, node_test_1.test)('operator-basic', async () => {
-        await runset(spec.operator.basic, (opmap) => ({
-            entity: opmap.entity || '_',
-            name: opmap.name || '_',
-            input: opmap.input || '_',
-            targets: opmap.targets || [],
-        }));
-    });
-    (0, node_test_1.test)('options-basic', async () => {
-        await runset(spec.options.basic, (vin) => {
-            const ctx = utility.makeContext({ options: vin.options, config: vin.config });
-            ctx.client = client;
-            ctx.utility = utility;
-            return utility.makeOptions(ctx);
-        });
-    });
-    (0, node_test_1.test)('spec-basic', async () => {
-        const sdkopts = spec.spec?.DEF?.setup?.a || {};
-        const specClient = index_1.SDK.test({}, sdkopts);
-        await runset(spec.spec.basic, (ctx) => {
-            ctx.client = specClient;
-            ctx.options = specClient.options();
-            return utility.makeSpec(ctx);
-        });
-    });
-    (0, node_test_1.test)('reqform-basic', async () => {
-        await runset(spec.reqform.basic, utility.transformRequest);
-    });
-    (0, node_test_1.test)('resform-basic', async () => {
-        await runset(spec.resform.basic, utility.transformResponse);
-    });
-    (0, node_test_1.test)('resbasic-basic', async () => {
-        await runset(spec.resbasic.basic, (ctx) => {
-            fixctx(ctx);
-            return utility.resultBasic(ctx);
-        });
-    });
-    (0, node_test_1.test)('resheaders-basic', async () => {
-        await runset(spec.resheaders.basic, (ctx) => {
-            // Convert plain headers map to forEach-based (browser Response API)
-            if (ctx.response?.headers && !ctx.response.headers.forEach) {
-                const h = ctx.response.headers;
-                ctx.response.headers = {
-                    forEach: (cb) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
-                };
-            }
-            return utility.resultHeaders(ctx);
-        });
-    });
-    (0, node_test_1.test)('resbody-basic', async () => {
-        await runset(spec.resbody.basic, async (ctx) => {
-            if (ctx.response && !ctx.response.json) {
-                const body = ctx.response.body;
-                ctx.response.json = async () => body;
-            }
-            return utility.resultBody(ctx);
-        });
-    });
-    (0, node_test_1.test)('request-basic', async () => {
-        const mockFetch = async (url, init) => ({
-            status: 200,
-            statusText: 'OK',
-            headers: { forEach: (cb) => { cb('application/json', 'content-type', {}); } },
-            json: async () => ({ id: 'res01' }),
-            body: 'present',
-        });
-        const reqClient = new index_1.SDK({
-            system: { fetch: mockFetch }
-        });
-        await runset(spec.request.basic, async (ctx) => {
-            ctx.client = reqClient;
-            ctx.utility = reqClient._utility || utility;
-            ctx.options = reqClient.options();
-            return utility.makeRequest(ctx);
-        });
-    });
-    (0, node_test_1.test)('response-basic', async () => {
-        await runset(spec.response.basic, async (ctx) => {
-            fixctx(ctx);
-            // Add json() and forEach to response for proper TS handling
-            if (ctx.response && !ctx.response.json) {
-                const body = ctx.response.body;
-                ctx.response.json = async () => body;
-            }
-            if (ctx.response?.headers && !ctx.response.headers.forEach) {
-                const h = ctx.response.headers;
-                ctx.response.headers = {
-                    forEach: (cb) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
-                };
-            }
-            return utility.makeResponse(ctx);
-        });
+    (0, node_test_1.test)('clean-basic', async () => {
+        const ctx = makeFullCtx();
+        const val = { key: 'secret123', name: 'test' };
+        const cleaned = utility.clean(ctx, val);
+        (0, node_assert_1.ok)(null != cleaned);
     });
     (0, node_test_1.test)('done-basic', async () => {
         await runset(spec.done.basic, (ctx) => {
@@ -179,30 +52,109 @@ const index_1 = require("./index");
             return utility.done(ctx);
         });
     });
-    (0, node_test_1.test)('error-basic', async () => {
-        await runset(spec.error.basic, (...args) => {
+    (0, node_test_1.test)('makeError-basic', async () => {
+        await runset(spec.makeError.basic, (...args) => {
             const ctx = args[0];
             fixctx(ctx);
             return utility.makeError(...args);
         });
     });
-    (0, node_test_1.test)('makeTarget-single', () => {
-        const ctx = makeCtx();
-        const target = {
-            parts: ['items', '{id}'],
-            args: { params: [] },
-            params: [],
-            alias: {},
-            select: {},
-            active: true,
-            transform: { req: undefined, res: undefined },
-        };
-        ctx.op.targets = [target];
-        const result = utility.makeTarget(ctx);
-        (0, node_assert_1.ok)(!(result instanceof Error));
-        (0, node_assert_1.equal)(ctx.target, target);
+    (0, node_test_1.test)('makeError-no-throw', () => {
+        const ctx = makeFullCtx();
+        ctx.ctrl.throw = false;
+        ctx.result = { ok: false, resdata: { id: 'safe01' } };
+        const out = utility.makeError(ctx, ctx.error('test_code', 'test message'));
+        (0, node_assert_1.deepStrictEqual)(out, { id: 'safe01' });
     });
-    (0, node_test_1.test)('makeFetchDef', () => {
+    (0, node_test_1.test)('featureAdd-basic', () => {
+        const ctx = makeCtx();
+        const startLen = client._features.length;
+        const feature = {
+            version: '0.0.1',
+            name: 'testfeat',
+            active: true,
+            init: () => { },
+        };
+        utility.featureAdd(ctx, feature);
+        (0, node_assert_1.equal)(client._features.length, startLen + 1);
+        (0, node_assert_1.equal)(client._features[client._features.length - 1].name, 'testfeat');
+    });
+    (0, node_test_1.test)('featureHook-basic', () => {
+        const ctx = makeCtx();
+        let called = false;
+        client._features = [{
+                name: 'hookfeat',
+                TestHook: () => { called = true; },
+            }];
+        utility.featureHook(ctx, 'TestHook');
+        (0, node_assert_1.equal)(called, true);
+    });
+    (0, node_test_1.test)('featureInit-basic', () => {
+        const ctx = makeCtx();
+        let initCalled = false;
+        const feature = {
+            name: 'initfeat',
+            active: true,
+            init: () => { initCalled = true; },
+        };
+        ctx.options.feature.initfeat = { active: true };
+        utility.featureInit(ctx, feature);
+        (0, node_assert_1.equal)(initCalled, true);
+    });
+    (0, node_test_1.test)('featureInit-inactive', () => {
+        const ctx = makeCtx();
+        let initCalled = false;
+        const feature = {
+            name: 'nofeat',
+            active: false,
+            init: () => { initCalled = true; },
+        };
+        ctx.options.feature.nofeat = { active: false };
+        utility.featureInit(ctx, feature);
+        (0, node_assert_1.equal)(initCalled, false);
+    });
+    (0, node_test_1.test)('fetcher-live', async () => {
+        const calls = [];
+        const liveClient = new index_1.SDK({
+            system: {
+                fetch: async (url, init) => {
+                    calls.push({ url, init });
+                    return { status: 200, statusText: 'OK' };
+                }
+            }
+        });
+        const liveUtility = liveClient.utility();
+        const ctx = liveUtility.makeContext({
+            opname: 'load',
+            client: liveClient,
+            utility: liveUtility,
+        }, liveClient._rootctx);
+        const fetchdef = { method: 'GET', headers: {} };
+        const response = await liveUtility.fetcher(ctx, 'http://example.com/test', fetchdef);
+        (0, node_assert_1.ok)(!(response instanceof Error));
+        (0, node_assert_1.equal)(calls.length, 1);
+        (0, node_assert_1.equal)(calls[0].url, 'http://example.com/test');
+    });
+    (0, node_test_1.test)('fetcher-blocked-test-mode', async () => {
+        const blockedClient = new index_1.SDK({
+            system: { fetch: async () => ({}) }
+        });
+        blockedClient._mode = 'test';
+        const blockedUtility = blockedClient.utility();
+        const ctx = blockedUtility.makeContext({
+            opname: 'load',
+            client: blockedClient,
+            utility: blockedUtility,
+        }, blockedClient._rootctx);
+        const fetchdef = { method: 'GET', headers: {} };
+        const result = await blockedUtility.fetcher(ctx, 'http://example.com/test', fetchdef);
+        (0, node_assert_1.ok)(result instanceof Error);
+        (0, node_assert_1.ok)(result.message.includes('blocked'));
+    });
+    (0, node_test_1.test)('makeContext-basic', async () => {
+        await runset(spec.makeContext.basic, utility.makeContext);
+    });
+    (0, node_test_1.test)('makeFetchDef-basic', () => {
         const ctx = makeFullCtx();
         ctx.spec = {
             base: 'http://localhost:8080',
@@ -240,99 +192,215 @@ const index_1 = require("./index");
         const fetchdef = utility.makeFetchDef(ctx);
         (0, node_assert_1.ok)(!(fetchdef instanceof Error));
         (0, node_assert_1.equal)(fetchdef.method, 'POST');
-        (0, node_assert_1.equal)(fetchdef.body, '{"name":"test"}');
+        (0, node_assert_1.deepStrictEqual)(JSON.parse(fetchdef.body), { name: 'test' });
     });
-    (0, node_test_1.test)('featureAdd', () => {
-        const ctx = makeCtx();
-        const startLen = client._features.length;
-        const feature = {
-            version: '0.0.1',
-            name: 'testfeat',
-            active: true,
-            init: () => { },
-        };
-        utility.featureAdd(ctx, feature);
-        (0, node_assert_1.equal)(client._features.length, startLen + 1);
-        (0, node_assert_1.equal)(client._features[client._features.length - 1].name, 'testfeat');
+    (0, node_test_1.test)('makeOptions-basic', async () => {
+        await runset(spec.makeOptions.basic, (vin) => {
+            const ctx = utility.makeContext({ options: vin.options, config: vin.config });
+            ctx.client = client;
+            ctx.utility = utility;
+            return utility.makeOptions(ctx);
+        });
     });
-    (0, node_test_1.test)('featureHook', () => {
-        const ctx = makeCtx();
-        let called = false;
-        client._features = [{
-                name: 'hookfeat',
-                TestHook: () => { called = true; },
-            }];
-        utility.featureHook(ctx, 'TestHook');
-        (0, node_assert_1.equal)(called, true);
+    (0, node_test_1.test)('makeRequest-basic', async () => {
+        const mockFetch = async (url, init) => ({
+            status: 200,
+            statusText: 'OK',
+            headers: { forEach: (cb) => { cb('application/json', 'content-type', {}); } },
+            json: async () => ({ id: 'res01' }),
+            body: 'present',
+        });
+        const reqClient = new index_1.SDK({
+            system: { fetch: mockFetch }
+        });
+        await runset(spec.makeRequest.basic, async (ctx) => {
+            ctx.client = reqClient;
+            ctx.utility = reqClient._utility || utility;
+            ctx.options = reqClient.options();
+            return utility.makeRequest(ctx);
+        });
     });
-    (0, node_test_1.test)('featureInit', () => {
-        const ctx = makeCtx();
-        let initCalled = false;
-        const feature = {
-            name: 'initfeat',
-            active: true,
-            init: () => { initCalled = true; },
-        };
-        ctx.options.feature.initfeat = { active: true };
-        utility.featureInit(ctx, feature);
-        (0, node_assert_1.equal)(initCalled, true);
-    });
-    (0, node_test_1.test)('featureInit-inactive', () => {
-        const ctx = makeCtx();
-        let initCalled = false;
-        const feature = {
-            name: 'nofeat',
-            active: false,
-            init: () => { initCalled = true; },
-        };
-        ctx.options.feature.nofeat = { active: false };
-        utility.featureInit(ctx, feature);
-        (0, node_assert_1.equal)(initCalled, false);
-    });
-    (0, node_test_1.test)('fetcher-live', async () => {
-        const calls = [];
-        const liveClient = new index_1.SDK({
-            system: {
-                fetch: async (url, init) => {
-                    calls.push({ url, init });
-                    return { status: 200, statusText: 'OK' };
-                }
+    (0, node_test_1.test)('makeResponse-basic', async () => {
+        await runset(spec.makeResponse.basic, async (ctx) => {
+            fixctx(ctx);
+            // Add json() and forEach to response for proper TS handling
+            if (ctx.response && !ctx.response.json) {
+                const body = ctx.response.body;
+                ctx.response.json = async () => body;
             }
+            if (ctx.response?.headers && !ctx.response.headers.forEach) {
+                const h = ctx.response.headers;
+                ctx.response.headers = {
+                    forEach: (cb) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
+                };
+            }
+            return utility.makeResponse(ctx);
         });
-        const ctx = makeCtx({ client: liveClient });
-        const fetchdef = { method: 'GET', headers: {} };
-        const response = await utility.fetcher(ctx, 'http://example.com/test', fetchdef);
-        (0, node_assert_1.ok)(!(response instanceof Error));
-        (0, node_assert_1.equal)(calls.length, 1);
-        (0, node_assert_1.equal)(calls[0].url, 'http://example.com/test');
     });
-    (0, node_test_1.test)('fetcher-blocked-test-mode', async () => {
-        const testClient = new index_1.SDK({
-            system: { fetch: async () => ({}) }
+    (0, node_test_1.test)('makeResult-basic', () => {
+        const ctx = makeFullCtx();
+        ctx.spec = {
+            base: 'http://localhost:8080',
+            prefix: '/api',
+            path: 'items/{id}',
+            suffix: '',
+            params: { id: 'item01' },
+            query: {},
+            headers: {},
+            method: 'GET',
+            step: 'start',
+        };
+        ctx.result = { ok: true, status: 200, statusText: 'OK', headers: {},
+            resdata: { id: 'item01', name: 'Test' } };
+        const result = utility.makeResult(ctx);
+        (0, node_assert_1.ok)(!(result instanceof Error));
+        (0, node_assert_1.equal)(result.status, 200);
+    });
+    (0, node_test_1.test)('makeResult-no-spec', () => {
+        const ctx = makeFullCtx();
+        ctx.spec = undefined;
+        ctx.result = { ok: true, status: 200, statusText: 'OK', headers: {} };
+        const result = utility.makeResult(ctx);
+        (0, node_assert_1.ok)(result instanceof Error);
+    });
+    (0, node_test_1.test)('makeResult-no-result', () => {
+        const ctx = makeFullCtx();
+        ctx.spec = { step: 'start' };
+        ctx.result = undefined;
+        const result = utility.makeResult(ctx);
+        (0, node_assert_1.ok)(result instanceof Error);
+    });
+    (0, node_test_1.test)('makeSpec-basic', async () => {
+        const sdkopts = spec.makeSpec?.DEF?.setup?.a || {};
+        const specClient = index_1.SDK.test({}, sdkopts);
+        await runset(spec.makeSpec.basic, (ctx) => {
+            ctx.client = specClient;
+            ctx.options = specClient.options();
+            return utility.makeSpec(ctx);
         });
-        testClient._mode = 'test';
-        const ctx = makeCtx({ client: testClient });
-        const fetchdef = { method: 'GET', headers: {} };
-        try {
-            await utility.fetcher(ctx, 'http://example.com/test', fetchdef);
-            node_assert_2.default.fail('should throw');
-        }
-        catch (err) {
-            (0, node_assert_1.ok)(err.message.includes('mode'));
-        }
     });
-    (0, node_test_1.test)('makeError-no-throw', () => {
-        const ctx = makeFullCtx();
-        ctx.ctrl.throw = false;
-        ctx.result = { ok: false, resdata: { id: 'safe01' } };
-        const out = utility.makeError(ctx, ctx.error('test_code', 'test message'));
-        (0, node_assert_1.deepStrictEqual)(out, { id: 'safe01' });
+    (0, node_test_1.test)('makeTarget-basic', () => {
+        const ctx = makeCtx();
+        const target = {
+            parts: ['items', '{id}'],
+            args: { params: [] },
+            params: [],
+            alias: {},
+            select: {},
+            active: true,
+            transform: { req: undefined, res: undefined },
+        };
+        ctx.op.targets = [target];
+        const result = utility.makeTarget(ctx);
+        (0, node_assert_1.ok)(!(result instanceof Error));
+        (0, node_assert_1.equal)(ctx.target, target);
     });
-    (0, node_test_1.test)('clean', () => {
+    (0, node_test_1.test)('makeUrl-basic', async () => {
+        await runset(spec.makeUrl.basic, utility.makeUrl);
+    });
+    (0, node_test_1.test)('operator-basic', async () => {
+        await runset(spec.operator.basic, (opmap) => ({
+            entity: opmap.entity || '_',
+            name: opmap.name || '_',
+            input: opmap.input || '_',
+            targets: opmap.targets || [],
+        }));
+    });
+    (0, node_test_1.test)('param-basic', async () => {
+        await runset(spec.param.basic, utility.param);
+    });
+    (0, node_test_1.test)('prepareAuth-basic', async () => {
+        const sdkopts = spec.prepareAuth?.DEF?.setup?.a || {};
+        const authClient = index_1.SDK.test({}, sdkopts);
+        await runset(spec.prepareAuth.basic, (ctx) => {
+            ctx.client = authClient;
+            fixctx(ctx);
+            return utility.prepareAuth(ctx);
+        });
+    });
+    (0, node_test_1.test)('prepareBody-basic', async () => {
+        await runset(spec.prepareBody.basic, (ctx) => {
+            fixctx(ctx);
+            return utility.prepareBody(ctx);
+        });
+    });
+    (0, node_test_1.test)('prepareHeaders-basic', async () => {
+        await runset(spec.prepareHeaders.basic, utility.prepareHeaders);
+    });
+    (0, node_test_1.test)('prepareMethod-basic', async () => {
+        await runset(spec.prepareMethod.basic, utility.prepareMethod);
+    });
+    (0, node_test_1.test)('prepareParams-basic', async () => {
+        await runset(spec.prepareParams.basic, utility.prepareParams);
+    });
+    (0, node_test_1.test)('preparePath-basic', () => {
         const ctx = makeFullCtx();
-        const val = { key: 'secret123', name: 'test' };
-        const cleaned = utility.clean(ctx, val);
-        (0, node_assert_1.ok)(null != cleaned);
+        ctx.target = {
+            parts: ['api', 'planet', '{id}'],
+            args: { params: [] },
+            params: [],
+            alias: {},
+            select: {},
+            active: true,
+            transform: { req: undefined, res: undefined },
+        };
+        const path = utility.preparePath(ctx);
+        (0, node_assert_1.equal)(path, 'api/planet/{id}');
+    });
+    (0, node_test_1.test)('preparePath-single', () => {
+        const ctx = makeFullCtx();
+        ctx.target = {
+            parts: ['items'],
+            args: { params: [] },
+            params: [],
+            alias: {},
+            select: {},
+            active: true,
+            transform: { req: undefined, res: undefined },
+        };
+        const path = utility.preparePath(ctx);
+        (0, node_assert_1.equal)(path, 'items');
+    });
+    (0, node_test_1.test)('prepareQuery-basic', async () => {
+        await runset(spec.prepareQuery.basic, utility.prepareQuery);
+    });
+    (0, node_test_1.test)('resultBasic-basic', async () => {
+        await runset(spec.resultBasic.basic, (ctx) => {
+            fixctx(ctx);
+            const result = utility.resultBasic(ctx);
+            // Break circular reference: SolardemoError stores ctx which stores result
+            if (result?.err?.ctx) {
+                delete result.err.ctx;
+            }
+            return result;
+        });
+    });
+    (0, node_test_1.test)('resultBody-basic', async () => {
+        await runset(spec.resultBody.basic, async (ctx) => {
+            if (ctx.response && !ctx.response.json) {
+                const body = ctx.response.body;
+                ctx.response.json = async () => body;
+            }
+            return utility.resultBody(ctx);
+        });
+    });
+    (0, node_test_1.test)('resultHeaders-basic', async () => {
+        await runset(spec.resultHeaders.basic, (ctx) => {
+            // Convert plain headers map to forEach-based (browser Response API)
+            if (ctx.response?.headers && !ctx.response.headers.forEach) {
+                const h = ctx.response.headers;
+                ctx.response.headers = {
+                    forEach: (cb) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
+                };
+            }
+            return utility.resultHeaders(ctx);
+        });
+    });
+    (0, node_test_1.test)('transformRequest-basic', async () => {
+        await runset(spec.transformRequest.basic, utility.transformRequest);
+    });
+    (0, node_test_1.test)('transformResponse-basic', async () => {
+        await runset(spec.transformResponse.basic, utility.transformResponse);
     });
     // Helper functions for manual tests
     function makeCtx(overrides) {
