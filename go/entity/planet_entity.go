@@ -28,7 +28,7 @@ func NewPlanetEntity(client *core.SolardemoSDK, entopts map[string]any) *PlanetE
 		entopts["active"] = true
 	}
 
-	p := &PlanetEntity{
+	e := &PlanetEntity{
 		name:    "planet",
 		client:  client,
 		utility: client.GetUtility(),
@@ -37,175 +37,189 @@ func NewPlanetEntity(client *core.SolardemoSDK, entopts map[string]any) *PlanetE
 		match:   map[string]any{},
 	}
 
-	p.entctx = p.utility.MakeContext(map[string]any{
-		"entity":  p,
+	e.entctx = e.utility.MakeContext(map[string]any{
+		"entity":  e,
 		"entopts": entopts,
 	}, client.GetRootCtx())
 
-	p.utility.FeatureHook(p.entctx, "PostConstructEntity")
+	e.utility.FeatureHook(e.entctx, "PostConstructEntity")
 
-	return p
+	return e
 }
 
-func (p *PlanetEntity) GetName() string { return p.name }
+func (e *PlanetEntity) GetName() string { return e.name }
 
-func (p *PlanetEntity) Make() core.Entity {
+func (e *PlanetEntity) Make() core.Entity {
 	opts := map[string]any{}
-	for k, v := range p.entopts {
+	for k, v := range e.entopts {
 		opts[k] = v
 	}
-	return NewPlanetEntity(p.client, opts)
+	return NewPlanetEntity(e.client, opts)
 }
 
-func (p *PlanetEntity) Data(args ...any) any {
+func (e *PlanetEntity) Data(args ...any) any {
 	if len(args) > 0 && args[0] != nil {
-		p.data = core.ToMapAny(vs.Clone(args[0]))
-		if p.data == nil {
-			p.data = map[string]any{}
+		e.data = core.ToMapAny(vs.Clone(args[0]))
+		if e.data == nil {
+			e.data = map[string]any{}
 		}
-		p.utility.FeatureHook(p.entctx, "SetData")
+		e.utility.FeatureHook(e.entctx, "SetData")
 	}
 
-	p.utility.FeatureHook(p.entctx, "GetData")
-	out := vs.Clone(p.data)
+	e.utility.FeatureHook(e.entctx, "GetData")
+	out := vs.Clone(e.data)
 	return out
 }
 
-func (p *PlanetEntity) Match(args ...any) any {
+func (e *PlanetEntity) Match(args ...any) any {
 	if len(args) > 0 && args[0] != nil {
-		p.match = core.ToMapAny(vs.Clone(args[0]))
-		if p.match == nil {
-			p.match = map[string]any{}
+		e.match = core.ToMapAny(vs.Clone(args[0]))
+		if e.match == nil {
+			e.match = map[string]any{}
 		}
-		p.utility.FeatureHook(p.entctx, "SetMatch")
+		e.utility.FeatureHook(e.entctx, "SetMatch")
 	}
 
-	p.utility.FeatureHook(p.entctx, "GetMatch")
-	out := vs.Clone(p.match)
+	e.utility.FeatureHook(e.entctx, "GetMatch")
+	out := vs.Clone(e.match)
 	return out
 }
 
-func (p *PlanetEntity) Load(reqmatch map[string]any, ctrl map[string]any) (any, error) {
-	utility := p.utility
+
+func (e *PlanetEntity) Load(reqmatch map[string]any, ctrl map[string]any) (any, error) {
+	utility := e.utility
 	ctx := utility.MakeContext(map[string]any{
 		"opname":   "load",
 		"ctrl":     ctrl,
-		"match":    p.match,
-		"data":     p.data,
+		"match":    e.match,
+		"data":     e.data,
 		"reqmatch": reqmatch,
-	}, p.entctx)
+	}, e.entctx)
 
-	return p.runOp(ctx, func() {
+	return e.runOp(ctx, func() {
 		if ctx.Result != nil {
 			if ctx.Result.Resmatch != nil {
-				p.match = ctx.Result.Resmatch
+				e.match = ctx.Result.Resmatch
 			}
 			if ctx.Result.Resdata != nil {
-				p.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if p.data == nil {
-					p.data = map[string]any{}
+				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
+				if e.data == nil {
+					e.data = map[string]any{}
 				}
 			}
 		}
 	})
 }
 
-func (p *PlanetEntity) List(reqmatch map[string]any, ctrl map[string]any) (any, error) {
-	utility := p.utility
+
+
+
+func (e *PlanetEntity) List(reqmatch map[string]any, ctrl map[string]any) (any, error) {
+	utility := e.utility
 	ctx := utility.MakeContext(map[string]any{
 		"opname":   "list",
 		"ctrl":     ctrl,
-		"match":    p.match,
-		"data":     p.data,
+		"match":    e.match,
+		"data":     e.data,
 		"reqmatch": reqmatch,
-	}, p.entctx)
+	}, e.entctx)
 
-	return p.runOp(ctx, func() {
+	return e.runOp(ctx, func() {
 		if ctx.Result != nil {
 			if ctx.Result.Resmatch != nil {
-				p.match = ctx.Result.Resmatch
+				e.match = ctx.Result.Resmatch
 			}
 		}
 	})
 }
 
-func (p *PlanetEntity) Create(reqdata map[string]any, ctrl map[string]any) (any, error) {
-	utility := p.utility
+
+
+
+func (e *PlanetEntity) Create(reqdata map[string]any, ctrl map[string]any) (any, error) {
+	utility := e.utility
 	ctx := utility.MakeContext(map[string]any{
 		"opname":  "create",
 		"ctrl":    ctrl,
-		"match":   p.match,
-		"data":    p.data,
+		"match":   e.match,
+		"data":    e.data,
 		"reqdata": reqdata,
-	}, p.entctx)
+	}, e.entctx)
 
-	return p.runOp(ctx, func() {
+	return e.runOp(ctx, func() {
 		if ctx.Result != nil {
 			if ctx.Result.Resdata != nil {
-				p.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if p.data == nil {
-					p.data = map[string]any{}
+				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
+				if e.data == nil {
+					e.data = map[string]any{}
 				}
 			}
 		}
 	})
 }
 
-func (p *PlanetEntity) Update(reqdata map[string]any, ctrl map[string]any) (any, error) {
-	utility := p.utility
+
+
+
+func (e *PlanetEntity) Update(reqdata map[string]any, ctrl map[string]any) (any, error) {
+	utility := e.utility
 	ctx := utility.MakeContext(map[string]any{
 		"opname":  "update",
 		"ctrl":    ctrl,
-		"match":   p.match,
-		"data":    p.data,
+		"match":   e.match,
+		"data":    e.data,
 		"reqdata": reqdata,
-	}, p.entctx)
+	}, e.entctx)
 
-	return p.runOp(ctx, func() {
+	return e.runOp(ctx, func() {
 		if ctx.Result != nil {
 			if ctx.Result.Resmatch != nil {
-				p.match = ctx.Result.Resmatch
+				e.match = ctx.Result.Resmatch
 			}
 			if ctx.Result.Resdata != nil {
-				p.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if p.data == nil {
-					p.data = map[string]any{}
+				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
+				if e.data == nil {
+					e.data = map[string]any{}
 				}
 			}
 		}
 	})
 }
 
-func (p *PlanetEntity) Remove(reqmatch map[string]any, ctrl map[string]any) (any, error) {
-	utility := p.utility
+
+
+
+func (e *PlanetEntity) Remove(reqmatch map[string]any, ctrl map[string]any) (any, error) {
+	utility := e.utility
 	ctx := utility.MakeContext(map[string]any{
 		"opname":   "remove",
 		"ctrl":     ctrl,
-		"match":    p.match,
-		"data":     p.data,
+		"match":    e.match,
+		"data":     e.data,
 		"reqmatch": reqmatch,
-	}, p.entctx)
+	}, e.entctx)
 
-	return p.runOp(ctx, func() {
+	return e.runOp(ctx, func() {
 		if ctx.Result != nil {
 			if ctx.Result.Resmatch != nil {
-				p.match = ctx.Result.Resmatch
+				e.match = ctx.Result.Resmatch
 			}
 			if ctx.Result.Resdata != nil {
-				p.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if p.data == nil {
-					p.data = map[string]any{}
+				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
+				if e.data == nil {
+					e.data = map[string]any{}
 				}
 			}
 		}
 	})
 }
 
-func (p *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
-	utility := p.utility
+
+
+func (e *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
+	utility := e.utility
 
 	utility.FeatureHook(ctx, "PreSelection")
-
 	target, err := utility.MakeTarget(ctx)
 	ctx.Out["target"] = target
 	if err != nil {
@@ -213,7 +227,6 @@ func (p *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
 	}
 
 	utility.FeatureHook(ctx, "PreSpec")
-
 	spec, err := utility.MakeSpec(ctx)
 	ctx.Out["spec"] = spec
 	if err != nil {
@@ -221,7 +234,6 @@ func (p *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
 	}
 
 	utility.FeatureHook(ctx, "PreRequest")
-
 	resp, err := utility.MakeRequest(ctx)
 	ctx.Out["request"] = resp
 	if err != nil {
@@ -229,7 +241,6 @@ func (p *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
 	}
 
 	utility.FeatureHook(ctx, "PreResponse")
-
 	resp2, err := utility.MakeResponse(ctx)
 	ctx.Out["response"] = resp2
 	if err != nil {
@@ -237,7 +248,6 @@ func (p *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
 	}
 
 	utility.FeatureHook(ctx, "PreResult")
-
 	result, err := utility.MakeResult(ctx)
 	ctx.Out["result"] = result
 	if err != nil {
@@ -245,7 +255,6 @@ func (p *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
 	}
 
 	utility.FeatureHook(ctx, "PreDone")
-
 	postDone()
 
 	return utility.Done(ctx)

@@ -51,4 +51,3 @@ var NewOperation = core.NewOperation
 var MakeConfig = core.MakeConfig
 var NewBaseFeature = feature.NewBaseFeature
 var NewTestFeature = feature.NewTestFeature
-

@@ -67,9 +67,9 @@ func TestMoonEntity(t *testing.T) {
 		// UPDATE
 		markValue := fmt.Sprintf("Mark01-moon_ref01_%d", setup.now)
 		moonRef01DataUp := map[string]any{
-			"id":        createData["id"],
+			"id":   createData["id"],
 			"planet_id": setup.idmap["planet_id"],
-			"kind":      markValue,
+			"kind": markValue,
 		}
 
 		updateResult, err := moonEnt.Update(moonRef01DataUp, nil)
@@ -130,25 +130,6 @@ func TestMoonEntity(t *testing.T) {
 			t.Fatal("expected removed entity to not be in list")
 		}
 	})
-}
-
-// entityListToData extracts data maps from a list of Entity objects.
-func entityListToData(list []any) []any {
-	var out []any
-	for _, item := range list {
-		if ent, ok := item.(sdk.Entity); ok {
-			d := ent.Data()
-			if dm, ok := d.(map[string]any); ok {
-				out = append(out, dm)
-			}
-		} else if m, ok := item.(map[string]any); ok {
-			out = append(out, m)
-		}
-	}
-	if out == nil {
-		out = []any{}
-	}
-	return out
 }
 
 func moonBasicSetup(extra map[string]any) *entityTestSetup {

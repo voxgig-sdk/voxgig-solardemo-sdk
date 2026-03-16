@@ -877,6 +877,27 @@
           },
           "name": "ts",
           "active": true
+        },
+        "go": {
+          "title": "Golang",
+          "ext": "go",
+          "comment": {
+            "line": "//"
+          },
+          "module": {
+            "name": "solardemo"
+          },
+          "srcfeature": false,
+          "deps": {
+            "github.com/voxgig/struct": {
+              "active": true,
+              "version": "v0.0.0",
+              "replace": "./utility/struct",
+              "kind": "prod"
+            }
+          },
+          "name": "go",
+          "active": true
         }
       },
       "feature": {
@@ -942,6 +963,9 @@
           },
           "target": {
             "ts": {
+              "deps": {}
+            },
+            "go": {
               "deps": {}
             }
           }

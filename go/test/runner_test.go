@@ -407,3 +407,22 @@ func ctxToMatchMap(ctx *sdk.Context) map[string]any {
 
 	return m
 }
+
+// entityListToData extracts data maps from a list of Entity objects.
+func entityListToData(list []any) []any {
+	var out []any
+	for _, item := range list {
+		if ent, ok := item.(sdk.Entity); ok {
+			d := ent.Data()
+			if dm, ok := d.(map[string]any); ok {
+				out = append(out, dm)
+			}
+		} else if m, ok := item.(map[string]any); ok {
+			out = append(out, m)
+		}
+	}
+	if out == nil {
+		out = []any{}
+	}
+	return out
+}

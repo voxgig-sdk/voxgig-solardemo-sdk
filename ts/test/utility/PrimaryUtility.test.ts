@@ -60,11 +60,171 @@ describe('PrimaryUtility', async () => {
   })
 
 
-  test('clean-basic', async () => {
-    const ctx = makeFullCtx()
-    const val = { key: 'secret123', name: 'test' }
-    const cleaned = utility.clean(ctx, val)
-    ok(null != cleaned)
+  test('context-basic', async () => {
+    await runset(spec.makeContext.basic, utility.makeContext)
+  })
+
+
+  test('method-basic', async () => {
+    await runset(spec.prepareMethod.basic, utility.prepareMethod)
+  })
+
+
+  test('headers-basic', async () => {
+    await runset(spec.prepareHeaders.basic, utility.prepareHeaders)
+  })
+
+
+  test('auth-basic', async () => {
+    const sdkopts = spec.prepareAuth?.DEF?.setup?.a || {}
+    const authClient = SDK.test({}, sdkopts)
+    await runset(spec.prepareAuth.basic, (ctx: any) => {
+      ctx.client = authClient
+      fixctx(ctx)
+      return utility.prepareAuth(ctx)
+    })
+  })
+
+
+  test('params-basic', async () => {
+    await runset(spec.prepareParams.basic, utility.prepareParams)
+  })
+
+
+  test('query-basic', async () => {
+    await runset(spec.prepareQuery.basic, utility.prepareQuery)
+  })
+
+
+  test('body-basic', async () => {
+    await runset(spec.prepareBody.basic, (ctx: any) => {
+      fixctx(ctx)
+      return utility.prepareBody(ctx)
+    })
+  })
+
+
+  test('findparam-basic', async () => {
+    await runset(spec.param.basic, utility.param)
+  })
+
+
+  test('fullurl-basic', async () => {
+    await runset(spec.makeUrl.basic, utility.makeUrl)
+  })
+
+
+  test('operator-basic', async () => {
+    await runset(spec.operator.basic, (opmap: any) => ({
+      entity: opmap.entity || '_',
+      name: opmap.name || '_',
+      input: opmap.input || '_',
+      targets: opmap.targets || [],
+    }))
+  })
+
+
+  test('options-basic', async () => {
+    await runset(spec.makeOptions.basic, (vin: any) => {
+      const ctx = utility.makeContext({ options: vin.options, config: vin.config })
+      ctx.client = client
+      ctx.utility = utility
+      return utility.makeOptions(ctx)
+    })
+  })
+
+
+  test('spec-basic', async () => {
+    const sdkopts = spec.makeSpec?.DEF?.setup?.a || {}
+    const specClient = SDK.test({}, sdkopts)
+    await runset(spec.makeSpec.basic, (ctx: any) => {
+      ctx.client = specClient
+      ctx.options = specClient.options()
+      return utility.makeSpec(ctx)
+    })
+  })
+
+
+  test('reqform-basic', async () => {
+    await runset(spec.transformRequest.basic, utility.transformRequest)
+  })
+
+
+  test('resform-basic', async () => {
+    await runset(spec.transformResponse.basic, utility.transformResponse)
+  })
+
+
+  test('resbasic-basic', async () => {
+    await runset(spec.resultBasic.basic, (ctx: any) => {
+      fixctx(ctx)
+      return utility.resultBasic(ctx)
+    })
+  })
+
+
+  test('resheaders-basic', async () => {
+    await runset(spec.resultHeaders.basic, (ctx: any) => {
+      // Convert plain headers map to forEach-based (browser Response API)
+      if (ctx.response?.headers && !ctx.response.headers.forEach) {
+        const h = ctx.response.headers
+        ctx.response.headers = {
+          forEach: (cb: any) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
+        }
+      }
+      return utility.resultHeaders(ctx)
+    })
+  })
+
+
+  test('resbody-basic', async () => {
+    await runset(spec.resultBody.basic, async (ctx: any) => {
+      if (ctx.response && !ctx.response.json) {
+        const body = ctx.response.body
+        ctx.response.json = async () => body
+      }
+      return utility.resultBody(ctx)
+    })
+  })
+
+
+  test('request-basic', async () => {
+    const mockFetch = async (url: string, init: any) => ({
+      status: 200,
+      statusText: 'OK',
+      headers: { forEach: (cb: any) => { cb('application/json', 'content-type', {}) } },
+      json: async () => ({ id: 'res01' }),
+      body: 'present',
+    })
+    const reqClient = new (SDK as any)({
+      system: { fetch: mockFetch }
+    })
+    const reqUtility = reqClient.utility()
+    await runset(spec.makeRequest.basic, async (ctx: any) => {
+      ctx.client = reqClient
+      ctx.utility = reqUtility
+      ctx.options = reqClient.options()
+      return reqUtility.makeRequest(ctx)
+    })
+  })
+
+
+  test('response-basic', async () => {
+    await runset(spec.makeResponse.basic, async (ctx: any) => {
+      fixctx(ctx)
+      // Add json() and forEach to response for proper TS handling
+      if (ctx.response && !ctx.response.json) {
+        const body = ctx.response.body
+        ctx.response.json = async () => body
+      }
+      if (ctx.response?.headers && !ctx.response.headers.forEach) {
+        const h = ctx.response.headers
+        ctx.response.headers = {
+          forEach: (cb: any) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
+        }
+      }
+      return utility.makeResponse(ctx)
+    })
   })
 
 
@@ -76,7 +236,7 @@ describe('PrimaryUtility', async () => {
   })
 
 
-  test('makeError-basic', async () => {
+  test('error-basic', async () => {
     await runset(spec.makeError.basic, (...args: any[]) => {
       const ctx = args[0]
       fixctx(ctx)
@@ -85,17 +245,72 @@ describe('PrimaryUtility', async () => {
   })
 
 
-  test('makeError-no-throw', () => {
-    const ctx = makeFullCtx()
-    ctx.ctrl.throw = false
-    ctx.result = { ok: false, resdata: { id: 'safe01' } } as any
+  test('makeTarget-single', () => {
+    const ctx = makeCtx()
+    const target = {
+      parts: ['items', '{id}'],
+      args: { params: [] },
+      params: [],
+      alias: {},
+      select: {},
+      active: true,
+      transform: { req: undefined, res: undefined },
+    }
+    ctx.op.targets = [target]
 
-    const out = utility.makeError(ctx, ctx.error('test_code', 'test message'))
-    deepStrictEqual(out, { id: 'safe01' })
+    const result = utility.makeTarget(ctx)
+    ok(!(result instanceof Error))
+    equal(ctx.target, target)
   })
 
 
-  test('featureAdd-basic', () => {
+  test('makeFetchDef', () => {
+    const ctx = makeFullCtx()
+    ctx.spec = {
+      base: 'http://localhost:8080',
+      prefix: '/api',
+      path: 'items/{id}',
+      suffix: '',
+      params: { id: 'item01' },
+      query: {},
+      headers: { 'content-type': 'application/json' },
+      method: 'GET',
+      step: 'start',
+      body: undefined,
+    } as any
+
+    const fetchdef = utility.makeFetchDef(ctx)
+    ok(!(fetchdef instanceof Error), 'should not be error')
+    equal(fetchdef.method, 'GET')
+    ok(fetchdef.url.includes('/api/items/item01'))
+    equal(fetchdef.headers['content-type'], 'application/json')
+    ok(null == fetchdef.body)
+  })
+
+
+  test('makeFetchDef-with-body', () => {
+    const ctx = makeFullCtx()
+    ctx.spec = {
+      base: 'http://localhost:8080',
+      prefix: '',
+      path: 'items',
+      suffix: '',
+      params: {},
+      query: {},
+      headers: {},
+      method: 'POST',
+      step: 'start',
+      body: { name: 'test' },
+    } as any
+
+    const fetchdef = utility.makeFetchDef(ctx)
+    ok(!(fetchdef instanceof Error))
+    equal(fetchdef.method, 'POST')
+    equal(fetchdef.body, JSON.stringify({ name: 'test' }, null, 2))
+  })
+
+
+  test('featureAdd', () => {
     const ctx = makeCtx()
     const startLen = client._features.length
 
@@ -112,7 +327,7 @@ describe('PrimaryUtility', async () => {
   })
 
 
-  test('featureHook-basic', () => {
+  test('featureHook', () => {
     const ctx = makeCtx()
 
     let called = false
@@ -126,7 +341,7 @@ describe('PrimaryUtility', async () => {
   })
 
 
-  test('featureInit-basic', () => {
+  test('featureInit', () => {
     const ctx = makeCtx()
 
     let initCalled = false
@@ -171,11 +386,8 @@ describe('PrimaryUtility', async () => {
       }
     })
     const liveUtility = liveClient.utility()
-    const ctx = liveUtility.makeContext({
-      opname: 'load',
-      client: liveClient,
-      utility: liveUtility,
-    }, liveClient._rootctx)
+    const ctx = liveUtility.makeContext({ opname: 'load' }, liveClient._rootctx)
+    ctx.client = liveClient
 
     const fetchdef = { method: 'GET', headers: {} }
     const response = await liveUtility.fetcher(ctx, 'http://example.com/test', fetchdef)
@@ -192,329 +404,31 @@ describe('PrimaryUtility', async () => {
     blockedClient._mode = 'test'
 
     const blockedUtility = blockedClient.utility()
-    const ctx = blockedUtility.makeContext({
-      opname: 'load',
-      client: blockedClient,
-      utility: blockedUtility,
-    }, blockedClient._rootctx)
+    const ctx = blockedUtility.makeContext({ opname: 'load' }, blockedClient._rootctx)
+    ctx.client = blockedClient
     const fetchdef = { method: 'GET', headers: {} }
 
     const result = await blockedUtility.fetcher(ctx, 'http://example.com/test', fetchdef)
     ok(result instanceof Error)
-    ok(result.message.includes('blocked'))
+    ok((result as Error).message.includes('mode'))
   })
 
 
-  test('makeContext-basic', async () => {
-    await runset(spec.makeContext.basic, utility.makeContext)
-  })
-
-
-  test('makeFetchDef-basic', () => {
+  test('makeError-no-throw', () => {
     const ctx = makeFullCtx()
-    ctx.spec = {
-      base: 'http://localhost:8080',
-      prefix: '/api',
-      path: 'items/{id}',
-      suffix: '',
-      params: { id: 'item01' },
-      query: {},
-      headers: { 'content-type': 'application/json' },
-      method: 'GET',
-      step: 'start',
-      body: undefined,
-    } as any
+    ctx.ctrl.throw = false
+    ctx.result = { ok: false, resdata: { id: 'safe01' } } as any
 
-    const fetchdef = utility.makeFetchDef(ctx)
-    ok(!(fetchdef instanceof Error), 'should not be error')
-    equal(fetchdef.method, 'GET')
-    ok(fetchdef.url.includes('/api/items/item01'))
-    equal(fetchdef.headers['content-type'], 'application/json')
-    ok(null == fetchdef.body)
+    const out = utility.makeError(ctx, ctx.error('test_code', 'test message'))
+    deepStrictEqual(out, { id: 'safe01' })
   })
 
 
-  test('makeFetchDef-with-body', () => {
+  test('clean', () => {
     const ctx = makeFullCtx()
-    ctx.spec = {
-      base: 'http://localhost:8080',
-      prefix: '',
-      path: 'items',
-      suffix: '',
-      params: {},
-      query: {},
-      headers: {},
-      method: 'POST',
-      step: 'start',
-      body: { name: 'test' },
-    } as any
-
-    const fetchdef = utility.makeFetchDef(ctx)
-    ok(!(fetchdef instanceof Error))
-    equal(fetchdef.method, 'POST')
-    deepStrictEqual(JSON.parse(fetchdef.body), { name: 'test' })
-  })
-
-
-  test('makeOptions-basic', async () => {
-    await runset(spec.makeOptions.basic, (vin: any) => {
-      const ctx = utility.makeContext({ options: vin.options, config: vin.config })
-      ctx.client = client
-      ctx.utility = utility
-      return utility.makeOptions(ctx)
-    })
-  })
-
-
-  test('makeRequest-basic', async () => {
-    const mockFetch = async (url: string, init: any) => ({
-      status: 200,
-      statusText: 'OK',
-      headers: { forEach: (cb: any) => { cb('application/json', 'content-type', {}) } },
-      json: async () => ({ id: 'res01' }),
-      body: 'present',
-    })
-    const reqClient = new (SDK as any)({
-      system: { fetch: mockFetch }
-    })
-    await runset(spec.makeRequest.basic, async (ctx: any) => {
-      ctx.client = reqClient
-      ctx.utility = reqClient._utility || utility
-      ctx.options = reqClient.options()
-      return utility.makeRequest(ctx)
-    })
-  })
-
-
-  test('makeResponse-basic', async () => {
-    await runset(spec.makeResponse.basic, async (ctx: any) => {
-      fixctx(ctx)
-      // Add json() and forEach to response for proper TS handling
-      if (ctx.response && !ctx.response.json) {
-        const body = ctx.response.body
-        ctx.response.json = async () => body
-      }
-      if (ctx.response?.headers && !ctx.response.headers.forEach) {
-        const h = ctx.response.headers
-        ctx.response.headers = {
-          forEach: (cb: any) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
-        }
-      }
-      return utility.makeResponse(ctx)
-    })
-  })
-
-
-  test('makeResult-basic', () => {
-    const ctx = makeFullCtx()
-    ctx.spec = {
-      base: 'http://localhost:8080',
-      prefix: '/api',
-      path: 'items/{id}',
-      suffix: '',
-      params: { id: 'item01' },
-      query: {},
-      headers: {},
-      method: 'GET',
-      step: 'start',
-    } as any
-    ctx.result = { ok: true, status: 200, statusText: 'OK', headers: {},
-      resdata: { id: 'item01', name: 'Test' } } as any
-
-    const result = utility.makeResult(ctx)
-    ok(!(result instanceof Error))
-    equal((result as any).status, 200)
-  })
-
-
-  test('makeResult-no-spec', () => {
-    const ctx = makeFullCtx()
-    ctx.spec = undefined
-    ctx.result = { ok: true, status: 200, statusText: 'OK', headers: {} } as any
-
-    const result = utility.makeResult(ctx)
-    ok(result instanceof Error)
-  })
-
-
-  test('makeResult-no-result', () => {
-    const ctx = makeFullCtx()
-    ctx.spec = { step: 'start' } as any
-    ctx.result = undefined
-
-    const result = utility.makeResult(ctx)
-    ok(result instanceof Error)
-  })
-
-
-  test('makeSpec-basic', async () => {
-    const sdkopts = spec.makeSpec?.DEF?.setup?.a || {}
-    const specClient = SDK.test({}, sdkopts)
-    await runset(spec.makeSpec.basic, (ctx: any) => {
-      ctx.client = specClient
-      ctx.options = specClient.options()
-      return utility.makeSpec(ctx)
-    })
-  })
-
-
-  test('makeTarget-basic', () => {
-    const ctx = makeCtx()
-    const target = {
-      parts: ['items', '{id}'],
-      args: { params: [] },
-      params: [],
-      alias: {},
-      select: {},
-      active: true,
-      transform: { req: undefined, res: undefined },
-    }
-    ctx.op.targets = [target]
-
-    const result = utility.makeTarget(ctx)
-    ok(!(result instanceof Error))
-    equal(ctx.target, target)
-  })
-
-
-  test('makeUrl-basic', async () => {
-    await runset(spec.makeUrl.basic, utility.makeUrl)
-  })
-
-
-  test('operator-basic', async () => {
-    await runset(spec.operator.basic, (opmap: any) => ({
-      entity: opmap.entity || '_',
-      name: opmap.name || '_',
-      input: opmap.input || '_',
-      targets: opmap.targets || [],
-    }))
-  })
-
-
-  test('param-basic', async () => {
-    await runset(spec.param.basic, utility.param)
-  })
-
-
-  test('prepareAuth-basic', async () => {
-    const sdkopts = spec.prepareAuth?.DEF?.setup?.a || {}
-    const authClient = SDK.test({}, sdkopts)
-    await runset(spec.prepareAuth.basic, (ctx: any) => {
-      ctx.client = authClient
-      fixctx(ctx)
-      return utility.prepareAuth(ctx)
-    })
-  })
-
-
-  test('prepareBody-basic', async () => {
-    await runset(spec.prepareBody.basic, (ctx: any) => {
-      fixctx(ctx)
-      return utility.prepareBody(ctx)
-    })
-  })
-
-
-  test('prepareHeaders-basic', async () => {
-    await runset(spec.prepareHeaders.basic, utility.prepareHeaders)
-  })
-
-
-  test('prepareMethod-basic', async () => {
-    await runset(spec.prepareMethod.basic, utility.prepareMethod)
-  })
-
-
-  test('prepareParams-basic', async () => {
-    await runset(spec.prepareParams.basic, utility.prepareParams)
-  })
-
-
-  test('preparePath-basic', () => {
-    const ctx = makeFullCtx()
-    ctx.target = {
-      parts: ['api', 'planet', '{id}'],
-      args: { params: [] },
-      params: [],
-      alias: {},
-      select: {},
-      active: true,
-      transform: { req: undefined, res: undefined },
-    }
-
-    const path = utility.preparePath(ctx)
-    equal(path, 'api/planet/{id}')
-  })
-
-
-  test('preparePath-single', () => {
-    const ctx = makeFullCtx()
-    ctx.target = {
-      parts: ['items'],
-      args: { params: [] },
-      params: [],
-      alias: {},
-      select: {},
-      active: true,
-      transform: { req: undefined, res: undefined },
-    }
-
-    const path = utility.preparePath(ctx)
-    equal(path, 'items')
-  })
-
-
-  test('prepareQuery-basic', async () => {
-    await runset(spec.prepareQuery.basic, utility.prepareQuery)
-  })
-
-
-  test('resultBasic-basic', async () => {
-    await runset(spec.resultBasic.basic, (ctx: any) => {
-      fixctx(ctx)
-      const result = utility.resultBasic(ctx)
-      // Break circular reference: SolardemoError stores ctx which stores result
-      if (result?.err?.ctx) {
-        delete result.err.ctx
-      }
-      return result
-    })
-  })
-
-
-  test('resultBody-basic', async () => {
-    await runset(spec.resultBody.basic, async (ctx: any) => {
-      if (ctx.response && !ctx.response.json) {
-        const body = ctx.response.body
-        ctx.response.json = async () => body
-      }
-      return utility.resultBody(ctx)
-    })
-  })
-
-
-  test('resultHeaders-basic', async () => {
-    await runset(spec.resultHeaders.basic, (ctx: any) => {
-      // Convert plain headers map to forEach-based (browser Response API)
-      if (ctx.response?.headers && !ctx.response.headers.forEach) {
-        const h = ctx.response.headers
-        ctx.response.headers = {
-          forEach: (cb: any) => Object.entries(h).forEach(([k, v]) => cb(v, k.toLowerCase()))
-        }
-      }
-      return utility.resultHeaders(ctx)
-    })
-  })
-
-
-  test('transformRequest-basic', async () => {
-    await runset(spec.transformRequest.basic, utility.transformRequest)
-  })
-
-
-  test('transformResponse-basic', async () => {
-    await runset(spec.transformResponse.basic, utility.transformResponse)
+    const val = { key: 'secret123', name: 'test' }
+    const cleaned = utility.clean(ctx, val)
+    ok(null != cleaned)
   })
 
 

@@ -162,9 +162,9 @@ func planetBasicSetup(extra map[string]any) *entityTestSetup {
 
 	env := envOverride(map[string]any{
 		"SOLARDEMO_TEST_PLANET_ENTID": idmap,
-		"SOLARDEMO_TEST_LIVE":        "FALSE",
-		"SOLARDEMO_TEST_EXPLAIN":     "FALSE",
-		"SOLARDEMO_APIKEY":           "NONE",
+		"SOLARDEMO_TEST_LIVE":      "FALSE",
+		"SOLARDEMO_TEST_EXPLAIN":   "FALSE",
+		"SOLARDEMO_APIKEY":         "NONE",
 	})
 
 	idmapResolved := core.ToMapAny(env["SOLARDEMO_TEST_PLANET_ENTID"])

@@ -227,13 +227,17 @@ func (sdk *SolardemoSDK) Direct(fetchargs map[string]any) (map[string]any, error
 	return map[string]any{"ok": false, "err": ctx.MakeError("direct_invalid", "invalid response type")}, nil
 }
 
+
 func (sdk *SolardemoSDK) Moon(data map[string]any) SolardemoEntity {
 	return NewMoonEntityFunc(sdk, data)
 }
 
+
 func (sdk *SolardemoSDK) Planet(data map[string]any) SolardemoEntity {
 	return NewPlanetEntityFunc(sdk, data)
 }
+
+
 
 func TestSDK(testopts map[string]any, sdkopts map[string]any) *SolardemoSDK {
 	if sdkopts == nil {
