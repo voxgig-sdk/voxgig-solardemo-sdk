@@ -9,6 +9,7 @@ import { inspect } from 'node:util'
 import type { Context, Feature } from './types'
 
 import { config } from './Config'
+import { SolardemoEntityBase } from './SolardemoEntityBase'
 import { Utility } from './utility/Utility'
 
 
@@ -235,9 +236,6 @@ class SolardemoSDK {
 }
 
 
-class SolardemoEntity {
-
-}
 
 
 const SDK = SolardemoSDK
@@ -247,7 +245,7 @@ export {
   stdutil,
 
   BaseFeature,
-  SolardemoEntity,
+  SolardemoEntityBase,
 
   SolardemoSDK,
   SDK,

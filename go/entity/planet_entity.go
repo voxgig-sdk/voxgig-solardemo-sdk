@@ -219,9 +219,9 @@ func (e *PlanetEntity) Remove(reqmatch map[string]any, ctrl map[string]any) (any
 func (e *PlanetEntity) runOp(ctx *core.Context, postDone func()) (any, error) {
 	utility := e.utility
 
-	utility.FeatureHook(ctx, "PreSelection")
-	target, err := utility.MakeTarget(ctx)
-	ctx.Out["target"] = target
+	utility.FeatureHook(ctx, "PrePoint")
+	point, err := utility.MakePoint(ctx)
+	ctx.Out["point"] = point
 	if err != nil {
 		return utility.MakeError(ctx, err)
 	}

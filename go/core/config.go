@@ -30,35 +30,35 @@ func MakeConfig() map[string]any {
 				"fields": []any{
 					map[string]any{
 						"name": "diameter",
-						"req": false,
+						"req": true,
 						"type": "`$NUMBER`",
 						"active": true,
 						"index$": 0,
 					},
 					map[string]any{
 						"name": "id",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 1,
 					},
 					map[string]any{
 						"name": "kind",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 2,
 					},
 					map[string]any{
 						"name": "name",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 3,
 					},
 					map[string]any{
 						"name": "planet_id",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 4,
@@ -68,7 +68,7 @@ func MakeConfig() map[string]any {
 				"op": map[string]any{
 					"create": map[string]any{
 						"name": "create",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -106,7 +106,7 @@ func MakeConfig() map[string]any {
 					},
 					"list": map[string]any{
 						"name": "list",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -144,7 +144,7 @@ func MakeConfig() map[string]any {
 					},
 					"load": map[string]any{
 						"name": "load",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -197,7 +197,7 @@ func MakeConfig() map[string]any {
 					},
 					"remove": map[string]any{
 						"name": "remove",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -228,6 +228,11 @@ func MakeConfig() map[string]any {
 									"moon",
 									"{id}",
 								},
+								"rename": map[string]any{
+									"param": map[string]any{
+										"moon_id": "id",
+									},
+								},
 								"select": map[string]any{
 									"exist": []any{
 										"id",
@@ -245,7 +250,7 @@ func MakeConfig() map[string]any {
 					},
 					"update": map[string]any{
 						"name": "update",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -276,6 +281,11 @@ func MakeConfig() map[string]any {
 									"moon",
 									"{id}",
 								},
+								"rename": map[string]any{
+									"param": map[string]any{
+										"moon_id": "id",
+									},
+								},
 								"select": map[string]any{
 									"exist": []any{
 										"id",
@@ -304,7 +314,7 @@ func MakeConfig() map[string]any {
 				"fields": []any{
 					map[string]any{
 						"name": "diameter",
-						"req": false,
+						"req": true,
 						"type": "`$NUMBER`",
 						"active": true,
 						"index$": 0,
@@ -318,21 +328,21 @@ func MakeConfig() map[string]any {
 					},
 					map[string]any{
 						"name": "id",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 2,
 					},
 					map[string]any{
 						"name": "kind",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 3,
 					},
 					map[string]any{
 						"name": "name",
-						"req": false,
+						"req": true,
 						"type": "`$STRING`",
 						"active": true,
 						"index$": 4,
@@ -377,7 +387,7 @@ func MakeConfig() map[string]any {
 				"op": map[string]any{
 					"create": map[string]any{
 						"name": "create",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -476,7 +486,7 @@ func MakeConfig() map[string]any {
 					},
 					"list": map[string]any{
 						"name": "list",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"method": "GET",
 								"orig": "/api/planet",
@@ -499,7 +509,7 @@ func MakeConfig() map[string]any {
 					},
 					"load": map[string]any{
 						"name": "load",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -541,7 +551,7 @@ func MakeConfig() map[string]any {
 					},
 					"remove": map[string]any{
 						"name": "remove",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -562,6 +572,11 @@ func MakeConfig() map[string]any {
 									"planet",
 									"{id}",
 								},
+								"rename": map[string]any{
+									"param": map[string]any{
+										"planet_id": "id",
+									},
+								},
 								"select": map[string]any{
 									"exist": []any{
 										"id",
@@ -578,7 +593,7 @@ func MakeConfig() map[string]any {
 					},
 					"update": map[string]any{
 						"name": "update",
-						"targets": []any{
+						"points": []any{
 							map[string]any{
 								"args": map[string]any{
 									"params": []any{
@@ -598,6 +613,11 @@ func MakeConfig() map[string]any {
 									"api",
 									"planet",
 									"{id}",
+								},
+								"rename": map[string]any{
+									"param": map[string]any{
+										"planet_id": "id",
+									},
 								},
 								"select": map[string]any{
 									"exist": []any{

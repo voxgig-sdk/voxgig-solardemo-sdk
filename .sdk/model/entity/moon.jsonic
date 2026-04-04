@@ -7,27 +7,27 @@ main: kit: entity: moon: {
   fields: [
     {
       name: "diameter"
-      req: false
+      req: true
       type: "`$NUMBER`"
     }
     {
       name: "id"
-      req: false
+      req: true
       type: "`$STRING`"
     }
     {
       name: "kind"
-      req: false
+      req: true
       type: "`$STRING`"
     }
     {
       name: "name"
-      req: false
+      req: true
       type: "`$STRING`"
     }
     {
       name: "planet_id"
-      req: false
+      req: true
       type: "`$STRING`"
     }
   ]
@@ -41,7 +41,7 @@ main: kit: entity: moon: {
   op: {
     create: {
       name: "create"
-      targets: [
+      points: [
         {
           args: {
             params: [
@@ -76,7 +76,7 @@ main: kit: entity: moon: {
     }
     list: {
       name: "list"
-      targets: [
+      points: [
         {
           args: {
             params: [
@@ -111,7 +111,7 @@ main: kit: entity: moon: {
     }
     load: {
       name: "load"
-      targets: [
+      points: [
         {
           args: {
             params: [
@@ -160,7 +160,7 @@ main: kit: entity: moon: {
     }
     remove: {
       name: "remove"
-      targets: [
+      points: [
         {
           args: {
             params: [
@@ -189,6 +189,11 @@ main: kit: entity: moon: {
             "moon"
             "{id}"
           ]
+          rename: {
+            param: {
+              moon_id: "id"
+            }
+          }
           select: {
             exist: [
               "id"
@@ -204,7 +209,7 @@ main: kit: entity: moon: {
     }
     update: {
       name: "update"
-      targets: [
+      points: [
         {
           args: {
             params: [
@@ -233,6 +238,11 @@ main: kit: entity: moon: {
             "moon"
             "{id}"
           ]
+          rename: {
+            param: {
+              moon_id: "id"
+            }
+          }
           select: {
             exist: [
               "id"

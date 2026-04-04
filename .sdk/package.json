@@ -26,7 +26,7 @@
     "typescript": ">=5",
     "@voxgig/apidef": ">=3",
     "@voxgig/model": ">=7",
-    "@voxgig/sdkgen": ">=0",
+    "@voxgig/sdkgen": "github:voxgig/sdkgen#main",
     "@voxgig/util": ">=0",
     "@voxgig/struct": ">=0",
     "jostraca": ">=0",

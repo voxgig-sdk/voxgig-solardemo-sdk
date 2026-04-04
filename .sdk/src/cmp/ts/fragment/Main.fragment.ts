@@ -4,6 +4,7 @@ import { inspect } from 'node:util'
 import type { Context, Feature } from './types'
 
 import { config } from './Config'
+import { ProjectNameEntityBase } from './ProjectNameEntityBase'
 import { Utility } from './utility/Utility'
 
 
@@ -218,9 +219,6 @@ class ProjectNameSDK {
 }
 
 
-class ProjectNameEntity {
-
-}
 
 
 const SDK = ProjectNameSDK
@@ -230,7 +228,7 @@ export {
   stdutil,
 
   BaseFeature,
-  ProjectNameEntity,
+  ProjectNameEntityBase,
 
   ProjectNameSDK,
   SDK,

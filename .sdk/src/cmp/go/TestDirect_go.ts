@@ -1,9 +1,53 @@
 
 import {
+  depluralize,
+} from '@voxgig/apidef'
+
+import {
   Content,
   File,
   cmp,
+  snakify,
 } from '@voxgig/sdkgen'
+
+
+// Replace raw OpenAPI parameter names in path parts with model parameter names.
+// Path parts may have e.g. {subBreed} while model params use sub_breed.
+// When a rename mapping exists (e.g. closureId -> id), path parts contain the
+// renamed form {id} but params still use the original name closure_id.
+function normalizePathParams(
+  parts: string[],
+  params: any[],
+  rename?: Record<string, string>
+): string {
+  return parts.map((part: string) => {
+    return part.replace(/\{([^}]+)\}/g, (match: string, rawName: string) => {
+      const snaked = snakify(rawName)
+      const depluralized = depluralize(snaked)
+      const param = params.find((p: any) =>
+        p.orig === snaked || p.name === snaked ||
+        p.orig === depluralized || p.name === depluralized
+      )
+      if (param) return '{' + param.name + '}'
+
+      if (rename) {
+        for (const [origCamel, renamedTo] of Object.entries(rename)) {
+          if (renamedTo === rawName) {
+            const origSnaked = snakify(origCamel)
+            const origDepluralized = depluralize(origSnaked)
+            const renamedParam = params.find(
+              (p: any) => p.orig === origSnaked || p.name === origSnaked ||
+                p.orig === origDepluralized || p.name === origDepluralized
+            )
+            if (renamedParam) return '{' + renamedParam.name + '}'
+          }
+        }
+      }
+
+      return match
+    })
+  }).join('/')
+}
 
 
 const TestDirect = cmp(function TestDirect(props: any) {
@@ -14,7 +58,7 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const entity = props.entity
   const gomodule = props.gomodule
 
-  const PROJECTNAME = model.Name.toUpperCase()
+  const PROJECTNAME = model.Name.toUpperCase().replace(/[^A-Z_]/g, '_')
 
   const opnames = Object.keys(entity.op)
   const hasLoad = opnames.includes('load')
@@ -27,18 +71,18 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const loadOp = entity.op.load
   const listOp = entity.op.list
 
-  // Get load target info
-  const loadTarget = loadOp?.targets?.[0]
-  const loadPath = loadTarget ? (loadTarget.parts || []).join('/') : ''
-  const loadParams = loadTarget?.args?.params || []
+  // Get load point info
+  const loadPoint = loadOp?.points?.[0]
+  const loadPath = loadPoint ? normalizePathParams(loadPoint.parts || [], loadPoint?.args?.params || [], loadPoint?.rename?.param) : ''
+  const loadParams = loadPoint?.args?.params || []
 
-  // Get list target info
-  const listTarget = listOp?.targets?.[0]
-  const listPath = listTarget ? (listTarget.parts || []).join('/') : ''
-  const listParams = listTarget?.args?.params || []
+  // Get list point info
+  const listPoint = listOp?.points?.[0]
+  const listPath = listPoint ? normalizePathParams(listPoint.parts || [], listPoint?.args?.params || [], listPoint?.rename?.param) : ''
+  const listParams = listPoint?.args?.params || []
 
   // Build the ENTID env var name for this entity
-  const entidEnvVar = `${PROJECTNAME}_TEST_${entity.Name.toUpperCase()}_ENTID`
+  const entidEnvVar = `${PROJECTNAME}_TEST_${entity.Name.toUpperCase().replace(/[^A-Z_]/g, '_')}_ENTID`
 
   File({ name: entity.name + '_direct_test.' + target.ext }, () => {
 
@@ -58,7 +102,7 @@ func Test${entity.Name}Direct(t *testing.T) {
 `)
 
     // Generate list test first (load needs list results in live mode)
-    if (hasList && listTarget) {
+    if (hasList && listPoint) {
       const listParamStr = listParams.length > 0
         ? listParams.map((p: any, i: number) =>
           `"${p.name}": "direct0${i + 1}"`).join(', ')
@@ -160,7 +204,7 @@ func Test${entity.Name}Direct(t *testing.T) {
     }
 
     // Generate load test - in live mode, first list to get a real entity ID
-    if (hasLoad && loadTarget) {
+    if (hasLoad && loadPoint) {
       const loadParamStr = loadParams.length > 0
         ? loadParams.map((p: any, i: number) =>
           `"${p.name}": "direct0${i + 1}"`).join(', ')

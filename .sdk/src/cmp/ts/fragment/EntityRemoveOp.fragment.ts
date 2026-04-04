@@ -12,14 +12,14 @@ class EntityOperation {
 
   async remove(this: any, reqmatch?: any, ctrl?: Control) {
 
-    const utility = this.#utility
+    const utility = this._utility
 
     const {
       makeContext,
       done,
       error,
       featureHook,
-      makeTarget,
+      makePoint,
       makeRequest,
       makeResponse,
       makeResult,
@@ -31,18 +31,18 @@ class EntityOperation {
     let ctx: Context = makeContext({
       opname: 'remove',
       ctrl,
-      match: this.#match,
-      data: this.#data,
+      match: this._match,
+      data: this._data,
       reqmatch
     }, this._entctx)
 
     try {
 
-      // #PreTarget-Hook    
+      // #PrePoint-Hook
 
-      ctx.out.target = makeTarget(ctx)
-      if (ctx.out.target instanceof Error) {
-        return error(ctx, ctx.out.target)
+      ctx.out.point = makePoint(ctx)
+      if (ctx.out.point instanceof Error) {
+        return error(ctx, ctx.out.point)
       }
 
 
@@ -82,20 +82,20 @@ class EntityOperation {
 
       if (null != ctx.result) {
         if (null != ctx.result.resmatch) {
-          this.#match = ctx.result.resmatch
+          this._match = ctx.result.resmatch
         }
 
         if (null != ctx.result.resdata) {
-          this.#data = ctx.result.resdata
+          this._data = ctx.result.resdata
         }
       }
 
       return done(ctx)
     }
     catch (err: any) {
-      // #PreSelection-Hook
+      // #PreUnexpected-Hook
 
-      err = this.#unexpected(ctx, err)
+      err = this._unexpected(ctx, err)
 
       if (err) {
         throw err
@@ -109,7 +109,7 @@ class EntityOperation {
   // EJECT-END
 
 
-  #unexpected(this: any, ctx: Context, ctrl: any, err: any): any { return err }
+  _unexpected(this: any, ctx: Context, ctrl: any, err: any): any { return err }
 
 }
 

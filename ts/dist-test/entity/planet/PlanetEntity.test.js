@@ -102,7 +102,7 @@ function basicSetup(extra) {
     const struct = client.utility().struct;
     const merge = struct.merge;
     const transform = struct.transform;
-    let idmap = transform(['${entity.name}01', '${entity.name}02', '${entity.name}03'], {
+    let idmap = transform(['planet01', 'planet02', 'planet03'], {
         '`$PACK`': ['', {
                 '`$KEY`': '`$COPY`',
                 '`$VAL`': ['`$FORMAT`', 'upper', '`$COPY`']

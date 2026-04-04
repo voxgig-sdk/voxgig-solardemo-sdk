@@ -1,7 +1,7 @@
 package core
 
-type SolardemoError struct {
-	IsSolardemoError bool
+type ProjectNameError struct {
+	IsProjectNameError bool
 	Sdk              string
 	Code             string
 	Msg              string
@@ -10,16 +10,16 @@ type SolardemoError struct {
 	Spec             any
 }
 
-func NewSolardemoError(code string, msg string, ctx *Context) *SolardemoError {
-	return &SolardemoError{
-		IsSolardemoError: true,
-		Sdk:              "Solardemo",
+func NewProjectNameError(code string, msg string, ctx *Context) *ProjectNameError {
+	return &ProjectNameError{
+		IsProjectNameError: true,
+		Sdk:              "ProjectName",
 		Code:             code,
 		Msg:              msg,
 		Ctx:              ctx,
 	}
 }
 
-func (e *SolardemoError) Error() string {
+func (e *ProjectNameError) Error() string {
 	return e.Msg
 }

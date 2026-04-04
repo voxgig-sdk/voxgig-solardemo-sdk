@@ -31,7 +31,7 @@ const index_1 = require("./index");
         const fns = [
             'clean', 'done', 'makeError', 'featureAdd', 'featureHook', 'featureInit',
             'fetcher', 'makeFetchDef', 'makeContext', 'makeOptions', 'makeRequest',
-            'makeResponse', 'makeResult', 'makeTarget', 'makeSpec', 'makeUrl',
+            'makeResponse', 'makeResult', 'makePoint', 'makeSpec', 'makeUrl',
             'param', 'prepareAuth', 'prepareBody', 'prepareHeaders', 'prepareMethod',
             'prepareParams', 'preparePath', 'prepareQuery', 'resultBasic',
             'resultBody', 'resultHeaders', 'transformRequest', 'transformResponse',
@@ -81,7 +81,7 @@ const index_1 = require("./index");
             entity: opmap.entity || '_',
             name: opmap.name || '_',
             input: opmap.input || '_',
-            targets: opmap.targets || [],
+            points: opmap.points || [],
         }));
     });
     (0, node_test_1.test)('options-basic', async () => {
@@ -183,9 +183,9 @@ const index_1 = require("./index");
             return utility.makeError(...args);
         });
     });
-    (0, node_test_1.test)('makeTarget-single', () => {
+    (0, node_test_1.test)('makePoint-single', () => {
         const ctx = makeCtx();
-        const target = {
+        const point = {
             parts: ['items', '{id}'],
             args: { params: [] },
             params: [],
@@ -194,10 +194,10 @@ const index_1 = require("./index");
             active: true,
             transform: { req: undefined, res: undefined },
         };
-        ctx.op.targets = [target];
-        const result = utility.makeTarget(ctx);
+        ctx.op.points = [point];
+        const result = utility.makePoint(ctx);
         (0, node_assert_1.ok)(!(result instanceof Error));
-        (0, node_assert_1.equal)(ctx.target, target);
+        (0, node_assert_1.equal)(ctx.point, point);
     });
     (0, node_test_1.test)('makeFetchDef', () => {
         const ctx = makeFullCtx();
@@ -340,7 +340,7 @@ const index_1 = require("./index");
     }
     function makeFullCtx(overrides) {
         const ctx = makeCtx(overrides);
-        ctx.target = {
+        ctx.point = {
             parts: ['items', '{id}'],
             args: { params: [{ name: 'id', reqd: true }] },
             params: ['id'],

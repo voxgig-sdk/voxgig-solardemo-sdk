@@ -29,20 +29,20 @@ func TestMoonEntity(t *testing.T) {
 		client := setup.client
 
 		// CREATE
-		moonEnt := client.Moon(nil)
+		moonRef01Ent := client.Moon(nil)
 		moonRef01Data := core.ToMapAny(vs.GetProp(
 			vs.GetPath([]any{"new", "moon"}, setup.data), "moon_ref01"))
 		moonRef01Data["planet_id"] = setup.idmap["planet01"]
 
-		createResult, err := moonEnt.Create(moonRef01Data, nil)
+		moonRef01DataResult, err := moonRef01Ent.Create(moonRef01Data, nil)
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
 		}
-		createData := core.ToMapAny(createResult)
-		if createData == nil {
+		moonRef01Data = core.ToMapAny(moonRef01DataResult)
+		if moonRef01Data == nil {
 			t.Fatal("expected create result to be a map")
 		}
-		if createData["id"] == nil {
+		if moonRef01Data["id"] == nil {
 			t.Fatal("expected created entity to have an id")
 		}
 
@@ -50,85 +50,90 @@ func TestMoonEntity(t *testing.T) {
 		moonRef01Match := map[string]any{
 			"planet_id": setup.idmap["planet01"],
 		}
-		listResult, err := moonEnt.List(moonRef01Match, nil)
+
+		moonRef01ListResult, err := moonRef01Ent.List(moonRef01Match, nil)
 		if err != nil {
 			t.Fatalf("list failed: %v", err)
 		}
-		listData, ok := listResult.([]any)
+		moonRef01List, ok := moonRef01ListResult.([]any)
 		if !ok {
-			t.Fatalf("expected list result to be an array, got %T", listResult)
+			t.Fatalf("expected list result to be an array, got %T", moonRef01ListResult)
 		}
 
-		found := vs.Select(entityListToData(listData), map[string]any{"id": createData["id"]})
-		if vs.IsEmpty(found) {
+		foundItem := vs.Select(entityListToData(moonRef01List), map[string]any{"id": moonRef01Data["id"]})
+		if vs.IsEmpty(foundItem) {
 			t.Fatal("expected to find created entity in list")
 		}
 
 		// UPDATE
-		markValue := fmt.Sprintf("Mark01-moon_ref01_%d", setup.now)
-		moonRef01DataUp := map[string]any{
-			"id":   createData["id"],
+		moonRef01DataUp0Up := map[string]any{
+			"id": moonRef01Data["id"],
 			"planet_id": setup.idmap["planet_id"],
-			"kind": markValue,
 		}
 
-		updateResult, err := moonEnt.Update(moonRef01DataUp, nil)
+		moonRef01MarkdefUp0Name := "kind"
+		moonRef01MarkdefUp0Value := fmt.Sprintf("Mark01-moon_ref01_%d", setup.now)
+		moonRef01DataUp0Up[moonRef01MarkdefUp0Name] = moonRef01MarkdefUp0Value
+
+		moonRef01ResdataUp0Result, err := moonRef01Ent.Update(moonRef01DataUp0Up, nil)
 		if err != nil {
 			t.Fatalf("update failed: %v", err)
 		}
-		updateData := core.ToMapAny(updateResult)
-		if updateData == nil {
+		moonRef01ResdataUp0 := core.ToMapAny(moonRef01ResdataUp0Result)
+		if moonRef01ResdataUp0 == nil {
 			t.Fatal("expected update result to be a map")
 		}
-		if updateData["id"] != createData["id"] {
+		if moonRef01ResdataUp0["id"] != moonRef01DataUp0Up["id"] {
 			t.Fatal("expected update result id to match")
 		}
-		if updateData["kind"] != markValue {
-			t.Fatalf("expected kind to be updated, got %v", updateData["kind"])
+		if moonRef01ResdataUp0[moonRef01MarkdefUp0Name] != moonRef01MarkdefUp0Value {
+			t.Fatalf("expected %s to be updated, got %v", moonRef01MarkdefUp0Name, moonRef01ResdataUp0[moonRef01MarkdefUp0Name])
 		}
 
 		// LOAD
-		moonRef01MatchDt := map[string]any{
-			"id": createData["id"],
+		moonRef01MatchDt0 := map[string]any{
+			"id": moonRef01Data["id"],
 		}
-		loadResult, err := moonEnt.Load(moonRef01MatchDt, nil)
+		moonRef01DataDt0Loaded, err := moonRef01Ent.Load(moonRef01MatchDt0, nil)
 		if err != nil {
 			t.Fatalf("load failed: %v", err)
 		}
-		loadData := core.ToMapAny(loadResult)
-		if loadData == nil {
+		moonRef01DataDt0LoadResult := core.ToMapAny(moonRef01DataDt0Loaded)
+		if moonRef01DataDt0LoadResult == nil {
 			t.Fatal("expected load result to be a map")
 		}
-		if loadData["id"] != createData["id"] {
+		if moonRef01DataDt0LoadResult["id"] != moonRef01Data["id"] {
 			t.Fatal("expected load result id to match")
 		}
 
 		// REMOVE
-		moonRef01MatchRm := map[string]any{
-			"id": createData["id"],
+		moonRef01MatchRm0 := map[string]any{
+			"id": moonRef01Data["id"],
 		}
-		_, err = moonEnt.Remove(moonRef01MatchRm, nil)
+		_, err = moonRef01Ent.Remove(moonRef01MatchRm0, nil)
 		if err != nil {
 			t.Fatalf("remove failed: %v", err)
 		}
 
-		// LIST (verify removed)
-		moonRef01MatchRt := map[string]any{
+		// LIST
+		moonRef01MatchRt0 := map[string]any{
 			"planet_id": setup.idmap["planet01"],
 		}
-		listResult2, err := moonEnt.List(moonRef01MatchRt, nil)
+
+		moonRef01ListRt0Result, err := moonRef01Ent.List(moonRef01MatchRt0, nil)
 		if err != nil {
-			t.Fatalf("list after remove failed: %v", err)
+			t.Fatalf("list failed: %v", err)
 		}
-		listData2, ok := listResult2.([]any)
+		moonRef01ListRt0, ok := moonRef01ListRt0Result.([]any)
 		if !ok {
-			t.Fatalf("expected list result to be an array, got %T", listResult2)
+			t.Fatalf("expected list result to be an array, got %T", moonRef01ListRt0Result)
 		}
 
-		found2 := vs.Select(entityListToData(listData2), map[string]any{"id": createData["id"]})
-		if !vs.IsEmpty(found2) {
+		notFoundItem := vs.Select(entityListToData(moonRef01ListRt0), map[string]any{"id": moonRef01Data["id"]})
+		if !vs.IsEmpty(notFoundItem) {
 			t.Fatal("expected removed entity to not be in list")
 		}
+
 	})
 }
 
