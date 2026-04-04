@@ -1,14 +1,12 @@
 
 import { inspect } from 'node:util'
 
-import {
+import { SolardemoEntityBase } from '../SolardemoEntityBase'
+
+import type {
   SolardemoSDK,
-  SolardemoEntity,
 } from '../SolardemoSDK'
 
-import {
-  Utility
-} from '../utility/Utility'
 
 import type {
   Operation,
@@ -18,109 +16,32 @@ import type {
 
 
 // TODO: needs Entity superclass
-class MoonEntity {
-  name = 'moon'
-
-  #client: SolardemoSDK
-  #utility: Utility
-  #entopts: any
-  #data: any
-  #match: any
-
-  _entctx: Context
+class MoonEntity extends SolardemoEntityBase {
 
   constructor(client: SolardemoSDK, entopts: any) {
-    // super()
-    entopts = entopts || {}
-    entopts.active = false !== entopts.active
-
-    this.#client = client
-    this.#entopts = entopts
-    this.#utility = client.utility()
-    this.#data = {}
-    this.#match = {}
-
-    const makeContext = this.#utility.makeContext
-
-    this._entctx = makeContext({
-      entity: this,
-      entopts,
-    }, client._rootctx)
-
-    const featureHook = this.#utility.featureHook
-    featureHook(this._entctx, 'PostConstructEntity')
-  }
-
-  entopts() {
-    return { ...this.#entopts }
-  }
-
-  client() {
-    return this.#client
-  }
-
-  make() {
-    return new MoonEntity(this.#client, this.entopts())
+    super(client, entopts)
+    this.name = 'moon'
+    this.name_ = 'moon'
+    this.Name = 'Moon'
   }
 
 
-  data(this: any, data?: any) {
-    const struct = this.#utility.struct
-    const featureHook = this.#utility.featureHook
-
-    if (null != data) {
-      this.#data = struct.clone(data)
-      featureHook(this._entctx, 'SetData')
-    }
-
-    featureHook(this._entctx, 'GetData')
-    let out = struct.clone(this.#data)
-
-    return out
-  }
-
-
-  match(match?: any) {
-    const struct = this.#utility.struct
-    const featureHook = this.#utility.featureHook
-
-    if (null != match) {
-      this.#match = struct.clone(match)
-      featureHook(this._entctx, 'SetMatch')
-    }
-
-    featureHook(this._entctx, 'GetMatch')
-    let out = struct.clone(this.#match)
-
-    return out
-  }
-
-
-  toJSON() {
-    const struct = this.#utility.struct
-    return struct.merge([{}, struct.getdef(this.#data, {}), { $entity: 'Moon' }])
-  }
-
-  toString() {
-    return 'Moon ' + this.#utility.struct.jsonify(this.#data)
-  }
-
-  [inspect.custom]() {
-    return this.toString()
+  make(this: MoonEntity) {
+    return new MoonEntity(this._client, this.entopts())
   }
 
 
 
   async load(this: any, reqmatch?: any, ctrl?: Control) {
 
-    const utility = this.#utility
+    const utility = this._utility
 
     const {
       makeContext,
       done,
       error,
       featureHook,
-      makeTarget,
+      makePoint,
       makeRequest,
       makeResponse,
       makeResult,
@@ -132,19 +53,19 @@ class MoonEntity {
     let ctx: Context = makeContext({
       opname: 'load',
       ctrl,
-      match: this.#match,
-      data: this.#data,
+      match: this._match,
+      data: this._data,
       reqmatch
     }, this._entctx)
 
     try {
 
-      fres = featureHook(ctx, 'PreSelection')
+      fres = featureHook(ctx, 'PrePoint')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.target = makeTarget(ctx)
-      if (ctx.out.target instanceof Error) {
-        return error(ctx, ctx.out.target)
+      ctx.out.point = makePoint(ctx)
+      if (ctx.out.point instanceof Error) {
+        return error(ctx, ctx.out.point)
       }
 
 
@@ -194,11 +115,11 @@ class MoonEntity {
 
       if (null != ctx.result) {
         if (null != ctx.result.resmatch) {
-          this.#match = ctx.result.resmatch
+          this._match = ctx.result.resmatch
         }
 
         if (null != ctx.result.resdata) {
-          this.#data = ctx.result.resdata
+          this._data = ctx.result.resdata
         }
       }
 
@@ -209,7 +130,7 @@ class MoonEntity {
       fres = featureHook(ctx, 'PreUnexpected')
       if (fres instanceof Promise) { await fres }
 
-      err = this.#unexpected(ctx, err)
+      err = this._unexpected(ctx, err)
 
       if (err) {
         throw err
@@ -224,14 +145,14 @@ class MoonEntity {
 
   async list(this: any, reqmatch?: any, ctrl?: Control) {
 
-    const utility = this.#utility
+    const utility = this._utility
 
     const {
       makeContext,
       done,
       error,
       featureHook,
-      makeTarget,
+      makePoint,
       makeRequest,
       makeResponse,
       makeResult,
@@ -243,19 +164,19 @@ class MoonEntity {
     let ctx: Context = makeContext({
       opname: 'list',
       ctrl,
-      match: this.#match,
-      data: this.#data,
+      match: this._match,
+      data: this._data,
       reqmatch
     }, this._entctx)
 
     try {
 
-      fres = featureHook(ctx, 'PreSelection')
+      fres = featureHook(ctx, 'PrePoint')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.target = makeTarget(ctx)
-      if (ctx.out.target instanceof Error) {
-        return error(ctx, ctx.out.target)
+      ctx.out.point = makePoint(ctx)
+      if (ctx.out.point instanceof Error) {
+        return error(ctx, ctx.out.point)
       }
 
 
@@ -305,7 +226,7 @@ class MoonEntity {
 
       if (null != ctx.result) {
         if (null != ctx.result.resmatch) {
-          this.#match = ctx.result.resmatch
+          this._match = ctx.result.resmatch
         }
       }
 
@@ -316,7 +237,7 @@ class MoonEntity {
       fres = featureHook(ctx, 'PreUnexpected')
       if (fres instanceof Promise) { await fres }
 
-      err = this.#unexpected(ctx, err)
+      err = this._unexpected(ctx, err)
 
       if (err) {
         throw err
@@ -331,13 +252,13 @@ class MoonEntity {
 
   async create(this: any, reqdata?: any, ctrl?: Control) {
 
-    const utility = this.#utility
+    const utility = this._utility
     const {
       makeContext,
       done,
       error,
       featureHook,
-      makeTarget,
+      makePoint,
       makeRequest,
       makeResponse,
       makeResult,
@@ -349,19 +270,19 @@ class MoonEntity {
     let ctx: Context = makeContext({
       opname: 'create',
       ctrl,
-      match: this.#match,
-      data: this.#data,
+      match: this._match,
+      data: this._data,
       reqdata
     }, this._entctx)
 
     try {
 
-      fres = featureHook(ctx, 'PreSelection')
+      fres = featureHook(ctx, 'PrePoint')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.target = makeTarget(ctx)
-      if (ctx.out.target instanceof Error) {
-        return error(ctx, ctx.out.target)
+      ctx.out.point = makePoint(ctx)
+      if (ctx.out.point instanceof Error) {
+        return error(ctx, ctx.out.point)
       }
 
 
@@ -411,7 +332,7 @@ class MoonEntity {
 
       if (null != ctx.result) {
         if (null != ctx.result.resdata) {
-          this.#data = ctx.result.resdata
+          this._data = ctx.result.resdata
         }
       }
 
@@ -422,7 +343,7 @@ class MoonEntity {
       fres = featureHook(ctx, 'PreUnexpected')
       if (fres instanceof Promise) { await fres }
 
-      err = this.#unexpected(ctx, err)
+      err = this._unexpected(ctx, err)
 
       if (err) {
         throw err
@@ -437,14 +358,14 @@ class MoonEntity {
 
   async update(this: any, reqdata?: any, ctrl?: Control) {
 
-    const utility = this.#utility
+    const utility = this._utility
 
     const {
       makeContext,
       done,
       error,
       featureHook,
-      makeTarget,
+      makePoint,
       makeRequest,
       makeResponse,
       makeResult,
@@ -456,20 +377,20 @@ class MoonEntity {
     let ctx: Context = makeContext({
       opname: 'update',
       ctrl,
-      match: this.#match,
-      data: this.#data,
+      match: this._match,
+      data: this._data,
       reqdata
     }, this._entctx)
 
     try {
 
 
-      fres = featureHook(ctx, 'PreSelection')
+      fres = featureHook(ctx, 'PrePoint')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.target = makeTarget(ctx)
-      if (ctx.out.target instanceof Error) {
-        return error(ctx, ctx.out.target)
+      ctx.out.point = makePoint(ctx)
+      if (ctx.out.point instanceof Error) {
+        return error(ctx, ctx.out.point)
       }
 
 
@@ -519,11 +440,11 @@ class MoonEntity {
 
       if (null != ctx.result) {
         if (null != ctx.result.resmatch) {
-          this.#match = ctx.result.resmatch
+          this._match = ctx.result.resmatch
         }
 
         if (null != ctx.result.resdata) {
-          this.#data = ctx.result.resdata
+          this._data = ctx.result.resdata
         }
       }
 
@@ -534,7 +455,7 @@ class MoonEntity {
       fres = featureHook(ctx, 'PreUnexpected')
       if (fres instanceof Promise) { await fres }
 
-      err = this.#unexpected(ctx, err)
+      err = this._unexpected(ctx, err)
 
       if (err) {
         throw err
@@ -549,14 +470,14 @@ class MoonEntity {
 
   async remove(this: any, reqmatch?: any, ctrl?: Control) {
 
-    const utility = this.#utility
+    const utility = this._utility
 
     const {
       makeContext,
       done,
       error,
       featureHook,
-      makeTarget,
+      makePoint,
       makeRequest,
       makeResponse,
       makeResult,
@@ -568,20 +489,20 @@ class MoonEntity {
     let ctx: Context = makeContext({
       opname: 'remove',
       ctrl,
-      match: this.#match,
-      data: this.#data,
+      match: this._match,
+      data: this._data,
       reqmatch
     }, this._entctx)
 
     try {
 
 
-      fres = featureHook(ctx, 'PreTarget')
+      fres = featureHook(ctx, 'PrePoint')
       if (fres instanceof Promise) { await fres }
 
-      ctx.out.target = makeTarget(ctx)
-      if (ctx.out.target instanceof Error) {
-        return error(ctx, ctx.out.target)
+      ctx.out.point = makePoint(ctx)
+      if (ctx.out.point instanceof Error) {
+        return error(ctx, ctx.out.point)
       }
 
 
@@ -631,11 +552,11 @@ class MoonEntity {
 
       if (null != ctx.result) {
         if (null != ctx.result.resmatch) {
-          this.#match = ctx.result.resmatch
+          this._match = ctx.result.resmatch
         }
 
         if (null != ctx.result.resdata) {
-          this.#data = ctx.result.resdata
+          this._data = ctx.result.resdata
         }
       }
 
@@ -643,10 +564,10 @@ class MoonEntity {
     }
     catch (err: any) {
 
-      fres = featureHook(ctx, 'PreSelection')
+      fres = featureHook(ctx, 'PreUnexpected')
       if (fres instanceof Promise) { await fres }
 
-      err = this.#unexpected(ctx, err)
+      err = this._unexpected(ctx, err)
 
       if (err) {
         throw err
@@ -657,54 +578,6 @@ class MoonEntity {
     }
   }
 
-
-
-  #unexpected(this: any, ctx: Context, err: any) {
-    const clean = this.#utility.clean
-    const struct = this.#utility.struct
-
-    const delprop = struct.delprop
-    const clone = struct.clone
-    const merge = struct.merge
-
-    const ctrl = ctx.ctrl
-
-    ctrl.err = err
-
-    if (ctrl.explain) {
-      ctx.ctrl.explain = clean(ctx, ctx.ctrl.explain)
-      delprop(ctx.ctrl.explain.result, 'err')
-
-      if (null != ctx.result && null != ctx.result.err) {
-        ctrl.explain.err = clean(ctx, merge([
-          clone({ err: ctx.result.err }).err,
-          {
-            message: ctx.result.err.message,
-            stack: ctx.result.err.stack,
-          }]))
-      }
-
-      const cleanerr = clean(ctx, merge([
-        clone({ err }).err,
-        {
-          message: err.message,
-          stack: err.stack,
-        }]))
-
-      if (null == ctrl.explain.err) {
-        ctrl.explain.err = cleanerr
-      }
-      else if (ctrl.explain.err.message != cleanerr.message) {
-        ctrl.explain.unexpected = cleanerr
-      }
-    }
-
-    if (false === ctrl.throw) {
-      return undefined
-    }
-
-    return err
-  }
 
 }
 

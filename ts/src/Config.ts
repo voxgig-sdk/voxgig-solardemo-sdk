@@ -63,35 +63,35 @@ class Config {
       "fields": [
         {
           "name": "diameter",
-          "req": false,
+          "req": true,
           "type": "`$NUMBER`",
           "active": true,
           "index$": 0
         },
         {
           "name": "id",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 1
         },
         {
           "name": "kind",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 2
         },
         {
           "name": "name",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 3
         },
         {
           "name": "planet_id",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 4
@@ -101,7 +101,7 @@ class Config {
       "op": {
         "create": {
           "name": "create",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -139,7 +139,7 @@ class Config {
         },
         "list": {
           "name": "list",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -177,7 +177,7 @@ class Config {
         },
         "load": {
           "name": "load",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -230,7 +230,7 @@ class Config {
         },
         "remove": {
           "name": "remove",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -261,6 +261,11 @@ class Config {
                 "moon",
                 "{id}"
               ],
+              "rename": {
+                "param": {
+                  "moon_id": "id"
+                }
+              },
               "select": {
                 "exist": [
                   "id",
@@ -278,7 +283,7 @@ class Config {
         },
         "update": {
           "name": "update",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -309,6 +314,11 @@ class Config {
                 "moon",
                 "{id}"
               ],
+              "rename": {
+                "param": {
+                  "moon_id": "id"
+                }
+              },
               "select": {
                 "exist": [
                   "id",
@@ -337,7 +347,7 @@ class Config {
       "fields": [
         {
           "name": "diameter",
-          "req": false,
+          "req": true,
           "type": "`$NUMBER`",
           "active": true,
           "index$": 0
@@ -351,21 +361,21 @@ class Config {
         },
         {
           "name": "id",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 2
         },
         {
           "name": "kind",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 3
         },
         {
           "name": "name",
-          "req": false,
+          "req": true,
           "type": "`$STRING`",
           "active": true,
           "index$": 4
@@ -410,7 +420,7 @@ class Config {
       "op": {
         "create": {
           "name": "create",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -509,7 +519,7 @@ class Config {
         },
         "list": {
           "name": "list",
-          "targets": [
+          "points": [
             {
               "method": "GET",
               "orig": "/api/planet",
@@ -532,7 +542,7 @@ class Config {
         },
         "load": {
           "name": "load",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -574,7 +584,7 @@ class Config {
         },
         "remove": {
           "name": "remove",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -595,6 +605,11 @@ class Config {
                 "planet",
                 "{id}"
               ],
+              "rename": {
+                "param": {
+                  "planet_id": "id"
+                }
+              },
               "select": {
                 "exist": [
                   "id"
@@ -611,7 +626,7 @@ class Config {
         },
         "update": {
           "name": "update",
-          "targets": [
+          "points": [
             {
               "args": {
                 "params": [
@@ -632,6 +647,11 @@ class Config {
                 "planet",
                 "{id}"
               ],
+              "rename": {
+                "param": {
+                  "planet_id": "id"
+                }
+              },
               "select": {
                 "exist": [
                   "id"

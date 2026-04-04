@@ -1,6 +1,7 @@
 
 import {
   nom,
+  depluralize,
 } from '@voxgig/apidef'
 
 
@@ -11,6 +12,7 @@ import {
   Fragment,
   Slot,
   cmp,
+  snakify,
 } from '@voxgig/sdkgen'
 
 
@@ -29,8 +31,8 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   const ff = projectPath('src/cmp/ts/fragment/')
 
-  const PROJECTNAME = model.Name.toUpperCase()
-  const entidEnvVar = `${PROJECTNAME}_TEST_${entity.Name.toUpperCase()}_ENTID`
+  const PROJECTNAME = model.Name.toUpperCase().replace(/[^A-Z_]/g, '_')
+  const entidEnvVar = `${PROJECTNAME}_TEST_${entity.Name.toUpperCase().replace(/[^A-Z_]/g, '_')}_ENTID`
 
   const opnames = Object.keys(entity.op)
   const hasLoad = opnames.includes('load')
@@ -121,21 +123,21 @@ function directSetup(mockres?: any) {
 
 function generateDirectLoad(model: any, entity: any) {
   const loadOp = entity.op.load
-  const loadTarget = loadOp.targets[0]
+  const loadPoint = loadOp?.points?.[0]
 
-  if (null == loadTarget) {
+  if (null == loadPoint) {
     return
   }
 
-  const loadPath = (loadTarget.parts || []).join('/')
-  const loadParams = loadTarget.args?.params || []
+  const loadParams = loadPoint.args?.params || []
+  const loadPath = normalizePathParams(loadPoint.parts || [], loadParams, loadPoint.rename?.param)
 
   // Get list info for live mode bootstrapping
   const listOp = entity.op.list
-  const listTarget = listOp?.targets?.[0]
-  const listPath = listTarget ? (listTarget.parts || []).join('/') : ''
-  const listParams = listTarget?.args?.params || []
-  const hasList = null != listTarget
+  const listPoint = listOp?.points?.[0]
+  const listParams = listPoint?.args?.params || []
+  const listPath = listPoint ? normalizePathParams(listPoint.parts || [], listParams, listPoint.rename?.param) : ''
+  const hasList = null != listPoint
 
   // Ancestor params (not 'id') for live mode
   const ancestorParams = loadParams.filter((p: any) => p.name !== 'id')
@@ -218,14 +220,14 @@ ${paramAsserts}    }
 
 function generateDirectList(model: any, entity: any) {
   const listOp = entity.op.list
-  const listTarget = listOp.targets[0]
+  const listPoint = listOp?.points?.[0]
 
-  if (null == listTarget) {
+  if (null == listPoint) {
     return
   }
 
-  const listPath = (listTarget.parts || []).join('/')
-  const listParams = listTarget.args?.params || []
+  const listParams = listPoint.args?.params || []
+  const listPath = normalizePathParams(listPoint.parts || [], listParams, listPoint.rename?.param)
 
   // Build live params
   const liveParams = listParams.map((p: any) => {
@@ -280,6 +282,52 @@ ${paramsBlock}
 ${paramAsserts}    }
   })
 `)
+}
+
+
+// Replace raw OpenAPI parameter names in path parts with model parameter names.
+// Path parts may have e.g. {subBreed} while model params use sub_breed.
+// When a rename mapping exists (e.g. closureId -> id), path parts contain the
+// renamed form {id} but params still use the original name closure_id.
+// The rename mapping is used to reverse-lookup the original param name.
+function normalizePathParams(
+  parts: string[],
+  params: any[],
+  rename?: Record<string, string>
+): string {
+  return parts.map((part: string) => {
+    // Replace each {paramName} occurrence within the part.
+    // Handles both simple parts like "{id}" and compound parts like
+    // "{outputFields}.{format}" that contain multiple parameters.
+    return part.replace(/\{([^}]+)\}/g, (match: string, rawName: string) => {
+      const snaked = snakify(rawName)
+      const depluralized = depluralize(snaked)
+      const param = params.find((p: any) =>
+        p.orig === snaked || p.name === snaked ||
+        p.orig === depluralized || p.name === depluralized
+      )
+      if (param) return '{' + param.name + '}'
+
+      // Reverse-lookup through rename mapping: if rawName is a renamed value
+      // (e.g. "id"), find the original camelCase key (e.g. "closureId"),
+      // snakify+depluralize it (e.g. "closure_id"), and match against params.
+      if (rename) {
+        for (const [origCamel, renamedTo] of Object.entries(rename)) {
+          if (renamedTo === rawName) {
+            const origSnaked = snakify(origCamel)
+            const origDepluralized = depluralize(origSnaked)
+            const renamedParam = params.find(
+              (p: any) => p.orig === origSnaked || p.name === origSnaked ||
+                p.orig === origDepluralized || p.name === origDepluralized
+            )
+            if (renamedParam) return '{' + renamedParam.name + '}'
+          }
+        }
+      }
+
+      return match
+    })
+  }).join('/')
 }
 
 

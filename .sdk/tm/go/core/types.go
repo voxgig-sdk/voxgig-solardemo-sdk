@@ -13,15 +13,13 @@ type Feature interface {
 	GetData(ctx *Context)
 	GetMatch(ctx *Context)
 
-	PreTarget(ctx *Context)
-	PreSelection(ctx *Context)
+	PrePoint(ctx *Context)
 	PreSpec(ctx *Context)
 	PreRequest(ctx *Context)
 	PreResponse(ctx *Context)
 	PreResult(ctx *Context)
 	PreDone(ctx *Context)
 	PreUnexpected(ctx *Context)
-	PostOperation(ctx *Context)
 	SetMatch(ctx *Context)
 }
 
@@ -32,7 +30,7 @@ type Entity interface {
 	Match(match ...any) any
 }
 
-type SolardemoEntity interface {
+type ProjectNameEntity interface {
 	Entity
 	Load(reqmatch map[string]any, ctrl map[string]any) (any, error)
 	List(reqmatch map[string]any, ctrl map[string]any) (any, error)

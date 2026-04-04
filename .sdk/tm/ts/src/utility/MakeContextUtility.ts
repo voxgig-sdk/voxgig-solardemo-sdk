@@ -1,5 +1,5 @@
 
-import { SolardemoSDK } from '../SolardemoSDK'
+import { ProjectNameSDK } from '../ProjectNameSDK'
 
 import { Utility } from './Utility'
 

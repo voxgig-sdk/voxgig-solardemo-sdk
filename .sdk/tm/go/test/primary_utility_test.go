@@ -59,8 +59,8 @@ func TestPrimaryUtility(t *testing.T) {
 		if utility.MakeResult == nil {
 			t.Error("MakeResult should not be nil")
 		}
-		if utility.MakeTarget == nil {
-			t.Error("MakeTarget should not be nil")
+		if utility.MakePoint == nil {
+			t.Error("MakePoint should not be nil")
 		}
 		if utility.MakeSpec == nil {
 			t.Error("MakeSpec should not be nil")
@@ -250,7 +250,7 @@ func TestPrimaryUtility(t *testing.T) {
 
 	t.Run("fetcher-live", func(t *testing.T) {
 		calls := []map[string]any{}
-		liveClient := sdk.NewSolardemoSDK(map[string]any{
+		liveClient := sdk.NewProjectNameSDK(map[string]any{
 			"system": map[string]any{
 				"fetch": func(url string, fetchdef map[string]any) (map[string]any, error) {
 					calls = append(calls, map[string]any{"url": url, "init": fetchdef})
@@ -280,7 +280,7 @@ func TestPrimaryUtility(t *testing.T) {
 
 	t.Run("fetcher-blocked-test-mode", func(t *testing.T) {
 		// Create a live SDK then set mode to test (not using TestSDK, which installs test feature)
-		blockedClient := sdk.NewSolardemoSDK(map[string]any{
+		blockedClient := sdk.NewProjectNameSDK(map[string]any{
 			"system": map[string]any{
 				"fetch": func(url string, fetchdef map[string]any) (map[string]any, error) {
 					return map[string]any{}, nil
@@ -550,9 +550,9 @@ func TestPrimaryUtility(t *testing.T) {
 		})
 	})
 
-	t.Run("makeTarget-basic", func(t *testing.T) {
+	t.Run("makePoint-basic", func(t *testing.T) {
 		ctx := makeTestCtx(client, utility, nil)
-		target := map[string]any{
+		point := map[string]any{
 			"parts":     []any{"items", "{id}"},
 			"args":      map[string]any{"params": []any{}},
 			"params":    []any{},
@@ -561,15 +561,15 @@ func TestPrimaryUtility(t *testing.T) {
 			"active":    true,
 			"transform": map[string]any{},
 		}
-		ctx.Op.Targets = []map[string]any{target}
+		ctx.Op.Points = []map[string]any{point}
 
-		_, err := utility.MakeTarget(ctx)
+		_, err := utility.MakePoint(ctx)
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 			return
 		}
-		if ctx.Target == nil {
-			t.Error("expected target to be set")
+		if ctx.Point == nil {
+			t.Error("expected point to be set")
 		}
 	})
 
@@ -592,7 +592,7 @@ func TestPrimaryUtility(t *testing.T) {
 				"entity":  op.Entity,
 				"name":    op.Name,
 				"input":   op.Input,
-				"targets": op.Targets,
+				"points": op.Points,
 			}, nil
 		})
 	})
@@ -704,7 +704,7 @@ func TestPrimaryUtility(t *testing.T) {
 
 	t.Run("preparePath-basic", func(t *testing.T) {
 		ctx := makeTestFullCtx(client, utility)
-		ctx.Target = map[string]any{
+		ctx.Point = map[string]any{
 			"parts": []any{"api", "planet", "{id}"},
 			"args":  map[string]any{"params": []any{}},
 		}
@@ -717,7 +717,7 @@ func TestPrimaryUtility(t *testing.T) {
 
 	t.Run("preparePath-single", func(t *testing.T) {
 		ctx := makeTestFullCtx(client, utility)
-		ctx.Target = map[string]any{
+		ctx.Point = map[string]any{
 			"parts": []any{"items"},
 			"args":  map[string]any{"params": []any{}},
 		}
@@ -864,7 +864,7 @@ func (f *testInitFeature) Init(ctx *sdk.Context, options map[string]any) {
 }
 
 // Helper: create basic test context
-func makeTestCtx(client *sdk.SolardemoSDK, utility *sdk.Utility, overrides map[string]any) *sdk.Context {
+func makeTestCtx(client *sdk.ProjectNameSDK, utility *sdk.Utility, overrides map[string]any) *sdk.Context {
 	ctxmap := map[string]any{
 		"opname":  "load",
 		"client":  client,
@@ -878,10 +878,10 @@ func makeTestCtx(client *sdk.SolardemoSDK, utility *sdk.Utility, overrides map[s
 	return utility.MakeContext(ctxmap, client.GetRootCtx())
 }
 
-// Helper: create full test context with target and match
-func makeTestFullCtx(client *sdk.SolardemoSDK, utility *sdk.Utility) *sdk.Context {
+// Helper: create full test context with point and match
+func makeTestFullCtx(client *sdk.ProjectNameSDK, utility *sdk.Utility) *sdk.Context {
 	ctx := makeTestCtx(client, utility, nil)
-	ctx.Target = map[string]any{
+	ctx.Point = map[string]any{
 		"parts":     []any{"items", "{id}"},
 		"args":      map[string]any{"params": []any{map[string]any{"name": "id", "reqd": true}}},
 		"params":    []any{"id"},

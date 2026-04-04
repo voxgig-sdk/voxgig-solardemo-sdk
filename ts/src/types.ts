@@ -1,7 +1,7 @@
 
-import { SolardemoSDK } from './SolardemoSDK'
+import { SolardemoEntityBase } from './SolardemoEntityBase'
 
-import { Target } from './Target'
+import { Point } from './Point'
 import { Context } from './Context'
 import { Control } from './Control'
 import { Operation } from './Operation'
@@ -22,29 +22,32 @@ interface Feature {
 
   init: (ctx: Context, options: FeatureOptions) => void | Promise<any>
 
-  PostConstruct: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  PostConstructEntity: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  SetData: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  GetData: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  GetMatch: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
+  PostConstruct: (ctx: Context) => void | Promise<any>
+  PostConstructEntity: (ctx: Context) => void | Promise<any>
+  SetData: (ctx: Context) => void | Promise<any>
+  GetData: (ctx: Context) => void | Promise<any>
+  GetMatch: (ctx: Context) => void | Promise<any>
 
-  PreTarget: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  PreSpec: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  PreRequest: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  PreResponse: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  PreResult: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
-  PostOperation: (this: SolardemoSDK, ctx: Context) => void | Promise<any>
+  PrePoint: (ctx: Context) => void | Promise<any>
+  PreSpec: (ctx: Context) => void | Promise<any>
+  PreRequest: (ctx: Context) => void | Promise<any>
+  PreResponse: (ctx: Context) => void | Promise<any>
+  PreResult: (ctx: Context) => void | Promise<any>
+  PreDone: (ctx: Context) => void | Promise<any>
+  PreUnexpected: (ctx: Context) => void | Promise<any>
+  SetMatch: (ctx: Context) => void | Promise<any>
 }
 
 
 export {
-  Target,
+  Point,
   Context,
   Control,
   Operation,
   Response,
   Result,
   Spec,
+  SolardemoEntityBase,
 }
 
 

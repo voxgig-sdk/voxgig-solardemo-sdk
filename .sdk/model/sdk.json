@@ -21,31 +21,31 @@
           "fields": [
             {
               "name": "diameter",
-              "req": false,
+              "req": true,
               "type": "`$NUMBER`",
               "active": true
             },
             {
               "name": "id",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             },
             {
               "name": "kind",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             },
             {
               "name": "name",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             },
             {
               "name": "planet_id",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             }
@@ -58,7 +58,7 @@
           "op": {
             "create": {
               "name": "create",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -96,7 +96,7 @@
             },
             "list": {
               "name": "list",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -134,7 +134,7 @@
             },
             "load": {
               "name": "load",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -187,7 +187,7 @@
             },
             "remove": {
               "name": "remove",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -218,6 +218,11 @@
                     "moon",
                     "{id}"
                   ],
+                  "rename": {
+                    "param": {
+                      "moon_id": "id"
+                    }
+                  },
                   "select": {
                     "exist": [
                       "id",
@@ -235,7 +240,7 @@
             },
             "update": {
               "name": "update",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -266,6 +271,11 @@
                     "moon",
                     "{id}"
                   ],
+                  "rename": {
+                    "param": {
+                      "moon_id": "id"
+                    }
+                  },
                   "select": {
                     "exist": [
                       "id",
@@ -298,7 +308,7 @@
           "fields": [
             {
               "name": "diameter",
-              "req": false,
+              "req": true,
               "type": "`$NUMBER`",
               "active": true
             },
@@ -310,19 +320,19 @@
             },
             {
               "name": "id",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             },
             {
               "name": "kind",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             },
             {
               "name": "name",
-              "req": false,
+              "req": true,
               "type": "`$STRING`",
               "active": true
             },
@@ -365,7 +375,7 @@
           "op": {
             "create": {
               "name": "create",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -464,7 +474,7 @@
             },
             "list": {
               "name": "list",
-              "targets": [
+              "points": [
                 {
                   "method": "GET",
                   "orig": "/api/planet",
@@ -487,7 +497,7 @@
             },
             "load": {
               "name": "load",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -529,7 +539,7 @@
             },
             "remove": {
               "name": "remove",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -550,6 +560,11 @@
                     "planet",
                     "{id}"
                   ],
+                  "rename": {
+                    "param": {
+                      "planet_id": "id"
+                    }
+                  },
                   "select": {
                     "exist": [
                       "id"
@@ -566,7 +581,7 @@
             },
             "update": {
               "name": "update",
-              "targets": [
+              "points": [
                 {
                   "args": {
                     "params": [
@@ -587,6 +602,11 @@
                     "planet",
                     "{id}"
                   ],
+                  "rename": {
+                    "param": {
+                      "planet_id": "id"
+                    }
+                  },
                   "select": {
                     "exist": [
                       "id"
