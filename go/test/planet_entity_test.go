@@ -29,100 +29,105 @@ func TestPlanetEntity(t *testing.T) {
 		client := setup.client
 
 		// CREATE
-		planetEnt := client.Planet(nil)
+		planetRef01Ent := client.Planet(nil)
 		planetRef01Data := core.ToMapAny(vs.GetProp(
 			vs.GetPath([]any{"new", "planet"}, setup.data), "planet_ref01"))
 
-		createResult, err := planetEnt.Create(planetRef01Data, nil)
+		planetRef01DataResult, err := planetRef01Ent.Create(planetRef01Data, nil)
 		if err != nil {
 			t.Fatalf("create failed: %v", err)
 		}
-		createData := core.ToMapAny(createResult)
-		if createData == nil {
+		planetRef01Data = core.ToMapAny(planetRef01DataResult)
+		if planetRef01Data == nil {
 			t.Fatal("expected create result to be a map")
 		}
-		if createData["id"] == nil {
+		if planetRef01Data["id"] == nil {
 			t.Fatal("expected created entity to have an id")
 		}
 
 		// LIST
 		planetRef01Match := map[string]any{}
-		listResult, err := planetEnt.List(planetRef01Match, nil)
+
+		planetRef01ListResult, err := planetRef01Ent.List(planetRef01Match, nil)
 		if err != nil {
 			t.Fatalf("list failed: %v", err)
 		}
-		listData, ok := listResult.([]any)
+		planetRef01List, ok := planetRef01ListResult.([]any)
 		if !ok {
-			t.Fatalf("expected list result to be an array, got %T", listResult)
+			t.Fatalf("expected list result to be an array, got %T", planetRef01ListResult)
 		}
 
-		found := vs.Select(entityListToData(listData), map[string]any{"id": createData["id"]})
-		if vs.IsEmpty(found) {
+		foundItem := vs.Select(entityListToData(planetRef01List), map[string]any{"id": planetRef01Data["id"]})
+		if vs.IsEmpty(foundItem) {
 			t.Fatal("expected to find created entity in list")
 		}
 
 		// UPDATE
-		markValue := fmt.Sprintf("Mark01-planet_ref01_%d", setup.now)
-		planetRef01DataUp := map[string]any{
-			"id":   createData["id"],
-			"kind": markValue,
+		planetRef01DataUp0Up := map[string]any{
+			"id": planetRef01Data["id"],
 		}
 
-		updateResult, err := planetEnt.Update(planetRef01DataUp, nil)
+		planetRef01MarkdefUp0Name := "kind"
+		planetRef01MarkdefUp0Value := fmt.Sprintf("Mark01-planet_ref01_%d", setup.now)
+		planetRef01DataUp0Up[planetRef01MarkdefUp0Name] = planetRef01MarkdefUp0Value
+
+		planetRef01ResdataUp0Result, err := planetRef01Ent.Update(planetRef01DataUp0Up, nil)
 		if err != nil {
 			t.Fatalf("update failed: %v", err)
 		}
-		updateData := core.ToMapAny(updateResult)
-		if updateData == nil {
+		planetRef01ResdataUp0 := core.ToMapAny(planetRef01ResdataUp0Result)
+		if planetRef01ResdataUp0 == nil {
 			t.Fatal("expected update result to be a map")
 		}
-		if updateData["id"] != createData["id"] {
+		if planetRef01ResdataUp0["id"] != planetRef01DataUp0Up["id"] {
 			t.Fatal("expected update result id to match")
 		}
-		if updateData["kind"] != markValue {
-			t.Fatalf("expected kind to be updated, got %v", updateData["kind"])
+		if planetRef01ResdataUp0[planetRef01MarkdefUp0Name] != planetRef01MarkdefUp0Value {
+			t.Fatalf("expected %s to be updated, got %v", planetRef01MarkdefUp0Name, planetRef01ResdataUp0[planetRef01MarkdefUp0Name])
 		}
 
 		// LOAD
-		planetRef01MatchDt := map[string]any{
-			"id": createData["id"],
+		planetRef01MatchDt0 := map[string]any{
+			"id": planetRef01Data["id"],
 		}
-		loadResult, err := planetEnt.Load(planetRef01MatchDt, nil)
+		planetRef01DataDt0Loaded, err := planetRef01Ent.Load(planetRef01MatchDt0, nil)
 		if err != nil {
 			t.Fatalf("load failed: %v", err)
 		}
-		loadData := core.ToMapAny(loadResult)
-		if loadData == nil {
+		planetRef01DataDt0LoadResult := core.ToMapAny(planetRef01DataDt0Loaded)
+		if planetRef01DataDt0LoadResult == nil {
 			t.Fatal("expected load result to be a map")
 		}
-		if loadData["id"] != createData["id"] {
+		if planetRef01DataDt0LoadResult["id"] != planetRef01Data["id"] {
 			t.Fatal("expected load result id to match")
 		}
 
 		// REMOVE
-		planetRef01MatchRm := map[string]any{
-			"id": createData["id"],
+		planetRef01MatchRm0 := map[string]any{
+			"id": planetRef01Data["id"],
 		}
-		_, err = planetEnt.Remove(planetRef01MatchRm, nil)
+		_, err = planetRef01Ent.Remove(planetRef01MatchRm0, nil)
 		if err != nil {
 			t.Fatalf("remove failed: %v", err)
 		}
 
-		// LIST (verify removed)
-		planetRef01MatchRt := map[string]any{}
-		listResult2, err := planetEnt.List(planetRef01MatchRt, nil)
+		// LIST
+		planetRef01MatchRt0 := map[string]any{}
+
+		planetRef01ListRt0Result, err := planetRef01Ent.List(planetRef01MatchRt0, nil)
 		if err != nil {
-			t.Fatalf("list after remove failed: %v", err)
+			t.Fatalf("list failed: %v", err)
 		}
-		listData2, ok := listResult2.([]any)
+		planetRef01ListRt0, ok := planetRef01ListRt0Result.([]any)
 		if !ok {
-			t.Fatalf("expected list result to be an array, got %T", listResult2)
+			t.Fatalf("expected list result to be an array, got %T", planetRef01ListRt0Result)
 		}
 
-		found2 := vs.Select(entityListToData(listData2), map[string]any{"id": createData["id"]})
-		if !vs.IsEmpty(found2) {
+		notFoundItem := vs.Select(entityListToData(planetRef01ListRt0), map[string]any{"id": planetRef01Data["id"]})
+		if !vs.IsEmpty(notFoundItem) {
 			t.Fatal("expected removed entity to not be in list")
 		}
+
 	})
 }
 
