@@ -7,8 +7,8 @@ Complete API reference for the Solardemo Golang SDK.
 
 ### Constructor
 
-```ts
-new SolardemoSDK(options?: object)
+```go
+func NewSolardemoSDK(options map[string]any) *SolardemoSDK
 ```
 
 Create a new SDK client instance.
@@ -17,51 +17,46 @@ Create a new SDK client instance.
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `options` | `object` | SDK configuration options. |
-| `options.apikey` | `string` | API key for authentication. |
-| `options.base` | `string` | Base URL for API requests. |
-| `options.prefix` | `string` | URL prefix appended after base. |
-| `options.suffix` | `string` | URL suffix appended after path. |
-| `options.headers` | `object` | Custom headers for all requests. |
-| `options.feature` | `object` | Feature configuration. |
-| `options.system` | `object` | System overrides (e.g. custom fetch). |
+| `options` | `map[string]any` | SDK configuration options. |
+| `options["apikey"]` | `string` | API key for authentication. |
+| `options["base"]` | `string` | Base URL for API requests. |
+| `options["prefix"]` | `string` | URL prefix appended after base. |
+| `options["suffix"]` | `string` | URL suffix appended after path. |
+| `options["headers"]` | `map[string]any` | Custom headers for all requests. |
+| `options["feature"]` | `map[string]any` | Feature configuration. |
+| `options["system"]` | `map[string]any` | System overrides (e.g. custom fetch). |
 
 
 ### Static Methods
 
-#### `SolardemoSDK.test(testopts?, sdkopts?)`
+#### `TestSDK(testopts, sdkopts map[string]any) *SolardemoSDK`
 
-Create a test client with mock features active.
+Create a test client with mock features active. Both arguments may be `nil`.
 
-```ts
-const client = SolardemoSDK.test()
+```go
+client := sdk.TestSDK(nil, nil)
 ```
-
-**Parameters:**
-
-| Name | Type | Description |
-| --- | --- | --- |
-| `testopts` | `object` | Test feature options. |
-| `sdkopts` | `object` | Additional SDK options merged with test defaults. |
-
-**Returns:** `SolardemoSDK` instance in test mode.
 
 
 ### Instance Methods
 
-#### `options()`
+#### `Moon(data map[string]any) SolardemoEntity`
+
+Create a new `Moon` entity instance. Pass `nil` for no initial data.
+
+#### `Planet(data map[string]any) SolardemoEntity`
+
+Create a new `Planet` entity instance. Pass `nil` for no initial data.
+
+#### `OptionsMap() map[string]any`
 
 Return a deep copy of the current SDK options.
 
-**Returns:** `object`
-
-#### `utility()`
+#### `GetUtility() *Utility`
 
 Return a copy of the SDK utility object.
 
-**Returns:** `object`
-
-#### `direct(fetchargs?: object)`
+#### `Direct(fetchargs map[string]any) (map[string]any, error)`
 
 Make a direct HTTP request to any API endpoint.
 
@@ -69,28 +64,174 @@ Make a direct HTTP request to any API endpoint.
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `fetchargs.path` | `string` | URL path with optional `{param}` placeholders. |
-| `fetchargs.method` | `string` | HTTP method (default: `GET`). |
-| `fetchargs.params` | `object` | Path parameter values for `{param}` substitution. |
-| `fetchargs.query` | `object` | Query string parameters. |
-| `fetchargs.headers` | `object` | Request headers (merged with defaults). |
-| `fetchargs.body` | `any` | Request body (objects are JSON-serialized). |
-| `fetchargs.ctrl` | `object` | Control options (e.g. `{ explain: true }`). |
+| `fetchargs["path"]` | `string` | URL path with optional `{param}` placeholders. |
+| `fetchargs["method"]` | `string` | HTTP method (default: `"GET"`). |
+| `fetchargs["params"]` | `map[string]any` | Path parameter values for `{param}` substitution. |
+| `fetchargs["query"]` | `map[string]any` | Query string parameters. |
+| `fetchargs["headers"]` | `map[string]any` | Request headers (merged with defaults). |
+| `fetchargs["body"]` | `any` | Request body (maps are JSON-serialized). |
+| `fetchargs["ctrl"]` | `map[string]any` | Control options (e.g. `map[string]any{"explain": true}`). |
 
-**Returns:** `Promise<{ ok, status, headers, data } | Error>`
+**Returns:** `(map[string]any, error)`
 
-#### `prepare(fetchargs?: object)`
+#### `Prepare(fetchargs map[string]any) (map[string]any, error)`
 
 Prepare a fetch definition without sending the request. Accepts the
-same parameters as `direct()`.
+same parameters as `Direct()`.
 
-**Returns:** `Promise<{ url, method, headers, body } | Error>`
+**Returns:** `(map[string]any, error)`
 
-#### `tester(testopts?, sdkopts?)`
 
-Alias for `SolardemoSDK.test()`.
+---
 
-**Returns:** `SolardemoSDK` instance in test mode.
+## MoonEntity
+
+```go
+moon := client.Moon(nil)
+```
+
+### Operations
+
+#### `Create(reqdata, ctrl map[string]any) (any, error)`
+
+Create a new entity with the given data.
+
+```go
+result, err := client.Moon(nil).Create(map[string]any{
+}, nil)
+```
+
+#### `List(reqmatch, ctrl map[string]any) (any, error)`
+
+List entities matching the given criteria. Returns an array.
+
+```go
+results, err := client.Moon(nil).List(nil, nil)
+```
+
+#### `Load(reqmatch, ctrl map[string]any) (any, error)`
+
+Load a single entity matching the given criteria.
+
+```go
+result, err := client.Moon(nil).Load(map[string]any{"id": "moon_id"}, nil)
+```
+
+#### `Remove(reqmatch, ctrl map[string]any) (any, error)`
+
+Remove the entity matching the given criteria.
+
+```go
+result, err := client.Moon(nil).Remove(map[string]any{"id": "moon_id"}, nil)
+```
+
+#### `Update(reqdata, ctrl map[string]any) (any, error)`
+
+Update an existing entity. The data must include the entity `id`.
+
+```go
+result, err := client.Moon(nil).Update(map[string]any{
+    "id": "moon_id",
+    // Fields to update
+}, nil)
+```
+
+### Common Methods
+
+#### `Data(args ...any) any`
+
+Get or set the entity data. When called with data, sets the entity's
+internal data and returns the current data. When called without
+arguments, returns a copy of the current data.
+
+#### `Match(args ...any) any`
+
+Get or set the entity match criteria. Works the same as `Data()`.
+
+#### `Make() Entity`
+
+Create a new `MoonEntity` instance with the same client and
+options.
+
+#### `GetName() string`
+
+Return the entity name.
+
+
+---
+
+## PlanetEntity
+
+```go
+planet := client.Planet(nil)
+```
+
+### Operations
+
+#### `Create(reqdata, ctrl map[string]any) (any, error)`
+
+Create a new entity with the given data.
+
+```go
+result, err := client.Planet(nil).Create(map[string]any{
+}, nil)
+```
+
+#### `List(reqmatch, ctrl map[string]any) (any, error)`
+
+List entities matching the given criteria. Returns an array.
+
+```go
+results, err := client.Planet(nil).List(nil, nil)
+```
+
+#### `Load(reqmatch, ctrl map[string]any) (any, error)`
+
+Load a single entity matching the given criteria.
+
+```go
+result, err := client.Planet(nil).Load(map[string]any{"id": "planet_id"}, nil)
+```
+
+#### `Remove(reqmatch, ctrl map[string]any) (any, error)`
+
+Remove the entity matching the given criteria.
+
+```go
+result, err := client.Planet(nil).Remove(map[string]any{"id": "planet_id"}, nil)
+```
+
+#### `Update(reqdata, ctrl map[string]any) (any, error)`
+
+Update an existing entity. The data must include the entity `id`.
+
+```go
+result, err := client.Planet(nil).Update(map[string]any{
+    "id": "planet_id",
+    // Fields to update
+}, nil)
+```
+
+### Common Methods
+
+#### `Data(args ...any) any`
+
+Get or set the entity data. When called with data, sets the entity's
+internal data and returns the current data. When called without
+arguments, returns a copy of the current data.
+
+#### `Match(args ...any) any`
+
+Get or set the entity match criteria. Works the same as `Data()`.
+
+#### `Make() Entity`
+
+Create a new `PlanetEntity` instance with the same client and
+options.
+
+#### `GetName() string`
+
+Return the entity name.
 
 
 ---
@@ -104,11 +245,11 @@ Alias for `SolardemoSDK.test()`.
 
 Features are activated via the `feature` option:
 
-```ts
-const client = new SolardemoSDK({
-  feature: {
-    test: { active: true },
-  }
+```go
+client := sdk.NewSolardemoSDK(map[string]any{
+    "feature": map[string]any{
+        "test": map[string]any{"active": true},
+    },
 })
 ```
 

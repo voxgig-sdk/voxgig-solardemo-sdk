@@ -49,6 +49,30 @@ const client = SolardemoSDK.test()
 
 ### Instance Methods
 
+#### `Moon(data?: object)`
+
+Create a new `Moon` entity instance.
+
+**Parameters:**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `data` | `object` | Initial entity data. |
+
+**Returns:** `MoonEntity` instance.
+
+#### `Planet(data?: object)`
+
+Create a new `Planet` entity instance.
+
+**Parameters:**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `data` | `object` | Initial entity data. |
+
+**Returns:** `PlanetEntity` instance.
+
 #### `options()`
 
 Return a deep copy of the current SDK options.
@@ -91,6 +115,166 @@ same parameters as `direct()`.
 Alias for `SolardemoSDK.test()`.
 
 **Returns:** `SolardemoSDK` instance in test mode.
+
+
+---
+
+## MoonEntity
+
+```ts
+const moon = client.Moon()
+```
+
+### Operations
+
+#### `create(data: object, ctrl?: object)`
+
+Create a new entity with the given data.
+
+```ts
+const result = await client.Moon().create({
+})
+```
+
+#### `list(match: object, ctrl?: object)`
+
+List entities matching the given criteria. Returns an array.
+
+```ts
+const results = await client.Moon().list()
+```
+
+#### `load(match: object, ctrl?: object)`
+
+Load a single entity matching the given criteria.
+
+```ts
+const result = await client.Moon().load({ id: 'moon_id' })
+```
+
+#### `remove(match: object, ctrl?: object)`
+
+Remove the entity matching the given criteria.
+
+```ts
+const result = await client.Moon().remove({ id: 'moon_id' })
+```
+
+#### `update(data: object, ctrl?: object)`
+
+Update an existing entity. The data must include the entity `id`.
+
+```ts
+const result = await client.Moon().update({
+  id: 'moon_id',
+  // Fields to update
+})
+```
+
+### Common Methods
+
+#### `data(data?: object)`
+
+Get or set the entity data. When called with data, sets the entity's
+internal data and returns the current data. When called without
+arguments, returns a copy of the current data.
+
+#### `match(match?: object)`
+
+Get or set the entity match criteria. Works the same as `data()`.
+
+#### `make()`
+
+Create a new `MoonEntity` instance with the same client and
+options.
+
+#### `client()`
+
+Return the parent `SolardemoSDK` instance.
+
+#### `entopts()`
+
+Return a copy of the entity options.
+
+
+---
+
+## PlanetEntity
+
+```ts
+const planet = client.Planet()
+```
+
+### Operations
+
+#### `create(data: object, ctrl?: object)`
+
+Create a new entity with the given data.
+
+```ts
+const result = await client.Planet().create({
+})
+```
+
+#### `list(match: object, ctrl?: object)`
+
+List entities matching the given criteria. Returns an array.
+
+```ts
+const results = await client.Planet().list()
+```
+
+#### `load(match: object, ctrl?: object)`
+
+Load a single entity matching the given criteria.
+
+```ts
+const result = await client.Planet().load({ id: 'planet_id' })
+```
+
+#### `remove(match: object, ctrl?: object)`
+
+Remove the entity matching the given criteria.
+
+```ts
+const result = await client.Planet().remove({ id: 'planet_id' })
+```
+
+#### `update(data: object, ctrl?: object)`
+
+Update an existing entity. The data must include the entity `id`.
+
+```ts
+const result = await client.Planet().update({
+  id: 'planet_id',
+  // Fields to update
+})
+```
+
+### Common Methods
+
+#### `data(data?: object)`
+
+Get or set the entity data. When called with data, sets the entity's
+internal data and returns the current data. When called without
+arguments, returns a copy of the current data.
+
+#### `match(match?: object)`
+
+Get or set the entity match criteria. Works the same as `data()`.
+
+#### `make()`
+
+Create a new `PlanetEntity` instance with the same client and
+options.
+
+#### `client()`
+
+Return the parent `SolardemoSDK` instance.
+
+#### `entopts()`
+
+Return a copy of the entity options.
 
 
 ---
