@@ -1,44 +1,203 @@
 # Report: sdkgen Update & Documentation Comparison
 
-## What was done
-- Updated `@voxgig/sdkgen` to latest GitHub main (v0.35.2)
-- Rebuilt `.sdk/` templates and regenerated both **TypeScript** and **Go** targets
-- 5 files changed: 175 insertions, 938 deletions
+## Methodology
+
+1. Restored original documentation files from the pre-update baseline (`aa6e7cd`).
+2. Removed `node_modules/` and `package-lock.json` in `.sdk/`.
+3. Ran a fresh `npm install` to pull `@voxgig/sdkgen` directly from GitHub `main`.
+4. Verified the installed version matches the latest commit on `voxgig/sdkgen#main`:
+   - **Version**: 0.35.2
+   - **Commit**: `c7c8ac49495034f932025b9f1ac22a98b22a20c9` (2026-04-04)
+   - **Commit message**: "Merge pull request #4 from voxgig/claude/fix-go-duplicate-test-PzhlD"
+5. Ran `npm run build` and `npm run generate` in `.sdk/` to regenerate both
+   TypeScript and Go targets.
+6. Confirmed deterministic output (two independent generation runs produced
+   identical results).
+
+## Generation Warnings
+
+The generator emitted two warnings during the Go target pass:
+
+```
+WARN: model/jostraca  require-missing  ./cmp/go/ReadmeInstall_go
+WARN: model/jostraca  require-missing  ./cmp/go/ReadmeQuick_go
+```
+
+These indicate that Go-specific Readme sub-components (`ReadmeInstall_go`,
+`ReadmeQuick_go`) do not exist in sdkgen yet. The generator falls back to
+the generic (TypeScript-oriented) templates for those sections.
 
 ## Files Changed
 
-| File | Change |
-|---|---|
-| `.sdk/package.json` | Dependency ordering normalized (alphabetized) |
-| `ts/package.json` | Removed `pino`/`pino-pretty` from dependencies, added empty `peerDependencies` |
-| `README.md` | Drastically reduced (234 -> 9 lines) |
-| `ts/README.md` | Restructured (368 -> 155 lines) |
-| `go/README.md` | Restructured (425 -> 125 lines) |
-| `ts/REFERENCE.md` | Unchanged (already existed) |
-| `go/REFERENCE.md` | Unchanged (already existed) |
+| File | Lines (old) | Lines (new) | Net | Nature of change |
+|---|---|---|---|---|
+| `README.md` | 234 | 9 | -225 | Replaced with skeleton stub |
+| `ts/README.md` | 389 | 154 | -235 | Restructured; reference split to REFERENCE.md |
+| `go/README.md` | 425 | 125 | -300 | Restructured; uses wrong language (TS) for examples |
+| `ts/REFERENCE.md` | 114 | 114 | 0 | Unchanged |
+| `go/REFERENCE.md` | 114 | 114 | 0 | Unchanged |
+| `.sdk/package.json` | -- | -- | -- | Dependency ordering alphabetized by npm |
+| `ts/package.json` | -- | -- | -- | `pino`/`pino-pretty` removed from dependencies |
 
-## Documentation Comparison: Old vs New
+**Total**: 219 insertions, 938 deletions across 5 changed files.
+
+## Detailed Documentation Comparison
 
 ### Root `README.md`
-- **Old**: Comprehensive 234-line document with architecture overview, quick start examples for both languages, testing guide, how-to guides, and links to language-specific docs
-- **New**: Minimal 9-line stub with just a title ("Solardemo SDKs"), an empty mermaid diagram, and an "API Entities" heading
-- **Assessment**: **Significant regression** -- nearly all content was removed. The new template generates only a skeleton.
+
+**Original (234 lines):**
+- Title, description, and links to TS/Go SDKs
+- Entity table (Planet, Moon) with API paths
+- Architecture section: 5-stage pipeline, features table, direct/prepare methods
+- Quick start examples in both TypeScript and Go
+- Testing section (unit + live) with environment variable reference
+- 4 how-to guides: direct calls, nested entities, custom features, request inspection
+- Links to language-specific docs
+
+**Generated (9 lines):**
+- Title: "Solardemo SDKs"
+- "API Entities" heading
+- Empty mermaid flowchart diagram (no nodes)
+
+**Assessment**: **Major regression**. The root README is now a non-functional stub.
+The new sdkgen template appears to generate only a placeholder. All substantive
+content -- architecture overview, quick starts, how-to guides, testing
+instructions -- has been lost.
+
+---
 
 ### `ts/README.md`
-- **Old** (368 lines): Full tutorial (4-step walkthrough), 5 how-to guides (direct requests, prepare, test mode, entity state, custom middleware, live tests), complete API reference (constructor, methods, entities, result shapes, pipeline explanation, features/hooks deep dive)
-- **New** (155 lines): Concise structure with Introduction, Install, Quick Start, SDK Structure (client/entity method tables), Direct API Access, Testing, and a pointer to `REFERENCE.md`
-- **Assessment**: **Content was moved/split** -- reference material now lives in `REFERENCE.md`. However, the new README drops tutorials, how-to guides, entity state explanation, pipeline explanation, and custom middleware examples. Code examples use generic paths (`/api/v1/resource/{id}`) instead of domain-specific ones (`/api/planet/{id}`).
+
+**Original (389 lines):**
+- Introduction with install instructions
+- 4-step tutorial: create client, list planets, load a moon, CRUD operations
+- 5 how-to guides: direct HTTP, prepare requests, test mode, entity state, custom middleware, live tests
+- Full API reference: constructor options table, instance/static methods, entity interface, result/fetchdef shapes, entity field tables
+- Explanatory sections: operation pipeline, features/hooks deep-dive, entity state, direct vs entity access
+
+**Generated (154 lines):**
+- Introduction with feature bullet points
+- Install (correct: `npm install solardemo`)
+- Quick Start: create client + direct API access example
+- SDK Structure: client methods table, entity methods table
+- Direct API Access section (duplicated -- appears twice in the README)
+- Result shape and prepare usage
+- Testing (minimal: just `SolardemoSDK.test()`)
+- Pointer to `REFERENCE.md`
+
+**What improved:**
+- Clean separation of concerns: README for getting started, REFERENCE.md for API details
+- Feature bullet list gives a quick overview
+- Client and entity method tables are well-structured
+
+**What regressed:**
+- No tutorial walkthrough (the old 4-step guide was effective onboarding)
+- No how-to guides (direct calls, entity state, custom middleware, live tests all dropped)
+- Code examples use generic paths (`/custom/endpoint/{id}`, `/api/v1/resource/{id}`) rather than project-specific ones (`/api/planet/{id}`, `/api/planet/{planet_id}/moon/{id}`)
+- Introduction body is empty (blank line between "## Introduction" and "### Features")
+- Direct API Access section appears twice (under Quick Start and under SDK Structure)
+- No entity-specific documentation (Planet, Moon not mentioned by name)
+- No pipeline/architecture explanation
+- Install section uses ` ```ts ` code fence instead of ` ```bash `
+
+---
 
 ### `go/README.md`
-- **Old** (425 lines): Full Go-specific tutorial with idiomatic Go code, 5 how-to guides, complete Go API reference (type signatures, Go conventions), pipeline explanation, package structure overview
-- **New** (125 lines): Same template structure as TypeScript but with **TypeScript code examples** instead of Go -- shows `const client = new SolardemoSDK(...)` instead of Go code
-- **Assessment**: **Significant issues** -- (1) Go README uses TypeScript syntax/examples, not Go. (2) States "Type safe: full TypeScript definitions included" in the Go SDK features list. (3) Missing Go-specific install instructions (`go get`), Go-specific type information, and `map[string]any` patterns. The generation warnings `require-missing: ./cmp/go/ReadmeInstall_go` and `./cmp/go/ReadmeQuick_go` confirm that Go-specific Readme sub-components don't exist yet, so the generator fell back to the generic/TS templates.
 
-## Key Issues Found
+**Original (425 lines):**
+- Go-specific introduction mentioning `map[string]any` conventions
+- Install via `go get` with `replace` directive example
+- Full Go tutorial (5 steps with idiomatic Go code)
+- 5 how-to guides with Go code: direct HTTP, prepare, test mode, custom fetch, live tests
+- Complete Go API reference: `NewSolardemoSDK` signature, `TestSDK`, entity interface with Go type signatures, result shapes, type exports, helper functions
+- Explanatory sections: pipeline, features/hooks, `map[string]any` philosophy, entity state, package structure diagram
 
-1. **Root README is a stub** -- the new sdkgen template produces an empty mermaid diagram and no real content
-2. **Go README uses TypeScript code** -- missing `ReadmeInstall_go` and `ReadmeQuick_go` components in sdkgen cause wrong-language examples
-3. **Go features list says "TypeScript definitions"** -- generic template text not adapted for Go
-4. **`ts/package.json` lost pino dependencies** -- `pino` and `pino-pretty` removed from dependencies, which may break logging at runtime
-5. **Tutorials and explanatory content removed** -- the old docs had rich tutorials and architectural explanations that the new template-generated docs don't replicate
-6. **REFERENCE.md files are identical for both languages** -- both use TypeScript syntax (`new SolardemoSDK(...)`, `Promise<...>`) rather than language-appropriate signatures
+**Generated (125 lines):**
+- Title: "Solardemo Golang SDK"
+- Introduction body is empty
+- Features list says "Type safe: full **TypeScript** definitions included" (wrong language)
+- Install section is completely empty (no `go get`, no module info)
+- Quick Start section is completely empty
+- SDK Structure section uses **TypeScript code examples** throughout:
+  - `const client = new SolardemoSDK({ apikey: '...' })` instead of Go
+  - `const testClient = SolardemoSDK.test()` instead of Go
+  - `client.direct({ ... })` with TypeScript syntax
+  - `const fetchdef = await client.prepare(...)` instead of Go
+  - `SolardemoSDK.test()` instead of `sdk.TestSDK(nil, nil)`
+- All code blocks tagged as ` ```ts ` instead of ` ```go `
+- Entity method names use camelCase (`load`, `list`) instead of Go PascalCase (`Load`, `List`)
+- No mention of `map[string]any`, error returns, or Go-specific patterns
+
+**Assessment**: **Critical issues**. The Go README is essentially a copy of the
+TypeScript README with the title changed. Every code example is TypeScript, not Go.
+This would actively mislead Go developers. The root cause is the missing
+`ReadmeInstall_go` and `ReadmeQuick_go` components in sdkgen.
+
+---
+
+### `ts/REFERENCE.md` and `go/REFERENCE.md`
+
+**Both files are unchanged** from the pre-update baseline (114 lines each).
+They were not regenerated by this run.
+
+**Pre-existing issue**: `go/REFERENCE.md` is identical to `ts/REFERENCE.md`
+except for the title. Both use TypeScript syntax:
+- Constructor: `new SolardemoSDK(options?: object)` (not Go)
+- Code examples: `const client = SolardemoSDK.test()` (not Go)
+- Return types: `Promise<{ ok, status, headers, data } | Error>` (not Go)
+- Feature activation: TypeScript object literal syntax
+
+This is a pre-existing problem in the sdkgen `ReadmeRef` component, not
+introduced by this update.
+
+---
+
+### `ts/package.json`
+
+**Changes:**
+- `pino` (^10.3.1) and `pino-pretty` (^13.1.3) **removed** from `dependencies`
+- `@types/pino-pretty` (^4.7.5) **removed** from `devDependencies`
+- Empty `peerDependencies: {}` block added
+- `dependencies` now empty: `{}`
+- `@types/node` moved after `typescript` in devDependencies (re-ordered)
+- Trailing newline removed
+
+**Impact**: If the SDK uses pino for logging (LogFeature), removing pino from
+dependencies will cause runtime errors. The generated TypeScript source files
+still import pino -- this needs verification.
+
+---
+
+### `.sdk/package.json`
+
+**Changes**: Dependencies re-ordered alphabetically by npm during install.
+No functional change.
+
+## Summary of Issues
+
+| # | Severity | Issue | Root Cause |
+|---|---|---|---|
+| 1 | **Critical** | Go README/REFERENCE use TypeScript code examples | Missing `ReadmeInstall_go`, `ReadmeQuick_go` in sdkgen; `ReadmeRef` has no Go variant |
+| 2 | **Critical** | Go features list says "TypeScript definitions" | Generic template text not parameterized per target |
+| 3 | **High** | Root README is a 9-line stub | sdkgen `Top` component generates only a placeholder |
+| 4 | **High** | Go Install and Quick Start sections are empty | Missing Go-specific readme components |
+| 5 | **Medium** | `pino`/`pino-pretty` removed from ts/package.json | sdkgen template change; may break LogFeature at runtime |
+| 6 | **Medium** | Tutorials and how-to guides dropped | New template structure is reference-oriented, lacks tutorial content |
+| 7 | **Medium** | TS code examples use generic paths not project-specific | Template uses placeholders instead of model-derived paths |
+| 8 | **Low** | Direct API Access section duplicated in ts/README | Template renders the section in both Quick Start and SDK Structure |
+| 9 | **Low** | TS Install uses ` ```ts ` fence instead of ` ```bash ` | Template bug |
+| 10 | **Low** | Introduction section body empty in both READMEs | No `ReadmeIntro` content for this project |
+| 11 | **Info** | REFERENCE.md files unchanged | Not affected by this sdkgen version |
+
+## Recommendations
+
+1. **sdkgen upstream**: Add Go-specific readme components (`ReadmeInstall_go`,
+   `ReadmeQuick_go`, `ReadmeRef_go`) that generate idiomatic Go examples.
+2. **sdkgen upstream**: Parameterize the features bullet list per target language
+   (e.g. "Type safe" should reference Go types for the Go target).
+3. **sdkgen upstream**: Populate the root README template with entity diagrams,
+   architecture overview, and cross-links to language SDKs.
+4. **This project**: Verify whether pino is still imported in generated TS source;
+   if so, either restore pino to dependencies or update the template.
+5. **This project**: Consider maintaining hand-written tutorial/how-to content
+   alongside the generated reference docs until sdkgen templates mature.
