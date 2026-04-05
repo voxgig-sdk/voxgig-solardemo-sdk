@@ -29,10 +29,10 @@ class Config {
 
 
   options = {
-    base: '$$main.kit.info.servers.0.url$$',
+    base: 'http://localhost:8901',
 
     auth: {
-      prefix: '$$main.kit.config.auth.prefix$$',
+      prefix: 'Bearer',
     },
 
     headers: 'HEADERS',

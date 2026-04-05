@@ -70,7 +70,7 @@ func envOverride(m map[string]any) map[string]any {
 }
 
 type entityTestSetup struct {
-	client  *sdk.ProjectNameSDK
+	client  *sdk.SolardemoSDK
 	data    map[string]any
 	idmap   map[string]any
 	env     map[string]any
@@ -283,7 +283,7 @@ func matchDeep(t *testing.T, entryIdx int, mark string, check any, base any, pat
 }
 
 // makeCtxFromMap creates a Context from a JSON test entry's ctx or args map.
-func makeCtxFromMap(ctxmap map[string]any, client *sdk.ProjectNameSDK, utility *sdk.Utility) *sdk.Context {
+func makeCtxFromMap(ctxmap map[string]any, client *sdk.SolardemoSDK, utility *sdk.Utility) *sdk.Context {
 	if ctxmap == nil {
 		ctxmap = map[string]any{}
 	}
@@ -308,7 +308,7 @@ func makeCtxFromMap(ctxmap map[string]any, client *sdk.ProjectNameSDK, utility *
 		ctx.Result = sdk.NewResult(resMap)
 		if errMap, ok := resMap["err"].(map[string]any); ok {
 			if msg, ok := errMap["message"].(string); ok {
-				ctx.Result.Err = &sdk.ProjectNameError{Msg: msg}
+				ctx.Result.Err = &sdk.SolardemoError{Msg: msg}
 			}
 		}
 	}
@@ -332,7 +332,7 @@ func makeCtxFromMap(ctxmap map[string]any, client *sdk.ProjectNameSDK, utility *
 	return ctx
 }
 
-func fixctx(ctx *sdk.Context, client *sdk.ProjectNameSDK) {
+func fixctx(ctx *sdk.Context, client *sdk.SolardemoSDK) {
 	if ctx != nil && ctx.Client != nil && ctx.Options == nil {
 		ctx.Options = ctx.Client.OptionsMap()
 	}
@@ -348,7 +348,7 @@ func errFromMap(m map[string]any) error {
 		return nil
 	}
 	code, _ := m["code"].(string)
-	return &sdk.ProjectNameError{Msg: msg, Code: code}
+	return &sdk.SolardemoError{Msg: msg, Code: code}
 }
 
 // ctxToMatchMap converts a Context to a map suitable for match comparison.

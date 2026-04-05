@@ -2,13 +2,13 @@
 import { test, describe } from 'node:test'
 import { equal } from 'node:assert'
 
-import { ProjectNameSDK } from '../..'
+import { SolardemoSDK } from '../..'
 
 
 describe('Custom', () => {
 
   test('basic', async () => {
-    const client = ProjectNameSDK.test({}, {
+    const client = SolardemoSDK.test({}, {
       apikey: 'APIKEY01',
 
       // NOTE: original utility.options must remain in place.

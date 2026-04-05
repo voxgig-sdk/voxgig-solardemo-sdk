@@ -13,6 +13,31 @@
    TypeScript and Go targets.
 6. Confirmed deterministic output (two independent generation runs produced
    identical results).
+7. Ran `voxgig-sdkgen target add ts` and `voxgig-sdkgen target add go` to
+   refresh per-target components from the latest sdkgen project template.
+8. Rebuilt and regenerated again after target add.
+9. Compared documentation output against originals a second time.
+
+## Target Add Results
+
+Running `target add` for both targets brought in several template module
+updates but **did not change the documentation output**:
+
+**New files added:**
+- `tm/go/feature/log_feature.go` -- Go LogFeature implementation
+- `tm/ts/src/utility/FeaturehookUtility.ts` -- TS feature hook utility
+
+**Updated template modules (18 files):**
+- Go: `core/context.go`, `core/error.go`, `core/types.go`,
+  `feature/test_feature.go`, `test/primary_utility_test.go`,
+  `test/runner_test.go`, `utility/make_error.go`, `LICENSE`
+- TS: `src/Context.ts`, `src/types.ts`, `src/utility/MakeContextUtility.ts`,
+  `src/utility/MakeErrorUtility.ts`, `test/exists.test.ts`,
+  `test/utility/Custom.test.ts`, `LICENSE`
+- Model: `model/feature/test.jsonic`, `model/target/ts.jsonic`,
+  `src/cmp/ts/fragment/Config.fragment.ts`
+
+**Key finding**: The sdkgen project template at `node_modules/@voxgig/sdkgen/project/.sdk/src/cmp/go/` does **not** contain `ReadmeInstall_go.ts` or `ReadmeQuick_go.ts`. These Go-specific Readme components simply do not exist in sdkgen v0.35.2. The `target add` command cannot add what doesn't exist upstream. All existing local components were already in sync with the template prior to running `target add`.
 
 ## Generation Warnings
 
@@ -193,11 +218,25 @@ No functional change.
 
 1. **sdkgen upstream**: Add Go-specific readme components (`ReadmeInstall_go`,
    `ReadmeQuick_go`, `ReadmeRef_go`) that generate idiomatic Go examples.
+   These files need to be created at `project/.sdk/src/cmp/go/` in the
+   sdkgen repo. Without them, the Go README will always fall back to the
+   TypeScript-oriented generic templates.
 2. **sdkgen upstream**: Parameterize the features bullet list per target language
-   (e.g. "Type safe" should reference Go types for the Go target).
-3. **sdkgen upstream**: Populate the root README template with entity diagrams,
-   architecture overview, and cross-links to language SDKs.
-4. **This project**: Verify whether pino is still imported in generated TS source;
+   (e.g. "Type safe" should reference Go types for the Go target). The
+   `ReadmeIntro` component uses a single hardcoded feature list that mentions
+   "TypeScript definitions" regardless of target.
+3. **sdkgen upstream**: Parameterize `ReadmeRef` per target. Currently both
+   `ts/REFERENCE.md` and `go/REFERENCE.md` are generated with TypeScript
+   syntax (`new SolardemoSDK(...)`, `Promise<...>`).
+4. **sdkgen upstream**: Populate the root README template (`Top` component)
+   with entity diagrams, architecture overview, and cross-links to language
+   SDKs. Currently generates an empty mermaid diagram.
+5. **sdkgen upstream**: Use model-derived API paths in code examples
+   (e.g. `/api/planet/{id}`) instead of generic placeholders
+   (`/api/v1/resource/{id}`).
+6. **This project**: Verify whether pino is still imported in generated TS source;
    if so, either restore pino to dependencies or update the template.
-5. **This project**: Consider maintaining hand-written tutorial/how-to content
+7. **This project**: Consider maintaining hand-written tutorial/how-to content
    alongside the generated reference docs until sdkgen templates mature.
+   The old docs contained effective tutorials and architecture explanations
+   that the current template system cannot reproduce.

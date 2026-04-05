@@ -3,13 +3,13 @@ import { test, describe } from 'node:test'
 import { equal } from 'node:assert'
 
 
-import { ProjectNameSDK } from '..'
+import { SolardemoSDK } from '..'
 
 
 describe('exists', async () => {
 
   test('test-mode', async () => {
-    const testsdk = await ProjectNameSDK.test()
+    const testsdk = await SolardemoSDK.test()
     equal(null !== testsdk, true)
   })
 

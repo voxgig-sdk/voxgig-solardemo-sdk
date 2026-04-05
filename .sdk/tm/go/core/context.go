@@ -12,7 +12,7 @@ type Context struct {
 	Out      map[string]any
 	Ctrl     *Control
 	Meta     map[string]any
-	Client   *ProjectNameSDK
+	Client   *SolardemoSDK
 	Utility  *Utility
 	Op       *Operation
 	Point    map[string]any
@@ -39,7 +39,7 @@ func NewContext(ctxmap map[string]any, basectx *Context) *Context {
 
 	// Client
 	if c := getCtxProp(ctxmap, "client"); c != nil {
-		if sdk, ok := c.(*ProjectNameSDK); ok {
+		if sdk, ok := c.(*SolardemoSDK); ok {
 			ctx.Client = sdk
 		}
 	}
@@ -262,6 +262,6 @@ func (ctx *Context) resolveOp(opname string) *Operation {
 	return op
 }
 
-func (ctx *Context) MakeError(code string, msg string) *ProjectNameError {
-	return NewProjectNameError(code, msg, ctx)
+func (ctx *Context) MakeError(code string, msg string) *SolardemoError {
+	return NewSolardemoError(code, msg, ctx)
 }

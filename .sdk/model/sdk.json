@@ -956,7 +956,7 @@
               "active": true,
               "await": false
             },
-            "PreTarget": {
+            "PrePoint": {
               "active": true,
               "await": false
             },
@@ -976,8 +976,12 @@
               "active": true,
               "await": false
             },
+            "PreTarget": {
+              "active": false,
+              "await": false
+            },
             "PostOperation": {
-              "active": true,
+              "active": false,
               "await": false
             }
           },

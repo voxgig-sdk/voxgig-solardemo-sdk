@@ -11,7 +11,7 @@ import (
 
 type TestFeature struct {
 	BaseFeature
-	client  *core.ProjectNameSDK
+	client  *core.SolardemoSDK
 	options map[string]any
 }
 

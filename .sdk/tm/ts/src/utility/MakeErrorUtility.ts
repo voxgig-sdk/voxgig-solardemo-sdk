@@ -26,7 +26,7 @@ function makeError(ctx: Context, err?: any) {
   // TODO: project name should come from config
   // avoids spurious changes between template and generated utility
   // applies for all utility files
-  const msg = 'ProjectNameSDK: ' + op.name + ': ' + errmsg
+  const msg = 'SolardemoSDK: ' + op.name + ': ' + errmsg
   err.message = clean(ctx, msg)
 
   if (result.err) {

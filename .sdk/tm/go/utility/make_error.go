@@ -33,7 +33,7 @@ func makeErrorUtil(ctx *core.Context, err error) (any, error) {
 	}
 
 	errmsg := err.Error()
-	msg := "ProjectNameSDK: " + opname + ": " + errmsg
+	msg := "SolardemoSDK: " + opname + ": " + errmsg
 	msg = cleanUtil(ctx, msg).(string)
 
 	result.Err = nil
@@ -46,16 +46,16 @@ func makeErrorUtil(ctx *core.Context, err error) (any, error) {
 		}
 	}
 
-	sdkErr := &core.ProjectNameError{
-		IsProjectNameError: true,
-		Sdk:              "ProjectName",
+	sdkErr := &core.SolardemoError{
+		IsSolardemoError: true,
+		Sdk:              "Solardemo",
 		Code:             "",
 		Msg:              msg,
 		Ctx:              ctx,
 		Result:           cleanUtil(ctx, result),
 		Spec:             cleanUtil(ctx, spec),
 	}
-	if se, ok := err.(*core.ProjectNameError); ok {
+	if se, ok := err.(*core.SolardemoError); ok {
 		sdkErr.Code = se.Code
 	}
 
