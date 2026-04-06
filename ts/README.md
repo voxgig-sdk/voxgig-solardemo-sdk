@@ -5,16 +5,13 @@ entity-oriented interface with full async/await support.
 
 
 ## Install
-
 ```bash
 npm install solardemo
 ```
-
-
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing planets, and
-loading a specific moon.
+This tutorial walks through creating a client, listing entities, and
+loading a specific record.
 
 ### 1. Create a client
 
@@ -26,28 +23,22 @@ const client = new SolardemoSDK({
 })
 ```
 
-### 2. List planets
+### 2. List moons
 
 ```ts
-const result = await client.Planet().list()
+const result = await client.Moon().list()
 
 if (result.ok) {
-  for (const planet of result.data) {
-    console.log(planet.id, planet.name)
+  for (const item of result.data) {
+    console.log(item.id, item.name)
   }
 }
 ```
 
 ### 3. Load a moon
 
-Moon is nested under Planet, so provide the `planet_id`:
-
 ```ts
-const moon = client.Moon()
-const result = await moon.load({
-  planet_id: 'earth',
-  id: 'luna',
-})
+const result = await client.Moon().load({ id: 'example_id' })
 
 if (result.ok) {
   console.log(result.data)
@@ -59,20 +50,17 @@ if (result.ok) {
 ```ts
 // Create
 const created = await client.Moon().create({
-  planet_id: 'earth',
-  name: 'Deimos',
+  name: 'Example',
 })
 
 // Update
 const updated = await client.Moon().update({
-  planet_id: 'earth',
   id: created.data.id,
-  name: 'Deimos-Renamed',
+  name: 'Example-Renamed',
 })
 
 // Remove
 const removed = await client.Moon().remove({
-  planet_id: 'earth',
   id: created.data.id,
 })
 ```
@@ -86,9 +74,9 @@ For endpoints not covered by entity methods:
 
 ```ts
 const result = await client.direct({
-  path: '/api/planet/{id}',
+  path: '/api/resource/{id}',
   method: 'GET',
-  params: { id: 'mars' },
+  params: { id: 'example' },
 })
 
 if (result.ok) {
@@ -101,9 +89,9 @@ if (result.ok) {
 
 ```ts
 const fetchdef = await client.prepare({
-  path: '/api/planet/{id}',
+  path: '/api/resource/{id}',
   method: 'DELETE',
-  params: { id: 'mars' },
+  params: { id: 'example' },
 })
 
 // Inspect before sending
@@ -136,14 +124,14 @@ const testClient = client.tester()
 Entity instances remember their last match and data:
 
 ```ts
-const moon = client.Moon()
+const entity = client.Planet()
 
 // First call sets internal match
-await moon.load({ planet_id: 'earth', id: 'luna' })
+await entity.load({ id: 'example' })
 
 // Subsequent calls reuse the stored match
-const data = moon.data()
-console.log(data.id) // 'luna'
+const data = entity.data()
+console.log(data.id) // 'example'
 ```
 
 ### Add custom middleware
@@ -175,8 +163,6 @@ Create a `.env.local` file at the project root:
 ```
 SOLARDEMO_TEST_LIVE=TRUE
 SOLARDEMO_APIKEY=<your-key>
-SOLARDEMO_TEST_MOON_ENTID={"planet01":"earth"}
-SOLARDEMO_TEST_PLANET_ENTID={}
 ```
 
 Then run:
@@ -232,7 +218,7 @@ new SolardemoSDK(options?: {
 
 ### Entity interface
 
-All entities (MoonEntity, PlanetEntity) share the same interface.
+All entities share the same interface.
 
 #### Methods
 
@@ -292,26 +278,95 @@ The `prepare()` method returns:
 
 ### Entities
 
-#### Planet
-
-| Field | Description |
-| --- | --- |
-| `id` | Unique planet identifier. |
-
-Operations: load, list, create, update, remove.
-
-API path: `/api/planet/{id}`
-
 #### Moon
 
 | Field | Description |
 | --- | --- |
-| `id` | Unique moon identifier. |
-| `planet_id` | Parent planet identifier (required for all operations). |
 
-Operations: load, list, create, update, remove.
+Operations: create, list, load, remove, update.
 
-API path: `/api/planet/{planet_id}/moon/{id}`
+API path: ``
+
+#### Planet
+
+| Field | Description |
+| --- | --- |
+
+Operations: create, list, load, remove, update.
+
+API path: ``
+
+
+
+## Entities
+
+
+### Moon
+
+Create an instance: `const moon = client.Moon()`
+
+#### Operations
+
+| Method | Description |
+| --- | --- |
+| `create(data)` | Create a new entity with the given data. |
+| `list(match)` | List entities matching the criteria. |
+| `load(match)` | Load a single entity by match criteria. |
+| `remove(match)` | Remove the matching entity. |
+| `update(data)` | Update an existing entity. |
+
+#### Example: Load
+
+```ts
+const moon = await client.Moon().load({ id: 'moon_id' })
+```
+
+#### Example: List
+
+```ts
+const moons = await client.Moon().list()
+```
+
+#### Example: Create
+
+```ts
+const moon = await client.Moon().create({
+})
+```
+
+
+### Planet
+
+Create an instance: `const planet = client.Planet()`
+
+#### Operations
+
+| Method | Description |
+| --- | --- |
+| `create(data)` | Create a new entity with the given data. |
+| `list(match)` | List entities matching the criteria. |
+| `load(match)` | Load a single entity by match criteria. |
+| `remove(match)` | Remove the matching entity. |
+| `update(data)` | Update an existing entity. |
+
+#### Example: Load
+
+```ts
+const planet = await client.Planet().load({ id: 'planet_id' })
+```
+
+#### Example: List
+
+```ts
+const planets = await client.Planet().list()
+```
+
+#### Example: Create
+
+```ts
+const planet = await client.Planet().create({
+})
+```
 
 
 ## Explanation
@@ -348,15 +403,9 @@ Features are the extension mechanism. A feature is an object with a
 `hooks` map. Each hook key is a pipeline stage name, and the value is
 a function that receives the context.
 
-The SDK ships with three built-in features:
+The SDK ships with built-in features:
 
-- **BaseFeature**: Provides the core request/response logic. It
-  registers hooks for every pipeline stage to handle URL construction,
-  header preparation, fetch execution, and response parsing.
-- **TestFeature**: Replaces the real HTTP fetcher with an in-memory
-  mock. Activated when `feature.test.active` is `true`.
-- **LogFeature**: Adds structured logging at each pipeline stage
-  using pino.
+- **TestFeature**: Test
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -383,7 +432,14 @@ but no stored state.
 The entity interface handles URL construction, parameter placement,
 and response parsing automatically. Use it for standard CRUD operations.
 
-The `direct()` method gives full control over the HTTP request. Use it
+The `direct` method gives full control over the HTTP request. Use it
 for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare()` method is useful for debugging — it
-shows exactly what `direct()` would send.
+as an entity. The `prepare` method is useful for debugging — it
+shows exactly what `direct` would send.
+
+
+## Full Reference
+
+See [REFERENCE.md](REFERENCE.md) for complete API reference
+documentation including all method signatures, entity field schemas,
+and detailed usage examples.

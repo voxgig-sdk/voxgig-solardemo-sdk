@@ -1,8 +1,8 @@
 
 import { inspect } from 'node:util'
 
-import { ProjectNameSDK } from './ProjectNameSDK'
-import { ProjectNameError } from './ProjectNameError'
+import { SolardemoSDK } from './SolardemoSDK'
+import { SolardemoError } from './SolardemoError'
 
 import { Utility } from './utility/Utility'
 import { getprop, setprop, getpath } from './utility/StructUtility'
@@ -28,7 +28,7 @@ class Context {
   ctrl: Record<string, any> = {}
   meta: Record<string, any> = {}
 
-  client: ProjectNameSDK
+  client: SolardemoSDK
   utility: Utility
 
   op: Operation
@@ -112,7 +112,7 @@ class Context {
 
 
   error(code: string, msg: string) {
-    return new ProjectNameError(code, msg, this)
+    return new SolardemoError(code, msg, this)
   }
 
 

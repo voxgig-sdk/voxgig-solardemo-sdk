@@ -1,28 +1,20 @@
-# Solardemo Go SDK
+# Solardemo Golang SDK
 
-The Go SDK for the Solardemo API. Provides an entity-oriented interface
+The Golang SDK for the Solardemo API. Provides an entity-oriented interface
 using standard Go conventions — no generics required, data flows as
 `map[string]any`.
 
 
 ## Install
-
 ```bash
 go get voxgigsolardemosdk
-```
-
-The module uses a local `replace` directive for the struct utility:
-
-```
-require github.com/voxgig/struct v0.0.0
-replace github.com/voxgig/struct => ./utility/struct
 ```
 
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing planets, and
-loading a specific moon.
+This tutorial walks through creating a client, listing entities, and
+loading a specific record.
 
 ### 1. Create a client
 
@@ -43,10 +35,10 @@ func main() {
     })
 ```
 
-### 2. List planets
+### 2. List moons
 
 ```go
-    result, err := client.Planet(nil).List(nil, nil)
+    result, err := client.Moon(nil).List(nil, nil)
     if err != nil {
         panic(err)
     }
@@ -62,12 +54,9 @@ func main() {
 
 ### 3. Load a moon
 
-Moon is nested under Planet, so provide the `planet_id`:
-
 ```go
-    moon := client.Moon(nil)
-    result, err = moon.Load(
-        map[string]any{"planet_id": "earth", "id": "luna"}, nil,
+    result, err = client.Moon(nil).Load(
+        map[string]any{"id": "example_id"}, nil,
     )
     if err != nil {
         panic(err)
@@ -85,19 +74,19 @@ Moon is nested under Planet, so provide the `planet_id`:
 ```go
 // Create
 created, _ := client.Moon(nil).Create(
-    map[string]any{"planet_id": "earth", "name": "Deimos"}, nil,
+    map[string]any{"name": "Example"}, nil,
 )
 cm := core.ToMapAny(created)
 newID := core.ToMapAny(cm["data"])["id"]
 
 // Update
 client.Moon(nil).Update(
-    map[string]any{"planet_id": "earth", "id": newID, "name": "Deimos-Renamed"}, nil,
+    map[string]any{"id": newID, "name": "Example-Renamed"}, nil,
 )
 
 // Remove
 client.Moon(nil).Remove(
-    map[string]any{"planet_id": "earth", "id": newID}, nil,
+    map[string]any{"id": newID}, nil,
 )
 ```
 
@@ -110,9 +99,9 @@ For endpoints not covered by entity methods:
 
 ```go
 result, err := client.Direct(map[string]any{
-    "path":   "/api/planet/{id}",
+    "path":   "/api/resource/{id}",
     "method": "GET",
-    "params": map[string]any{"id": "mars"},
+    "params": map[string]any{"id": "example"},
 })
 if err != nil {
     panic(err)
@@ -128,9 +117,9 @@ if result["ok"] == true {
 
 ```go
 fetchdef, err := client.Prepare(map[string]any{
-    "path":   "/api/planet/{id}",
+    "path":   "/api/resource/{id}",
     "method": "DELETE",
-    "params": map[string]any{"id": "mars"},
+    "params": map[string]any{"id": "example"},
 })
 if err != nil {
     panic(err)
@@ -185,8 +174,6 @@ Create a `.env.local` file at the project root:
 ```
 SOLARDEMO_TEST_LIVE=TRUE
 SOLARDEMO_APIKEY=<your-key>
-SOLARDEMO_TEST_MOON_ENTID={"planet01":"earth"}
-SOLARDEMO_TEST_PLANET_ENTID={}
 ```
 
 Then run:
@@ -265,79 +252,105 @@ Entity operations return `(any, error)`. The `any` value is a
 
 On error, `"ok"` is `false` and `"err"` contains the error value.
 
-### Direct result shape
-
-`Direct()` returns `(map[string]any, error)` with the same keys as
-entity results: `"ok"`, `"status"`, `"headers"`, `"data"`.
-
-### FetchDef shape
-
-`Prepare()` returns `(map[string]any, error)`. The map contains:
-
-| Key | Type | Description |
-| --- | --- | --- |
-| `"url"` | `string` | Fully resolved URL. |
-| `"method"` | `string` | HTTP method. |
-| `"headers"` | `map[string]any` | Request headers. |
-| `"body"` | `any` | Request body (may be nil). |
-
 ### Entities
-
-#### Planet
-
-| Field | Description |
-| --- | --- |
-| `"id"` | Unique planet identifier. |
-
-Operations: Load, List, Create, Update, Remove.
-
-API path: `/api/planet/{id}`
 
 #### Moon
 
 | Field | Description |
 | --- | --- |
-| `"id"` | Unique moon identifier. |
-| `"planet_id"` | Parent planet identifier (required for all operations). |
 
-Operations: Load, List, Create, Update, Remove.
+Operations: Create, List, Load, Remove, Update.
 
-API path: `/api/planet/{planet_id}/moon/{id}`
+API path: ``
 
-### Type exports
+#### Planet
 
-The root package re-exports all core types for convenience:
+| Field | Description |
+| --- | --- |
+
+Operations: Create, List, Load, Remove, Update.
+
+API path: ``
+
+
+
+## Entities
+
+
+### Moon
+
+Create an instance: `moon := client.Moon(nil)`
+
+#### Operations
+
+| Method | Description |
+| --- | --- |
+| `Create(data, ctrl)` | Create a new entity with the given data. |
+| `List(match, ctrl)` | List entities matching the criteria. |
+| `Load(match, ctrl)` | Load a single entity by match criteria. |
+| `Remove(match, ctrl)` | Remove the matching entity. |
+| `Update(data, ctrl)` | Update an existing entity. |
+
+#### Example: Load
 
 ```go
-type SolardemoSDK = core.SolardemoSDK
-type Context = core.Context
-type Utility = core.Utility
-type Feature = core.Feature
-type Entity = core.Entity
-type SolardemoEntity = core.SolardemoEntity
-type Spec = core.Spec
-type Result = core.Result
-type Response = core.Response
-type Operation = core.Operation
-type Control = core.Control
-type SolardemoError = core.SolardemoError
-type BaseFeature = feature.BaseFeature
+result, err := client.Moon(nil).Load(map[string]any{"id": "moon_id"}, nil)
 ```
 
-### Helper functions
+#### Example: List
 
-| Function | Package | Description |
-| --- | --- | --- |
-| `core.ToMapAny(v)` | core | Safely cast `any` to `map[string]any`. |
-| `core.ToInt(v)` | core | Safely cast `any` to `int`. |
+```go
+results, err := client.Moon(nil).List(nil, nil)
+```
+
+#### Example: Create
+
+```go
+result, err := client.Moon(nil).Create(map[string]any{
+}, nil)
+```
+
+
+### Planet
+
+Create an instance: `planet := client.Planet(nil)`
+
+#### Operations
+
+| Method | Description |
+| --- | --- |
+| `Create(data, ctrl)` | Create a new entity with the given data. |
+| `List(match, ctrl)` | List entities matching the criteria. |
+| `Load(match, ctrl)` | Load a single entity by match criteria. |
+| `Remove(match, ctrl)` | Remove the matching entity. |
+| `Update(data, ctrl)` | Update an existing entity. |
+
+#### Example: Load
+
+```go
+result, err := client.Planet(nil).Load(map[string]any{"id": "planet_id"}, nil)
+```
+
+#### Example: List
+
+```go
+results, err := client.Planet(nil).List(nil, nil)
+```
+
+#### Example: Create
+
+```go
+result, err := client.Planet(nil).Create(map[string]any{
+}, nil)
+```
 
 
 ## Explanation
 
 ### The operation pipeline
 
-Every entity operation follows a six-stage pipeline. Each stage fires
-a feature hook before executing:
+Every entity operation (load, list, create, update, remove) follows a
+six-stage pipeline. Each stage fires a feature hook before executing:
 
 ```
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
@@ -364,15 +377,12 @@ Features are the extension mechanism. A feature implements the
 `Feature` interface and provides hooks — functions keyed by pipeline
 stage names.
 
-The SDK ships with three built-in features:
+The SDK ships with built-in features:
 
-- **BaseFeature**: Core request/response logic. Always active.
-- **TestFeature**: Replaces the real HTTP fetcher with an in-memory
-  mock. Activated when `feature.test.active` is `true`.
-- **LogFeature**: Adds logging at each pipeline stage.
+- **TestFeature**: Test
 
-Features initialize in order. Hooks fire in the order features were
-added, so later features can override earlier ones.
+Features are initialized in order. Hooks fire in the order features
+were added, so later features can override earlier ones.
 
 ### Data as maps
 
@@ -381,6 +391,22 @@ This mirrors the dynamic nature of the API and keeps the SDK
 flexible — no code generation is needed when the API schema changes.
 
 Use `core.ToMapAny()` to safely cast results and nested data.
+
+### Package structure
+
+```
+voxgigsolardemosdk/
+├── solardemo.go        # Root package — type aliases and constructors
+├── core/               # SDK core — client, types, pipeline
+├── entity/             # Entity implementations
+├── feature/            # Built-in features (Base, Test, Log)
+├── utility/            # Utility functions and struct library
+└── test/               # Test suites
+```
+
+The root package (`voxgigsolardemosdk`) re-exports everything needed
+for normal use. Import sub-packages only when you need specific types
+like `core.ToMapAny`.
 
 ### Entity state
 
@@ -408,18 +434,9 @@ non-standard endpoints, bulk operations, or any path not modelled as
 an entity. `Prepare()` builds the request without sending it — useful
 for debugging or custom transport.
 
-### Package structure
 
-```
-voxgigsolardemosdk/
-├── solardemo.go        # Root package — type aliases and constructors
-├── core/               # SDK core — client, types, pipeline
-├── entity/             # Entity implementations (Moon, Planet)
-├── feature/            # Built-in features (Base, Test, Log)
-├── utility/            # Utility functions and struct library
-└── test/               # Test suites
-```
+## Full Reference
 
-The root package (`voxgigsolardemosdk`) re-exports everything needed
-for normal use. Import sub-packages only when you need specific types
-like `core.ToMapAny`.
+See [REFERENCE.md](REFERENCE.md) for complete API reference
+documentation including all method signatures, entity field schemas,
+and detailed usage examples.

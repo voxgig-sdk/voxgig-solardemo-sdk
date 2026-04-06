@@ -30,7 +30,7 @@ type Entity interface {
 	Match(match ...any) any
 }
 
-type ProjectNameEntity interface {
+type SolardemoEntity interface {
 	Entity
 	Load(reqmatch map[string]any, ctrl map[string]any) (any, error)
 	List(reqmatch map[string]any, ctrl map[string]any) (any, error)
