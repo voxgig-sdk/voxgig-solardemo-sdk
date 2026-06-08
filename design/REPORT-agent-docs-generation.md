@@ -27,9 +27,20 @@ Generated output (run `cd .sdk && npm run build && npm run generate`):
 | `ts/AGENTS.md` | Agent **using** the TS SDK | (b) Install, client creation, minimal example, result shape, options, per-entity field + operation tables, contributor build steps. |
 | `go/AGENTS.md` | Agent **using** the Go SDK | (b) Same, in Go idiom (incl. the `replace`-directive consumption note). |
 | `app/AGENTS.md` | Agent running the test server | The separate REST server's run instructions, in its own folder. |
+| `CLAUDE.md` (root, `ts/`, `go/`, `app/`) | Claude Code | Thin file that `@`-imports the sibling `AGENTS.md` (see note below). |
 
 Generation is **idempotent** and does not disturb the existing SDK code
 output (verified: `ts`/`go` still build after regeneration).
+
+### Is `AGENTS.md` sufficient for all agents, including Claude?
+
+**No — not for Claude Code.** Per the Claude Code docs, Claude Code automatically
+loads **`CLAUDE.md`**, not `AGENTS.md`; a repo containing only `AGENTS.md` is
+ignored by Claude Code. Many other agents read `AGENTS.md` (the cross-tool
+`agents.md` convention) natively. To cover both without duplicating content, the
+generator now also emits a thin **`CLAUDE.md`** next to every `AGENTS.md`,
+containing the import directive `@AGENTS.md`. Claude Code follows the import and
+loads the shared guide; `AGENTS.md` remains the single source of truth.
 
 ### Request coverage
 

@@ -8,7 +8,7 @@ import {
   Content,
 } from '@voxgig/sdkgen'
 
-import { sdkNames, entityInfo, rootEntity } from '../../AgentInfo'
+import { sdkNames, entityInfo, rootEntity, claudeMd } from '../../AgentInfo'
 
 
 const AgentsGo = cmp(function AgentsGo(props: any) {
@@ -148,6 +148,10 @@ go test ./...
 To change behaviour, edit the model/templates in \`../.sdk\` and regenerate
 (see [\`../AGENTS.md\`](../AGENTS.md)).
 `)
+  })
+
+  File({ name: 'CLAUDE.md' }, () => {
+    Content(claudeMd())
   })
 
 })

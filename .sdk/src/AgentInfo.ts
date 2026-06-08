@@ -111,12 +111,48 @@ function rootEntity(entities: EntityInfo[]): EntityInfo | undefined {
 }
 
 
+// Claude Code loads CLAUDE.md, not AGENTS.md. Emit a thin CLAUDE.md that
+// imports the sibling AGENTS.md (via the @path syntax) so there is a single
+// source of truth shared with AGENTS.md-aware agents.
+function claudeMd(): string {
+  return `# Claude Code memory
+
+Claude Code loads this file. The shared, tool-agnostic agent guide lives in
+AGENTS.md and is imported below.
+
+@AGENTS.md
+`
+}
+
+
+// Derive an entity's parent from its operation paths: the last path segment
+// (before the entity's own segment) that matches another entity name. Used
+// because the model does not populate \`ancestors\`.
+function deriveParent(entity: EntityInfo, entities: EntityInfo[]): EntityInfo | undefined {
+  const names = new Set(entities.map((e) => e.name))
+  for (const op of entity.ops) {
+    const parts = op.path.split('/').filter((p) => p && !p.startsWith('{'))
+    const self = parts.lastIndexOf(entity.name)
+    if (0 < self) {
+      for (let i = self - 1; 0 <= i; i--) {
+        if (names.has(parts[i]) && parts[i] !== entity.name) {
+          return entities.find((e) => e.name === parts[i])
+        }
+      }
+    }
+  }
+  return undefined
+}
+
+
 export {
   sdkNames,
   entityInfo,
   friendlyType,
   primaryPoint,
   rootEntity,
+  claudeMd,
+  deriveParent,
 }
 
 export type {

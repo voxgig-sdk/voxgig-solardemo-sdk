@@ -13,7 +13,7 @@ import {
   Content,
 } from '@voxgig/sdkgen'
 
-import { sdkNames, entityInfo } from './AgentInfo'
+import { sdkNames, entityInfo, claudeMd } from './AgentInfo'
 
 
 const Agents = cmp(function Agents(props: any) {
@@ -104,6 +104,11 @@ compatible endpoint via their \`base\` option. See [\`app/AGENTS.md\`](app/AGENT
 `)
   })
 
+  // Claude Code loads CLAUDE.md (not AGENTS.md); import the shared guide.
+  File({ name: 'CLAUDE.md' }, () => {
+    Content(claudeMd())
+  })
+
 
   // The test/reference server lives in its own folder. It is hand-written and
   // not part of the generation model, so this is a thin pointer to its README.
@@ -136,6 +141,10 @@ commands.
 Point an SDK client's \`base\` option at this server, e.g.
 \`http://localhost:8901\`, to exercise the SDK against a real implementation.
 `)
+    })
+
+    File({ name: 'CLAUDE.md' }, () => {
+      Content(claudeMd())
     })
   })
 
