@@ -29,7 +29,7 @@ const Package = cmp(async function Package(props: any) {
   File({ name: 'go.mod' }, () => {
     Content(`module ${gomodule}
 
-go 1.20
+go 1.23
 
 `)
 

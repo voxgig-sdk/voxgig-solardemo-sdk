@@ -1,6 +1,6 @@
 module voxgigsolardemosdk
 
-go 1.20
+go 1.23
 
 require (
 	github.com/voxgig/struct v0.0.0
