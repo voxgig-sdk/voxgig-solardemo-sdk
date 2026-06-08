@@ -28,6 +28,9 @@ import { PointUtil, Content } from 'jostraca'
 
 import { Top } from './Top'
 import { BuildSDK } from './BuildSDK'
+import { Agents } from './Agents'
+import { AgentsTs } from './cmp/ts/Agents_ts'
+import { AgentsGo } from './cmp/go/Agents_go'
 
 
 const {
@@ -76,6 +79,9 @@ const Root = cmp(function Root(props: any) {
     // TODO: jostraca should accept no props
     Top({})
 
+    // Top-level agent docs (AGENTS.md) + the separate test-server's app/AGENTS.md
+    Agents({})
+
     BuildSDK({})
 
     each(target, (target: any) => {
@@ -98,6 +104,14 @@ const Root = cmp(function Root(props: any) {
         Readme({ target })
 
         Test({ target })
+
+        // Per-SDK usage docs for AI coding agents (server-agnostic).
+        if ('ts' === target.name) {
+          AgentsTs({ target })
+        }
+        else if ('go' === target.name) {
+          AgentsGo({ target })
+        }
       })
     })
 
