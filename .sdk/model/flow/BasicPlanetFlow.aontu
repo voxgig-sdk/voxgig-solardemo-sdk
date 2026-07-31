@@ -1,48 +1,35 @@
-# BasicMoonFlow
+# BasicPlanetFlow
 
-main: kit: flow: BasicMoonFlow:
+main: kit: flow: BasicPlanetFlow:
 {
-  entity: "moon",
+  entity: "planet",
   kind: "basic",
-  name: "BasicMoonFlow",
+  name: "BasicPlanetFlow",
   step: [
     {
       input: {
-        ref: "moon_ref01"
-      }
-
-      match: {
-        planet_id: "planet01"
+        ref: "planet_ref01"
       }
 
       op: "create"
     }
 
     {
-      match: {
-        planet_id: "planet01"
-      }
-
       op: "list",
       valid: [
         {
           apply: "ItemExists",
           def: {
-            ref: "moon_ref01"
+            ref: "planet_ref01"
           }
         }
       ]
     }
 
     {
-      data: {
-        id: "moon01",
-        planet_id: "planet01"
-      }
-
       input: {
-        ref: "moon_ref01",
-        srcdatavar: "moon_ref01_data",
+        ref: "planet_ref01",
+        srcdatavar: "planet_ref01_data",
         suffix: "_up0",
         textfield: "kind"
       }
@@ -52,7 +39,7 @@ main: kit: flow: BasicMoonFlow:
         {
           apply: "TextFieldMark",
           def: {
-            mark: "Mark01-moon_ref01"
+            mark: "Mark01-planet_ref01"
           }
         }
       ]
@@ -60,14 +47,13 @@ main: kit: flow: BasicMoonFlow:
 
     {
       input: {
-        ref: "moon_ref01",
-        srcdatavar: "moon_ref01_data",
+        ref: "planet_ref01",
+        srcdatavar: "planet_ref01_data",
         suffix: "_dt0"
       }
 
       match: {
-        id: "moon01",
-        planet_id: "planet01"
+        id: "planet01"
       }
 
       op: "load",
@@ -75,7 +61,7 @@ main: kit: flow: BasicMoonFlow:
         {
           apply: "TextFieldMark",
           def: {
-            mark: "Mark01-moon_ref01"
+            mark: "Mark01-planet_ref01"
           }
         }
       ]
@@ -83,13 +69,12 @@ main: kit: flow: BasicMoonFlow:
 
     {
       input: {
-        ref: "moon_ref01",
+        ref: "planet_ref01",
         suffix: "_rm0"
       }
 
       match: {
-        id: "moon01",
-        planet_id: "planet01"
+        id: "planet01"
       }
 
       op: "remove"
@@ -100,20 +85,16 @@ main: kit: flow: BasicMoonFlow:
         suffix: "_rt0"
       }
 
-      match: {
-        planet_id: "planet01"
-      }
-
       op: "list",
       valid: [
         {
           apply: "ItemNotExists",
           def: {
-            ref: "moon_ref01"
+            ref: "planet_ref01"
           }
         }
       ]
     }
   ],
-  "key$": "BasicMoonFlow"
+  "key$": "BasicPlanetFlow"
 }

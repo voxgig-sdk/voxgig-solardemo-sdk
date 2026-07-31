@@ -1,53 +1,62 @@
 {
-  "name": "solardemo",
-  "origin": "voxgig-sdk",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
+    "def": {
+      "desc": ""
+    },
     "kit": {
-      "info": {
-        "title": "Solar System API",
-        "version": "1.0.0",
-        "servers": [
-          {
-            "url": "http://localhost:8901"
-          }
-        ]
+      "config": {
+        "auth": {
+          "prefix": "Bearer"
+        },
+        "docs_order": [
+          "ts",
+          "py",
+          "php",
+          "go",
+          "rb",
+          "lua"
+        ],
+        "headers": {
+          "content-type": "application/json"
+        }
       },
       "entity": {
         "moon": {
+          "active": true,
           "alias": {
             "field": {}
           },
           "fields": [
             {
+              "active": true,
               "name": "diameter",
               "req": true,
-              "type": "`$NUMBER`",
-              "active": true
+              "type": "`$NUMBER`"
             },
             {
+              "active": true,
               "name": "id",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "kind",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "name",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "planet_id",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             }
           ],
           "id": {
@@ -57,18 +66,20 @@
           "name": "moon",
           "op": {
             "create": {
+              "input": "data",
               "name": "create",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -88,25 +99,25 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "list": {
+              "input": "data",
               "name": "list",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -126,33 +137,33 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "load": {
+              "input": "data",
               "name": "load",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "moon_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       },
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -179,33 +190,33 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "remove": {
+              "input": "data",
               "name": "remove",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "moon_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       },
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -232,33 +243,33 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "update": {
+              "input": "data",
               "name": "update",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "moon_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       },
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "planet_id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -285,11 +296,9 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             }
           },
           "relations": {
@@ -298,73 +307,73 @@
                 "planet"
               ]
             ]
-          },
-          "active": true
+          }
         },
         "planet": {
+          "active": true,
           "alias": {
             "field": {}
           },
           "fields": [
             {
+              "active": true,
               "name": "diameter",
               "req": true,
-              "type": "`$NUMBER`",
-              "active": true
+              "type": "`$NUMBER`"
             },
             {
+              "active": true,
               "name": "forbid",
               "req": false,
-              "type": "`$BOOLEAN`",
-              "active": true
+              "type": "`$BOOLEAN`"
             },
             {
+              "active": true,
               "name": "id",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "kind",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "name",
               "req": true,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "ok",
               "req": false,
-              "type": "`$BOOLEAN`",
-              "active": true
+              "type": "`$BOOLEAN`"
             },
             {
+              "active": true,
               "name": "start",
               "req": false,
-              "type": "`$BOOLEAN`",
-              "active": true
+              "type": "`$BOOLEAN`"
             },
             {
+              "active": true,
               "name": "state",
               "req": false,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             },
             {
+              "active": true,
               "name": "stop",
               "req": false,
-              "type": "`$BOOLEAN`",
-              "active": true
+              "type": "`$BOOLEAN`"
             },
             {
+              "active": true,
               "name": "why",
               "req": false,
-              "type": "`$STRING`",
-              "active": true
+              "type": "`$STRING`"
             }
           ],
           "id": {
@@ -374,18 +383,20 @@
           "name": "planet",
           "op": {
             "create": {
+              "input": "data",
               "name": "create",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -411,19 +422,19 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 },
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -449,65 +460,61 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 },
                 {
+                  "active": true,
+                  "args": {},
                   "method": "POST",
                   "orig": "/api/planet",
                   "parts": [
                     "api",
                     "planet"
                   ],
+                  "select": {},
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true,
-                  "args": {
-                    "params": []
-                  },
-                  "select": {}
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "list": {
+              "input": "data",
               "name": "list",
               "points": [
                 {
+                  "active": true,
+                  "args": {},
                   "method": "GET",
                   "orig": "/api/planet",
                   "parts": [
                     "api",
                     "planet"
                   ],
+                  "select": {},
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true,
-                  "args": {
-                    "params": []
-                  },
-                  "select": {}
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "load": {
+              "input": "data",
               "name": "load",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -531,25 +538,25 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "remove": {
+              "input": "data",
               "name": "remove",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -573,25 +580,25 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             },
             "update": {
+              "input": "data",
               "name": "update",
               "points": [
                 {
+                  "active": true,
                   "args": {
                     "params": [
                       {
+                        "active": true,
                         "kind": "param",
                         "name": "id",
                         "orig": "planet_id",
                         "reqd": true,
-                        "type": "`$STRING`",
-                        "active": true
+                        "type": "`$STRING`"
                       }
                     ]
                   },
@@ -615,326 +622,18 @@
                   "transform": {
                     "req": "`reqdata`",
                     "res": "`body`"
-                  },
-                  "active": true
+                  }
                 }
-              ],
-              "input": "data"
+              ]
             }
           },
-          "active": true,
           "relations": {
             "ancestors": []
           }
         }
       },
-      "flow": {
-        "BasicMoonFlow": {
-          "entity": "moon",
-          "kind": "basic",
-          "name": "BasicMoonFlow",
-          "step": [
-            {
-              "input": {
-                "ref": "moon_ref01"
-              },
-              "match": {
-                "planet_id": "planet01"
-              },
-              "op": "create",
-              "active": true,
-              "data": {},
-              "spec": [],
-              "valid": []
-            },
-            {
-              "match": {
-                "planet_id": "planet01"
-              },
-              "op": "list",
-              "valid": [
-                {
-                  "apply": "ItemExists",
-                  "def": {
-                    "ref": "moon_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "data": {},
-              "input": {},
-              "spec": []
-            },
-            {
-              "data": {
-                "id": "moon01",
-                "planet_id": "planet01"
-              },
-              "input": {
-                "ref": "moon_ref01",
-                "srcdatavar": "moon_ref01_data",
-                "suffix": "_up0",
-                "textfield": "kind"
-              },
-              "op": "update",
-              "spec": [
-                {
-                  "apply": "TextFieldMark",
-                  "def": {
-                    "mark": "Mark01-moon_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "match": {},
-              "valid": []
-            },
-            {
-              "input": {
-                "ref": "moon_ref01",
-                "srcdatavar": "moon_ref01_data",
-                "suffix": "_dt0"
-              },
-              "match": {
-                "id": "moon01",
-                "planet_id": "planet01"
-              },
-              "op": "load",
-              "valid": [
-                {
-                  "apply": "TextFieldMark",
-                  "def": {
-                    "mark": "Mark01-moon_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "data": {},
-              "spec": []
-            },
-            {
-              "input": {
-                "ref": "moon_ref01",
-                "suffix": "_rm0"
-              },
-              "match": {
-                "id": "moon01",
-                "planet_id": "planet01"
-              },
-              "op": "remove",
-              "active": true,
-              "data": {},
-              "spec": [],
-              "valid": []
-            },
-            {
-              "input": {
-                "suffix": "_rt0"
-              },
-              "match": {
-                "planet_id": "planet01"
-              },
-              "op": "list",
-              "valid": [
-                {
-                  "apply": "ItemNotExists",
-                  "def": {
-                    "ref": "moon_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "data": {},
-              "spec": []
-            }
-          ],
-          "key$": "BasicMoonFlow",
-          "active": true,
-          "param": {}
-        },
-        "BasicPlanetFlow": {
-          "entity": "planet",
-          "kind": "basic",
-          "name": "BasicPlanetFlow",
-          "step": [
-            {
-              "input": {
-                "ref": "planet_ref01"
-              },
-              "op": "create",
-              "active": true,
-              "match": {},
-              "data": {},
-              "spec": [],
-              "valid": []
-            },
-            {
-              "op": "list",
-              "valid": [
-                {
-                  "apply": "ItemExists",
-                  "def": {
-                    "ref": "planet_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "match": {},
-              "data": {},
-              "input": {},
-              "spec": []
-            },
-            {
-              "data": {
-                "id": "planet01"
-              },
-              "input": {
-                "ref": "planet_ref01",
-                "srcdatavar": "planet_ref01_data",
-                "suffix": "_up0",
-                "textfield": "kind"
-              },
-              "op": "update",
-              "spec": [
-                {
-                  "apply": "TextFieldMark",
-                  "def": {
-                    "mark": "Mark01-planet_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "match": {},
-              "valid": []
-            },
-            {
-              "input": {
-                "ref": "planet_ref01",
-                "srcdatavar": "planet_ref01_data",
-                "suffix": "_dt0"
-              },
-              "match": {
-                "id": "planet01"
-              },
-              "op": "load",
-              "valid": [
-                {
-                  "apply": "TextFieldMark",
-                  "def": {
-                    "mark": "Mark01-planet_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "data": {},
-              "spec": []
-            },
-            {
-              "input": {
-                "ref": "planet_ref01",
-                "suffix": "_rm0"
-              },
-              "match": {
-                "id": "planet01"
-              },
-              "op": "remove",
-              "active": true,
-              "data": {},
-              "spec": [],
-              "valid": []
-            },
-            {
-              "input": {
-                "suffix": "_rt0"
-              },
-              "op": "list",
-              "valid": [
-                {
-                  "apply": "ItemNotExists",
-                  "def": {
-                    "ref": "planet_ref01"
-                  }
-                }
-              ],
-              "active": true,
-              "match": {},
-              "data": {},
-              "spec": []
-            }
-          ],
-          "key$": "BasicPlanetFlow",
-          "active": true,
-          "param": {}
-        }
-      },
-      "target": {
-        "ts": {
-          "title": "TypeScript",
-          "ext": "ts",
-          "comment": {
-            "line": "//"
-          },
-          "module": {
-            "name": "solardemo"
-          },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
-          "deps": {
-            "pino": {
-              "active": true,
-              "version": "^10.3.1",
-              "kind": "prod"
-            },
-            "pino-pretty": {
-              "active": true,
-              "version": "^13.1.3",
-              "kind": "prod"
-            },
-            "dotenv": {
-              "active": true,
-              "version": "^17.4.2",
-              "kind": "dev"
-            },
-            "typescript": {
-              "active": true,
-              "version": "^6.0.3",
-              "kind": "dev"
-            },
-            "@types/node": {
-              "active": true,
-              "version": "^25.9.2",
-              "kind": "dev"
-            }
-          },
-          "name": "ts",
-          "active": true
-        },
-        "go": {
-          "title": "Golang",
-          "ext": "go",
-          "comment": {
-            "line": "//"
-          },
-          "module": {
-            "name": "solardemo"
-          },
-          "srcfeature": false,
-          "deps": {
-            "github.com/voxgig/struct": {
-              "active": true,
-              "version": "v0.0.0",
-              "replace": "./utility/struct",
-              "kind": "prod"
-            }
-          },
-          "name": "go",
-          "active": true
-        }
-      },
       "feature": {
         "test": {
-          "name": "test",
-          "title": "Test",
-          "version": "0.0.1",
           "active": true,
           "config": {
             "options": {
@@ -942,6 +641,14 @@
             }
           },
           "hook": {
+            "GetData": {
+              "active": true,
+              "await": false
+            },
+            "GetMatch": {
+              "active": true,
+              "await": false
+            },
             "PostConstruct": {
               "active": true,
               "await": false
@@ -950,27 +657,11 @@
               "active": true,
               "await": false
             },
-            "SetData": {
-              "active": true,
-              "await": false
-            },
-            "GetData": {
-              "active": true,
-              "await": false
-            },
-            "SetMatch": {
-              "active": true,
-              "await": false
-            },
-            "GetMatch": {
-              "active": true,
+            "PostOperation": {
+              "active": false,
               "await": false
             },
             "PrePoint": {
-              "active": true,
-              "await": false
-            },
-            "PreSpec": {
               "active": true,
               "await": false
             },
@@ -986,37 +677,453 @@
               "active": true,
               "await": false
             },
+            "PreSpec": {
+              "active": true,
+              "await": false
+            },
             "PreTarget": {
               "active": false,
               "await": false
             },
-            "PostOperation": {
-              "active": false,
+            "SetData": {
+              "active": true,
+              "await": false
+            },
+            "SetMatch": {
+              "active": true,
               "await": false
             }
           },
+          "name": "test",
           "target": {
-            "ts": {
-              "deps": {}
-            },
             "go": {
               "deps": {}
+            },
+            "lean": {
+              "deps": {}
+            },
+            "ts": {
+              "deps": {}
             }
-          }
+          },
+          "title": "Test",
+          "version": "0.0.1"
         }
       },
-      "option": {},
-      "config": {
-        "auth": {
-          "prefix": "Bearer"
+      "flow": {
+        "BasicMoonFlow": {
+          "active": true,
+          "entity": "moon",
+          "key$": "BasicMoonFlow",
+          "kind": "basic",
+          "name": "BasicMoonFlow",
+          "param": {},
+          "step": [
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "ref": "moon_ref01"
+              },
+              "match": {
+                "planet_id": "planet01"
+              },
+              "op": "create",
+              "spec": [],
+              "valid": []
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {},
+              "match": {
+                "planet_id": "planet01"
+              },
+              "op": "list",
+              "spec": [],
+              "valid": [
+                {
+                  "apply": "ItemExists",
+                  "def": {
+                    "ref": "moon_ref01"
+                  }
+                }
+              ]
+            },
+            {
+              "active": true,
+              "data": {
+                "id": "moon01",
+                "planet_id": "planet01"
+              },
+              "input": {
+                "ref": "moon_ref01",
+                "srcdatavar": "moon_ref01_data",
+                "suffix": "_up0",
+                "textfield": "kind"
+              },
+              "match": {},
+              "op": "update",
+              "spec": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-moon_ref01"
+                  }
+                }
+              ],
+              "valid": []
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "ref": "moon_ref01",
+                "srcdatavar": "moon_ref01_data",
+                "suffix": "_dt0"
+              },
+              "match": {
+                "id": "moon01",
+                "planet_id": "planet01"
+              },
+              "op": "load",
+              "spec": [],
+              "valid": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-moon_ref01"
+                  }
+                }
+              ]
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "ref": "moon_ref01",
+                "suffix": "_rm0"
+              },
+              "match": {
+                "id": "moon01",
+                "planet_id": "planet01"
+              },
+              "op": "remove",
+              "spec": [],
+              "valid": []
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "suffix": "_rt0"
+              },
+              "match": {
+                "planet_id": "planet01"
+              },
+              "op": "list",
+              "spec": [],
+              "valid": [
+                {
+                  "apply": "ItemNotExists",
+                  "def": {
+                    "ref": "moon_ref01"
+                  }
+                }
+              ]
+            }
+          ]
         },
-        "headers": {
-          "content-type": "application/json"
+        "BasicPlanetFlow": {
+          "active": true,
+          "entity": "planet",
+          "key$": "BasicPlanetFlow",
+          "kind": "basic",
+          "name": "BasicPlanetFlow",
+          "param": {},
+          "step": [
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "ref": "planet_ref01"
+              },
+              "match": {},
+              "op": "create",
+              "spec": [],
+              "valid": []
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {},
+              "match": {},
+              "op": "list",
+              "spec": [],
+              "valid": [
+                {
+                  "apply": "ItemExists",
+                  "def": {
+                    "ref": "planet_ref01"
+                  }
+                }
+              ]
+            },
+            {
+              "active": true,
+              "data": {
+                "id": "planet01"
+              },
+              "input": {
+                "ref": "planet_ref01",
+                "srcdatavar": "planet_ref01_data",
+                "suffix": "_up0",
+                "textfield": "kind"
+              },
+              "match": {},
+              "op": "update",
+              "spec": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-planet_ref01"
+                  }
+                }
+              ],
+              "valid": []
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "ref": "planet_ref01",
+                "srcdatavar": "planet_ref01_data",
+                "suffix": "_dt0"
+              },
+              "match": {
+                "id": "planet01"
+              },
+              "op": "load",
+              "spec": [],
+              "valid": [
+                {
+                  "apply": "TextFieldMark",
+                  "def": {
+                    "mark": "Mark01-planet_ref01"
+                  }
+                }
+              ]
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "ref": "planet_ref01",
+                "suffix": "_rm0"
+              },
+              "match": {
+                "id": "planet01"
+              },
+              "op": "remove",
+              "spec": [],
+              "valid": []
+            },
+            {
+              "active": true,
+              "data": {},
+              "input": {
+                "suffix": "_rt0"
+              },
+              "match": {},
+              "op": "list",
+              "spec": [],
+              "valid": [
+                {
+                  "apply": "ItemNotExists",
+                  "def": {
+                    "ref": "planet_ref01"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "info": {
+        "servers": [
+          {
+            "url": "http://localhost:8901"
+          }
+        ],
+        "title": "Solar System API",
+        "version": "1.0.0"
+      },
+      "option": {},
+      "target": {
+        "go": {
+          "active": true,
+          "comment": {
+            "line": "//"
+          },
+          "deps": {
+            "github.com/voxgig/struct": {
+              "active": true,
+              "kind": "prod",
+              "replace": "./utility/struct",
+              "version": "v0.0.0"
+            }
+          },
+          "ext": "go",
+          "module": {
+            "name": "solardemo"
+          },
+          "name": "go",
+          "publish": {
+            "registry": {
+              "active": false,
+              "name": "",
+              "package": "",
+              "state": "pending",
+              "url": "",
+              "vault": {
+                "alias": "",
+                "env": "",
+                "recipe": ""
+              }
+            },
+            "tag": {
+              "active": true,
+              "prefix": "",
+              "vault": {
+                "alias": "github",
+                "recipe": "github"
+              },
+              "via": "port"
+            }
+          },
+          "srcfeature": false,
+          "title": "Golang"
+        },
+        "lean": {
+          "active": true,
+          "comment": {
+            "line": "--"
+          },
+          "deps": {},
+          "ext": "lean",
+          "module": {
+            "name": "$$name$$"
+          },
+          "name": "lean",
+          "phase": {
+            "agentguide": {
+              "active": true
+            },
+            "entity": {
+              "active": false
+            },
+            "feature": {
+              "active": false
+            },
+            "readme": {
+              "active": true
+            },
+            "test": {
+              "active": true
+            }
+          },
+          "publish": {
+            "registry": {
+              "active": false,
+              "name": "reservoir",
+              "package": "",
+              "state": "pending",
+              "url": "https://reservoir.lean-lang.org",
+              "vault": {
+                "alias": "reservoir",
+                "env": "RESERVOIR_TOKEN",
+                "recipe": ""
+              }
+            },
+            "tag": {
+              "active": true,
+              "prefix": "",
+              "vault": {
+                "alias": "github",
+                "recipe": "github"
+              },
+              "via": "port"
+            }
+          },
+          "srcfeature": false,
+          "title": "Lean"
+        },
+        "ts": {
+          "active": true,
+          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "comment": {
+            "line": "//"
+          },
+          "deps": {
+            "@types/node": {
+              "active": true,
+              "kind": "dev",
+              "version": "^25.9.2"
+            },
+            "dotenv": {
+              "active": true,
+              "kind": "dev",
+              "version": "^17.4.2"
+            },
+            "pino": {
+              "active": true,
+              "kind": "prod",
+              "version": "^10.3.1"
+            },
+            "pino-pretty": {
+              "active": true,
+              "kind": "prod",
+              "version": "^13.1.3"
+            },
+            "typescript": {
+              "active": true,
+              "kind": "dev",
+              "version": "^6.0.3"
+            }
+          },
+          "ext": "ts",
+          "module": {
+            "name": "solardemo"
+          },
+          "name": "ts",
+          "publish": {
+            "registry": {
+              "active": false,
+              "name": "",
+              "package": "",
+              "state": "pending",
+              "url": "",
+              "vault": {
+                "alias": "",
+                "env": "",
+                "recipe": ""
+              }
+            },
+            "tag": {
+              "active": true,
+              "prefix": "",
+              "vault": {
+                "alias": "github",
+                "recipe": "github"
+              },
+              "via": "port"
+            }
+          },
+          "title": "TypeScript"
         }
       }
-    },
-    "def": {
-      "desc": ""
     }
-  }
+  },
+  "name": "solardemo",
+  "origin": "voxgig-sdk"
 }

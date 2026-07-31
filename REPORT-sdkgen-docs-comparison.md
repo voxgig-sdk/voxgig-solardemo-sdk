@@ -252,11 +252,11 @@ dependencies will cause runtime errors.
    This should populate the root README with cross-language quick start,
    how-to, and testing content.
 2. **Entity fields**: Ensure entity field descriptions are populated in the model
-   (`.sdk/model/entity/planet.jsonic`, `moon.jsonic`) so they appear in the
+   (`.sdk/model/entity/planet.aontu`, `moon.aontu`) so they appear in the
    generated field tables.
 3. **Entity API paths**: Verify that entity path information flows from the
    model/guide into the Readme templates.
 4. **pino dependencies**: Verify whether pino is still imported in generated TS
    source; if so, restore to dependencies or update the template.
 5. **Feature metadata**: Add richer descriptions to feature definitions in
-   `.sdk/model/feature/test.jsonic` so generated docs say more than just "Test".
+   `.sdk/model/feature/test.aontu` so generated docs say more than just "Test".

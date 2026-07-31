@@ -5,7 +5,7 @@
 The SDK currently uses `any` (TypeScript) and `map[string]any` (Go) for all entity
 data throughout the public API. SDK consumers have no type information about what
 fields a Planet or Moon entity contains. The entity field definitions exist in
-`.sdk/model/entity/planet.jsonic` and `.sdk/model/entity/moon.jsonic` but are not
+`.sdk/model/entity/planet.aontu` and `.sdk/model/entity/moon.aontu` but are not
 surfaced as types in either language SDK.
 
 This change adds **consumer-facing** type definitions for entity data shapes. The

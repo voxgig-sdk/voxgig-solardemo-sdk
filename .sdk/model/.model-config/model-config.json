@@ -1,22 +1,9 @@
 {
   "sys": {
     "model": {
-      "action": {
-        "apidef": {
-          "load": "build/apidef.js"
-        },
-        "sdkgen": {
-          "load": "build/sdkgen.js"
-        }
-      },
+      "action": {},
       "order": {
-        "action": "apidef,sdkgen"
-      },
-      "watch": {
-        "src": {},
-        "dist": {},
-        "tm": {},
-        "def": {}
+        "action": ""
       }
     }
   }

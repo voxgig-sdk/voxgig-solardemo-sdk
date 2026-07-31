@@ -62,56 +62,58 @@ class Config {
     "moon": {
       "fields": [
         {
+          "active": true,
           "name": "diameter",
           "req": true,
           "type": "`$NUMBER`",
-          "active": true,
           "index$": 0
         },
         {
+          "active": true,
           "name": "id",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 1
         },
         {
+          "active": true,
           "name": "kind",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 2
         },
         {
+          "active": true,
           "name": "name",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 3
         },
         {
+          "active": true,
           "name": "planet_id",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 4
         }
       ],
       "name": "moon",
       "op": {
         "create": {
+          "input": "data",
           "name": "create",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -131,25 +133,26 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             }
-          ],
-          "input": "data"
+          ]
         },
         "list": {
+          "input": "data",
           "name": "list",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
                     "type": "`$STRING`",
-                    "active": true
+                    "index$": 0
                   }
                 ]
               },
@@ -170,32 +173,35 @@ class Config {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "active": true
+              "index$": 0
             }
-          ],
-          "input": "data"
+          ]
         },
         "load": {
+          "input": "data",
           "name": "load",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "moon_id",
                     "reqd": true,
                     "type": "`$STRING`",
-                    "active": true
+                    "index$": 0
                   },
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
                     "type": "`$STRING`",
-                    "active": true
+                    "index$": 1
                   }
                 ]
               },
@@ -223,32 +229,33 @@ class Config {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "active": true
+              "index$": 0
             }
-          ],
-          "input": "data"
+          ]
         },
         "remove": {
+          "input": "data",
           "name": "remove",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "moon_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   },
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -275,33 +282,33 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             }
-          ],
-          "input": "data"
+          ]
         },
         "update": {
+          "input": "data",
           "name": "update",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "moon_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   },
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -328,11 +335,9 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             }
-          ],
-          "input": "data"
+          ]
         }
       },
       "relations": {
@@ -346,91 +351,93 @@ class Config {
     "planet": {
       "fields": [
         {
+          "active": true,
           "name": "diameter",
           "req": true,
           "type": "`$NUMBER`",
-          "active": true,
           "index$": 0
         },
         {
+          "active": true,
           "name": "forbid",
           "req": false,
           "type": "`$BOOLEAN`",
-          "active": true,
           "index$": 1
         },
         {
+          "active": true,
           "name": "id",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 2
         },
         {
+          "active": true,
           "name": "kind",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 3
         },
         {
+          "active": true,
           "name": "name",
           "req": true,
           "type": "`$STRING`",
-          "active": true,
           "index$": 4
         },
         {
+          "active": true,
           "name": "ok",
           "req": false,
           "type": "`$BOOLEAN`",
-          "active": true,
           "index$": 5
         },
         {
+          "active": true,
           "name": "start",
           "req": false,
           "type": "`$BOOLEAN`",
-          "active": true,
           "index$": 6
         },
         {
+          "active": true,
           "name": "state",
           "req": false,
           "type": "`$STRING`",
-          "active": true,
           "index$": 7
         },
         {
+          "active": true,
           "name": "stop",
           "req": false,
           "type": "`$BOOLEAN`",
-          "active": true,
           "index$": 8
         },
         {
+          "active": true,
           "name": "why",
           "req": false,
           "type": "`$STRING`",
-          "active": true,
           "index$": 9
         }
       ],
       "name": "planet",
       "op": {
         "create": {
+          "input": "data",
           "name": "create",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -456,19 +463,19 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             },
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -494,65 +501,61 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             },
             {
+              "active": true,
+              "args": {},
               "method": "POST",
               "orig": "/api/planet",
               "parts": [
                 "api",
                 "planet"
               ],
+              "select": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true,
-              "args": {
-                "params": []
-              },
-              "select": {}
+              }
             }
-          ],
-          "input": "data"
+          ]
         },
         "list": {
+          "input": "data",
           "name": "list",
           "points": [
             {
+              "active": true,
+              "args": {},
               "method": "GET",
               "orig": "/api/planet",
               "parts": [
                 "api",
                 "planet"
               ],
+              "select": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true,
-              "args": {
-                "params": []
-              },
-              "select": {}
+              }
             }
-          ],
-          "input": "data"
+          ]
         },
         "load": {
+          "input": "data",
           "name": "load",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -576,25 +579,25 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             }
-          ],
-          "input": "data"
+          ]
         },
         "remove": {
+          "input": "data",
           "name": "remove",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -618,25 +621,25 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             }
-          ],
-          "input": "data"
+          ]
         },
         "update": {
+          "input": "data",
           "name": "update",
           "points": [
             {
+              "active": true,
               "args": {
                 "params": [
                   {
+                    "active": true,
                     "kind": "param",
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`",
-                    "active": true
+                    "type": "`$STRING`"
                   }
                 ]
               },
@@ -660,11 +663,9 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              },
-              "active": true
+              }
             }
-          ],
-          "input": "data"
+          ]
         }
       },
       "relations": {

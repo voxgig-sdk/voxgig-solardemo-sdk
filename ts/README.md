@@ -1,8 +1,3 @@
-# Solardemo TypeScript SDK
-
-The TypeScript SDK for the Solardemo API. Provides a type-safe,
-entity-oriented interface with full async/await support.
-
 
 ## Install
 ```bash
@@ -63,6 +58,35 @@ const updated = await client.Moon().update({
 const removed = await client.Moon().remove({
   id: created.data.id,
 })
+```
+
+
+## Error handling
+
+Entity operations reject on failure, so wrap them in `try` / `catch`:
+
+```ts
+try {
+  const moons = await client.Moon().list()
+  console.log(moons)
+} catch (err) {
+  console.error('list failed:', err)
+}
+```
+
+The low-level `direct()` method does **not** throw — it returns the
+value or an `Error`, so check the result before using it:
+
+```ts
+const result = await client.direct({
+  path: '/api/resource/{id}',
+  method: 'GET',
+  params: { id: 'example_id' },
+})
+
+if (result instanceof Error) {
+  throw result
+}
 ```
 
 
@@ -297,84 +321,16 @@ Operations: create, list, load, remove, update.
 API path: ``
 
 
+## Advanced
 
-## Entities
-
-
-### Moon
-
-Create an instance: `const moon = client.Moon()`
-
-#### Operations
-
-| Method | Description |
-| --- | --- |
-| `create(data)` | Create a new entity with the given data. |
-| `list(match)` | List entities matching the criteria. |
-| `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
-| `update(data)` | Update an existing entity. |
-
-#### Example: Load
-
-```ts
-const moon = await client.Moon().load({ id: 'moon_id' })
-```
-
-#### Example: List
-
-```ts
-const moons = await client.Moon().list()
-```
-
-#### Example: Create
-
-```ts
-const moon = await client.Moon().create({
-})
-```
-
-
-### Planet
-
-Create an instance: `const planet = client.Planet()`
-
-#### Operations
-
-| Method | Description |
-| --- | --- |
-| `create(data)` | Create a new entity with the given data. |
-| `list(match)` | List entities matching the criteria. |
-| `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
-| `update(data)` | Update an existing entity. |
-
-#### Example: Load
-
-```ts
-const planet = await client.Planet().load({ id: 'planet_id' })
-```
-
-#### Example: List
-
-```ts
-const planets = await client.Planet().list()
-```
-
-#### Example: Create
-
-```ts
-const planet = await client.Planet().create({
-})
-```
-
-
-## Explanation
+> The sections above cover everyday use. The material below explains the
+> SDK's internals — useful when extending it with custom features, but not
+> needed for normal use.
 
 ### The operation pipeline
 
-Every entity operation (load, list, create, update, remove) follows a
-six-stage pipeline. Each stage fires a feature hook before executing:
+Every entity operation follows a six-stage pipeline. Each stage fires a
+feature hook before executing:
 
 ```
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
@@ -391,11 +347,9 @@ PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 - **PreDone**: Final stage before returning to the caller. Entity
   state (match, data) is updated here.
 
-If any stage returns an error, the pipeline short-circuits and the
-error is returned to the caller.
-
-An unexpected exception triggers the `PreUnexpected` hook before
-propagating.
+If any stage errors, the pipeline short-circuits and the error surfaces
+to the caller — see [Error handling](#error-handling) for how that looks
+in this language.
 
 ### Features and hooks
 
@@ -412,16 +366,16 @@ were added, so later features can override earlier ones.
 
 ### Entity state
 
-Entity instances are stateful. After a successful `load`, the entity
+Entity instances are stateful. After a successful `list`, the entity
 stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
 const moon = client.Moon()
-await moon.load({ planet_id: 'earth', id: 'luna' })
+await moon.list()
 
-// moon.data() now returns the loaded moon data
-// moon.match() returns { planet_id: 'earth', id: 'luna' }
+// moon.data() now returns the moon data from the last `list`
+// moon.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

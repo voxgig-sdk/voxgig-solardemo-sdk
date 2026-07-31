@@ -73,14 +73,14 @@ Generation is **idempotent**: running it on an unchanged model produces no diff.
 
 | Path | Purpose |
 | --- | --- |
-| \`model/sdk.jsonic\` | Root model — wires in entities, features, targets, config. |
-| \`model/entity/*.jsonic\` | Entity definitions: fields and operations. |
-| \`model/target/{ts,go}.jsonic\` | Per-target settings and dependency versions. |
+| \`model/sdk.aontu\` | Root model — wires in entities, features, targets, config. |
+| \`model/entity/*.aontu\` | Entity definitions: fields and operations. |
+| \`model/target/{ts,go}.aontu\` | Per-target settings and dependency versions. |
 | \`tm/\` | Template master files copied verbatim into the output SDKs. |
 | \`src/cmp/{ts,go}/\` | Programmatic generators (package.json, code, README, AGENTS). |
 | \`src/Root.ts\` | Top-level generation entry; orchestrates every component. |
 
-A typical change: edit \`model/entity/<name>.jsonic\` (or a template under
+A typical change: edit \`model/entity/<name>.aontu\` (or a template under
 \`tm/\`), then \`npm run build && npm run generate\`, then build/test each SDK.
 
 ## Build & test each SDK

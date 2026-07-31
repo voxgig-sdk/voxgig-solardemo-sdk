@@ -91,7 +91,7 @@ both wrong. (The new `AgentInfo.sdkNames` computes the correct name.)
 - `.sdk/src/cmp/go/ReadmeModel_go.ts` — same pattern
 
 The model stores entity fields under `ent.fields` (plural; see
-`model/entity/planet.jsonic`), but these read `ent.field` (singular), so field
+`model/entity/planet.aontu`), but these read `ent.field` (singular), so field
 tables and create-example bodies render **empty**. (`AgentInfo.entityInfo` reads
 `fields` and produces full tables.)
 
