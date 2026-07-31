@@ -22,14 +22,14 @@
   "author": "Solardemo",
   "license": "$$const.License$$",
   "devDependencies": {
-    "@types/node": ">=25",
-    "@voxgig/apidef": ">=3",
-    "@voxgig/model": ">=7",
-    "@voxgig/sdkgen": ">=1.3.17",
-    "@voxgig/struct": ">=0",
-    "@voxgig/util": ">=0",
-    "aontu": ">=0",
-    "jostraca": ">=0",
-    "typescript": ">=5"
+    "@types/node": ">=25.6",
+    "typescript": ">=6.0",
+    "@voxgig/apidef": ">=5.8",
+    "@voxgig/model": ">=8.1",
+    "@voxgig/sdkgen": ">=0.40",
+    "@voxgig/util": ">=0.4",
+    "@voxgig/struct": ">=0.1.0",
+    "jostraca": ">=0.29",
+    "aontu": ">=0.44"
   }
 }
