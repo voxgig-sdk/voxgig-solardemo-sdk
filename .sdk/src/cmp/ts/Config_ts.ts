@@ -47,6 +47,12 @@ const Config = cmp(async function Config(props: any) {
 
       replace: {
 
+        // Config.fragment.ts carries `name: 'ProjectName'`. Without the
+        // standard replacements that placeholder reached the generated
+        // Config.ts verbatim, so the SDK reported its own name as
+        // "ProjectName" at runtime.
+        ...ctx$.stdrep,
+
         "'HEADERS'": indent(JSON.stringify(headers, null, 2), 4).trim(),
 
         '// #ImportFeatures': () => each(feature, (f: any) => {

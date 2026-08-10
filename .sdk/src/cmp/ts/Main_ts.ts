@@ -36,6 +36,22 @@ const Main = cmp(async function Main(props: any) {
 
   Package({ target })
 
+  // Copy the tm/ts tree with the standard ProjectName substitutions.
+  //
+  // This component had drifted from the scaffold's Main_ts and lost this
+  // Copy entirely — `Copy` was still imported but never called. The scaffold
+  // relies on it to substitute placeholders across the whole template tree,
+  // INCLUDING src/feature/, which the Feature component copies without them.
+  // Losing it left `import type { ProjectNameSDK } from '../../ProjectNameSDK'`
+  // in the generated TestFeature.ts, so ts/ did not compile, dist/ was never
+  // produced, and every test failed to load the SDK.
+  Copy({
+    from: 'tm/' + target.name,
+    replace: {
+      ...props.ctx$.stdrep,
+    }
+  })
+
   Folder({ name: 'src' }, () => {
 
     SdkError({ target })
