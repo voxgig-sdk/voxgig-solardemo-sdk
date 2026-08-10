@@ -1,6 +1,15 @@
 {
+  "NAME": "SOLARDEMO",
+  "Name": "Solardemo",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
+    "api": {
+      "entity": {},
+      "guide": {}
+    },
+    "custom": {
+      "plurals": {}
+    },
     "def": {
       "desc": ""
     },
@@ -699,9 +708,6 @@
             "go": {
               "deps": {}
             },
-            "lean": {
-              "deps": {}
-            },
             "ts": {
               "deps": {}
             }
@@ -753,7 +759,6 @@
             {
               "active": true,
               "data": {
-                "id": "moon01",
                 "planet_id": "planet01"
               },
               "input": {
@@ -871,9 +876,7 @@
             },
             {
               "active": true,
-              "data": {
-                "id": "planet01"
-              },
+              "data": {},
               "input": {
                 "ref": "planet_ref01",
                 "srcdatavar": "planet_ref01_data",
@@ -950,6 +953,7 @@
         }
       },
       "info": {
+        "auth": false,
         "servers": [
           {
             "url": "http://localhost:8901"
@@ -1003,60 +1007,6 @@
           },
           "srcfeature": false,
           "title": "Golang"
-        },
-        "lean": {
-          "active": true,
-          "comment": {
-            "line": "--"
-          },
-          "deps": {},
-          "ext": "lean",
-          "module": {
-            "name": "$$name$$"
-          },
-          "name": "lean",
-          "phase": {
-            "agentguide": {
-              "active": true
-            },
-            "entity": {
-              "active": false
-            },
-            "feature": {
-              "active": false
-            },
-            "readme": {
-              "active": true
-            },
-            "test": {
-              "active": true
-            }
-          },
-          "publish": {
-            "registry": {
-              "active": false,
-              "name": "reservoir",
-              "package": "",
-              "state": "pending",
-              "url": "https://reservoir.lean-lang.org",
-              "vault": {
-                "alias": "reservoir",
-                "env": "RESERVOIR_TOKEN",
-                "recipe": ""
-              }
-            },
-            "tag": {
-              "active": true,
-              "prefix": "",
-              "vault": {
-                "alias": "github",
-                "recipe": "github"
-              },
-              "via": "port"
-            }
-          },
-          "srcfeature": false,
-          "title": "Lean"
         },
         "ts": {
           "active": true,
@@ -1125,5 +1075,8 @@
     }
   },
   "name": "solardemo",
+  "name-": "solardemo",
+  "name_": "solardemo",
+  "name__orig": "solardemo",
   "origin": "voxgig-sdk"
 }
