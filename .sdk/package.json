@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "description": "Solardemo SDK Project",
   "scripts": {
-    "generate": "voxgig-model model/sdk.aontu",
+    "generate": "tsc --build src && voxgig-model model/sdk.aontu && voxgig-model test/test.aontu",
     "watch-generate": "voxgig-model -w model/sdk.aontu",
-    "dry-generate": "voxgig-model -y model/sdk.aontu",
+    "dry-generate": "tsc --build src && voxgig-model -y model/sdk.aontu",
     "watch-dry-generate": "voxgig-model -w -y model/sdk.aontu",
     "test-model": "voxgig-model test/test.aontu",
     "watch-test-model": "voxgig-model -w test/test.aontu",

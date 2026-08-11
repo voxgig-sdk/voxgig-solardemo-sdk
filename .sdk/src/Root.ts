@@ -89,28 +89,70 @@ const Root = cmp(function Root(props: any) {
 
       Folder({ name: target.name }, () => {
 
-        each(entity, (entity: any) => {
-          names(entity, entity.name)
-          Entity({ target, entity })
-        })
+        // Per-generation-phase activation. A target's aontu model carries
+        // a `phase` map mirroring the feature pattern:
+        //
+        //   phase: {
+        //     entity:     { active: false }
+        //     feature:    { active: false }
+        //     readme:     { active: false }
+        //     agentguide: { active: false }
+        //     test:       { active: false }
+        //   }
+        //
+        // Defaults are inclusive — when a phase entry is absent (or
+        // active is not explicitly false), the phase runs. Standard
+        // language targets don't declare `phase` and keep current
+        // behaviour, so this is a no-op for ts/go here.
+        //
+        // CONSUMER targets need it: go-cli, go-mcp and py-data switch
+        // every phase off and emit only Main, because they consume a
+        // sibling SDK rather than being one. Without this gate they fail
+        // outright with `Cannot find module cmp/<target>/Entity_<target>`,
+        // which is exactly what this repo did before the resync — the
+        // scaffold grew the gate and this Root.ts never picked it up.
+        const phase = target.phase || {}
+        const phaseActive = (name: string): boolean =>
+          false !== (phase[name] && phase[name].active)
 
-        each(feature).filter((feature: any) => feature.active).map((feature: any) => {
-          names(feature, feature.name)
-          Feature({ target, feature })
-        })
+        if (phaseActive('entity')) {
+          each(entity, (entity: any) => {
+            names(entity, entity.name)
+            Entity({ target, entity })
+          })
+        }
+
+        if (phaseActive('feature')) {
+          each(feature).filter((feature: any) => feature.active).map((feature: any) => {
+            names(feature, feature.name)
+            Feature({ target, feature })
+          })
+        }
 
         Main({ target })
 
-        Readme({ target })
+        if (phaseActive('readme')) {
+          Readme({ target })
+        }
 
-        Test({ target })
+        if (phaseActive('test')) {
+          Test({ target })
+        }
 
         // Per-SDK usage docs for AI coding agents (server-agnostic).
-        if ('ts' === target.name) {
-          AgentsTs({ target })
-        }
-        else if ('go' === target.name) {
-          AgentsGo({ target })
+        //
+        // These are this repo's own components, kept in place of the
+        // scaffold's standard AgentGuide. They are per-target agent docs,
+        // so they belong under the `agentguide` phase — the per-language
+        // checks below already exclude any consumer target, but gating
+        // them keeps the phase map meaning one thing everywhere.
+        if (phaseActive('agentguide')) {
+          if ('ts' === target.name) {
+            AgentsTs({ target })
+          }
+          else if ('go' === target.name) {
+            AgentsGo({ target })
+          }
         }
       })
     })

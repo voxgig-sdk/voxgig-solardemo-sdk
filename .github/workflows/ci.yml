@@ -70,7 +70,10 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          # Read the version from go.mod rather than pinning it here. The pin
+          # said 1.20 while go.mod requires 1.23, so CI could never build:
+          # feature/log_feature.go imports log/slog, which landed in 1.21.
+          go-version-file: go/go.mod
           cache: false
 
       - name: Build
