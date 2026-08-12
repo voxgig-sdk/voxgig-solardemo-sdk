@@ -36,7 +36,11 @@ main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
 # The SDK's own release version: what ts/package.json declares and what
 # `make publish` tags. Declared here because generated output is overwritten
 # — a version hand-edited into package.json is lost on the next regeneration.
-main: kit: target: ts: publish: version: '0.0.2'
+#
+# 0.1.0, not 0.0.3: entity operations now resolve to Entity instances rather
+# than plain data, so `(await ent.load(m)).data()` replaces `await ent.load(m)`
+# for every caller on 0.0.2. Pre-1.0, a breaking change bumps the minor.
+main: kit: target: ts: publish: version: '0.1.0'
 
 main: kit: target: ts: publish: registry: {
   # 0.0.1 and 0.0.2 are live on npm.
