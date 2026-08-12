@@ -37,7 +37,11 @@ jobs:
   publish:
     name: Build, test and publish
     runs-on: ubuntu-latest
-    environment: npm-publish
+
+    # NOTE: deliberately no `environment:`. The OIDC token carries the
+    # environment name as a claim, and the trust config was created without
+    # --environment, so declaring one here makes the claim fail to match.
+    # If you later add `--environment X` to `npm trust`, add it here too.
 
     steps:
       - uses: actions/checkout@v4
