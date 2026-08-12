@@ -26,26 +26,26 @@ main: kit: feature: &: target: ts: deps: &: {
 }
 
 
-# Publication: npm registry.
+# Publication: npm registry (declared, publish pending — git-tag only).
 #
-# WARNING: `voxgig-sdkgen target add ts` overwrites this file from the
-# scaffold, wiping the two project-specific values below. Re-apply them after
-# any resync and check `ts/package.json`.
+# `target add <t>` OVERWRITES this file, so a project must never set its
+# publication values here — voxgig-solardemo-sdk lost its pinned npm package
+# name exactly that way. Set them in the project's own model
+# (`model/sdk.aontu`), where they survive a resync.
+#
+# For that to work this file must LEAVE THOSE KEYS UNSET: in aontu a concrete
+# value does not yield to another concrete value, it CONFLICTS, and two
+# defaults conflict too. The schema (@voxgig/sdkgen/model/sdkgen.aontu)
+# already defaults `tag.active`, `registry.state`, `registry.active` and
+# `registry.package`, so a project's concrete value wins over the default and
+# repeating them here would only take that away.
+#
+# What remains below is per-target registry IDENTITY, which is not a project
+# choice and stays concrete.
 main: kit: target: ts: publish: {
-  tag: { active: true }
   registry: {
-    # 0.0.1 and 0.0.2 are live on npm.
-    state: 'active'
-    active: true
     name: 'npm'
     url: 'https://registry.npmjs.org'
-
-    # PINNED, not derived. The slug is 'solardemo', so the derivation would
-    # give @voxgig-sdk/solardemo — but the published package is
-    # @voxgig-sdk/voxgig-solardemo, and a published name cannot change
-    # without orphaning its versions.
-    package: '@voxgig-sdk/voxgig-solardemo'
-
     vault: { recipe: 'npm', alias: 'npm' }
   }
 }
