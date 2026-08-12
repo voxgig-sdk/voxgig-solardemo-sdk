@@ -75,14 +75,25 @@ jobs:
       # The published source maps reference ../src/*.ts and do NOT embed
       # sourcesContent, so src/ must be in the tarball or consumer stack traces
       # break. Fail loudly if a future packaging change drops it.
+      #
+      # Entry points are READ FROM package.json, never hardcoded. An earlier
+      # version of this step named VoxgigSolardemoSDK.js literally and failed
+      # the 0.1.0 release when the SDK class was renamed — the guard was
+      # asserting a stale fact about itself rather than about the tarball.
       - name: Verify tarball contents
         working-directory: ts
         run: |
+          MAIN=$(node -p "require('./package.json').main")
+          TYPES=$(node -p "require('./package.json').types")
+          SRC="src/$(basename "${MAIN%.js}").ts"
+          echo "expecting: $MAIN | $TYPES | $SRC"
+
           npm pack --dry-run 2>&1 | tee /tmp/pack.txt
-          grep -q 'dist/VoxgigSolardemoSDK.js' /tmp/pack.txt \
-            || { echo '::error::dist entry point missing from tarball'; exit 1; }
-          grep -q 'src/VoxgigSolardemoSDK.ts' /tmp/pack.txt \
-            || { echo '::error::src missing — published source maps would break'; exit 1; }
+
+          for f in "$MAIN" "$TYPES" "$SRC"; do
+            grep -qF "$f" /tmp/pack.txt \
+              || { echo "::error::$f missing from tarball"; exit 1; }
+          done
 
       # The tag must match the version being published, or a mistagged release
       # silently publishes the wrong thing.
