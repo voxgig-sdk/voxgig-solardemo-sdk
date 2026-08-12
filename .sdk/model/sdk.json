@@ -1,6 +1,6 @@
 {
-  "NAME": "VOXGIG-SOLARDEMO",
-  "Name": "VoxgigSolardemo",
+  "NAME": "SOLARDEMO",
+  "Name": "Solardemo",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
     "api": {
@@ -976,6 +976,10 @@
         "version": "1.0.0"
       },
       "option": {},
+      "repo": {
+        "host": "github.com",
+        "path": "voxgig-sdk/voxgig-solardemo-sdk"
+      },
       "target": {
         "go": {
           "active": true,
@@ -984,8 +988,17 @@
           },
           "deps": {},
           "ext": "go",
+          "feature": {
+            "fullset": [
+              "test/feature_test.go"
+            ],
+            "trim": true
+          },
           "module": {
-            "name": "voxgig-solardemo"
+            "goversion": "",
+            "name": "solardemo",
+            "package": "",
+            "path": ""
           },
           "name": "go",
           "publish": {
@@ -1038,16 +1051,23 @@
             }
           },
           "ext": "ts",
+          "feature": {
+            "fullset": [],
+            "trim": true
+          },
           "module": {
-            "name": "voxgig-solardemo"
+            "goversion": "",
+            "name": "solardemo",
+            "package": "",
+            "path": ""
           },
           "name": "ts",
           "publish": {
             "registry": {
-              "active": false,
+              "active": true,
               "name": "npm",
-              "package": "",
-              "state": "pending",
+              "package": "@voxgig-sdk/voxgig-solardemo",
+              "state": "active",
               "url": "https://registry.npmjs.org",
               "vault": {
                 "alias": "npm",
@@ -1067,12 +1087,17 @@
           },
           "title": "TypeScript"
         }
+      },
+      "test": {
+        "live": {
+          "strict": false
+        }
       }
     }
   },
-  "name": "voxgig-solardemo",
-  "name-": "voxgig-solardemo",
-  "name_": "voxgig_solardemo",
-  "name__orig": "voxgig-solardemo",
+  "name": "solardemo",
+  "name-": "solardemo",
+  "name_": "solardemo",
+  "name__orig": "solardemo",
   "origin": "voxgig-sdk"
 }

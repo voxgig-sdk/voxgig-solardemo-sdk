@@ -1,4 +1,4 @@
-# VoxgigSolardemo SDK
+# Solardemo SDK
 
 Solar System API client, generated from the OpenAPI spec.
 
@@ -16,8 +16,8 @@ call directly, instead of assembling URL paths and query strings. Entities are
 support (`list`, `load`, `create`, `update`, `remove`):
 
 ```ts
-const client = new VoxgigSolardemoSDK()
-const items = await client.Moon().list()
+const client = new SolardemoSDK()
+const items = await client.Moon().list({ planet_id: "example" })
 ```
 
 Thinking in entities keeps the mental model small — for people and AI agents alike —
@@ -32,9 +32,18 @@ network, and no credentials:
 ### TypeScript
 
 ```ts
-const client = VoxgigSolardemoSDK.test()
+// The offline mock starts EMPTY — seed it with the records the test needs.
+// Shape: { entity: { <entity-name>: { <id>: <record> } } }
+const client = SolardemoSDK.test({
+  entity: {
+    moon: {
+      test01: { id: 'test01', planet_id: 'example_planet_id', diameter: 1 },
+    },
+  },
+})
 const moons = await client.Moon().list()
-// moons is an array of bare Moon records populated with mock data
+// moons is an array of Moon entities, populated with mock data
+// — call moons[0].data() for the record itself
 console.log(moons)
 ```
 
@@ -51,7 +60,7 @@ result, err := client.Moon(nil).List(
 
 | Language | Package | Install |
 | --- | --- | --- |
-| TypeScript | `@voxgig-sdk/voxgig-solardemo` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases) |
+| TypeScript | `@voxgig-sdk/voxgig-solardemo` | `npm install @voxgig-sdk/voxgig-solardemo` |
 | Golang | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go` | `go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@latest` |
 
 ## Quickstart
@@ -59,12 +68,12 @@ result, err := client.Moon(nil).List(
 ### TypeScript
 
 ```ts
-import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
 
-const client = new VoxgigSolardemoSDK()
+const client = new SolardemoSDK()
 
-// List all moons (returns Moon[])
-const moons = await client.Moon().list()
+// List all moons (returns MoonEntity[] — .data() for the record)
+const moons = await client.Moon().list({ planet_id: "example" })
 for (const moon of moons) {
   console.log(moon)
 }
@@ -92,7 +101,7 @@ The API exposes 2 entities:
 | Entity | Description | API path |
 | --- | --- | --- |
 | **Moon** | The Moon entity (create, list, load, remove, update). | `/api/planet/{planet_id}/moon` |
-| **Planet** | The Planet entity (create, list, load, remove, update). | `/api/planet/{planet_id}/forbid` |
+| **Planet** | The Planet entity (create, list, load, remove, update). | `/api/planet` |
 
 The operations available across these entities are **load**, **list**, **create**, **update**, **remove** — see each entity's
 own list above for exactly which it supports.

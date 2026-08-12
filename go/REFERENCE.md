@@ -1,14 +1,14 @@
-# VoxgigSolardemo Golang SDK Reference
+# Solardemo Golang SDK Reference
 
-Complete API reference for the VoxgigSolardemo Golang SDK.
+Complete API reference for the Solardemo Golang SDK.
 
 
-## VoxgigSolardemoSDK
+## SolardemoSDK
 
 ### Constructor
 
 ```go
-func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK
+func NewSolardemoSDK(options map[string]any) *SolardemoSDK
 ```
 
 Create a new SDK client instance.
@@ -28,7 +28,7 @@ Create a new SDK client instance.
 
 ### Static Methods
 
-#### `Test() *VoxgigSolardemoSDK`
+#### `Test() *SolardemoSDK`
 
 No-arg convenience constructor for the common no-options test case.
 
@@ -36,7 +36,7 @@ No-arg convenience constructor for the common no-options test case.
 client := sdk.Test()
 ```
 
-#### `TestSDK(testopts, sdkopts map[string]any) *VoxgigSolardemoSDK`
+#### `TestSDK(testopts, sdkopts map[string]any) *SolardemoSDK`
 
 Test client with options. Both arguments may be `nil`.
 
@@ -47,11 +47,11 @@ client := sdk.TestSDK(testopts, sdkopts)
 
 ### Instance Methods
 
-#### `Moon(data map[string]any) VoxgigSolardemoEntity`
+#### `Moon(data map[string]any) SolardemoEntity`
 
 Create a new `Moon` entity instance. Pass `nil` for no initial data.
 
-#### `Planet(data map[string]any) VoxgigSolardemoEntity`
+#### `Planet(data map[string]any) SolardemoEntity`
 
 Create a new `Planet` entity instance. Pass `nil` for no initial data.
 
@@ -330,7 +330,7 @@ Return the entity name.
 Features are activated via the `feature` option:
 
 ```go
-client := sdk.NewVoxgigSolardemoSDK(map[string]any{
+client := sdk.NewSolardemoSDK(map[string]any{
     "feature": map[string]any{
         "test": map[string]any{"active": true},
     },

@@ -5,14 +5,26 @@
 
 
 # SDK Details.
-# The slug drives EVERY derived identity: the npm package
-# (@<origin>/<name>), the Go module and repo path
-# (github.com/<origin>/<name>-sdk/go), and the SDK class names. It is
-# 'voxgig-solardemo', not 'solardemo', so that all three match this repo —
-# voxgig-sdk/voxgig-solardemo-sdk — with no generator overrides.
-name: 'voxgig-solardemo'
+#
+# The slug is the SDK's own name, not its published or repo identity. It
+# drives the class names (SolardemoSDK) and the Go root package
+# (voxgigsolardemosdk = <origin><slug>sdk).
+#
+# It was briefly 'voxgig-solardemo', to force sdkgen's <origin>/<slug>-sdk
+# derivation onto this repo's real name back when nothing could be
+# overridden. That doubled the org prefix everywhere it was concatenated —
+# `package voxgigvoxgigsolardemosdk` — and renamed every public class. sdkgen
+# now takes explicit overrides for the two things that genuinely differ from
+# the derivation (see repo.path below and the ts registry package), so the
+# slug goes back to naming the SDK.
+name: 'solardemo'
 origin: 'voxgig-sdk'
 def: 'solardemo-1.0.0-openapi-3.0.0.yaml'
+
+
+# This repo is voxgig-solardemo-sdk, not the derived solardemo-sdk. Sets the
+# Go module path, and the homepage/repository/bugs URLs in every manifest.
+main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
 
 
 # API Information

@@ -6,7 +6,7 @@ import { test, describe, afterEach } from 'node:test'
 import assert from 'node:assert'
 
 
-import { VoxgigSolardemoSDK } from '../../..'
+import { SolardemoSDK } from '../../..'
 
 import {
   envOverride,
@@ -19,11 +19,11 @@ import {
 describe('MoonDirect', async () => {
 
   // Per-test live pacing. Delay is read from sdk-test-control.json's
-  // `test.live.delayMs`; only sleeps when VOXGIGSOLARDEMO_TEST_LIVE=TRUE.
-  afterEach(liveDelay('VOXGIGSOLARDEMO_TEST_LIVE'))
+  // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
+  afterEach(liveDelay('SOLARDEMO_TEST_LIVE'))
 
   test('direct-exists', async () => {
-    const sdk = new VoxgigSolardemoSDK({
+    const sdk = new SolardemoSDK({
       // Concrete base: a live construction must satisfy any server
       // variables a templated base URL declares; overriding base with a
       // literal (as the direct flow tests do) sidesteps the requirement.
@@ -148,17 +148,17 @@ function directSetup(mockres?: any) {
   const calls: any[] = []
 
   const env = envOverride({
-    'VOXGIGSOLARDEMO_TEST_MOON_ENTID': {},
-    'VOXGIGSOLARDEMO_TEST_LIVE': 'FALSE',
+    'SOLARDEMO_TEST_MOON_ENTID': {},
+    'SOLARDEMO_TEST_LIVE': 'FALSE',
   })
 
-  const live = 'TRUE' === env.VOXGIGSOLARDEMO_TEST_LIVE
+  const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE
 
   if (live) {
-    const client = new VoxgigSolardemoSDK({
+    const client = new SolardemoSDK({
     })
 
-    let idmap: any = env['VOXGIGSOLARDEMO_TEST_MOON_ENTID']
+    let idmap: any = env['SOLARDEMO_TEST_MOON_ENTID']
     if ('string' === typeof idmap && idmap.startsWith('{')) {
       idmap = JSON.parse(idmap)
     }
@@ -176,7 +176,7 @@ function directSetup(mockres?: any) {
     }
   }
 
-  const client = new VoxgigSolardemoSDK({
+  const client = new SolardemoSDK({
     base: 'http://localhost:8080',
     system: { fetch: mockFetch },
   })

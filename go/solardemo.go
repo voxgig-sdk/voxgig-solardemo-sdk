@@ -1,4 +1,4 @@
-package voxgigvoxgigsolardemosdk
+package voxgigsolardemosdk
 
 import (
 	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
@@ -8,19 +8,19 @@ import (
 )
 
 // Type aliases preserve external API.
-type VoxgigSolardemoSDK = core.VoxgigSolardemoSDK
+type SolardemoSDK = core.SolardemoSDK
 type Context = core.Context
 type Utility = core.Utility
 type Feature = core.Feature
 type Entity = core.Entity
-type VoxgigSolardemoEntity = core.VoxgigSolardemoEntity
+type SolardemoEntity = core.SolardemoEntity
 type FetcherFunc = core.FetcherFunc
 type Spec = core.Spec
 type Result = core.Result
 type Response = core.Response
 type Operation = core.Operation
 type Control = core.Control
-type VoxgigSolardemoError = core.VoxgigSolardemoError
+type SolardemoError = core.SolardemoError
 
 // BaseFeature from feature package.
 type BaseFeature = feature.BaseFeature
@@ -32,16 +32,16 @@ func init() {
 	core.NewTestFeatureFunc = func() core.Feature {
 		return feature.NewTestFeature()
 	}
-	core.NewMoonEntityFunc = func(client *core.VoxgigSolardemoSDK, entopts map[string]any) core.VoxgigSolardemoEntity {
+	core.NewMoonEntityFunc = func(client *core.SolardemoSDK, entopts map[string]any) core.SolardemoEntity {
 		return entity.NewMoonEntity(client, entopts)
 	}
-	core.NewPlanetEntityFunc = func(client *core.VoxgigSolardemoSDK, entopts map[string]any) core.VoxgigSolardemoEntity {
+	core.NewPlanetEntityFunc = func(client *core.SolardemoSDK, entopts map[string]any) core.SolardemoEntity {
 		return entity.NewPlanetEntity(client, entopts)
 	}
 }
 
 // Constructor re-exports.
-var NewVoxgigSolardemoSDK = core.NewVoxgigSolardemoSDK
+var NewSolardemoSDK = core.NewSolardemoSDK
 var TestSDK = core.TestSDK
 var NewContext = core.NewContext
 var NewSpec = core.NewSpec
@@ -52,9 +52,9 @@ var MakeConfig = core.MakeConfig
 
 // No-arg convenience constructors. Go has no default-argument syntax,
 // so these aliases let callers write `sdk.New()` / `sdk.Test()`
-// instead of `sdk.NewVoxgigSolardemoSDK(nil)` / `sdk.TestSDK(nil, nil)`
+// instead of `sdk.NewSolardemoSDK(nil)` / `sdk.TestSDK(nil, nil)`
 // for the common no-options case.
-func New() *VoxgigSolardemoSDK  { return NewVoxgigSolardemoSDK(nil) }
-func Test() *VoxgigSolardemoSDK { return TestSDK(nil, nil) }
+func New() *SolardemoSDK  { return NewSolardemoSDK(nil) }
+func Test() *SolardemoSDK { return TestSDK(nil, nil) }
 var NewBaseFeature = feature.NewBaseFeature
 var NewTestFeature = feature.NewTestFeature

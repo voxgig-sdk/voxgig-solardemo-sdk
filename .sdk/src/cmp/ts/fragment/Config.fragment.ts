@@ -19,7 +19,7 @@ class Config {
 
 
   main = {
-    name: '$$const.Name$$',
+    name: 'Solardemo',
   }
 
 
@@ -29,7 +29,7 @@ class Config {
 
 
   options = {
-    base: '$$main.kit.info.servers.0.url$$',
+    base: 'http://localhost:8901',
 
     'SERVERBLOCK''AUTHBLOCK'headers: 'HEADERS',
 

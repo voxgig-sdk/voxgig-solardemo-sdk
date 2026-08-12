@@ -4,7 +4,7 @@ main: kit: target: ts: {
   title: TypeScript
   ext: ts
   comment: line: "//"
-  module: name: 'voxgig-solardemo'
+  module: name: 'solardemo'
   base: 'node_modules/@voxgig/sdkgen/project/.sdk'
 
   deps: &: {
@@ -26,14 +26,26 @@ main: kit: feature: &: target: ts: deps: &: {
 }
 
 
-# Publication: npm registry (declared, publish pending — git-tag only).
+# Publication: npm registry.
+#
+# WARNING: `voxgig-sdkgen target add ts` overwrites this file from the
+# scaffold, wiping the two project-specific values below. Re-apply them after
+# any resync and check `ts/package.json`.
 main: kit: target: ts: publish: {
   tag: { active: true }
   registry: {
-    state: 'pending'
-    active: false
+    # 0.0.1 and 0.0.2 are live on npm.
+    state: 'active'
+    active: true
     name: 'npm'
     url: 'https://registry.npmjs.org'
+
+    # PINNED, not derived. The slug is 'solardemo', so the derivation would
+    # give @voxgig-sdk/solardemo — but the published package is
+    # @voxgig-sdk/voxgig-solardemo, and a published name cannot change
+    # without orphaning its versions.
+    package: '@voxgig-sdk/voxgig-solardemo'
+
     vault: { recipe: 'npm', alias: 'npm' }
   }
 }

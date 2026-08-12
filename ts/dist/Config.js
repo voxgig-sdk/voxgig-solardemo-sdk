@@ -13,7 +13,7 @@ class Config {
         return fi;
     }
     main = {
-        name: 'VoxgigSolardemo',
+        name: 'Solardemo',
     };
     feature = {
         test: {

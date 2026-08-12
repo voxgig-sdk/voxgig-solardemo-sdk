@@ -1,8 +1,8 @@
-# VoxgigSolardemo TypeScript SDK
+# Solardemo TypeScript SDK
 
 
 
-The TypeScript SDK for the VoxgigSolardemo API — a type-safe, entity-oriented client with full async/await support.
+The TypeScript SDK for the Solardemo API — a type-safe, entity-oriented client with full async/await support.
 
 The API is exposed as capitalised, semantic **Entities** — e.g.
 `client.Moon()` — each with a small set of operations (`list`, `load`, `create`, `update`, `remove`)
@@ -14,12 +14,9 @@ predictable and low-friction for both humans and AI agents.
 
 
 ## Install
-This package is not yet published to npm. Install it from the GitHub
-release tag (`ts/vX.Y.Z`):
-
-- Releases: [https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)
-
-
+```bash
+npm install @voxgig-sdk/voxgig-solardemo
+```
 ## Tutorial: your first API call
 
 This tutorial walks through creating a client, listing entities, and
@@ -28,17 +25,19 @@ loading a specific record.
 ### 1. Create a client
 
 ```ts
-import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
 
-const client = new VoxgigSolardemoSDK()
+const client = new SolardemoSDK()
 ```
 
 ### 2. List moon records
 
-`list()` resolves to an array of Moon objects — iterate it directly:
+`list()` resolves to an array of Moon ENTITIES — every operation
+resolves to entities, not raw records. Iterate them directly, and call
+`.data()` on one for the record it holds:
 
 ```ts
-const moons = await client.Moon().list()
+const moons = await client.Moon().list({ planet_id: "example" })
 
 for (const moon of moons) {
   console.log(moon)
@@ -65,7 +64,7 @@ try {
 ### 4. Create, update, and remove
 
 ```ts
-// Create — returns the created Moon
+// Create — returns the created Moon ENTITY (.data() for the record)
 const created = await client.Moon().create({
   planet_id: 'example_planet_id',
   diameter: 1,
@@ -74,16 +73,16 @@ const created = await client.Moon().create({
   name: 'example_name',
 })
 
-// Update — the id comes straight off the returned entity
+// Update — the id comes off the returned entity's data()
 const updated = await client.Moon().update({
-  id: created.id!,
+  id: created.data().id!,
   planet_id: 'example_planet_id',
   diameter: 1,
 })
 
 // Remove
 await client.Moon().remove({
-  id: created.id!,
+  id: created.data().id!,
   planet_id: 'example_planet_id',
 })
 ```
@@ -160,17 +159,18 @@ console.log(fetchdef.headers)
 Create a mock client for unit testing — no server required:
 
 ```ts
-const client = VoxgigSolardemoSDK.test()
+const client = SolardemoSDK.test()
 
 const moon = await client.Moon().list()
-// moon is a bare entity populated with mock response data
+// moon is the entity, populated with mock response data
+// — call moon.data() for the record itself
 console.log(moon)
 ```
 
 You can also use the instance method:
 
 ```ts
-const client = new VoxgigSolardemoSDK()
+const client = new SolardemoSDK()
 const testClient = client.tester()
 ```
 
@@ -205,7 +205,7 @@ const logger = {
   },
 }
 
-const client = new VoxgigSolardemoSDK({
+const client = new SolardemoSDK({
   extend: [logger],
 })
 ```
@@ -215,7 +215,7 @@ const client = new VoxgigSolardemoSDK({
 Create a `.env.local` file at the project root:
 
 ```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
+SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -227,12 +227,12 @@ cd ts && npm test
 
 ## Reference
 
-### VoxgigSolardemoSDK
+### SolardemoSDK
 
 #### Constructor
 
 ```ts
-new VoxgigSolardemoSDK(options?: {
+new SolardemoSDK(options?: {
   base?: string
   prefix?: string
   suffix?: string
@@ -259,13 +259,13 @@ new VoxgigSolardemoSDK(options?: {
 | `direct(fetchargs?)` | `Promise<DirectResult>` | Build and send an HTTP request. |
 | `Moon(data?)` | `MoonEntity` | Create a Moon entity instance. |
 | `Planet(data?)` | `PlanetEntity` | Create a Planet entity instance. |
-| `tester(testopts?, sdkopts?)` | `VoxgigSolardemoSDK` | Create a test-mode client instance. |
+| `tester(testopts?, sdkopts?)` | `SolardemoSDK` | Create a test-mode client instance. |
 
 #### Static methods
 
 | Method | Returns | Description |
 | --- | --- | --- |
-| `VoxgigSolardemoSDK.test(testopts?, sdkopts?)` | `VoxgigSolardemoSDK` | Create a test-mode client. |
+| `SolardemoSDK.test(testopts?, sdkopts?)` | `SolardemoSDK` | Create a test-mode client. |
 
 ### Entity interface
 
@@ -283,7 +283,7 @@ All entities share the same interface.
 | `data` | `data(data?: Partial<Entity>): Entity` | Get or set entity data. |
 | `match` | `match(match?: Partial<Entity>): Partial<Entity>` | Get or set entity match criteria. |
 | `make` | `make(): Entity` | Create a new instance with the same options. |
-| `client` | `client(): VoxgigSolardemoSDK` | Return the parent SDK client. |
+| `client` | `client(): SolardemoSDK` | Return the parent SDK client. |
 | `entopts` | `entopts(): object` | Return a copy of the entity options. |
 
 #### Return values
@@ -401,7 +401,7 @@ const moon = await client.Moon().load({ id: 'moon_id', planet_id: 'planet_id' })
 #### Example: List
 
 ```ts
-const moons = await client.Moon().list()
+const moons = await client.Moon().list({ planet_id: "example" })
 ```
 
 #### Example: Create
@@ -516,9 +516,9 @@ were added, so later features can override earlier ones.
 ### Module structure
 
 ```
-voxgig-solardemo/
+solardemo/
 ├── src/
-│   ├── VoxgigSolardemoSDK.ts        # Main SDK class
+│   ├── SolardemoSDK.ts        # Main SDK class
 │   ├── entity/             # Entity implementations
 │   ├── feature/            # Built-in features (Base, Test, Log)
 │   └── utility/            # Utility functions
@@ -529,7 +529,7 @@ voxgig-solardemo/
 Import the SDK from the package root:
 
 ```ts
-import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
 ```
 
 ### Entity state

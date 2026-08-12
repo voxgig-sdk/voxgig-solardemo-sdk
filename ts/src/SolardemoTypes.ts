@@ -1,4 +1,4 @@
-// Typed models for the VoxgigSolardemo SDK.
+// Typed models for the Solardemo SDK.
 //
 // GENERATED from the API model: main.kit.entity.<e>.fields[] and per-op
 // params (op.<name>.points[].args.params[]). Field/param types come from the
@@ -84,6 +84,12 @@ export interface PlanetCreateData {
   state?: string
   stop?: boolean
   why?: string
+
+  // Selects a custom action instead of the plain create:
+  //   'forbid' | 'terraform'
+  // The remaining keys are that action's own payload.
+  $action?: string
+  [action: string]: any
 }
 
 export interface PlanetUpdateData {

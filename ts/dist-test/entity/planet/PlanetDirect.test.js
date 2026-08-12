@@ -11,10 +11,10 @@ const __1 = require("../../..");
 const utility_1 = require("../../utility");
 (0, node_test_1.describe)('PlanetDirect', async () => {
     // Per-test live pacing. Delay is read from sdk-test-control.json's
-    // `test.live.delayMs`; only sleeps when VOXGIGSOLARDEMO_TEST_LIVE=TRUE.
-    (0, node_test_1.afterEach)((0, utility_1.liveDelay)('VOXGIGSOLARDEMO_TEST_LIVE'));
+    // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
+    (0, node_test_1.afterEach)((0, utility_1.liveDelay)('SOLARDEMO_TEST_LIVE'));
     (0, node_test_1.test)('direct-exists', async () => {
-        const sdk = new __1.VoxgigSolardemoSDK({
+        const sdk = new __1.SolardemoSDK({
             // Concrete base: a live construction must satisfy any server
             // variables a templated base URL declares; overriding base with a
             // literal (as the direct flow tests do) sidesteps the requirement.
@@ -117,13 +117,13 @@ const utility_1 = require("../../utility");
 function directSetup(mockres) {
     const calls = [];
     const env = (0, utility_1.envOverride)({
-        'VOXGIGSOLARDEMO_TEST_PLANET_ENTID': {},
-        'VOXGIGSOLARDEMO_TEST_LIVE': 'FALSE',
+        'SOLARDEMO_TEST_PLANET_ENTID': {},
+        'SOLARDEMO_TEST_LIVE': 'FALSE',
     });
-    const live = 'TRUE' === env.VOXGIGSOLARDEMO_TEST_LIVE;
+    const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE;
     if (live) {
-        const client = new __1.VoxgigSolardemoSDK({});
-        let idmap = env['VOXGIGSOLARDEMO_TEST_PLANET_ENTID'];
+        const client = new __1.SolardemoSDK({});
+        let idmap = env['SOLARDEMO_TEST_PLANET_ENTID'];
         if ('string' === typeof idmap && idmap.startsWith('{')) {
             idmap = JSON.parse(idmap);
         }
@@ -138,7 +138,7 @@ function directSetup(mockres) {
             json: async () => (null != mockres ? mockres : { id: 'direct01' }),
         };
     };
-    const client = new __1.VoxgigSolardemoSDK({
+    const client = new __1.SolardemoSDK({
         base: 'http://localhost:8080',
         system: { fetch: mockFetch },
     });

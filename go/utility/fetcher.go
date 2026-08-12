@@ -43,7 +43,7 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 	// which some CDNs block. Use a Mozilla-shaped UA unless the caller
 	// already set one.
 	if !hasUA {
-		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)")
+		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; SolardemoSDK/1.0)")
 	}
 
 	// Honour a proxy annotation on the fetch definition (set by the proxy

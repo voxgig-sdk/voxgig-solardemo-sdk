@@ -67,7 +67,7 @@ const Path = __importStar(require("node:path"));
 const node_module_1 = require("node:module");
 const node_child_process_1 = require("node:child_process");
 const __1 = require("..");
-const SDK_NAME = 'VoxgigSolardemoSDK';
+const SDK_NAME = 'SolardemoSDK';
 // A fixture for every entity, so list()/load() resolve offline with no
 // network. Snippet client construction is rewritten to seed this.
 const TEST_SEED = { "entity": { "moon": { "test01": { "id": "test01" } }, "planet": { "test01": { "id": "test01" } } } };
@@ -125,8 +125,8 @@ function isIllustrationShape(code) {
 // `<Sdk>SDK.test`) or drives a `client.` — those are the blocks the execute
 // gate rewrites to seeded test mode and runs.
 function isRunnable(code) {
-    return (/new\s+VoxgigSolardemoSDK\b/.test(code) ||
-        /\bVoxgigSolardemoSDK\.test\b/.test(code) ||
+    return (/new\s+SolardemoSDK\b/.test(code) ||
+        /\bSolardemoSDK\.test\b/.test(code) ||
         /\bclient\s*\./.test(code));
 }
 // Wrap ONE block as a self-contained temp module: the block goes in its own
@@ -243,8 +243,8 @@ function typeCheckBlocks(blocks, key) {
 // that reference `client` without constructing one a shared seeded client.
 function rewriteForRun(code) {
     let out = stripImports(code);
-    out = out.replace(/new\s+VoxgigSolardemoSDK\s*\([^)]*\)/g, () => SEEDED_CTOR);
-    out = out.replace(/VoxgigSolardemoSDK\.test\s*\([^)]*\)/g, () => SEEDED_CTOR);
+    out = out.replace(/new\s+SolardemoSDK\s*\([^)]*\)/g, () => SEEDED_CTOR);
+    out = out.replace(/SolardemoSDK\.test\s*\([^)]*\)/g, () => SEEDED_CTOR);
     if (/\bclient\b/.test(out) && !/\b(?:const|let|var)\s+client\b/.test(out)) {
         out = 'const client = ' + SEEDED_CTOR + '\n' + out;
     }
@@ -285,7 +285,7 @@ async function executeBlocks(blocks) {
             continue;
         }
         try {
-            await runner(__1.VoxgigSolardemoSDK, silentConsole);
+            await runner(__1.SolardemoSDK, silentConsole);
         }
         catch (err) {
             const msg = String((err && err.message) || err);

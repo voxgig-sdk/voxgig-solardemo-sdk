@@ -45,8 +45,8 @@ func loadEnvLocal() {
 }
 
 func envOverride(m map[string]any) map[string]any {
-	if os.Getenv("PROJECTNAME_TEST_LIVE") == "TRUE" ||
-		os.Getenv("PROJECTNAME_TEST_OVERRIDE") == "TRUE" {
+	if os.Getenv("PROJECTENV_TEST_LIVE") == "TRUE" ||
+		os.Getenv("PROJECTENV_TEST_OVERRIDE") == "TRUE" {
 		for key := range m {
 			envval := os.Getenv(key)
 			if envval != "" {
@@ -63,15 +63,15 @@ func envOverride(m map[string]any) map[string]any {
 		}
 	}
 
-	if explain := os.Getenv("PROJECTNAME_TEST_EXPLAIN"); explain != "" {
-		m["PROJECTNAME_TEST_EXPLAIN"] = explain
+	if explain := os.Getenv("PROJECTENV_TEST_EXPLAIN"); explain != "" {
+		m["PROJECTENV_TEST_EXPLAIN"] = explain
 	}
 
 	return m
 }
 
 type entityTestSetup struct {
-	client         *sdk.VoxgigSolardemoSDK
+	client         *sdk.SolardemoSDK
 	data           map[string]any
 	idmap          map[string]any
 	env            map[string]any
@@ -426,7 +426,7 @@ func matchString(pattern string, val string) bool {
 }
 
 // makeCtxFromMap creates a Context from a JSON test entry's ctx or args map.
-func makeCtxFromMap(ctxmap map[string]any, client *sdk.VoxgigSolardemoSDK, utility *sdk.Utility) *sdk.Context {
+func makeCtxFromMap(ctxmap map[string]any, client *sdk.SolardemoSDK, utility *sdk.Utility) *sdk.Context {
 	if ctxmap == nil {
 		ctxmap = map[string]any{}
 	}
@@ -451,7 +451,7 @@ func makeCtxFromMap(ctxmap map[string]any, client *sdk.VoxgigSolardemoSDK, utili
 		ctx.Result = sdk.NewResult(resMap)
 		if errMap, ok := resMap["err"].(map[string]any); ok {
 			if msg, ok := errMap["message"].(string); ok {
-				ctx.Result.Err = &sdk.VoxgigSolardemoError{Msg: msg}
+				ctx.Result.Err = &sdk.SolardemoError{Msg: msg}
 			}
 		}
 	}
@@ -475,7 +475,7 @@ func makeCtxFromMap(ctxmap map[string]any, client *sdk.VoxgigSolardemoSDK, utili
 	return ctx
 }
 
-func fixctx(ctx *sdk.Context, client *sdk.VoxgigSolardemoSDK) {
+func fixctx(ctx *sdk.Context, client *sdk.SolardemoSDK) {
 	if ctx != nil && ctx.Client != nil && ctx.Options == nil {
 		ctx.Options = ctx.Client.OptionsMap()
 	}
@@ -491,7 +491,7 @@ func errFromMap(m map[string]any) error {
 		return nil
 	}
 	code, _ := m["code"].(string)
-	return &sdk.VoxgigSolardemoError{Msg: msg, Code: code}
+	return &sdk.SolardemoError{Msg: msg, Code: code}
 }
 
 // ctxToMatchMap converts a Context to a map suitable for match comparison.
@@ -549,6 +549,18 @@ func ctxToMatchMap(ctx *sdk.Context) map[string]any {
 	}
 
 	return m
+}
+
+// entityData extracts the data map from an op result.
+//
+// Every entity operation resolves to the ENTITY (see AGENTS.md), so a flow
+// test that wants the record takes this hop. A plain map passes through
+// unchanged, so this is safe for the direct/prepare results too.
+func entityData(v any) any {
+	if ent, ok := v.(sdk.Entity); ok {
+		return ent.Data()
+	}
+	return v
 }
 
 // entityListToData extracts data maps from a list of Entity objects.

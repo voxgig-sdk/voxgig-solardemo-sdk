@@ -1,14 +1,14 @@
 import { MoonEntity } from './entity/MoonEntity';
 import { PlanetEntity } from './entity/PlanetEntity';
-export type * from './VoxgigSolardemoTypes';
+export type * from './SolardemoTypes';
 import { inspect } from 'node:util';
 import type { Context, Feature } from './types';
 import { config } from './Config';
-import { VoxgigSolardemoEntityBase } from './VoxgigSolardemoEntityBase';
+import { SolardemoEntityBase } from './SolardemoEntityBase';
 import { Utility } from './utility/Utility';
 import { BaseFeature } from './feature/base/BaseFeature';
 declare const stdutil: Utility;
-declare class VoxgigSolardemoSDK {
+declare class SolardemoSDK {
     _mode: string;
     _options: any;
     _utility: Utility;
@@ -47,13 +47,13 @@ declare class VoxgigSolardemoSDK {
     graphql(query: string, variables?: any, ctrl?: any): Promise<any>;
     Moon(entopts?: Record<string, any>): MoonEntity;
     Planet(entopts?: Record<string, any>): PlanetEntity;
-    static test(testoptsarg?: any, sdkoptsarg?: any): VoxgigSolardemoSDK;
-    tester(testopts?: any, sdkopts?: any): VoxgigSolardemoSDK;
+    static test(testoptsarg?: any, sdkoptsarg?: any): SolardemoSDK;
+    tester(testopts?: any, sdkopts?: any): SolardemoSDK;
     toJSON(): {
         name: string;
     };
     toString(): string;
     [inspect.custom](): string;
 }
-declare const SDK: typeof VoxgigSolardemoSDK;
-export { stdutil, config, BaseFeature, VoxgigSolardemoEntityBase, VoxgigSolardemoSDK, SDK, };
+declare const SDK: typeof SolardemoSDK;
+export { stdutil, config, BaseFeature, SolardemoEntityBase, SolardemoSDK, SDK, };

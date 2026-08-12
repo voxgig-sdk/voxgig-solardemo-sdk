@@ -1,9 +1,9 @@
-// VoxgigSolardemo Ts SDK
+// Solardemo Ts SDK
 
 import { MoonEntity } from './entity/MoonEntity'
 import { PlanetEntity } from './entity/PlanetEntity'
 
-export type * from './VoxgigSolardemoTypes'
+export type * from './SolardemoTypes'
 
 
 import { inspect } from 'node:util'
@@ -11,7 +11,7 @@ import { inspect } from 'node:util'
 import type { Context, Feature } from './types'
 
 import { config } from './Config'
-import { VoxgigSolardemoEntityBase } from './VoxgigSolardemoEntityBase'
+import { SolardemoEntityBase } from './SolardemoEntityBase'
 import { Utility } from './utility/Utility'
 
 
@@ -21,7 +21,7 @@ import { BaseFeature } from './feature/base/BaseFeature'
 const stdutil = new Utility()
 
 
-class VoxgigSolardemoSDK {
+class SolardemoSDK {
   _mode: string = 'live'
   _options: any
   _utility = new Utility()
@@ -154,7 +154,7 @@ class VoxgigSolardemoSDK {
     if (!this._options.allow.op.includes('direct')) {
       return {
         ok: false,
-        err: new Error('VoxgigSolardemoSDK: direct: operation not allowed by' +
+        err: new Error('SolardemoSDK: direct: operation not allowed by' +
           ' SDK option allow.op value: "' + this._options.allow.op + '"'),
       }
     }
@@ -248,7 +248,7 @@ class VoxgigSolardemoSDK {
     if (!options.allow.op.includes('graphql')) {
       return {
         ok: false,
-        err: new Error('VoxgigSolardemoSDK: graphql: operation not allowed by' +
+        err: new Error('SolardemoSDK: graphql: operation not allowed by' +
           ' SDK option allow.op value: "' + options.allow.op + '"'),
       }
     }
@@ -273,7 +273,7 @@ class VoxgigSolardemoSDK {
 
     if (null != errors && Array.isArray(errors) && 0 < errors.length) {
       const first = errors[0] || {}
-      const err: any = new Error('VoxgigSolardemoSDK: graphql: ' +
+      const err: any = new Error('SolardemoSDK: graphql: ' +
         (first.message || 'graphql error'))
       err.graphql = errors
       return { ok: false, status: res.status, headers: res.headers, err, data: res.data }
@@ -316,7 +316,7 @@ class VoxgigSolardemoSDK {
     setprop(testopts, 'active', true)
     setpath(sdkopts, 'feature.test', testopts)
 
-    const testsdk = new VoxgigSolardemoSDK(sdkopts)
+    const testsdk = new SolardemoSDK(sdkopts)
     testsdk._mode = 'test'
 
     return testsdk
@@ -324,16 +324,16 @@ class VoxgigSolardemoSDK {
 
 
   tester(testopts?: any, sdkopts?: any) {
-    return VoxgigSolardemoSDK.test(testopts, sdkopts)
+    return SolardemoSDK.test(testopts, sdkopts)
   }
 
 
   toJSON() {
-    return { name: 'VoxgigSolardemo' }
+    return { name: 'Solardemo' }
   }
 
   toString() {
-    return 'VoxgigSolardemo ' + this._utility.struct.jsonify(this.toJSON())
+    return 'Solardemo ' + this._utility.struct.jsonify(this.toJSON())
   }
 
   [inspect.custom]() {
@@ -345,7 +345,7 @@ class VoxgigSolardemoSDK {
 
 
 
-const SDK = VoxgigSolardemoSDK
+const SDK = SolardemoSDK
 
 
 export {
@@ -353,9 +353,9 @@ export {
   config,
 
   BaseFeature,
-  VoxgigSolardemoEntityBase,
+  SolardemoEntityBase,
 
-  VoxgigSolardemoSDK,
+  SolardemoSDK,
   SDK,
 }
 

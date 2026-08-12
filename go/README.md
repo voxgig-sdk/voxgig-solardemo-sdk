@@ -1,8 +1,8 @@
-# VoxgigSolardemo Golang SDK
+# Solardemo Golang SDK
 
 
 
-The Golang SDK for the VoxgigSolardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
+The Golang SDK for the Solardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
 
 It exposes the API as capitalised, semantic **Entities** — e.g. `client.Moon(nil)` — each with the same small set of operations (`List`, `Load`, `Create`, `Update`, `Remove`) instead of raw URL paths and query strings. You call meaning, not endpoints, which keeps the cognitive load low.
 
@@ -190,7 +190,7 @@ mockFetch := func(url string, init map[string]any) (map[string]any, error) {
     }, nil
 }
 
-client := sdk.NewVoxgigSolardemoSDK(map[string]any{
+client := sdk.NewSolardemoSDK(map[string]any{
     "base": "http://localhost:8080",
     "system": map[string]any{
         "fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),
@@ -203,7 +203,7 @@ client := sdk.NewVoxgigSolardemoSDK(map[string]any{
 Create a `.env.local` file at the project root:
 
 ```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
+SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -215,10 +215,10 @@ cd go && go test ./test/...
 
 ## Reference
 
-### NewVoxgigSolardemoSDK
+### NewSolardemoSDK
 
 ```go
-func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK
+func NewSolardemoSDK(options map[string]any) *SolardemoSDK
 ```
 
 Creates a new SDK client.
@@ -235,12 +235,12 @@ Creates a new SDK client.
 ### TestSDK
 
 ```go
-func TestSDK(testopts map[string]any, sdkopts map[string]any) *VoxgigSolardemoSDK
+func TestSDK(testopts map[string]any, sdkopts map[string]any) *SolardemoSDK
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `nil`.
 
-### VoxgigSolardemoSDK methods
+### SolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -248,12 +248,12 @@ Creates a test-mode client with mock transport. Both arguments may be `nil`.
 | `GetUtility` | `() *Utility` | Copy of the SDK utility object. |
 | `Prepare` | `(fetchargs map[string]any) (map[string]any, error)` | Build an HTTP request definition without sending. |
 | `Direct` | `(fetchargs map[string]any) (map[string]any, error)` | Build and send an HTTP request. |
-| `Moon` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Moon entity instance. |
-| `Planet` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Planet entity instance. |
+| `Moon` | `(data map[string]any) SolardemoEntity` | Create a Moon entity instance. |
+| `Planet` | `(data map[string]any) SolardemoEntity` | Create a Planet entity instance. |
 
-### Entity interface (VoxgigSolardemoEntity)
+### Entity interface (SolardemoEntity)
 
-All entities implement the `VoxgigSolardemoEntity` interface.
+All entities implement the `SolardemoEntity` interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -509,7 +509,7 @@ Use `core.ToMapAny()` to safely cast results and nested data.
 
 ```
 github.com/voxgig-sdk/voxgig-solardemo-sdk/go/
-├── voxgig-solardemo.go        # Root package — type aliases and constructors
+├── solardemo.go        # Root package — type aliases and constructors
 ├── core/               # SDK core — client, types, pipeline
 ├── entity/             # Entity implementations
 ├── feature/            # Built-in features (Base, Test, Log)

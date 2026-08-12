@@ -1,6 +1,6 @@
-# AGENTS.md — VoxgigSolardemo SDK workspace
+# AGENTS.md — Solardemo SDK workspace
 
-This repository holds **generated** client SDKs for the VoxgigSolardemo API in
+This repository holds **generated** client SDKs for the Solardemo API in
 multiple target languages. All SDKs are produced from a single model by the
 generator in `.sdk/` (built on [@voxgig/sdkgen](https://github.com/voxgig/sdkgen)).
 
@@ -63,7 +63,7 @@ client. See the per-SDK `AGENTS.md` for language-specific usage.
 
 ## Companion test server (separate)
 
-`app/` is a **standalone REST server** that implements the VoxgigSolardemo API. It
+`app/` is a **standalone REST server** that implements the Solardemo API. It
 exists for local development and validation of the SDKs and is **not** part of
 any SDK distribution. The SDKs are server-agnostic — point them at any
 compatible endpoint via their `base` option. See [`app/AGENTS.md`](app/AGENTS.md).

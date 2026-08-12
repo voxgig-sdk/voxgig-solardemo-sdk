@@ -10,19 +10,19 @@ const __1 = require("..");
 // every generated SDK regardless of its API shape.
 (0, node_test_1.describe)('netsim', () => {
     (0, node_test_1.test)('offline simulation fails the request', async () => {
-        const sdk = __1.VoxgigSolardemoSDK.test({ net: { offline: true } });
+        const sdk = __1.SolardemoSDK.test({ net: { offline: true } });
         const res = await sdk.direct({ path: '/ping' });
         (0, node_assert_1.equal)(res.ok, false, 'offline network must fail the call');
     });
     (0, node_test_1.test)('failStatus simulation surfaces the error status', async () => {
-        const sdk = __1.VoxgigSolardemoSDK.test({ net: { failTimes: 1, failStatus: 503 } });
+        const sdk = __1.SolardemoSDK.test({ net: { failTimes: 1, failStatus: 503 } });
         const res = await sdk.direct({ path: '/ping' });
         (0, node_assert_1.equal)(res.ok, false);
         (0, node_assert_1.equal)(res.status, 503, 'simulated failure status is surfaced');
     });
     (0, node_test_1.test)('latency simulation delays the request', async () => {
         const delay = 60;
-        const sdk = __1.VoxgigSolardemoSDK.test({ net: { latency: delay } });
+        const sdk = __1.SolardemoSDK.test({ net: { latency: delay } });
         const start = Date.now();
         await sdk.direct({ path: '/ping' });
         const elapsed = Date.now() - start;
@@ -30,7 +30,7 @@ const __1 = require("..");
         (0, node_assert_1.ok)(elapsed >= delay - 25, `expected >= ${delay - 25}ms latency, got ${elapsed}ms`);
     });
     (0, node_test_1.test)('a plain test SDK still works with no net simulation', async () => {
-        const sdk = __1.VoxgigSolardemoSDK.test();
+        const sdk = __1.SolardemoSDK.test();
         (0, node_assert_1.equal)(null !== sdk, true);
     });
 });
