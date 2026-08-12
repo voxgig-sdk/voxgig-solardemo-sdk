@@ -3,7 +3,7 @@ package utility
 import (
 	"fmt"
 
-	"voxgigsolardemosdk/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 func resultBasicUtil(ctx *core.Context) *core.Result {

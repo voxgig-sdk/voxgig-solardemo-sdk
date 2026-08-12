@@ -26,7 +26,7 @@ function makeError(ctx: Context, err?: any) {
   // TODO: project name should come from config
   // avoids spurious changes between template and generated utility
   // applies for all utility files
-  const msg = 'SolardemoSDK: ' + op.name + ': ' + errmsg
+  const msg = 'VoxgigSolardemoSDK: ' + op.name + ': ' + errmsg
   err.message = clean(ctx, msg)
 
   if (result.err) {
@@ -47,6 +47,15 @@ function makeError(ctx: Context, err?: any) {
   err.spec = clean(ctx, spec)
 
   ctx.ctrl.err = err
+
+  // Fire PreUnexpected so observability features (metrics, telemetry, audit,
+  // debug) close/record error paths that never reach PreDone (e.g. a PrePoint
+  // rbac short-circuit). Fires after ctx.ctrl.err is set so hooks can read the
+  // error; features guard against double-recording when PreDone already fired.
+  if (null != ctx.client && null != ctx.utility &&
+    'function' === typeof ctx.utility.featureHook) {
+    ctx.utility.featureHook(ctx, 'PreUnexpected')
+  }
 
   // TODO: model option to return instead
   if (false === ctx.ctrl.throw) {

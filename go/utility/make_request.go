@@ -1,6 +1,6 @@
 package utility
 
-import "voxgigsolardemosdk/core"
+import "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 
 func makeRequestUtil(ctx *core.Context) (*core.Response, error) {
 	if ctx.Out["request"] != nil {

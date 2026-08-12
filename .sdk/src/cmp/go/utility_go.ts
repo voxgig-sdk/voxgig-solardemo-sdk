@@ -3,6 +3,14 @@ import * as Path from 'node:path'
 
 
 import {
+  camelify,
+  canonKey,
+  each,
+  exampleVarName,
+  names,
+} from '@voxgig/sdkgen'
+
+import {
   clone,
   walk,
 } from '@voxgig/struct'
@@ -10,6 +18,68 @@ import {
 
 function projectPath(suffix?: string): string {
   return Path.normalize(Path.join(__dirname, '../../..', suffix ?? ''))
+}
+
+
+// --- Model-driven example literals -----------------------------------------
+// Doc snippets must use example values whose TYPE matches the model's
+// declared param/field type — a number id shown as a quoted string documents
+// a call the API would reject. These helpers derive the example literal from
+// the SAME model source the request shapes are built from (opRequestShape),
+// so the docs and the model can never disagree. Go twin of the ts
+// exampleValue (cmp/ts/utility_ts.ts), rendering Go literals.
+
+// The declared canon-type sentinel of a named parameter of an op — looked up
+// in the op's `points[].args.params[]` exactly as the typed-model generator
+// does. Falls back to the entity field of the same name (used when the op
+// has no params and the request shape mirrors the entity fields). Returns
+// undefined when neither is present.
+function paramCanonType(entity: any, op: any, paramName: string): unknown {
+  const points = op && op.points ? each(op.points) : []
+  for (const pt of points as any[]) {
+    const params = pt && pt.args && pt.args.params ? each(pt.args.params) : []
+    const found = (params as any[]).find((p: any) => p && p.name === paramName)
+    if (found) {
+      return found.type
+    }
+  }
+  const field = (entity && entity.fields ? each(entity.fields) : [])
+    .find((f: any) => f && f.name === paramName) as any
+  return field && field.type
+}
+
+
+// A type-correct Go example literal for a named match/data parameter of an
+// op, derived entirely from the model. INTEGER/NUMBER render as the bare
+// number `1`, BOOLEAN as `true`, ARRAY as the empty `[]any{}` and OBJECT as
+// the empty `map[string]any{}`, everything else (STRING, unknown, missing)
+// as the quoted `placeholder`.
+function exampleValue(entity: any, op: any, paramName: string, placeholder: string): string {
+  const key = canonKey(paramCanonType(entity, op, paramName))
+  if ('INTEGER' === key || 'NUMBER' === key) {
+    return '1'
+  }
+  if ('BOOLEAN' === key) {
+    return 'true'
+  }
+  if ('ARRAY' === key) {
+    return '[]any{}'
+  }
+  if ('OBJECT' === key) {
+    return 'map[string]any{}'
+  }
+  return `"${placeholder}"`
+}
+
+
+// A camelCase Go identifier for a snake_case model name
+// (`status_embed_config` -> `statusEmbedConfig`) — Go variables are
+// camelCase, never snake_case — with the reserved-word guard applied (a
+// `type`/`range` entity must not bind a Go keyword).
+function goVarName(name: string): string {
+  const pascal = camelify(name)
+  // exampleVarName also guards `client`, the doc examples' SDK-instance var.
+  return exampleVarName(pascal.charAt(0).toLowerCase() + pascal.slice(1), 'go')
 }
 
 
@@ -80,9 +150,35 @@ function clean(o: any) {
 }
 
 
+
+// The Go identifier fragment for a feature's generated constructor
+// (New<Fname>Feature / New<Fname>FeatureFunc).
+//
+// SHARED because the identifier is DECLARED in Main_go.ts (registry.go and the
+// root init()) and REFERENCED in Config_go.ts (makeFeature). Two copies of the
+// derivation is a latent undefined-identifier bug in the generated SDK: they
+// were both `name.charAt(0).toUpperCase() + name.slice(1)`, consistently wrong
+// for a name needing real normalisation but at least agreeing, until one side
+// was fixed alone and `rate_limit` became NewRateLimitFeatureFunc in the
+// registry and NewRate_limitFeatureFunc in config.
+//
+// Uses the jostraca-derived PascalCase `Name` (deriving it if absent), which is
+// what Main_ts.ts uses, so a hyphenated or underscored feature name yields a
+// legal Go identifier instead of `NewRate-limitFeatureFunc`.
+function goFeatureName(feat: any): string {
+  if (null == feat.Name) {
+    names(feat, feat.name)
+  }
+  return feat.Name
+}
+
+
 export {
+  goFeatureName,
   clean,
+  exampleValue,
   formatGoMap,
   formatGoValue,
+  goVarName,
   projectPath,
 }

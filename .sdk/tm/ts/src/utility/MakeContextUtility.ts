@@ -1,5 +1,5 @@
 
-import { SolardemoSDK } from '../SolardemoSDK'
+import { VoxgigSolardemoSDK } from '../VoxgigSolardemoSDK'
 
 import { Utility } from './Utility'
 

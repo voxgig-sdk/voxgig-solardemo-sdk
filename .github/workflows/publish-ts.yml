@@ -1,0 +1,103 @@
+name: Publish TypeScript SDK
+
+# Publishes @voxgig-sdk/voxgig-solardemo to npm via TRUSTED PUBLISHING (OIDC).
+#
+# There is deliberately no NODE_AUTH_TOKEN / NPM_TOKEN here. npm mints a
+# short-lived credential from this workflow's OIDC identity, so no long-lived
+# secret exists to leak. That requires, one time, on npm:
+#
+#   npm trust github @voxgig-sdk/voxgig-solardemo \
+#     --repository voxgig-sdk/voxgig-solardemo-sdk \
+#     --file publish-ts.yml \
+#     --allow-publish
+#
+# `--file` must match THIS file's name. Renaming this workflow breaks the trust
+# relationship until `npm trust` is re-run.
+#
+# npm also requires that the package ALREADY EXISTS on the registry before a
+# trusted publisher can be configured, so the very first publish must be done
+# manually with a token (see design/PUBLISHING.md).
+
+on:
+  push:
+    tags:
+      - 'ts/v*'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Pack and validate without publishing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write        # REQUIRED for OIDC trusted publishing
+
+jobs:
+  publish:
+    name: Build, test and publish
+    runs-on: ubuntu-latest
+    environment: npm-publish
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm >= 11.5.1; Node 24 ships an older npm.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Show npm version
+        run: npm --version
+
+      - name: Install dependencies
+        working-directory: ts
+        run: npm install
+
+      - name: Build
+        working-directory: ts
+        run: npm run build
+
+      # Publishing an SDK whose own tests fail is not worth the convenience of
+      # skipping this. Offline only — live tests need the app server.
+      - name: Test (offline)
+        working-directory: ts
+        run: npm test
+
+      # The published source maps reference ../src/*.ts and do NOT embed
+      # sourcesContent, so src/ must be in the tarball or consumer stack traces
+      # break. Fail loudly if a future packaging change drops it.
+      - name: Verify tarball contents
+        working-directory: ts
+        run: |
+          npm pack --dry-run 2>&1 | tee /tmp/pack.txt
+          grep -q 'dist/VoxgigSolardemoSDK.js' /tmp/pack.txt \
+            || { echo '::error::dist entry point missing from tarball'; exit 1; }
+          grep -q 'src/VoxgigSolardemoSDK.ts' /tmp/pack.txt \
+            || { echo '::error::src missing — published source maps would break'; exit 1; }
+
+      # The tag must match the version being published, or a mistagged release
+      # silently publishes the wrong thing.
+      - name: Check tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: ts
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF#refs/tags/ts/v}"
+          echo "package.json=$PKG tag=$TAG"
+          [ "$PKG" = "$TAG" ] \
+            || { echo "::error::tag ts/v$TAG does not match package.json $PKG"; exit 1; }
+
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry-run
+        working-directory: ts
+        run: npm publish --dry-run --access public
+
+      - name: Publish
+        if: github.event_name != 'workflow_dispatch' || !inputs.dry-run
+        working-directory: ts
+        run: npm publish --access public

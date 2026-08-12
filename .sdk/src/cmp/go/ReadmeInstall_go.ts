@@ -1,16 +1,28 @@
 
-import { cmp, Content } from '@voxgig/sdkgen'
+import { cmp, Content, packageName, repoInfo } from '@voxgig/sdkgen'
 
 
 const ReadmeInstall = cmp(function ReadmeInstall(props: any) {
   const { target, ctx$ } = props
   const { model } = ctx$
 
-  const orgPrefix = (model.origin || '').replace(/-sdk$/, '').replace(/[^a-z0-9]/gi, '')
-  const gomodule = orgPrefix + model.name + 'sdk'
+  // Go module path == repo path on GitHub (org from model.origin).
+  const gomodule = packageName(model, 'go')
+  const { releasesUrl } = repoInfo(model)
 
   Content(`\`\`\`bash
-go get ${gomodule}
+go get ${gomodule}@latest
+\`\`\`
+
+The Go module proxy resolves the version from the \`go/vX.Y.Z\` GitHub
+release tag — see [Releases](${releasesUrl}) for the available versions.
+
+To vendor from a local checkout instead, clone this repo alongside your
+project and add a \`replace\` directive pointing at the checked-out
+\`go/\` directory:
+
+\`\`\`bash
+go mod edit -replace ${gomodule}=../${model.name}-sdk/go
 \`\`\`
 
 `)

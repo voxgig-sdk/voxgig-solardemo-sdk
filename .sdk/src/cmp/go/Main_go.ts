@@ -4,6 +4,7 @@ import * as Path from 'node:path'
 import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
+  entityClassName, entityCollection,
 } from '@voxgig/sdkgen'
 
 
@@ -18,9 +19,12 @@ import {
 } from '@voxgig/apidef'
 
 
+import { goFeatureName } from './utility_go'
 import { Package } from './Package_go'
 import { Config } from './Config_go'
+import { Gitignore } from './Gitignore_go'
 import { MainEntity } from './MainEntity_go'
+import { EntityTypes } from './EntityTypes_go'
 
 
 const Main = cmp(async function Main(props: any) {
@@ -31,21 +35,38 @@ const Main = cmp(async function Main(props: any) {
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
   const feature = getModelPath(model, `main.${KIT}.feature`)
 
-  // Module name: concatenated lowercase (e.g., voxgigsolardemosdk)
-  const orgPrefix = (model.origin || '').replace(/-sdk$/, '').replace(/[^a-z0-9]/gi, '')
-  const gomodule = orgPrefix + model.name + 'sdk'
+  // Go module path == the repo path on GitHub (org from model.origin),
+  // e.g. github.com/voxgig-sdk/<slug>-sdk. Used in go.mod and every import.
+  const gomodule = `github.com/${model.origin || 'voxgig-sdk'}/${model.name}-sdk/go`
+  // The root package name must be a plain Go identifier (can't be a path),
+  // so it stays as the concatenated-lowercase form (e.g. voxgigdogsdk).
+  const gopackage = (model.origin || 'voxgig-sdk').replace(/-sdk$/, '').replace(/[^a-z0-9]/gi, '') +
+    model.name.replace(/[^a-z0-9]/gi, '').toLowerCase() + 'sdk'
 
   Package({ target })
 
-  // Copy tm/go files with replacements
+  Gitignore({})
+
+  // Copy tm/go files with replacements.
+  //
+  // Rewrite the placeholder `github.com/voxgig/struct` import (used in the
+  // template since it's a self-contained module there) to its in-SDK path.
+  // The struct package is inlined under `<gomodule>/utility/struct` so the
+  // module is fully self-contained — no external go.mod required by
+  // downstream consumers.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//],
+    exclude: [/src\//, /utility\/struct\/go\.mod$/],
     replace: {
       ...props.ctx$.stdrep,
       GOMODULE: gomodule,
+      '"github.com/voxgig/struct"': `"${gomodule}/utility/struct"`,
     }
   })
+
+  // Typed models: entity/types.go (package entity), emitted alongside the
+  // generated *_entity.go files so the typed accessors resolve without imports.
+  EntityTypes({ target })
 
   // Generate main SDK file in core/ folder
   Folder({ name: 'core' }, () => {
@@ -58,10 +79,11 @@ const Main = cmp(async function Main(props: any) {
           replace: {
             ...props.ctx$.stdrep,
             'ProjectNameModule': gomodule,
+            '"github.com/voxgig/struct"': `"${gomodule}/utility/struct"`,
 
             '#BuildFeatures': ({ indent }: any) => {
               each(feature, (feat: any) => {
-                const fname = feat.name.charAt(0).toUpperCase() + feat.name.slice(1)
+                const fname = goFeatureName(feat)
                 Content({ indent }, `u.FeatureAdd(s.rootctx, New${fname}FeatureFunc())
 `)
               })
@@ -98,7 +120,7 @@ var NewBaseFeatureFunc func() Feature
       // Feature constructor function vars (non-base)
       each(feature, (feat: any) => {
         if (feat.name !== 'base') {
-          const fname = feat.name.charAt(0).toUpperCase() + feat.name.slice(1)
+          const fname = goFeatureName(feat)
           Content(`var New${fname}FeatureFunc func() Feature
 
 `)
@@ -115,12 +137,13 @@ var NewBaseFeatureFunc func() Feature
   })
 
   // Generate root package file
+  const hasEntities = Object.keys(entity || {}).length > 0
+  const entityImport = hasEntities ? `\n\t"${gomodule}/entity"` : ''
   File({ name: model.name + '.' + target.ext }, () => {
-    Content(`package ${gomodule}
+    Content(`package ${gopackage}
 
 import (
-	"${gomodule}/core"
-	"${gomodule}/entity"
+	"${gomodule}/core"${entityImport}
 	"${gomodule}/feature"
 	_ "${gomodule}/utility"
 )
@@ -155,7 +178,7 @@ func init() {
     // Register non-base feature constructors
     each(feature, (feat: any) => {
       if (feat.name !== 'base') {
-        const fname = feat.name.charAt(0).toUpperCase() + feat.name.slice(1)
+        const fname = goFeatureName(feat)
         Content(`	core.New${fname}FeatureFunc = func() core.Feature {
 		return feature.New${fname}Feature()
 	}
@@ -166,7 +189,7 @@ func init() {
     // Register entity constructors
     each(entity, (ent: any) => {
       Content(`	core.New${ent.Name}EntityFunc = func(client *core.${model.const.Name}SDK, entopts map[string]any) core.${model.const.Name}Entity {
-		return entity.New${ent.Name}Entity(client, entopts)
+		return entity.New${entityClassName(ent, entityCollection(model))}(client, entopts)
 	}
 `)
     })
@@ -182,6 +205,13 @@ var NewResult = core.NewResult
 var NewResponse = core.NewResponse
 var NewOperation = core.NewOperation
 var MakeConfig = core.MakeConfig
+
+// No-arg convenience constructors. Go has no default-argument syntax,
+// so these aliases let callers write \`sdk.New()\` / \`sdk.Test()\`
+// instead of \`sdk.New${model.const.Name}SDK(nil)\` / \`sdk.TestSDK(nil, nil)\`
+// for the common no-options case.
+func New() *${model.const.Name}SDK  { return New${model.const.Name}SDK(nil) }
+func Test() *${model.const.Name}SDK { return TestSDK(nil, nil) }
 `)
 
     // Feature constructor re-exports - base is always present
@@ -190,7 +220,7 @@ var MakeConfig = core.MakeConfig
 
     each(feature, (feat: any) => {
       if (feat.name !== 'base') {
-        const fname = feat.name.charAt(0).toUpperCase() + feat.name.slice(1)
+        const fname = goFeatureName(feat)
         Content(`var New${fname}Feature = feature.New${fname}Feature
 `)
       }

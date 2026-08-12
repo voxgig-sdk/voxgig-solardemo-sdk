@@ -1,6 +1,6 @@
 package utility
 
-import "voxgigsolardemosdk/core"
+import "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 
 func doneUtil(ctx *core.Context) (any, error) {
 	if ctx.Ctrl.Explain != nil {

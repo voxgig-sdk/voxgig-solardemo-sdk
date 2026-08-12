@@ -1,12 +1,17 @@
 package utility
 
 import (
+	"regexp"
+	"sort"
 	"strings"
 
 	vs "github.com/voxgig/struct"
 
 	"GOMODULE/core"
 )
+
+// {name} placeholders in a templated server URL (OpenAPI server variables).
+var serverVarRe = regexp.MustCompile(`\{[A-Za-z0-9_]+\}`)
 
 func makeOptionsUtil(ctx *core.Context) map[string]any {
 	options := ctx.Options
@@ -26,6 +31,36 @@ func makeOptionsUtil(ctx *core.Context) map[string]any {
 	}
 
 	opts := vs.Clone(options).(map[string]any)
+
+	// Feature add-order (feature #2). options.feature may be given as an ordered
+	// ARRAY of {name, active, ...opts} entries (the array position IS the order
+	// in which features are added), or as a {name:{opts}} map. Normalize an
+	// array to a map (so merge/validate/init are unchanged) and remember the
+	// explicit order; a map defaults to test-first so the `test` mock transport
+	// is installed as the base of the transport wrapper chain.
+	var featureorder []any
+	if farr, ok := opts["feature"].([]any); ok {
+		fmap := map[string]any{}
+		for _, entry := range farr {
+			em := core.ToMapAny(entry)
+			if em == nil {
+				continue
+			}
+			name, _ := em["name"].(string)
+			if name == "" {
+				continue
+			}
+			fopts := map[string]any{}
+			for k, v := range em {
+				if k != "name" {
+					fopts[k] = v
+				}
+			}
+			fmap[name] = fopts
+			featureorder = append(featureorder, name)
+		}
+		opts["feature"] = fmap
+	}
 
 	config := ctx.Config
 	if config == nil {
@@ -51,7 +86,7 @@ func makeOptionsUtil(ctx *core.Context) map[string]any {
 		},
 		"allow": map[string]any{
 			"method": "GET,PUT,POST,PATCH,DELETE,OPTIONS",
-			"op":     "create,update,load,list,remove,command,direct",
+			"op":     "create,update,load,list,remove,command,direct,graphql",
 		},
 		"entity": map[string]any{
 			"`$CHILD`": map[string]any{
@@ -77,6 +112,13 @@ func makeOptionsUtil(ctx *core.Context) map[string]any {
 		"clean": map[string]any{
 			"keys": "key,token,id",
 		},
+		// Server-variable values for a templated base URL (OpenAPI server
+		// variables): {name} placeholders in "base" are substituted from this
+		// map at construction. Spec defaults arrive via the generated config;
+		// user values override them.
+		"server": map[string]any{
+			"`$CHILD`": "",
+		},
 	}
 
 	// Preserve system.fetch before merge/validate.
@@ -88,6 +130,43 @@ func makeOptionsUtil(ctx *core.Context) map[string]any {
 	merged := vs.Merge([]any{map[string]any{}, cfgopts, opts})
 	validated, _ := vs.Validate(merged, optspec)
 	opts = validated.(map[string]any)
+
+	// Resolve a templated base URL (e.g. https://{tenant_id}.hanko.io).
+	// Every placeholder must resolve to a non-empty value: from
+	// options["server"] (user), else the config default. A placeholder that
+	// resolves to "" is a construction error in live mode — the URL cannot
+	// work — but in test mode substitutes the deterministic value
+	// "test-<name>" so offline tests need no configuration. The SDK
+	// constructor has no error return, so a missing required variable
+	// PANICS (construction-time misconfiguration, as regexp.MustCompile).
+	if base, ok := opts["base"].(string); ok && strings.Contains(base, "{") {
+		testmode := false
+		if ta, ok := vs.GetPath([]any{"test", "active"}, opts).(bool); ok && ta {
+			testmode = true
+		}
+		if fa, ok := vs.GetPath([]any{"feature", "test", "active"}, opts).(bool); ok && fa {
+			testmode = true
+		}
+		server := core.ToMapAny(opts["server"])
+		sdkname := "SDK"
+		if mn, ok := vs.GetPath([]any{"main", "name"}, config).(string); ok && mn != "" {
+			sdkname = mn
+		}
+		resolved := serverVarRe.ReplaceAllStringFunc(base, func(ph string) string {
+			name := ph[1 : len(ph)-1]
+			val, _ := server[name].(string)
+			if val == "" {
+				if testmode {
+					return "test-" + name
+				}
+				panic(sdkname + ": the server variable '" + name + "' is required: " +
+					"the API base URL is '" + base + "' — pass " +
+					`options["server"].(map)["` + name + `"] in the SDK options`)
+			}
+			return val
+		})
+		opts["base"] = resolved
+	}
 
 	// Restore system.fetch.
 	if sysFetch != nil {
@@ -118,12 +197,43 @@ func makeOptionsUtil(ctx *core.Context) map[string]any {
 	}
 	keyre := strings.Join(filtered, "|")
 
+	// Resolve the feature add-order: an explicit array order (above) wins;
+	// otherwise order the map test-first, then the remaining names sorted, so
+	// the outcome is deterministic and `test` is always the base transport.
+	if len(featureorder) == 0 {
+		fmap := core.ToMapAny(opts["feature"])
+		names := make([]string, 0, len(fmap))
+		for k := range fmap {
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		hasTest := false
+		for _, n := range names {
+			if n == "test" {
+				hasTest = true
+			}
+		}
+		if hasTest {
+			featureorder = append(featureorder, "test")
+			for _, n := range names {
+				if n != "test" {
+					featureorder = append(featureorder, n)
+				}
+			}
+		} else {
+			for _, n := range names {
+				featureorder = append(featureorder, n)
+			}
+		}
+	}
+
 	derived := map[string]any{
 		"clean": map[string]any{},
 	}
 	if keyre != "" {
 		derived["clean"] = map[string]any{"keyre": keyre}
 	}
+	derived["featureorder"] = featureorder
 	opts["__derived__"] = derived
 
 	return opts

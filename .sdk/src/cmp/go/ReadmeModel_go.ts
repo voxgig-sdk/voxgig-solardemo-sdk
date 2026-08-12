@@ -1,20 +1,89 @@
 
-import { cmp, each, Content } from '@voxgig/sdkgen'
+import { cmp, each, Content, isAuthActive, entityIdField, entityPrimaryOp } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
+import { goVarName } from './utility_go'
+
 
 const ReadmeModel = cmp(function ReadmeModel(props: any) {
   const { target, ctx$: { model } } = props
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const entityList = Object.values(entity).filter((e: any) => e.active !== false)
+  const entityList = each(entity).filter((e: any) => e.active !== false)
 
-  const orgPrefix = (model.origin || '').replace(/-sdk$/, '').replace(/[^a-z0-9]/gi, '')
-  const gomodule = orgPrefix + model.name + 'sdk'
+  // Model-driven op rows for the shared entity interface: emit a
+  // Load/List/Create/Update/Remove row only for operations at least one active
+  // entity actually exposes (a read-only entity has just List+Load) — never
+  // document an operation no entity has. Model op keys are lowercase; Go
+  // method names are capitalised.
+  const opUnion = new Set<string>()
+  entityList.forEach((e: any) => Object.keys(e.op || {})
+    .forEach((o: string) => { if (e.op[o] && e.op[o].active !== false) opUnion.add(o) }))
+  const opRowDefs: Record<string, string> = {
+    load: '| `Load` | `(reqmatch, ctrl map[string]any) (any, error)` | Load a single entity by match criteria. |',
+    list: '| `List` | `(reqmatch, ctrl map[string]any) (any, error)` | List entities matching the criteria. |',
+    create: '| `Create` | `(reqdata, ctrl map[string]any) (any, error)` | Create a new entity. |',
+    update: '| `Update` | `(reqdata, ctrl map[string]any) (any, error)` | Update an existing entity. |',
+    remove: '| `Remove` | `(reqmatch, ctrl map[string]any) (any, error)` | Remove an entity. |',
+  }
+  const opRows = ['load', 'list', 'create', 'update', 'remove']
+    .filter((o) => opUnion.has(o)).map((o) => opRowDefs[o]).join('\n')
+
+  // Model-driven Result-shape rows: only describe the operations that
+  // actually exist. Record-returning ops (Load/Create/Update/Remove) share
+  // one row; List has its own — never name a missing op.
+  const recordOps = ['load', 'create', 'update', 'remove'].filter((o) => opUnion.has(o))
+    .map((o) => '`' + o.charAt(0).toUpperCase() + o.slice(1) + '`')
+  const resultRows: string[] = []
+  if (recordOps.length) resultRows.push('| ' + recordOps.join(' / ') + ' | the entity record (`map[string]any`) |')
+  if (opUnion.has('list')) resultRows.push('| `List` | a `[]any` of entity records |')
+  const resultShapeRows = resultRows.join('\n')
+
+  // Go module path == repo path on GitHub (org from model.origin).
+  const gomodule = `github.com/${model.origin || 'voxgig-sdk'}/${model.name}-sdk/go`
+
+  const apikeyOptionRow = isAuthActive(model)
+    ? '| `"apikey"` | `string` | API key for authentication. |\n'
+    : ''
+
+  // Illustrate the Result shape with the first entity that ACTUALLY exposes an
+  // op — never fabricate a `Load` on an op-less first entity (e.g. Cloudsmith's
+  // `Abort`). firstPrimaryOp is null only when NO active entity has any op (a
+  // direct()-only SDK), in which case the call illustration is omitted.
+  const firstWithOp = entityList.find((e: any) => entityPrimaryOp(e) != null)
+  const firstPrimaryOp = firstWithOp ? entityPrimaryOp(firstWithOp) : null
+  const firstEntityName = firstWithOp ? ((firstWithOp as any).Name || 'Entity') : 'Entity'
+  // camelCase Go identifier (never snake_case or flattened lowercase,
+  // never a Go keyword).
+  const firstEntityVar = goVarName((firstWithOp as any)?.name || 'entity')
+  // Model-driven id key: null when the example entity has no id-like field, so
+  // the Result-shape illustration passes a nil match.
+  const firstIdF = firstWithOp ? entityIdField(firstWithOp) : null
+  const firstPrimaryMethod = firstPrimaryOp
+    ? firstPrimaryOp.charAt(0).toUpperCase() + firstPrimaryOp.slice(1)
+    : ''
+  const firstIsMatchOp = 'load' === firstPrimaryOp || 'remove' === firstPrimaryOp
+  const firstOpArg = firstIsMatchOp
+    ? (firstIdF ? `map[string]any{"${firstIdF}": "example_id"}` : 'nil')
+    : 'map[string]any{/* fields */}'
+
+  // The Result-shape call illustration, shown only when some entity exposes an
+  // op. A direct()-only SDK (no entity ops) omits it — there is no op to call.
+  const resultCallExample = firstPrimaryOp
+    ? `Check \`err\` first, then use the value directly (or the typed
+\`...Typed\` variants, which return the entity's model struct and a typed
+slice):
+
+    ${firstEntityVar}, err := client.${firstEntityName}(nil).${firstPrimaryMethod}(${firstOpArg}, nil)
+    if err != nil { /* handle */ }
+    // ${firstEntityVar} is the returned record
+
+`
+    : ''
 
   Content(`### New${model.const.Name}SDK
 
@@ -26,8 +95,7 @@ Creates a new SDK client.
 
 | Option | Type | Description |
 | --- | --- | --- |
-| \`"apikey"\` | \`string\` | API key for authentication. |
-| \`"base"\` | \`string\` | Base URL of the API server. |
+${apikeyOptionRow}| \`"base"\` | \`string\` | Base URL of the API server. |
 | \`"prefix"\` | \`string\` | URL path prefix prepended to all requests. |
 | \`"suffix"\` | \`string\` | URL path suffix appended to all requests. |
 | \`"feature"\` | \`map[string]any\` | Feature activation flags. |
@@ -53,7 +121,8 @@ Creates a test-mode client with mock transport. Both arguments may be \`nil\`.
 `)
 
   each(entityList, (ent: any) => {
-    Content(`| \`${ent.Name}\` | \`(data map[string]any) ${model.const.Name}Entity\` | Create a ${ent.Name} entity instance. |
+    const article = /^[aeiou]/i.test(ent.Name) ? 'an' : 'a'
+    Content(`| \`${ent.Name}\` | \`(data map[string]any) ${model.const.Name}Entity\` | Create ${article} ${ent.Name} entity instance. |
 `)
   })
 
@@ -64,11 +133,7 @@ All entities implement the \`${model.const.Name}Entity\` interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| \`Load\` | \`(reqmatch, ctrl map[string]any) (any, error)\` | Load a single entity by match criteria. |
-| \`List\` | \`(reqmatch, ctrl map[string]any) (any, error)\` | List entities matching the criteria. |
-| \`Create\` | \`(reqdata, ctrl map[string]any) (any, error)\` | Create a new entity. |
-| \`Update\` | \`(reqdata, ctrl map[string]any) (any, error)\` | Update an existing entity. |
-| \`Remove\` | \`(reqmatch, ctrl map[string]any) (any, error)\` | Remove an entity. |
+${opRows}
 | \`Data\` | \`(args ...any) any\` | Get or set entity data. |
 | \`Match\` | \`(args ...any) any\` | Get or set entity match criteria. |
 | \`Make\` | \`() Entity\` | Create a new instance with the same options. |
@@ -76,17 +141,15 @@ All entities implement the \`${model.const.Name}Entity\` interface.
 
 ### Result shape
 
-Entity operations return \`(any, error)\`. The \`any\` value is a
-\`map[string]any\` with these keys:
+Entity operations return \`(value, error)\`. The \`value\` is the
+operation's data **directly** — there is no wrapper:
 
-| Key | Type | Description |
-| --- | --- | --- |
-| \`"ok"\` | \`bool\` | \`true\` if the HTTP status is 2xx. |
-| \`"status"\` | \`int\` | HTTP status code. |
-| \`"headers"\` | \`map[string]any\` | Response headers. |
-| \`"data"\` | \`any\` | Parsed JSON response body. |
+| Operation | \`value\` |
+| --- | --- |
+${resultShapeRows}
 
-On error, \`"ok"\` is \`false\` and \`"err"\` contains the error value.
+${resultCallExample}Only \`Direct()\` returns a response envelope — a \`map[string]any\` with
+\`"ok"\`, \`"status"\`, \`"headers"\`, and \`"data"\` keys.
 
 `)
 
@@ -95,13 +158,13 @@ On error, \`"ok"\` is \`false\` and \`"err"\` contains the error value.
 
 `)
   each(entityList, (ent: any) => {
-    const fields = ent.field || []
+    const fields = ent.fields || []
     const opnames = Object.keys(ent.op || {})
     const ops = ent.op || {}
-    const points = Object.values(ops).map((op: any) =>
-      op.points ? Object.values(op.points) : []
+    const points = each(ops).map((op: any) =>
+      op.points ? each(op.points) : []
     ).flat()
-    const path = points.length > 0 ? (points[0] as any).path || '' : ''
+    const path = points.length > 0 ? (points[0] as any).orig || '' : ''
 
     Content(`#### ${ent.Name}
 

@@ -3,16 +3,22 @@ package feature
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
 
-	vs "github.com/voxgig/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 
-	"voxgigsolardemosdk/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
+
+// The `body.<key>` form of an op's response transform: the mock wraps its
+// payload in <key> so the transform can unwrap it again.
+var envelopeResRe = regexp.MustCompile("^`body\\.([^`.]+)`$")
 
 type TestFeature struct {
 	BaseFeature
-	client  *core.SolardemoSDK
-	options map[string]any
+	client   *core.VoxgigSolardemoSDK
+	options  map[string]any
+	netcalls int
 }
 
 func NewTestFeature() *TestFeature {
@@ -48,11 +54,38 @@ func (f *TestFeature) Init(ctx *core.Context, options map[string]any) {
 	self := f
 
 	testFetcher := func(ctx *core.Context, _fullurl string, _fetchdef map[string]any) (any, error) {
+		// Shape the mock payload the way the real API would, so the op's
+		// response transform recovers the entity from it. A point carrying
+		// `transform.res: ` + "`body.item`" + ` describes an API that answers
+		// {"item": {...}}; handing back the bare entity means the transform
+		// unwraps a property that is not there and the caller gets nil. The
+		// mock has to agree with the model, or it only ever simulates APIs
+		// whose responses happen to be unwrapped. Mirrors the ts mock.
+		envelope := func(data any) any {
+			if data == nil || ctx.Point == nil {
+				return data
+			}
+			tm, ok := ctx.Point["transform"].(map[string]any)
+			if !ok {
+				return data
+			}
+			restf, ok := tm["res"].(string)
+			if !ok {
+				return data
+			}
+			m := envelopeResRe.FindStringSubmatch(restf)
+			if m == nil {
+				return data
+			}
+			return map[string]any{m[1]: data}
+		}
+
 		respond := func(status int, data any, extra map[string]any) map[string]any {
+			payload := envelope(data)
 			out := map[string]any{
 				"status":     status,
 				"statusText": "OK",
-				"json":       (func() any)(func() any { return data }),
+				"json":       (func() any)(func() any { return payload }),
 				"body":       "not-used",
 			}
 			if extra != nil {
@@ -69,8 +102,28 @@ func (f *TestFeature) Init(ctx *core.Context, options map[string]any) {
 			entmap = map[string]any{}
 		}
 
+		// For single-entity ops (load, remove) with an empty explicit match,
+		// fall back to the id the entity client already knows from a prior
+		// create/load (in ctx.Match / ctx.Data). Mirrors the TS mock where
+		// param() resolves the id from that accumulated state.
+		resolveMatch := func(explicit map[string]any) map[string]any {
+			if len(explicit) > 0 {
+				return explicit
+			}
+			for _, src := range []any{ctx.Match, ctx.Data} {
+				if src == nil {
+					continue
+				}
+				v := vs.GetProp(src, "id")
+				if v != nil && v != "__UNDEFINED__" {
+					return map[string]any{"id": v}
+				}
+			}
+			return map[string]any{}
+		}
+
 		if op.Name == "load" {
-			args := self.buildArgs(ctx, op, ctx.Reqmatch)
+			args := self.buildArgs(ctx, op, resolveMatch(ctx.Reqmatch))
 			found := vs.Select(entmap, args)
 			ent := vs.GetElem(found, 0)
 			if ent == nil {
@@ -91,9 +144,42 @@ func (f *TestFeature) Init(ctx *core.Context, options map[string]any) {
 			out := vs.Clone(found)
 			return respond(200, out, nil), nil
 		} else if op.Name == "update" {
-			args := self.buildArgs(ctx, op, ctx.Reqdata)
+			// Match the existing entity by id only (or its alias). Reqdata
+			// also contains the new field values, which would otherwise
+			// cause Select to filter out the entity we want to update.
+			// When reqdata has no id, fall back to the id the entity
+			// client carries from a prior create/load (in ctx.Match /
+			// ctx.Data), mirroring the TS mock where param(ctx,'id')
+			// resolves from accumulated state.
+			updateMatch := map[string]any{}
+			if ctx.Reqdata != nil {
+				if v, has := ctx.Reqdata["id"]; has {
+					updateMatch["id"] = v
+				}
+				if op.Alias != nil {
+					if aliasIdRaw := vs.GetProp(op.Alias, "id"); aliasIdRaw != nil {
+						if aliasId, ok := aliasIdRaw.(string); ok {
+							if v, has := ctx.Reqdata[aliasId]; has {
+								updateMatch[aliasId] = v
+							}
+						}
+					}
+				}
+			}
+			if len(updateMatch) == 0 {
+				updateMatch = resolveMatch(map[string]any{})
+			}
+			args := self.buildArgs(ctx, op, updateMatch)
 			found := vs.Select(entmap, args)
 			ent := vs.GetElem(found, 0)
+			if ent == nil && entmap != nil {
+				for _, e := range entmap {
+					if _, ok := e.(map[string]any); ok {
+						ent = e
+						break
+					}
+				}
+			}
 			if ent == nil {
 				return respond(404, nil, map[string]any{"statusText": "Not found"}), nil
 			}
@@ -109,12 +195,11 @@ func (f *TestFeature) Init(ctx *core.Context, options map[string]any) {
 			out := vs.Clone(ent)
 			return respond(200, out, nil), nil
 		} else if op.Name == "remove" {
-			args := self.buildArgs(ctx, op, ctx.Reqmatch)
+			args := self.buildArgs(ctx, op, resolveMatch(ctx.Reqmatch))
 			found := vs.Select(entmap, args)
 			ent := vs.GetElem(found, 0)
-			if ent == nil {
-				return respond(404, nil, map[string]any{"statusText": "Not found"}), nil
-			}
+			// Remove only the first matched entity. If nothing matches,
+			// succeed as a no-op rather than erroring.
 			if entm, ok := ent.(map[string]any); ok {
 				id := vs.GetProp(entm, "id")
 				vs.DelProp(entmap, id)
@@ -145,7 +230,81 @@ func (f *TestFeature) Init(ctx *core.Context, options map[string]any) {
 		return respond(404, nil, map[string]any{"statusText": "Unknown operation"}), nil
 	}
 
-	ctx.Utility.Fetcher = testFetcher
+	// Optional network behaviour simulation over the mock transport. Enable
+	// per test via `TestSDK(map[string]any{"net": ...}, nil)`. When `net` is
+	// absent the mock behaves exactly as before (no wrapping), so existing
+	// generated tests are unaffected.
+	net := core.ToMapAny(vs.GetProp(options, "net"))
+	if net == nil {
+		ctx.Utility.Fetcher = testFetcher
+	} else {
+		ctx.Utility.Fetcher = f.makeNetsim(net, testFetcher)
+	}
+}
+
+// makeNetsim wraps a transport with simulated network conditions: latency
+// (fixed or {min,max}), a budget of first-N failures (`failTimes` ->
+// `failStatus`), first-N connection errors (`errorTimes`), or a hard
+// `offline` outage. Counter-driven, so simulations are deterministic
+// across a test.
+func (f *TestFeature) makeNetsim(net map[string]any, inner core.FetcherFunc) core.FetcherFunc {
+	f.netcalls = 0
+
+	pickLatency := func() int {
+		l, has := net["latency"]
+		if !has || l == nil {
+			return 0
+		}
+		if lm, ok := l.(map[string]any); ok {
+			min := foptInt(lm, "min", 0)
+			max := foptInt(lm, "max", min)
+			if max <= min {
+				return min
+			}
+			return min + ((max - min) >> 1)
+		}
+		fixed := foptInt(net, "latency", 0)
+		if fixed < 0 {
+			return 0
+		}
+		return fixed
+	}
+
+	sleep := func(ms int) {
+		if ms <= 0 {
+			return
+		}
+		foptSleep(net)(ms)
+	}
+
+	return func(ctx *core.Context, url string, fetchdef map[string]any) (any, error) {
+		f.netcalls++
+		call := f.netcalls
+
+		if netOffline, ok := net["offline"].(bool); ok && netOffline {
+			sleep(pickLatency())
+			return nil, ctx.MakeError("netsim_offline",
+				"Simulated network offline (URL was: \""+url+"\")")
+		}
+		if call <= foptInt(net, "errorTimes", 0) {
+			sleep(pickLatency())
+			return nil, ctx.MakeError("netsim_conn",
+				fmt.Sprintf("Simulated connection error (call %d)", call))
+		}
+		if call <= foptInt(net, "failTimes", 0) {
+			sleep(pickLatency())
+			status := foptInt(net, "failStatus", 503)
+			return map[string]any{
+				"status":     status,
+				"statusText": "Simulated Failure",
+				"body":       "not-used",
+				"json":       (func() any)(func() any { return nil }),
+				"headers":    map[string]any{},
+			}, nil
+		}
+		sleep(pickLatency())
+		return inner(ctx, url, fetchdef)
+	}
 }
 
 func (f *TestFeature) buildArgs(ctx *core.Context, op *core.Operation, args map[string]any) any {

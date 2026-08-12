@@ -5,7 +5,7 @@ import { TestFeature } from './feature/test/TestFeature'
 
 
 const FEATURE_CLASS: Record<string, typeof BaseFeature> = {
-   test: TestFeature
+   test: TestFeature,
 
 }
 
@@ -21,7 +21,7 @@ class Config {
 
 
   main = {
-    name: 'Solardemo',
+    name: 'VoxgigSolardemo',
   }
 
 
@@ -30,17 +30,13 @@ class Config {
       "options": {
         "active": false
       }
-    }
+    },
 
   }
 
 
   options = {
     base: 'http://localhost:8901',
-
-    auth: {
-      prefix: 'Bearer',
-    },
 
     headers: {
       "content-type": "application/json"
@@ -113,10 +109,12 @@ class Config {
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   }
                 ]
               },
+              "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/moon",
               "parts": [
@@ -133,9 +131,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "create"
         },
         "list": {
           "input": "data",
@@ -156,6 +156,7 @@ class Config {
                   }
                 ]
               },
+              "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}/moon",
               "parts": [
@@ -175,7 +176,8 @@ class Config {
               },
               "index$": 0
             }
-          ]
+          ],
+          "key$": "list"
         },
         "load": {
           "input": "data",
@@ -205,6 +207,7 @@ class Config {
                   }
                 ]
               },
+              "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
               "parts": [
@@ -231,7 +234,8 @@ class Config {
               },
               "index$": 0
             }
-          ]
+          ],
+          "key$": "load"
         },
         "remove": {
           "input": "data",
@@ -247,7 +251,8 @@ class Config {
                     "name": "id",
                     "orig": "moon_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   },
                   {
                     "active": true,
@@ -255,10 +260,12 @@ class Config {
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 1
                   }
                 ]
               },
+              "kind": "http",
               "method": "DELETE",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
               "parts": [
@@ -282,9 +289,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "remove"
         },
         "update": {
           "input": "data",
@@ -300,7 +309,8 @@ class Config {
                     "name": "id",
                     "orig": "moon_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   },
                   {
                     "active": true,
@@ -308,10 +318,12 @@ class Config {
                     "name": "planet_id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 1
                   }
                 ]
               },
+              "kind": "http",
               "method": "PUT",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
               "parts": [
@@ -335,9 +347,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "update"
         }
       },
       "relations": {
@@ -437,10 +451,12 @@ class Config {
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   }
                 ]
               },
+              "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/forbid",
               "parts": [
@@ -463,7 +479,8 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             },
             {
               "active": true,
@@ -475,10 +492,12 @@ class Config {
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   }
                 ]
               },
+              "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/terraform",
               "parts": [
@@ -501,11 +520,13 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 1
             },
             {
               "active": true,
               "args": {},
+              "kind": "http",
               "method": "POST",
               "orig": "/api/planet",
               "parts": [
@@ -516,9 +537,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 2
             }
-          ]
+          ],
+          "key$": "create"
         },
         "list": {
           "input": "data",
@@ -527,6 +550,7 @@ class Config {
             {
               "active": true,
               "args": {},
+              "kind": "http",
               "method": "GET",
               "orig": "/api/planet",
               "parts": [
@@ -537,9 +561,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "list"
         },
         "load": {
           "input": "data",
@@ -555,10 +581,12 @@ class Config {
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   }
                 ]
               },
+              "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}",
               "parts": [
@@ -579,9 +607,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "load"
         },
         "remove": {
           "input": "data",
@@ -597,10 +627,12 @@ class Config {
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   }
                 ]
               },
+              "kind": "http",
               "method": "DELETE",
               "orig": "/api/planet/{planet_id}",
               "parts": [
@@ -621,9 +653,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "remove"
         },
         "update": {
           "input": "data",
@@ -639,10 +673,12 @@ class Config {
                     "name": "id",
                     "orig": "planet_id",
                     "reqd": true,
-                    "type": "`$STRING`"
+                    "type": "`$STRING`",
+                    "index$": 0
                   }
                 ]
               },
+              "kind": "http",
               "method": "PUT",
               "orig": "/api/planet/{planet_id}",
               "parts": [
@@ -663,9 +699,11 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "index$": 0
             }
-          ]
+          ],
+          "key$": "update"
         }
       },
       "relations": {

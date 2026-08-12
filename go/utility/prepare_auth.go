@@ -1,9 +1,9 @@
 package utility
 
 import (
-	vs "github.com/voxgig/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 
-	"voxgigsolardemosdk/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 const headerAuth = "authorization"
@@ -20,9 +20,23 @@ func prepareAuthUtil(ctx *core.Context) (*core.Spec, error) {
 	headers := spec.Headers
 	options := ctx.Client.OptionsMap()
 
+	// Public APIs that need no auth omit the options.auth block entirely.
+	if options["auth"] == nil {
+		delete(headers, headerAuth)
+		return spec, nil
+	}
+
 	apikey := vs.GetProp(options, optionApikey, notFound)
 
-	if apikeyStr, ok := apikey.(string); ok && apikeyStr == notFound {
+	skip := false
+	if apikey == nil {
+		skip = true
+	} else if apikeyStr, ok := apikey.(string); ok &&
+		(apikeyStr == notFound || apikeyStr == "") {
+		skip = true
+	}
+
+	if skip {
 		delete(headers, headerAuth)
 	} else {
 		authPrefix := ""
@@ -33,7 +47,12 @@ func prepareAuthUtil(ctx *core.Context) (*core.Spec, error) {
 		if av, ok := apikey.(string); ok {
 			apikeyVal = av
 		}
-		headers[headerAuth] = authPrefix + " " + apikeyVal
+		// Empty prefix (raw apiKey credential) must not add a leading space.
+		if authPrefix == "" {
+			headers[headerAuth] = apikeyVal
+		} else {
+			headers[headerAuth] = authPrefix + " " + apikeyVal
+		}
 	}
 
 	return spec, nil

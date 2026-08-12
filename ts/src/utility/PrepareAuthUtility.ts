@@ -30,13 +30,23 @@ function prepareAuth(ctx: Context): Spec | Error {
 
   const options = client.options()
 
+  // Public APIs that need no auth omit the options.auth block entirely.
+  if (null == options.auth) {
+    delprop(headers, HEADER_auth)
+    return spec
+  }
+
+  const prefix = options.auth.prefix
+
   const apikey = getprop(options, OPTION_apikey, NOTFOUND)
 
-  if (NOTFOUND === apikey) {
+  if (NOTFOUND === apikey || null == apikey || '' === apikey) {
     delprop(headers, HEADER_auth)
   }
   else {
-    setprop(headers, HEADER_auth, options.auth.prefix + ' ' + apikey)
+    // A raw credential (empty prefix, e.g. an apiKey scheme) must go in
+    // as-is; only a non-empty prefix (Bearer/Basic/OAuth) is space-joined.
+    setprop(headers, HEADER_auth, prefix ? prefix + ' ' + apikey : apikey)
   }
 
   return spec

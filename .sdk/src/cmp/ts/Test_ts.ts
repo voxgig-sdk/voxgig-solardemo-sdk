@@ -15,6 +15,8 @@ import { cmp, each, Folder } from '@voxgig/sdkgen'
 // import { TestMain } from './TestMain_ts'
 import { TestDirect } from './TestDirect_ts'
 import { TestEntity } from './TestEntity_ts'
+import { ReadmeExampleTest } from './ReadmeExampleTest_ts'
+import { ReadmeExamplesTest } from './ReadmeExamplesTest_ts'
 
 
 const Test = cmp(function Test(props: any) {
@@ -24,6 +26,9 @@ const Test = cmp(function Test(props: any) {
   Folder({ name: 'test' }, () => {
     // Quick({ target })
     // TestMain({ target })
+
+    ReadmeExampleTest({ target })
+    ReadmeExamplesTest({ target })
 
     Folder({ name: 'entity' }, () => {
       each(model.main[KIT].entity, (entity: ModelEntity) => {

@@ -1,14 +1,14 @@
-# Solardemo TypeScript SDK Reference
+# VoxgigSolardemo TypeScript SDK Reference
 
-Complete API reference for the Solardemo TypeScript SDK.
+Complete API reference for the VoxgigSolardemo TypeScript SDK.
 
 
-## SolardemoSDK
+## VoxgigSolardemoSDK
 
 ### Constructor
 
 ```ts
-new SolardemoSDK(options?: object)
+new VoxgigSolardemoSDK(options?: object)
 ```
 
 Create a new SDK client instance.
@@ -18,7 +18,6 @@ Create a new SDK client instance.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `object` | SDK configuration options. |
-| `options.apikey` | `string` | API key for authentication. |
 | `options.base` | `string` | Base URL for API requests. |
 | `options.prefix` | `string` | URL prefix appended after base. |
 | `options.suffix` | `string` | URL suffix appended after path. |
@@ -29,12 +28,12 @@ Create a new SDK client instance.
 
 ### Static Methods
 
-#### `SolardemoSDK.test(testopts?, sdkopts?)`
+#### `VoxgigSolardemoSDK.test(testopts?, sdkopts?)`
 
 Create a test client with mock features active.
 
 ```ts
-const client = SolardemoSDK.test()
+const client = VoxgigSolardemoSDK.test()
 ```
 
 **Parameters:**
@@ -44,7 +43,7 @@ const client = SolardemoSDK.test()
 | `testopts` | `object` | Test feature options. |
 | `sdkopts` | `object` | Additional SDK options merged with test defaults. |
 
-**Returns:** `SolardemoSDK` instance in test mode.
+**Returns:** `VoxgigSolardemoSDK` instance in test mode.
 
 
 ### Instance Methods
@@ -112,9 +111,9 @@ same parameters as `direct()`.
 
 #### `tester(testopts?, sdkopts?)`
 
-Alias for `SolardemoSDK.test()`.
+Alias for `VoxgigSolardemoSDK.test()`.
 
-**Returns:** `SolardemoSDK` instance in test mode.
+**Returns:** `VoxgigSolardemoSDK` instance in test mode.
 
 
 ---
@@ -125,6 +124,16 @@ Alias for `SolardemoSDK.test()`.
 const moon = client.Moon()
 ```
 
+### Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `diameter` | `number` | Yes |  |
+| `id` | `string` | Yes |  |
+| `kind` | `string` | Yes |  |
+| `name` | `string` | Yes |  |
+| `planet_id` | `string` | Yes |  |
+
 ### Operations
 
 #### `create(data: object, ctrl?: object)`
@@ -133,6 +142,11 @@ Create a new entity with the given data.
 
 ```ts
 const result = await client.Moon().create({
+  planet_id: 'example_planet_id',
+  diameter: 1,
+  id: 'example_id',
+  kind: 'example_kind',
+  name: 'example_name',
 })
 ```
 
@@ -149,7 +163,7 @@ const results = await client.Moon().list()
 Load a single entity matching the given criteria.
 
 ```ts
-const result = await client.Moon().load({ id: 'moon_id' })
+const result = await client.Moon().load({ id: 'moon_id', planet_id: 'planet_id' })
 ```
 
 #### `remove(match: object, ctrl?: object)`
@@ -157,7 +171,7 @@ const result = await client.Moon().load({ id: 'moon_id' })
 Remove the entity matching the given criteria.
 
 ```ts
-const result = await client.Moon().remove({ id: 'moon_id' })
+const result = await client.Moon().remove({ id: 'moon_id', planet_id: 'planet_id' })
 ```
 
 #### `update(data: object, ctrl?: object)`
@@ -167,6 +181,7 @@ Update an existing entity. The data must include the entity `id`.
 ```ts
 const result = await client.Moon().update({
   id: 'moon_id',
+  planet_id: 'planet_id',
   // Fields to update
 })
 ```
@@ -190,7 +205,7 @@ options.
 
 #### `client()`
 
-Return the parent `SolardemoSDK` instance.
+Return the parent `VoxgigSolardemoSDK` instance.
 
 #### `entopts()`
 
@@ -205,6 +220,21 @@ Return a copy of the entity options.
 const planet = client.Planet()
 ```
 
+### Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `diameter` | `number` | Yes |  |
+| `forbid` | `boolean` | No |  |
+| `id` | `string` | Yes |  |
+| `kind` | `string` | Yes |  |
+| `name` | `string` | Yes |  |
+| `ok` | `boolean` | No |  |
+| `start` | `boolean` | No |  |
+| `state` | `string` | No |  |
+| `stop` | `boolean` | No |  |
+| `why` | `string` | No |  |
+
 ### Operations
 
 #### `create(data: object, ctrl?: object)`
@@ -213,6 +243,10 @@ Create a new entity with the given data.
 
 ```ts
 const result = await client.Planet().create({
+  diameter: 1,
+  id: 'example_id',
+  kind: 'example_kind',
+  name: 'example_name',
 })
 ```
 
@@ -270,7 +304,7 @@ options.
 
 #### `client()`
 
-Return the parent `SolardemoSDK` instance.
+Return the parent `VoxgigSolardemoSDK` instance.
 
 #### `entopts()`
 
@@ -283,13 +317,13 @@ Return a copy of the entity options.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `test` | 0.0.1 | Test |
+| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
 Features are activated via the `feature` option:
 
 ```ts
-const client = new SolardemoSDK({
+const client = new VoxgigSolardemoSDK({
   feature: {
     test: { active: true },
   }

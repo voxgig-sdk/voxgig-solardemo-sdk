@@ -1,9 +1,25 @@
 # Report: Generating AI-Agent Docs from the `.sdk` Templates
 
-Date: 2026-06-08
-Scope: experimental work extending the `.sdk` generator to emit `AGENTS.md`
-files for AI coding agents, plus a record of developer-experience (DX)
-considerations and limitations discovered along the way.
+Date: 2026-06-08. **Re-verified 2026-08-12** (commit `fa9b672`).
+Scope: work extending the `.sdk` generator to emit `AGENTS.md` files for AI
+coding agents, plus a record of developer-experience (DX) considerations and
+limitations discovered along the way.
+
+> **Status: delivered, and survived the sdkgen 2.0.2 upgrade.** All four
+> components and all four generated files are present, and `npm run generate`
+> reproduces them without touching any other output.
+>
+> Most of the limitations recorded in sections 2 and 3 have since been fixed —
+> the Go module is now `go get`-able (2.1), and the README defects in 3.1
+> are resolved by 2.0.2's `packageMeta` helper and corrected `entity.fields`
+> reads. Live status is in
+> [REPORT-bugs-and-issues.md](REPORT-bugs-and-issues.md); one diagnosis (2.3)
+> was wrong and is corrected in place below.
+>
+> Note this report's own observation in 3.2 — no hook to register a custom
+> per-target component — is now the second half of a bigger problem: the manual
+> `Root.ts` dispatch it describes is one of three hand-repairs that
+> `voxgig-sdkgen target add` silently clobbers. See E9/E10 in the register.
 
 ---
 
@@ -46,6 +62,11 @@ output (verified: `ts`/`go` still build after regeneration).
 
 ### 2.1 Go module is not `go get`-able  (severity: high, consumer-facing)
 
+> **Fixed 2026-08-12.** `go/go.mod` now declares
+> `github.com/voxgig-sdk/voxgig-solardemo-sdk/go` and the inlined `struct`
+> package needs no external dependency. See D1/E9 in the register.
+
+
 `go/go.mod` declares module path `voxgigsolardemosdk` (no remote host) and uses
 a local `replace github.com/voxgig/struct => ./utility/struct`. Consequently:
 
@@ -77,6 +98,14 @@ auxiliary target (so its facts come from the model) or hand-maintain
 
 ### 2.3 Entity hierarchy is not available in the model  (severity: medium)
 
+> **Corrected 2026-08-12.** The hierarchy *is* in the model — under
+> `entity.relations.ancestors`, not `entity.ancestors`. `.sdk/model/sdk.json`
+> has `main.kit.entity.moon.relations.ancestors = [["planet"]]`. The real defect
+> is that `Top.ts` reads the wrong key, so this is a small generator fix rather
+> than a model gap. Tracked as **E2**. The rest of this section stands: the
+> path-based heuristic used in the agent docs still works and still picks
+> `Planet` correctly.
+
 Moon is nested under Planet (paths `/api/planet/{planet_id}/moon/...`), but
 `entity.ancestors` is empty in the model. Effects:
 
@@ -95,6 +124,12 @@ real relationships and let nested examples include the parent id automatically.
 ## 3. Developer-experience considerations discovered
 
 ### 3.1 Pre-existing doc bugs in the generated README (worth fixing)
+
+> **All three fixed 2026-08-12** by sdkgen 2.0.2 — `helpers/packageMeta.ts` is
+> now the single source of truth for the published package name, and the Readme
+> components read `entity.fields` and per-operation points correctly. See
+> C1–C4 in the register.
+
 
 While building model-driven tables I found the existing README generator is
 producing inaccurate docs:
@@ -165,7 +200,7 @@ of bug.
 ```bash
 cd .sdk
 npm install
-npm run build      # compile the generator (includes the new Agents components)
+npm run build      # compile the generator (includes the Agents components)
 npm run generate   # (re)writes AGENTS.md, ts/AGENTS.md, go/AGENTS.md, app/AGENTS.md
 ```
 
@@ -173,11 +208,18 @@ npm run generate   # (re)writes AGENTS.md, ts/AGENTS.md, go/AGENTS.md, app/AGENT
 
 ## 5. Suggested follow-ups (priority order)
 
-1. Make the Go module consumable (real module path + published/vendored `struct`).
-2. Fix the README generator to use the real package name and read `entity.fields`
-   / operation points (eliminates the broken install line and empty tables).
-3. Populate entity `ancestors` (or derive parent from paths) so hierarchy renders
-   in the mermaid diagram and nested examples are correct.
-4. Decide the ownership model for `app/` docs (model it, or hand-maintain).
-5. Add a generator affordance for registering custom per-target components and,
-   optionally, markdown template-master files.
+Re-checked 2026-08-12; none has been done. IDs refer to
+[REPORT-bugs-and-issues.md](REPORT-bugs-and-issues.md).
+
+1. Make the Go module consumable — real module path + published/vendored
+   `struct` (**D1**).
+2. Fix the README generator to use the real package name (**C1**) and read
+   `entity.fields` / operation points (**C2**, **C3**) — eliminates the broken
+   install line and the empty tables.
+3. ~~Populate entity `ancestors`~~ — instead, fix `Top.ts` to read
+   `entity.relations.ancestors`, which already exists, so the hierarchy renders
+   in the mermaid diagram and nested examples are correct (**E2**).
+4. Decide the ownership model for `app/` docs — model it, or hand-maintain
+   (**E4**).
+5. Add a generator affordance for registering custom per-target components
+   (**E3**) and, optionally, markdown template-master files (**E5**).

@@ -45,13 +45,28 @@ const node_assert_1 = __importDefault(require("node:assert"));
 const __1 = require("../../..");
 const utility_1 = require("../../utility");
 (0, node_test_1.describe)('PlanetEntity', async () => {
+    // Per-test live pacing. Delay is read from sdk-test-control.json's
+    // `test.live.delayMs`; only sleeps when VOXGIGSOLARDEMO_TEST_LIVE=TRUE.
+    (0, node_test_1.afterEach)((0, utility_1.liveDelay)('VOXGIGSOLARDEMO_TEST_LIVE'));
     (0, node_test_1.test)('instance', async () => {
-        const testsdk = __1.SolardemoSDK.test();
+        const testsdk = __1.VoxgigSolardemoSDK.test();
         const ent = testsdk.Planet();
         (0, node_assert_1.default)(null != ent);
     });
-    (0, node_test_1.test)('basic', async () => {
+    (0, node_test_1.test)('basic', async (t) => {
+        const live = 'TRUE' === process.env.VOXGIG_SOLARDEMO_TEST_LIVE;
+        for (const op of ['create', 'list', 'update', 'load', 'remove']) {
+            if ((0, utility_1.maybeSkipControl)(t, 'entityOp', 'planet.' + op, live))
+                return;
+        }
         const setup = basicSetup();
+        // The basic flow consumes synthetic IDs and field values from the
+        // fixture (entity TestData.json). Those don't exist on the live API.
+        // Skip live runs unless the user provided a real ENTID env override.
+        if (setup.syntheticOnly) {
+            t.skip('live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live');
+            return;
+        }
         const client = setup.client;
         const struct = setup.struct;
         const isempty = struct.isempty;
@@ -79,8 +94,7 @@ const utility_1 = require("../../utility");
         const planet_ref01_data_dt0 = await planet_ref01_ent.load(planet_ref01_match_dt0);
         (0, node_assert_1.default)(planet_ref01_data_dt0.id === planet_ref01_data.id);
         // REMOVE
-        const planet_ref01_match_rm0 = {};
-        planet_ref01_match_rm0.id = planet_ref01_data.id;
+        const planet_ref01_match_rm0 = { id: planet_ref01_data.id };
         await planet_ref01_ent.remove(planet_ref01_match_rm0);
         // LIST
         const planet_ref01_match_rt0 = {};
@@ -98,7 +112,7 @@ function basicSetup(extra) {
     // TODO: need a xlang JSON parse utility in voxgig/struct with better error msgs
     const entityData = JSON.parse(entityDataSource);
     options.entity = entityData.existing;
-    let client = __1.SolardemoSDK.test(options, extra);
+    let client = __1.VoxgigSolardemoSDK.test(options, extra);
     const struct = client.utility().struct;
     const merge = struct.merge;
     const transform = struct.transform;
@@ -108,18 +122,22 @@ function basicSetup(extra) {
                 '`$VAL`': ['`$FORMAT`', 'upper', '`$COPY`']
             }]
     });
+    // Detect whether the user provided a real ENTID JSON via env var. The
+    // basic flow consumes synthetic IDs from the fixture file; without an
+    // override those synthetic IDs reach the live API and 4xx. Surface this
+    // to the test so it can skip rather than fail.
+    const idmapEnvVal = process.env['VOXGIG_SOLARDEMO_TEST_PLANET_ENTID'];
+    const idmapOverridden = null != idmapEnvVal && idmapEnvVal.trim().startsWith('{');
     const env = (0, utility_1.envOverride)({
-        'SOLARDEMO_TEST_PLANET_ENTID': idmap,
-        'SOLARDEMO_TEST_LIVE': 'FALSE',
-        'SOLARDEMO_TEST_EXPLAIN': 'FALSE',
-        'SOLARDEMO_APIKEY': 'NONE',
+        'VOXGIG_SOLARDEMO_TEST_PLANET_ENTID': idmap,
+        'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
+        'VOXGIG_SOLARDEMO_TEST_EXPLAIN': 'FALSE',
     });
-    idmap = env['SOLARDEMO_TEST_PLANET_ENTID'];
-    if ('TRUE' === env.SOLARDEMO_TEST_LIVE) {
-        client = new __1.SolardemoSDK(merge([
-            {
-                apikey: env.SOLARDEMO_APIKEY,
-            },
+    idmap = env['VOXGIG_SOLARDEMO_TEST_PLANET_ENTID'];
+    const live = 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_LIVE;
+    if (live) {
+        client = new __1.VoxgigSolardemoSDK(merge([
+            {},
             extra
         ]));
     }
@@ -130,7 +148,9 @@ function basicSetup(extra) {
         client,
         struct,
         data: entityData,
-        explain: 'TRUE' === env.SOLARDEMO_TEST_EXPLAIN,
+        explain: 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_EXPLAIN,
+        live,
+        syntheticOnly: live && !idmapOverridden,
         now: Date.now(),
     };
     return setup;

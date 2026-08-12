@@ -1,2 +1,26 @@
+# clean(ctx, val) is the hook for stripping values before they leave the SDK.
+# The default implementation is deliberately a pass-through — these cases pin
+# that contract, so a target that starts mutating or dropping values fails
+# here rather than silently changing what callers receive.
+#
+# args: [ ctx, val ] — the runner builds ctx from args[0] and passes args[1].
 
-basic: set: []
+basic: set: [
+
+  { args: [ {}, 'text' ], out: 'text' }
+
+  { args: [ {}, 1 ], out: 1 }
+
+  { args: [ {}, true ], out: true }
+
+  # Empty string is preserved, not normalised away.
+  { args: [ {}, '' ], out: '' }
+
+  # Structures pass through whole, including nested values.
+  { args: [ {}, { id: 'p01', name: 'Mars' } ], out: { id: 'p01', name: 'Mars' } }
+
+  { args: [ {}, ['a', 'b'] ], out: ['a', 'b'] }
+
+  { args: [ {}, {} ], out: {} }
+
+]

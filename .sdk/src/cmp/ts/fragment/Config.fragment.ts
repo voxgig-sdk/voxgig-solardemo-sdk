@@ -19,7 +19,7 @@ class Config {
 
 
   main = {
-    name: 'ProjectName',
+    name: '$$const.Name$$',
   }
 
 
@@ -29,13 +29,9 @@ class Config {
 
 
   options = {
-    base: 'http://localhost:8901',
+    base: '$$main.kit.info.servers.0.url$$',
 
-    auth: {
-      prefix: 'Bearer',
-    },
-
-    headers: 'HEADERS',
+    'SERVERBLOCK''AUTHBLOCK'headers: 'HEADERS',
 
     entity: {
       // #EntityConfigs

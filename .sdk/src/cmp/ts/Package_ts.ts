@@ -5,6 +5,12 @@ import {
   cmp,
   each,
   omap,
+  packageName,
+  pkgDescription,
+  keywords,
+  repoInfo,
+  PUBLISHER,
+  PUBLISHER_URL,
 } from '@voxgig/sdkgen'
 
 
@@ -43,31 +49,55 @@ const Package = cmp(async function Package(props: any) {
           dev: only('dev', target.deps),
         })
 
-  const sdkname = model.name
   const SdkName = nom(model, 'Name')
-  const origin = null == model.origin ? '' : `@${model.origin}/`
-  const sdknamesuffix = model.origin?.endsWith('-sdk') ? '' : '-sdk'
+  const { repoUrl, issuesUrl } = repoInfo(model)
 
-  // TODO: complete SDK meta data in model and use here
   const pkg = {
-    name: `${origin}${sdkname}${sdknamesuffix}`,
+    name: packageName(model, 'npm'),
     version: `0.0.1`,
-    description: 'DESCRIPTION',
+    description: pkgDescription(model, target.name),
+    keywords: keywords(model),
+    homepage: `${repoUrl}#readme`,
+    repository: { type: 'git', url: `git+${repoUrl}.git` },
+    bugs: { url: issuesUrl },
     main: `dist/${SdkName}SDK.js`,
     type: 'commonjs',
     types: `dist/${SdkName}SDK.d.ts`,
     scripts: {
-      'test': 'node --enable-source-maps --test \'dist-test/**/*.test.js\'',
+      // `test` and `test-coverage` run the COMPILED suite in dist-test/, which
+      // a fresh clone does not have — the glob then matches nothing and the
+      // run reports "tests 0, pass 0, fail 0" and exits 0. A green suite that
+      // asserted nothing is worse than a red one, so build first. npm runs a
+      // `pre<script>` automatically, which keeps the test commands readable
+      // and cannot be forgotten by a caller invoking `npm test` directly.
+      'pretest': 'npm run build',
+      'test': 'node --enable-source-maps --test-concurrency=1 --test \'dist-test/**/*.test.js\'',
       'test-some': 'node --enable-source-maps --experimental-test-isolation=none ' +
         '--test-name-pattern=\"$TEST_PATTERN\" --test \'dist-test/**/*.test.js\'',
       'test-utility': 'node --enable-source-maps --test test/utility/*.test.ts',
 
+      // Coverage gate. Runs the same suite with V8 coverage (no source-maps,
+      // so figures reflect true executed statements) over the SDK source
+      // only (test files excluded) and fails when coverage drops below the
+      // floor — protecting the runtime, utilities and features from silent
+      // regressions. Thresholds are a conservative floor (well under a
+      // healthy SDK's ~92% lines) so they hold across API shapes; raise them
+      // for a stricter local policy.
+      'pretest-coverage': 'npm run build',
+      'test-coverage': 'node --test-concurrency=1 --experimental-test-coverage ' +
+        '--test-coverage-exclude=\'**/dist-test/**\' ' +
+        '--test-coverage-lines=85 --test-coverage-branches=68 --test-coverage-functions=88 ' +
+        '--test \'dist-test/**/*.test.js\'',
+
       "watch": "tsc --build src test -w",
-      "build": "tsc --build src test",
-      "clean": "rm -rf node_modules yarn.lock package-lock.json",
+      // Prune compiled output before building: `tsc --build` is incremental and
+      // never deletes .js for a removed source, so entity tests that the model
+      // folds away would otherwise keep running from stale dist-test/ and fail.
+      "build": "rm -rf dist dist-test && tsc --build src test",
+      "clean": "rm -rf node_modules yarn.lock package-lock.json dist dist-test",
       "reset": "npm run clean && npm i && npm run build && npm test",
     },
-    author: `${SdkName}`,
+    author: { name: PUBLISHER, url: PUBLISHER_URL },
 
     // TODO: needs to be config
     license: 'MIT',

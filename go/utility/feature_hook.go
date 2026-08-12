@@ -3,7 +3,7 @@ package utility
 import (
 	"reflect"
 
-	"voxgigsolardemosdk/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 func featureHookUtil(ctx *core.Context, name string) {

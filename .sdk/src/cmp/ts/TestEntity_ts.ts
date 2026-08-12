@@ -29,6 +29,8 @@ import {
   Slot,
   cmp,
   each,
+  isAuthActive,
+  entityDataIdField,
 } from '@voxgig/sdkgen'
 
 
@@ -37,19 +39,38 @@ import {
 } from './utility_ts'
 
 
-type OpGen = (model: any, entity: any, flow: any, step: any, index: { key$: number, val$: any }) => void
+// GenCtx is the per-language generation context passed to every OpGen.
+// Languages with extra needs (Go's `gomodule`, PHP's `accessor`) extend
+// this shape locally. The signature `(ctx, step, index)` is now uniform
+// across all seven language tracks (Phase 1 of the templates refactor).
+type GenCtx = {
+  model: Model
+  entity: ModelEntity
+  flow: ModelEntityFlow
+  PROJUPPER: string
+}
+
+type OpGen = (ctx: GenCtx, step: ModelEntityFlowStep, index: number) => void
 
 
 const TestEntity = cmp(function TestEntity(props: any) {
   const ctx$ = props.ctx$
-  const model = ctx$.model
+  const model: Model = ctx$.model
   const stdrep = ctx$.stdrep
 
   const target = props.target
-  const entity = props.entity
+  const entity: ModelEntity = props.entity
 
   const PROJENVNAME = nom(model.const, 'NAME').replace(/[^A-Z_]/g, '_')
   const ENTENVNAME = nom(entity, 'NAME').replace(/[^A-Z_]/g, '_')
+  const authActive = isAuthActive(model)
+  const apikeyEnvEntry = authActive
+    ? `\n    '${PROJENVNAME}_APIKEY': 'NONE',`
+    : ''
+  const apikeyLiveField = authActive
+    ? `
+        apikey: env.${PROJENVNAME}_APIKEY,`
+    : ''
 
   // TODO: should be a utility function
   const ff = projectPath('src/cmp/ts/fragment/')
@@ -63,11 +84,13 @@ const TestEntity = cmp(function TestEntity(props: any) {
         replace: {
           SdkName: nom(model.const, 'Name'),
           EntityName: nom(entity, 'Name'),
+          entityname: entity.name,
+          PROJECTNAME: PROJENVNAME,
           ...stdrep,
         }
       }, () => {
 
-        const basicflow = getModelPath(model, `main.${KIT}.flow.Basic${entity.Name}Flow`)
+        const basicflow = getModelPath(model, `main.${KIT}.flow.Basic${nom(entity, 'Name')}Flow`)
 
         const dobasic = basicflow && true === basicflow.active
 
@@ -120,19 +143,26 @@ function basicSetup(extra?: any) {
       }]
     })
 
+  // Detect whether the user provided a real ENTID JSON via env var. The
+  // basic flow consumes synthetic IDs from the fixture file; without an
+  // override those synthetic IDs reach the live API and 4xx. Surface this
+  // to the test so it can skip rather than fail.
+  const idmapEnvVal = process.env['${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID']
+  const idmapOverridden = null != idmapEnvVal && idmapEnvVal.trim().startsWith('{')
+
   const env = envOverride({
     '${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID': idmap,
     '${PROJENVNAME}_TEST_LIVE': 'FALSE',
-    '${PROJENVNAME}_TEST_EXPLAIN': 'FALSE',
-    '${PROJENVNAME}_APIKEY': 'NONE',
+    '${PROJENVNAME}_TEST_EXPLAIN': 'FALSE',${apikeyEnvEntry}
   })
 
   idmap = env['${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID']
 
-  if ('TRUE' === env.${PROJENVNAME}_TEST_LIVE) {
+  const live = 'TRUE' === env.${PROJENVNAME}_TEST_LIVE
+
+  if (live) {
     client = new ${model.Name}SDK(merge([
-      {
-        apikey: env.${PROJENVNAME}_APIKEY,
+      {${apikeyLiveField}
       },
       extra
     ]))
@@ -146,6 +176,8 @@ function basicSetup(extra?: any) {
     struct,
     data: entityData,
     explain: 'TRUE' === env.${PROJENVNAME}_TEST_EXPLAIN,
+    live,
+    syntheticOnly: live && !idmapOverridden,
     now: Date.now(),
   }
 
@@ -160,8 +192,30 @@ function basicSetup(extra?: any) {
             (s: any) => s.op === 'create'
           )
 
+          // The basic test exercises a flow with one or more ops (load,
+          // list, create, update, remove, ...). The control file lets users
+          // skip per-op for an entity. Since the flow is sequential and
+          // dependent (e.g. update needs prior load), skipping ANY op the
+          // flow exercises skips the whole basic test.
+          const flowOps = Array.from(new Set(
+            (basicflow.step as any[]).map((s: any) => s.op).filter(Boolean)
+          ))
+          const flowOpsLiteral = '[' + flowOps.map((o: any) => `'${o}'`).join(', ') + ']'
+
           Content(`
+    const live = 'TRUE' === process.env.${PROJENVNAME}_TEST_LIVE
+    for (const op of ${flowOpsLiteral}) {
+      if (maybeSkipControl(t, 'entityOp', '${entity.name}.' + op, live)) return
+    }
+
     const setup = basicSetup()
+    // The basic flow consumes synthetic IDs and field values from the
+    // fixture (entity TestData.json). Those don't exist on the live API.
+    // Skip live runs unless the user provided a real ENTID env override.
+    if (setup.syntheticOnly) {
+      t.skip('live entity test uses synthetic IDs from fixture — set ${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID JSON to run live')
+      return
+    }
     const client = setup.client
     const struct = setup.struct
 
@@ -179,10 +233,23 @@ function basicSetup(extra?: any) {
 `)
           }
 
-          each(basicflow.step, (step: any, index: any) => {
-            const opgen: OpGen = GENERATE_OP[step.op]
-            opgen(model, entity, basicflow, step, index)
-            Content('\n')
+          const genCtx: GenCtx = {
+            model, entity, flow: basicflow, PROJUPPER: PROJENVNAME,
+          }
+          each(basicflow.step, (step: ModelEntityFlowStep, index: number) => {
+            // Never emit a REMOVE (or its removed-item verify LIST) without a
+            // preceding CREATE: a coherent CRUD flow only removes what it made,
+            // so a create-less remove would mutate pre-existing (live) data.
+            if (!flowHasCreate) {
+              if ('remove' === step.op) { return }
+              if ('list' === step.op &&
+                (step.valid || []).some((v: any) => 'ItemNotExists' === v.apply)) { return }
+            }
+            const opgen = GENERATE_OP[step.op]
+            if (null != opgen) {
+              opgen(genCtx, step, index)
+              Content('\n')
+            }
           })
         })
       })
@@ -191,25 +258,20 @@ function basicSetup(extra?: any) {
 })
 
 
-const generateCreate: OpGen = (
-  model: Model,
-  entity: ModelEntity,
-  flow: ModelEntityFlow,
-  step: ModelEntityFlowStep,
-  index: any
-) => {
+const generateCreate: OpGen = (ctx, step, index) => {
+  const { entity, flow } = ctx
   const ref = step.input.ref ?? entity.name + '_ref01'
   const entvar = step.input.entvar ?? ref + '_ent'
   const datavar = step.input.datavar ?? (ref + '_data' + (step.input.suffix ?? ''))
 
-  const priorSteps = Object.values(flow.step).slice(0, Number(index))
-  const needsEnt = !priorSteps.some((s: any) =>
+  const priorSteps = flow.step.slice(0, Number(index))
+  const needsEnt = !priorSteps.some(s =>
     ['create', 'list', 'load', 'update', 'remove'].includes(s.op))
 
-  const hasDatvar = priorSteps.some((s: any) => {
+  const hasDatvar = priorSteps.some(s => {
     if ('create' === s.op) {
-      const priorRef = s.input?.ref ?? entity.name + '_ref01'
-      const priorDatvar = s.input?.datavar ?? (priorRef + '_data' + (s.input?.suffix ?? ''))
+      const priorRef = s.input.ref ?? entity.name + '_ref01'
+      const priorDatvar = s.input.datavar ?? (priorRef + '_data' + (s.input.suffix ?? ''))
       return priorDatvar === datavar
     }
     return false
@@ -235,27 +297,32 @@ const generateCreate: OpGen = (
 `)
   })
 
+  const hasEntIdC = null != entity.id
+
   Content(`
     ${datavar} = await ${entvar}.create(${datavar})
-    assert(null != ${datavar}.id)
 `)
+  if (hasEntIdC) {
+    Content(`    assert(null != ${datavar}.id)
+`)
+  }
+  else {
+    Content(`    assert(null != ${datavar})
+`)
+  }
 }
 
 
-const generateList: OpGen = (
-  model: Model,
-  entity: ModelEntity,
-  flow: ModelEntityFlow,
-  step: ModelEntityFlowStep,
-  index: any
-) => {
+const generateList: OpGen = (ctx, step, index) => {
+  const { entity, flow } = ctx
+  const hasDataId = null != entityDataIdField(entity)
   const ref = step.input.ref ?? entity.name + '_ref01'
   const entvar = step.input.entvar ?? ref + '_ent'
   const matchvar = step.input.matchvar ?? (ref + '_match' + (step.input.suffix ?? ''))
   const listvar = step.input.listvar ?? (ref + '_list' + (step.input.suffix ?? ''))
 
-  const priorSteps = Object.values(flow.step).slice(0, Number(index))
-  const needsEnt = !priorSteps.some((s: any) =>
+  const priorSteps = flow.step.slice(0, Number(index))
+  const needsEnt = !priorSteps.some(s =>
     ['create', 'list', 'load', 'update', 'remove'].includes(s.op))
 
   Content(`
@@ -276,19 +343,25 @@ const generateList: OpGen = (
   Content(`
     const ${listvar} = await ${entvar}.list(${matchvar})
 `)
-  const allSteps = Object.values(flow.step)
+  const allSteps = flow.step
   for (let vI = 0; vI < step.valid.length; vI++) {
     const validator = step.valid[vI]
     const validRef = validator.def?.ref
-    const hasRefData = validRef && allSteps.some((s: any) => 'create' === s.op &&
-      ((s.input?.ref ?? entity.name + '_ref01') === validRef))
+    const hasRefData = validRef && allSteps.some(s => 'create' === s.op &&
+      ((s.input.ref ?? entity.name + '_ref01') === validRef))
 
-    if ('ItemExists' === validator.apply && hasRefData) {
+    // Guard on a DATA id field (entityDataIdField), NOT entity.id (the load-MATCH
+    // key): an entity can have a match id in its path while its RESPONSE record
+    // has no `id` field (e.g. Multichannel's Template — data fields meta/status/…,
+    // no id). Then `${validRef}_data.id` is undefined and select(list, { id:
+    // undefined }) spuriously matches id-less records, so ItemExists/ItemNotExists
+    // are meaningless. Emit them only when `.id` is a real data field.
+    if ('ItemExists' === validator.apply && hasRefData && hasDataId) {
       Content(`
     assert(!isempty(select(${listvar}, { id: ${validRef}_data.id })))
 `)
     }
-    else if ('ItemNotExists' === validator.apply && hasRefData) {
+    else if ('ItemNotExists' === validator.apply && hasRefData && hasDataId) {
       Content(`
     assert(isempty(select(${listvar}, { id: ${validRef}_data.id })))
 `)
@@ -297,13 +370,8 @@ const generateList: OpGen = (
 }
 
 
-const generateUpdate: OpGen = (
-  model: Model,
-  entity: ModelEntity,
-  flow: ModelEntityFlow,
-  step: ModelEntityFlowStep,
-  index: any
-) => {
+const generateUpdate: OpGen = (ctx, step, index) => {
+  const { entity, flow } = ctx
   const ref = step.input.ref ?? entity.name + '_ref01'
   const entvar = step.input.entvar ?? ref + '_ent'
   const datavar = step.input.datavar ?? (ref + '_data' + (step.input.suffix ?? ''))
@@ -311,9 +379,11 @@ const generateUpdate: OpGen = (
   const markdefvar = step.input.markdefvar ?? (ref + '_markdef' + (step.input.suffix ?? ''))
   const srcdatavar = step.input.srcdatavar ?? (ref + '_data' + (step.input.suffix ?? ''))
 
-  const priorSteps = Object.values(flow.step).slice(0, Number(index))
-  const needsEnt = !priorSteps.some((s: any) =>
+  const priorSteps = flow.step.slice(0, Number(index))
+  const needsEnt = !priorSteps.some(s =>
     ['create', 'list', 'load', 'update', 'remove'].includes(s.op))
+
+  const hasEntIdU = null != entity.id
 
   Content(`
     // UPDATE
@@ -323,8 +393,11 @@ const generateUpdate: OpGen = (
 `)
   }
   Content(`    const ${datavar}: any = {}
-    ${datavar}.id = ${srcdatavar}.id
 `)
+  if (hasEntIdU) {
+    Content(`    ${datavar}.id = ${srcdatavar}.id
+`)
+  }
 
   each(step.data, (mi: any) => {
     if ('id' !== mi.key$) {
@@ -341,21 +414,28 @@ const generateUpdate: OpGen = (
       const fieldvalue = spec.def.mark
       Content(`
     const ${markdefvar} = { name: '${fieldname}', value: '${fieldvalue}_' + setup.now }
-    ${datavar} [${markdefvar}.name] = ${markdefvar}.value
+    ;(${datavar} as any)[${markdefvar}.name] = ${markdefvar}.value
 `)
     }
   }
 
   Content(`
     const ${resdatavar} = await ${entvar}.update(${datavar})
-    assert(${resdatavar}.id === ${datavar}.id)
 `)
+  if (hasEntIdU) {
+    Content(`    assert(${resdatavar}.id === ${datavar}.id)
+`)
+  }
+  else {
+    Content(`    assert(null != ${resdatavar})
+`)
+  }
 
   for (let sI = 0; sI < step.spec.length; sI++) {
     const spec = step.spec[sI]
     if ('TextFieldMark' === spec.apply && null != step.input.textfield) {
       Content(`
-    assert(${resdatavar}[${markdefvar}.name] === ${markdefvar}.value)
+    assert((${resdatavar} as any)[${markdefvar}.name] === ${markdefvar}.value)
 `)
     }
   }
@@ -363,36 +443,56 @@ const generateUpdate: OpGen = (
 }
 
 
-const generateLoad: OpGen = (
-  model: Model,
-  entity: ModelEntity,
-  flow: ModelEntityFlow,
-  step: ModelEntityFlowStep,
-  index: any
-) => {
+const generateLoad: OpGen = (ctx, step, index) => {
+  const { entity, flow } = ctx
   const ref = step.input.ref ?? entity.name + '_ref01'
   const entvar = step.input.entvar ?? ref + '_ent'
   const matchvar = step.input.matchvar ?? (ref + '_match' + (step.input.suffix ?? ''))
   const datavar = step.input.datavar ?? (ref + '_data' + (step.input.suffix ?? ''))
   const srcdatavar = step.input.srcdatavar ?? (ref + '_data' + (step.input.suffix ?? ''))
 
-  const priorSteps = Object.values(flow.step).slice(0, Number(index))
-  const hasEntVar = priorSteps.some((s: any) =>
+  const priorSteps = flow.step.slice(0, Number(index))
+  const hasEntVar = priorSteps.some(s =>
     ['create', 'list', 'load', 'update', 'remove'].includes(s.op))
 
   // Check if srcdatavar was declared by a prior create step or by the
   // preamble bootstrap (which runs when the flow has no create step)
-  const flowHasCreate = Object.values(flow.step).some((s: any) => s.op === 'create')
+  const flowHasCreate = flow.step.some(s => s.op === 'create')
   const preambleRef = entity.name + '_ref01'
   const hasSrcData = (!flowHasCreate && srcdatavar === preambleRef + '_data') ||
-    priorSteps.some((s: any) => {
+    priorSteps.some(s => {
       if ('create' === s.op) {
-        const priorRef = s.input?.ref ?? entity.name + '_ref01'
-        const priorDatvar = s.input?.datavar ?? (priorRef + '_data' + (s.input?.suffix ?? ''))
+        const priorRef = s.input.ref ?? entity.name + '_ref01'
+        const priorDatvar = s.input.datavar ?? (priorRef + '_data' + (s.input.suffix ?? ''))
         return priorDatvar === srcdatavar
       }
       return false
     })
+
+  const hasEntId = null != entity.id
+
+  // When the entity has no id model field but the load operation requires
+  // path parameters (e.g. cotizacion needs {casa}/{fecha}), calling
+  // load({}) leaves the URL with literal {param} placeholders and the live
+  // API returns 404 HTML, which the SDK then fails to parse as JSON. There
+  // is no synthetic identifier to substitute, so skip emitting the load
+  // step's call in that case — but still declare the entity-var if no
+  // prior step has, so that later flow steps (e.g. remove) referencing
+  // ${entvar} compile.
+  const loadOp = entity.op?.load
+  const loadPoint = loadOp?.points?.[0]
+  const loadPathParams = loadPoint?.args?.params || []
+  const loadHasRequiredParams = loadPathParams.some((p: any) => p.reqd !== false)
+  if (!hasEntId && loadHasRequiredParams) {
+    if (!hasEntVar) {
+      Content(`
+    // LOAD: skipped — no entity id field and load requires path params.
+    // Entity-var is declared here so later flow steps still compile.
+    const ${entvar} = client.${nom(entity, 'Name')}()
+`)
+    }
+    return
+  }
 
   Content(`
     // LOAD
@@ -401,34 +501,45 @@ const generateLoad: OpGen = (
     Content(`    const ${entvar} = client.${nom(entity, 'Name')}()
 `)
   }
-  if (!hasSrcData) {
+  if (!hasSrcData && hasEntId) {
     Content(`    const ${srcdatavar} = Object.values(setup.data.existing.${entity.name})[0] as any
 `)
   }
-  Content(`    const ${matchvar}: any = {}
+  if (hasEntId) {
+    Content(`    const ${matchvar}: any = {}
     ${matchvar}.id = ${srcdatavar}.id
     const ${datavar} = await ${entvar}.load(${matchvar})
     assert(${datavar}.id === ${srcdatavar}.id)
 `)
+  }
+  else {
+    Content(`    const ${matchvar}: any = {}
+    const ${datavar} = await ${entvar}.load(${matchvar})
+    assert(null != ${datavar})
+`)
+  }
 }
 
 
-const generateRemove: OpGen = (
-  model: Model,
-  entity: ModelEntity,
-  flow: ModelEntityFlow,
-  step: ModelEntityFlowStep,
-  index: any
-) => {
+const generateRemove: OpGen = (ctx, step, index) => {
+  const { entity, flow } = ctx
   const ref = step.input.ref ?? entity.name + '_ref01'
   const entvar = step.input.entvar ?? ref + '_ent'
   const matchvar = step.input.matchvar ?? (ref + '_match' + (step.input.suffix ?? ''))
   const srcdatavar = step.input.srcdatavar ?? (ref + '_data')
 
-  const priorSteps = Object.values(flow.step).slice(0, Number(index))
-  const needsEnt = !priorSteps.some((s: any) =>
+  const priorSteps = flow.step.slice(0, Number(index))
+  const needsEnt = !priorSteps.some(s =>
     ['create', 'list', 'load', 'update', 'remove'].includes(s.op))
 
+  // "Remove what you created" needs the created record's id. An entity with
+  // no DATA id field (entityDataIdField null — e.g. Multichannel's Template)
+  // returns records without `.id`, so `${srcdatavar}.id` is absent (a py
+  // KeyError; a silent nil elsewhere). Skip the flow-remove step for those —
+  // the remove op is still exercised by the direct() test.
+  if (null == entityDataIdField(entity)) {
+    return
+  }
   Content(`
     // REMOVE
 `)
@@ -436,8 +547,10 @@ const generateRemove: OpGen = (
     Content(`    const ${entvar} = client.${nom(entity, 'Name')}()
 `)
   }
-  Content(`    const ${matchvar}: any = {}
-    ${matchvar}.id = ${srcdatavar}.id
+  // Always match the prior-created entity by id. The mock test feature
+  // removes the first match in entmap, so without a specific id the
+  // result depends on hash-sort order and flakes (see cheapshark).
+  Content(`    const ${matchvar}: any = { id: ${srcdatavar}.id }
     await ${entvar}.remove(${matchvar})
   `)
 }

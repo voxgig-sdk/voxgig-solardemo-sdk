@@ -12,7 +12,7 @@ type Context struct {
 	Out      map[string]any
 	Ctrl     *Control
 	Meta     map[string]any
-	Client   *SolardemoSDK
+	Client   *VoxgigSolardemoSDK
 	Utility  *Utility
 	Op       *Operation
 	Point    map[string]any
@@ -39,7 +39,7 @@ func NewContext(ctxmap map[string]any, basectx *Context) *Context {
 
 	// Client
 	if c := getCtxProp(ctxmap, "client"); c != nil {
-		if sdk, ok := c.(*SolardemoSDK); ok {
+		if sdk, ok := c.(*VoxgigSolardemoSDK); ok {
 			ctx.Client = sdk
 		}
 	}
@@ -69,6 +69,16 @@ func NewContext(ctxmap map[string]any, basectx *Context) *Context {
 			if e, ok := cm["explain"]; ok {
 				if em, ok := e.(map[string]any); ok {
 					ctx.Ctrl.Explain = em
+				}
+			}
+			if a, ok := cm["actor"]; ok {
+				if as, ok := a.(string); ok {
+					ctx.Ctrl.Actor = as
+				}
+			}
+			if p, ok := cm["paging"]; ok {
+				if pm, ok := p.(map[string]any); ok {
+					ctx.Ctrl.Paging = pm
 				}
 			}
 		} else if ctrl, ok := c.(*Control); ok {
@@ -217,17 +227,22 @@ func NewContext(ctxmap map[string]any, basectx *Context) *Context {
 }
 
 func (ctx *Context) resolveOp(opname string) *Operation {
-	if op, ok := ctx.Opmap[opname]; ok && op != nil {
+	// Cache key is `<entity>:<opname>` so two entities with the same op
+	// (e.g. both have a "list") get distinct cached Operations. Keying on
+	// opname alone caused the first-resolved entity's points to be served
+	// to every subsequent entity's call.
+	entname := ""
+	if ctx.Entity != nil {
+		entname = ctx.Entity.GetName()
+	}
+	cacheKey := entname + ":" + opname
+
+	if op, ok := ctx.Opmap[cacheKey]; ok && op != nil {
 		return op
 	}
 
 	if opname == "" {
 		return NewOperation(map[string]any{})
-	}
-
-	entname := ""
-	if ctx.Entity != nil {
-		entname = ctx.Entity.GetName()
 	}
 
 	opcfg := vs.GetPath([]any{"entity", entname, "op", opname}, ctx.Config)
@@ -258,10 +273,10 @@ func (ctx *Context) resolveOp(opname string) *Operation {
 		"points": targets,
 	})
 
-	ctx.Opmap[opname] = op
+	ctx.Opmap[cacheKey] = op
 	return op
 }
 
-func (ctx *Context) MakeError(code string, msg string) *SolardemoError {
-	return NewSolardemoError(code, msg, ctx)
+func (ctx *Context) MakeError(code string, msg string) *VoxgigSolardemoError {
+	return NewVoxgigSolardemoError(code, msg, ctx)
 }

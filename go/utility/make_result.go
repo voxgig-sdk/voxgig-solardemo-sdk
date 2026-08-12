@@ -1,6 +1,6 @@
 package utility
 
-import "voxgigsolardemosdk/core"
+import "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 
 func makeResultUtil(ctx *core.Context) (*core.Result, error) {
 	if ctx.Out["result"] != nil {

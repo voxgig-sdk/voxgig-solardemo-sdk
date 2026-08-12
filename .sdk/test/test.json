@@ -40,7 +40,69 @@
     },
     "clean": {
       "basic": {
-        "set": []
+        "set": [
+          {
+            "args": [
+              {},
+              "text"
+            ],
+            "out": "text"
+          },
+          {
+            "args": [
+              {},
+              1
+            ],
+            "out": 1
+          },
+          {
+            "args": [
+              {},
+              true
+            ],
+            "out": true
+          },
+          {
+            "args": [
+              {},
+              ""
+            ],
+            "out": ""
+          },
+          {
+            "args": [
+              {},
+              {
+                "id": "p01",
+                "name": "Mars"
+              }
+            ],
+            "out": {
+              "id": "p01",
+              "name": "Mars"
+            }
+          },
+          {
+            "args": [
+              {},
+              [
+                "a",
+                "b"
+              ]
+            ],
+            "out": [
+              "a",
+              "b"
+            ]
+          },
+          {
+            "args": [
+              {},
+              {}
+            ],
+            "out": {}
+          }
+        ]
       }
     },
     "done": {
@@ -634,7 +696,7 @@
               "ctx": {
                 "spec": {
                   "headers": {
-                    "authorization": " APIKEY01"
+                    "authorization": "APIKEY01"
                   }
                 }
               }
@@ -842,7 +904,73 @@
     },
     "preparePath": {
       "basic": {
-        "set": []
+        "set": [
+          {
+            "ctx": {
+              "point": {
+                "parts": [
+                  "api",
+                  "planet"
+                ]
+              }
+            },
+            "out": "api/planet"
+          },
+          {
+            "ctx": {
+              "point": {
+                "parts": [
+                  "api"
+                ]
+              }
+            },
+            "out": "api"
+          },
+          {
+            "ctx": {
+              "point": {
+                "parts": [
+                  "api",
+                  "",
+                  "planet"
+                ]
+              }
+            },
+            "out": "api/planet"
+          },
+          {
+            "ctx": {
+              "point": {
+                "parts": [
+                  "api/",
+                  "/planet"
+                ]
+              }
+            },
+            "out": "api/planet"
+          },
+          {
+            "ctx": {
+              "point": {
+                "parts": [
+                  "api",
+                  "planet",
+                  "p01",
+                  "moon"
+                ]
+              }
+            },
+            "out": "api/planet/p01/moon"
+          },
+          {
+            "ctx": {
+              "point": {
+                "parts": []
+              }
+            },
+            "out": ""
+          }
+        ]
       }
     },
     "prepareQuery": {

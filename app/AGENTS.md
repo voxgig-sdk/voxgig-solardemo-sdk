@@ -1,6 +1,6 @@
-# AGENTS.md — Solardemo test/reference server
+# AGENTS.md — VoxgigSolardemo test/reference server
 
-A standalone REST server implementing the Solardemo API. Use it as a local
+A standalone REST server implementing the VoxgigSolardemo API. Use it as a local
 target when developing or validating the SDKs.
 
 It is **independent of the SDKs** and not required to use them — the SDK

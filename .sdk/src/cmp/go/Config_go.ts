@@ -9,6 +9,9 @@ import {
   Line,
   cmp,
   each,
+  isAuthActive,
+  resolveAuthPrefix,
+  serverVariables,
 } from '@voxgig/sdkgen'
 
 
@@ -23,6 +26,7 @@ import {
 import {
   clean,
   formatGoMap,
+  goFeatureName,
 } from './utility_go'
 
 
@@ -36,8 +40,27 @@ const Config = cmp(async function Config(props: any) {
   const feature = getModelPath(model, `main.${KIT}.feature`)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
-  const authPrefix = getModelPath(model, `main.${KIT}.config.auth.prefix`)
-  const baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`)
+
+  const authActive = isAuthActive(model)
+  // config.auth.prefix override -> spec-derived info.security.prefix -> 'Bearer'
+  const authPrefix = resolveAuthPrefix(model)
+
+  let baseUrl = ''
+  try { baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`) } catch (_e) { }
+
+  // Templated server URL: emit the spec's server-variable defaults so the
+  // runtime can substitute {name} placeholders in base (see make_options).
+  const svars = serverVariables(model)
+  const serverBlock = 0 === svars.length ? '' :
+    '\t\t\t"server": map[string]any{\n' +
+    svars.map((v: any) => `\t\t\t\t${JSON.stringify(v.name)}: ${JSON.stringify(v.dflt)},\n`).join('') +
+    '\t\t\t},\n'
+
+  const authBlock = authActive
+    ? `			"auth": map[string]any{
+				"prefix": "${authPrefix}",
+			},\n`
+    : ''
 
   // Config is now in core/ package
   File({ name: 'config.' + target.ext }, () => {
@@ -63,10 +86,7 @@ const Config = cmp(async function Config(props: any) {
     Content(`		},
 		"options": map[string]any{
 			"base": "${baseUrl}",
-			"auth": map[string]any{
-				"prefix": "${authPrefix}",
-			},
-			"headers": ${formatGoMap(headers, 3)},
+${serverBlock}${authBlock}			"headers": ${formatGoMap(headers, 3)},
 			"entity": map[string]any{
 `)
 
@@ -92,7 +112,9 @@ func makeFeature(name string) Feature {
 `)
 
     each(feature, (f: any) => {
-      const fname = f.name.charAt(0).toUpperCase() + f.name.slice(1)
+      // MUST match Main_go.ts, which DECLARES these identifiers in registry.go
+      // and the root init(); see goFeatureName.
+      const fname = goFeatureName(f)
       if (f.name !== 'base') {
         Content(`	case "${f.name}":
 		if New${fname}FeatureFunc != nil {

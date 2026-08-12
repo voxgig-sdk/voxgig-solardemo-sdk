@@ -4,7 +4,7 @@ type entityListOp struct{}
 
 // EJECT-START
 
-func (e *EntityNameEntity) List(reqmatch map[string]any, ctrl map[string]any) (any, error) {
+func (e *EntyClass) List(reqmatch map[string]any, ctrl map[string]any) (any, error) {
 	utility := e.utility
 	ctx := utility.MakeContext(map[string]any{
 		"opname":   "list",
@@ -21,6 +21,17 @@ func (e *EntityNameEntity) List(reqmatch map[string]any, ctrl map[string]any) (a
 			}
 		}
 	})
+}
+
+// ListTyped is the statically-typed variant of List: it takes an
+// EntityNameListMatch and returns []EntityName. It delegates to the untyped
+// List (identical runtime) and converts at the typed boundary.
+func (e *EntyClass) ListTyped(reqmatch EntityNameListMatch, ctrl map[string]any) ([]EntityName, error) {
+	res, err := e.List(asMap(reqmatch), ctrl)
+	if err != nil {
+		return nil, err
+	}
+	return typedSliceFrom[EntityName](res), nil
 }
 
 // EJECT-END

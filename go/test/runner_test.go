@@ -6,14 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 
-	sdk "voxgigsolardemosdk"
+	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
 
-	vs "github.com/voxgig/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 )
 
 var envLocalOnce sync.Once
@@ -44,8 +45,8 @@ func loadEnvLocal() {
 }
 
 func envOverride(m map[string]any) map[string]any {
-	if os.Getenv("SOLARDEMO_TEST_LIVE") == "TRUE" ||
-		os.Getenv("SOLARDEMO_TEST_OVERRIDE") == "TRUE" {
+	if os.Getenv("VOXGIGSOLARDEMO_TEST_LIVE") == "TRUE" ||
+		os.Getenv("VOXGIGSOLARDEMO_TEST_OVERRIDE") == "TRUE" {
 		for key := range m {
 			envval := os.Getenv(key)
 			if envval != "" {
@@ -62,20 +63,120 @@ func envOverride(m map[string]any) map[string]any {
 		}
 	}
 
-	if explain := os.Getenv("SOLARDEMO_TEST_EXPLAIN"); explain != "" {
-		m["SOLARDEMO_TEST_EXPLAIN"] = explain
+	if explain := os.Getenv("VOXGIGSOLARDEMO_TEST_EXPLAIN"); explain != "" {
+		m["VOXGIGSOLARDEMO_TEST_EXPLAIN"] = explain
 	}
 
 	return m
 }
 
 type entityTestSetup struct {
-	client  *sdk.SolardemoSDK
-	data    map[string]any
-	idmap   map[string]any
-	env     map[string]any
-	explain bool
-	now     int64
+	client         *sdk.VoxgigSolardemoSDK
+	data           map[string]any
+	idmap          map[string]any
+	env            map[string]any
+	explain        bool
+	live           bool
+	syntheticOnly  bool
+	now            int64
+}
+
+var (
+	cachedTestControl     map[string]any
+	cachedTestControlOnce sync.Once
+)
+
+// loadTestControl reads sdk-test-control.json from this test dir; caches
+// after first read. Returns an empty-skip default if the file is missing
+// or invalid so tests never crash on a bad config.
+func loadTestControl() map[string]any {
+	cachedTestControlOnce.Do(func() {
+		_, filename, _, _ := runtime.Caller(0)
+		dir := filepath.Dir(filename)
+		ctrlPath := filepath.Join(dir, "sdk-test-control.json")
+		def := map[string]any{
+			"version": 1,
+			"test": map[string]any{"skip": map[string]any{
+				"live": map[string]any{"direct": []any{}, "entityOp": []any{}},
+				"unit": map[string]any{"direct": []any{}, "entityOp": []any{}},
+			}},
+		}
+		data, err := os.ReadFile(ctrlPath)
+		if err != nil {
+			cachedTestControl = def
+			return
+		}
+		var parsed map[string]any
+		if err := json.Unmarshal(data, &parsed); err != nil {
+			cachedTestControl = def
+			return
+		}
+		cachedTestControl = parsed
+	})
+	return cachedTestControl
+}
+
+// isControlSkipped checks sdk-test-control.json for a skip entry.
+// Returns (skip, reason).
+func isControlSkipped(kind, name, mode string) (bool, string) {
+	ctrl := loadTestControl()
+	test, _ := ctrl["test"].(map[string]any)
+	if test == nil {
+		return false, ""
+	}
+	skip, _ := test["skip"].(map[string]any)
+	if skip == nil {
+		return false, ""
+	}
+	modeMap, _ := skip[mode].(map[string]any)
+	if modeMap == nil {
+		return false, ""
+	}
+	items, _ := modeMap[kind].([]any)
+	for _, raw := range items {
+		item, _ := raw.(map[string]any)
+		if item == nil {
+			continue
+		}
+		reason, _ := item["reason"].(string)
+		if kind == "direct" {
+			if t, _ := item["test"].(string); t == name {
+				return true, reason
+			}
+		}
+		if kind == "entityOp" {
+			ent, _ := item["entity"].(string)
+			op, _ := item["op"].(string)
+			if ent+"."+op == name {
+				return true, reason
+			}
+		}
+	}
+	return false, ""
+}
+
+// liveDelayMs returns the configured per-test live delay in ms; default 500.
+func liveDelayMs() int {
+	ctrl := loadTestControl()
+	test, _ := ctrl["test"].(map[string]any)
+	if test == nil {
+		return 500
+	}
+	live, _ := test["live"].(map[string]any)
+	if live == nil {
+		return 500
+	}
+	switch v := live["delayMs"].(type) {
+	case float64:
+		if v >= 0 {
+			return int(v)
+		}
+	case int:
+		if v >= 0 {
+			return v
+		}
+	}
+	return 500
 }
 
 var cachedTestSpec map[string]any
@@ -114,11 +215,40 @@ func getSpec(spec map[string]any, keys ...string) map[string]any {
 
 type RunSubject func(entry map[string]any) (any, error)
 
+// PENDING sections are the ones deliberately left empty in the shared corpus
+// (.sdk/test/primary/<name>.aontu). Everything else MUST contribute cases.
+var pendingSections = map[string]bool{
+	"fetcher": true, "makeFetchDef": true, "makePoint": true, "makeResult": true,
+	"featureAdd": true, "featureHook": true, "featureInit": true,
+}
+
+// runset drives one section of the shared test corpus.
+//
+// It used to `return` silently when "set" was missing or not a list, so a
+// renamed section, a fixture that failed to compile, or an empty set reported
+// PASS while running zero assertions — the whole point of a shared oracle
+// lost without a single red test. Both conditions are now fatal, except for
+// the sections explicitly marked PENDING in the corpus.
 func runset(t *testing.T, testspec map[string]any, subject RunSubject) {
 	t.Helper()
+	runsetNamed(t, "", testspec, subject)
+}
+
+func runsetNamed(t *testing.T, name string, testspec map[string]any, subject RunSubject) {
+	t.Helper()
+
+	if testspec == nil {
+		t.Fatalf("test corpus section %q missing — check the name against .sdk/test/primary/", name)
+	}
+
 	set, ok := testspec["set"].([]any)
 	if !ok {
-		return
+		t.Fatalf("test corpus section %q has no `set` list — zero cases would run", name)
+	}
+
+	if 0 == len(set) && !pendingSections[name] {
+		t.Fatalf("test corpus section %q is EMPTY — zero cases would run; "+
+			"add cases, or mark the fixture PENDING in .sdk/test/primary/", name)
 	}
 
 	for i, e := range set {
@@ -140,7 +270,7 @@ func runset(t *testing.T, testspec map[string]any, subject RunSubject) {
 			if expectedErr != nil {
 				errMsg := err.Error()
 				if expStr, ok := expectedErr.(string); ok {
-					if !strings.Contains(errMsg, expStr) {
+					if !matchString(expStr, errMsg) {
 						t.Errorf("entry %d%s: error mismatch: got %q, want contains %q",
 							i, mark, errMsg, expStr)
 					}
@@ -272,7 +402,7 @@ func matchDeep(t *testing.T, entryIdx int, mark string, check any, base any, pat
 		if !reflect.DeepEqual(normCheck, normBase) {
 			if isStr && checkStr != "" {
 				baseStr := vs.Stringify(base)
-				if strings.Contains(strings.ToLower(baseStr), strings.ToLower(checkStr)) {
+				if matchString(checkStr, baseStr) {
 					return
 				}
 			}
@@ -282,8 +412,21 @@ func matchDeep(t *testing.T, entryIdx int, mark string, check any, base any, pat
 	}
 }
 
+// matchString checks if val matches pattern. If pattern is /regex/, use regexp;
+// otherwise do case-insensitive contains.
+func matchString(pattern string, val string) bool {
+	if len(pattern) >= 2 && pattern[0] == '/' && pattern[len(pattern)-1] == '/' {
+		re, err := regexp.Compile(pattern[1 : len(pattern)-1])
+		if err != nil {
+			return false
+		}
+		return re.MatchString(val)
+	}
+	return strings.Contains(strings.ToLower(val), strings.ToLower(pattern))
+}
+
 // makeCtxFromMap creates a Context from a JSON test entry's ctx or args map.
-func makeCtxFromMap(ctxmap map[string]any, client *sdk.SolardemoSDK, utility *sdk.Utility) *sdk.Context {
+func makeCtxFromMap(ctxmap map[string]any, client *sdk.VoxgigSolardemoSDK, utility *sdk.Utility) *sdk.Context {
 	if ctxmap == nil {
 		ctxmap = map[string]any{}
 	}
@@ -308,7 +451,7 @@ func makeCtxFromMap(ctxmap map[string]any, client *sdk.SolardemoSDK, utility *sd
 		ctx.Result = sdk.NewResult(resMap)
 		if errMap, ok := resMap["err"].(map[string]any); ok {
 			if msg, ok := errMap["message"].(string); ok {
-				ctx.Result.Err = &sdk.SolardemoError{Msg: msg}
+				ctx.Result.Err = &sdk.VoxgigSolardemoError{Msg: msg}
 			}
 		}
 	}
@@ -332,7 +475,7 @@ func makeCtxFromMap(ctxmap map[string]any, client *sdk.SolardemoSDK, utility *sd
 	return ctx
 }
 
-func fixctx(ctx *sdk.Context, client *sdk.SolardemoSDK) {
+func fixctx(ctx *sdk.Context, client *sdk.VoxgigSolardemoSDK) {
 	if ctx != nil && ctx.Client != nil && ctx.Options == nil {
 		ctx.Options = ctx.Client.OptionsMap()
 	}
@@ -348,7 +491,7 @@ func errFromMap(m map[string]any) error {
 		return nil
 	}
 	code, _ := m["code"].(string)
-	return &sdk.SolardemoError{Msg: msg, Code: code}
+	return &sdk.VoxgigSolardemoError{Msg: msg, Code: code}
 }
 
 // ctxToMatchMap converts a Context to a map suitable for match comparison.

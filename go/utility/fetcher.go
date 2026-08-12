@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
-	vs "github.com/voxgig/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 
-	"voxgigsolardemosdk/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, error) {
@@ -27,15 +28,36 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 		return nil, err
 	}
 
+	hasUA := false
 	if headers, ok := fetchdef["headers"].(map[string]any); ok {
 		for k, v := range headers {
 			if sv, ok := v.(string); ok {
+				if strings.EqualFold(k, "user-agent") {
+					hasUA = true
+				}
 				req.Header.Set(k, sv)
 			}
 		}
 	}
+	// Default User-Agent — Go's net/http defaults to "Go-http-client/1.1"
+	// which some CDNs block. Use a Mozilla-shaped UA unless the caller
+	// already set one.
+	if !hasUA {
+		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)")
+	}
 
-	resp, err := http.DefaultClient.Do(req)
+	// Honour a proxy annotation on the fetch definition (set by the proxy
+	// feature): route the request through an http.Transport with Proxy set.
+	client := http.DefaultClient
+	if proxy, ok := fetchdef["proxy"].(string); ok && proxy != "" {
+		if proxyURL, perr := url.Parse(proxy); perr == nil {
+			client = &http.Client{
+				Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
+			}
+		}
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

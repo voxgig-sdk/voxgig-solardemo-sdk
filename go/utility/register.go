@@ -1,6 +1,6 @@
 package utility
 
-import "voxgigsolardemosdk/core"
+import "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 
 func init() {
 	core.UtilityRegistrar = registerAll
@@ -31,6 +31,8 @@ func registerAll(u *core.Utility) {
 	u.PrepareParams = prepareParamsUtil
 	u.PreparePath = preparePathUtil
 	u.PrepareQuery = prepareQueryUtil
+	u.GraphqlBody = graphqlBodyUtil
+	u.GraphqlErrors = graphqlErrorsUtil
 	u.ResultBasic = resultBasicUtil
 	u.ResultBody = resultBodyUtil
 	u.ResultHeaders = resultHeadersUtil

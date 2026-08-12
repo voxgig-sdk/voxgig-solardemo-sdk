@@ -6,8 +6,11 @@ DEF: {
 
 basic: set: [
 
+  # The Solardemo OpenAPI spec declares no securitySchemes, so auth is not
+  # active and options.auth.prefix defaults to ''. A raw credential goes in
+  # as-is — an empty prefix must NOT produce a leading space.
   { ctx: spec:headers:{}
-    match: ctx:spec:headers:authorization:' APIKEY01'
+    match: ctx:spec:headers:authorization:'APIKEY01'
   }
 
 ]

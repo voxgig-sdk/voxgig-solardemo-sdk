@@ -1,7 +1,7 @@
 package core
 
 import (
-	vs "github.com/voxgig/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 )
 
 type Result struct {
@@ -13,6 +13,12 @@ type Result struct {
 	Err        error
 	Resdata    any
 	Resmatch   map[string]any
+
+	// Feature extensions: pagination signals (paging feature) and the
+	// incremental item iterator (streaming feature).
+	Paging    map[string]any
+	Streaming bool
+	Stream    func() <-chan any
 }
 
 func NewResult(resmap map[string]any) *Result {

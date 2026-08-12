@@ -14,9 +14,11 @@ import type {
   Control,
 } from '../types'
 
+// #TypeImports
+
 
 // TODO: needs Entity superclass
-class EntityNameEntity extends ProjectNameEntityBase {
+class EntyClass extends ProjectNameEntityBase<EntityName> {
 
   constructor(client: ProjectNameSDK, entopts: any) {
     super(client, entopts)
@@ -26,8 +28,8 @@ class EntityNameEntity extends ProjectNameEntityBase {
   }
 
 
-  make(this: EntityNameEntity) {
-    return new EntityNameEntity(this._client, this.entopts())
+  make(this: EntyClass) {
+    return new EntyClass(this._client, this.entopts())
   }
 
 
@@ -45,5 +47,5 @@ class EntityNameEntity extends ProjectNameEntityBase {
 
 
 export {
-  EntityNameEntity
+  EntyClass
 }

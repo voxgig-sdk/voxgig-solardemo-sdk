@@ -13,6 +13,7 @@ import { cmp, each, Folder, File, Content } from '@voxgig/sdkgen'
 
 import { TestEntity } from './TestEntity_go'
 import { TestDirect } from './TestDirect_go'
+import { ReadmeExamplesTest } from './ReadmeExamplesTest_go'
 
 
 const Test = cmp(function Test(props: any) {
@@ -20,8 +21,8 @@ const Test = cmp(function Test(props: any) {
   const { target } = props
 
   // Module name: concatenated lowercase
-  const orgPrefix = (model.origin || '').replace(/-sdk$/, '').replace(/[^a-z0-9]/gi, '')
-  const gomodule = orgPrefix + model.name + 'sdk'
+  // Go module path == repo path on GitHub (org from model.origin).
+  const gomodule = `github.com/${model.origin || 'voxgig-sdk'}/${model.name}-sdk/go`
 
   Folder({ name: 'test' }, () => {
 
@@ -51,6 +52,9 @@ func TestExists(t *testing.T) {
       TestEntity({ target, entity, gomodule })
       TestDirect({ target, entity, gomodule })
     })
+
+    // README ```go example snippets must compile against the real SDK.
+    ReadmeExamplesTest({ target })
   })
 })
 

@@ -1,14 +1,14 @@
 package entity
 
 import (
-	"voxgigsolardemosdk/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 
-	vs "github.com/voxgig/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 )
 
 type MoonEntity struct {
 	name    string
-	client  *core.SolardemoSDK
+	client  *core.VoxgigSolardemoSDK
 	utility *core.Utility
 	entopts map[string]any
 	data    map[string]any
@@ -16,7 +16,7 @@ type MoonEntity struct {
 	entctx  *core.Context
 }
 
-func NewMoonEntity(client *core.SolardemoSDK, entopts map[string]any) *MoonEntity {
+func NewMoonEntity(client *core.VoxgigSolardemoSDK, entopts map[string]any) *MoonEntity {
 	if entopts == nil {
 		entopts = map[string]any{}
 	}
@@ -85,6 +85,160 @@ func (e *MoonEntity) Match(args ...any) any {
 	return out
 }
 
+// DataTyped is the statically-typed accessor for this entity's data. With no
+// argument it returns the current data as an Moon; with an argument it
+// sets the data and returns the stored value. It delegates to the untyped Data
+// (identical runtime) and converts at the typed boundary.
+func (e *MoonEntity) DataTyped(data ...Moon) Moon {
+	if len(data) > 0 {
+		return typedFrom[Moon](e.Data(asMap(data[0])))
+	}
+	return typedFrom[Moon](e.Data())
+}
+
+// MatchTyped mirrors DataTyped for the entity's match filter. The match is a
+// partial of the entity, so it round-trips through Moon (all fields
+// optional at the wire level).
+func (e *MoonEntity) MatchTyped(match ...Moon) Moon {
+	if len(match) > 0 {
+		return typedFrom[Moon](e.Match(asMap(match[0])))
+	}
+	return typedFrom[Moon](e.Match())
+}
+
+// Stream (feature #4). Runs `action` through the full pipeline and returns a
+// channel over result items, so the `streaming` feature's incremental output
+// is reachable from a generated entity (a normal op call materialises the
+// whole result). `callopts` parameterises the call:
+//   - inbound (download): the channel yields items/chunks (from the streaming
+//     feature when active, else the materialised items);
+//   - outbound (upload): a `body` in callopts is attached to the request so the
+//     transport can stream the payload;
+//   - `ctrl` (pipeline control) and `signal` (a done channel) are honoured.
+func (e *MoonEntity) Stream(action string, args map[string]any, callopts map[string]any) <-chan any {
+	out := make(chan any)
+
+	if callopts == nil {
+		callopts = map[string]any{}
+	}
+
+	var signal <-chan struct{}
+	switch s := callopts["signal"].(type) {
+	case <-chan struct{}:
+		signal = s
+	case chan struct{}:
+		signal = s
+	}
+
+	ctrl := map[string]any{}
+	if c := core.ToMapAny(callopts["ctrl"]); c != nil {
+		for k, v := range c {
+			ctrl[k] = v
+		}
+	}
+
+	ctxmap := map[string]any{
+		"opname": action,
+		"ctrl":   ctrl,
+		"match":  e.match,
+		"data":   e.data,
+	}
+	for k, v := range args {
+		ctxmap[k] = v
+	}
+
+	utility := e.utility
+	ctx := utility.MakeContext(ctxmap, e.entctx)
+	ctx.Meta["stream"] = callopts
+
+	// Outbound: expose the caller's payload so the request builder / transport
+	// can stream it as the request body.
+	if body := callopts["body"]; body != nil {
+		ctx.Reqdata["body$"] = body
+		ctx.Meta["stream_out"] = body
+	}
+
+	send := func(item any) bool {
+		select {
+		case <-signal:
+			return false
+		case out <- item:
+			return true
+		}
+	}
+
+	go func() {
+		defer close(out)
+
+		utility.FeatureHook(ctx, "PrePoint")
+		point, err := utility.MakePoint(ctx)
+		ctx.Out["point"] = point
+		if err != nil {
+			return
+		}
+
+		utility.FeatureHook(ctx, "PreSpec")
+		spec, err := utility.MakeSpec(ctx)
+		ctx.Out["spec"] = spec
+		if err != nil {
+			return
+		}
+
+		utility.FeatureHook(ctx, "PreRequest")
+		req, err := utility.MakeRequest(ctx)
+		ctx.Out["request"] = req
+		if err != nil {
+			return
+		}
+
+		utility.FeatureHook(ctx, "PreResponse")
+		resp, err := utility.MakeResponse(ctx)
+		ctx.Out["response"] = resp
+		if err != nil {
+			return
+		}
+
+		utility.FeatureHook(ctx, "PreResult")
+		result, err := utility.MakeResult(ctx)
+		ctx.Out["result"] = result
+		if err != nil {
+			return
+		}
+
+		utility.FeatureHook(ctx, "PreDone")
+
+		// Inbound: prefer the streaming feature's incremental iterator; else
+		// fall back to the materialised items so Stream always yields.
+		if ctx.Result != nil && ctx.Result.Stream != nil {
+			for item := range ctx.Result.Stream() {
+				if !send(item) {
+					return
+				}
+			}
+			return
+		}
+
+		data, derr := utility.Done(ctx)
+		if derr != nil {
+			return
+		}
+		switch d := data.(type) {
+		case []any:
+			for _, item := range d {
+				if !send(item) {
+					return
+				}
+			}
+		case nil:
+			// nothing to yield
+		default:
+			send(d)
+		}
+	}()
+
+	return out
+}
+
 
 func (e *MoonEntity) Load(reqmatch map[string]any, ctrl map[string]any) (any, error) {
 	utility := e.utility
@@ -111,6 +265,17 @@ func (e *MoonEntity) Load(reqmatch map[string]any, ctrl map[string]any) (any, er
 	})
 }
 
+// LoadTyped is the statically-typed variant of Load: it takes an
+// MoonLoadMatch and returns an Moon. It delegates to the untyped
+// Load (identical runtime) and converts at the typed boundary.
+func (e *MoonEntity) LoadTyped(reqmatch MoonLoadMatch, ctrl map[string]any) (Moon, error) {
+	res, err := e.Load(asMap(reqmatch), ctrl)
+	if err != nil {
+		return Moon{}, err
+	}
+	return typedFrom[Moon](res), nil
+}
+
 
 
 
@@ -131,6 +296,17 @@ func (e *MoonEntity) List(reqmatch map[string]any, ctrl map[string]any) (any, er
 			}
 		}
 	})
+}
+
+// ListTyped is the statically-typed variant of List: it takes an
+// MoonListMatch and returns []Moon. It delegates to the untyped
+// List (identical runtime) and converts at the typed boundary.
+func (e *MoonEntity) ListTyped(reqmatch MoonListMatch, ctrl map[string]any) ([]Moon, error) {
+	res, err := e.List(asMap(reqmatch), ctrl)
+	if err != nil {
+		return nil, err
+	}
+	return typedSliceFrom[Moon](res), nil
 }
 
 
@@ -156,6 +332,17 @@ func (e *MoonEntity) Create(reqdata map[string]any, ctrl map[string]any) (any, e
 			}
 		}
 	})
+}
+
+// CreateTyped is the statically-typed variant of Create: it takes an
+// MoonCreateData and returns an Moon. It delegates to the untyped
+// Create (identical runtime) and converts at the typed boundary.
+func (e *MoonEntity) CreateTyped(reqdata MoonCreateData, ctrl map[string]any) (Moon, error) {
+	res, err := e.Create(asMap(reqdata), ctrl)
+	if err != nil {
+		return Moon{}, err
+	}
+	return typedFrom[Moon](res), nil
 }
 
 
@@ -186,6 +373,17 @@ func (e *MoonEntity) Update(reqdata map[string]any, ctrl map[string]any) (any, e
 	})
 }
 
+// UpdateTyped is the statically-typed variant of Update: it takes an
+// MoonUpdateData and returns an Moon. It delegates to the untyped
+// Update (identical runtime) and converts at the typed boundary.
+func (e *MoonEntity) UpdateTyped(reqdata MoonUpdateData, ctrl map[string]any) (Moon, error) {
+	res, err := e.Update(asMap(reqdata), ctrl)
+	if err != nil {
+		return Moon{}, err
+	}
+	return typedFrom[Moon](res), nil
+}
+
 
 
 
@@ -212,6 +410,17 @@ func (e *MoonEntity) Remove(reqmatch map[string]any, ctrl map[string]any) (any, 
 			}
 		}
 	})
+}
+
+// RemoveTyped is the statically-typed variant of Remove: it takes an
+// MoonRemoveMatch and returns an Moon. It delegates to the untyped
+// Remove (identical runtime) and converts at the typed boundary.
+func (e *MoonEntity) RemoveTyped(reqmatch MoonRemoveMatch, ctrl map[string]any) (Moon, error) {
+	res, err := e.Remove(asMap(reqmatch), ctrl)
+	if err != nil {
+		return Moon{}, err
+	}
+	return typedFrom[Moon](res), nil
 }
 
 

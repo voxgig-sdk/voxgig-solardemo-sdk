@@ -1,14 +1,14 @@
-# Solardemo Golang SDK Reference
+# VoxgigSolardemo Golang SDK Reference
 
-Complete API reference for the Solardemo Golang SDK.
+Complete API reference for the VoxgigSolardemo Golang SDK.
 
 
-## SolardemoSDK
+## VoxgigSolardemoSDK
 
 ### Constructor
 
 ```go
-func NewSolardemoSDK(options map[string]any) *SolardemoSDK
+func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK
 ```
 
 Create a new SDK client instance.
@@ -18,7 +18,6 @@ Create a new SDK client instance.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `map[string]any` | SDK configuration options. |
-| `options["apikey"]` | `string` | API key for authentication. |
 | `options["base"]` | `string` | Base URL for API requests. |
 | `options["prefix"]` | `string` | URL prefix appended after base. |
 | `options["suffix"]` | `string` | URL suffix appended after path. |
@@ -29,22 +28,30 @@ Create a new SDK client instance.
 
 ### Static Methods
 
-#### `TestSDK(testopts, sdkopts map[string]any) *SolardemoSDK`
+#### `Test() *VoxgigSolardemoSDK`
 
-Create a test client with mock features active. Both arguments may be `nil`.
+No-arg convenience constructor for the common no-options test case.
 
 ```go
-client := sdk.TestSDK(nil, nil)
+client := sdk.Test()
+```
+
+#### `TestSDK(testopts, sdkopts map[string]any) *VoxgigSolardemoSDK`
+
+Test client with options. Both arguments may be `nil`.
+
+```go
+client := sdk.TestSDK(testopts, sdkopts)
 ```
 
 
 ### Instance Methods
 
-#### `Moon(data map[string]any) SolardemoEntity`
+#### `Moon(data map[string]any) VoxgigSolardemoEntity`
 
 Create a new `Moon` entity instance. Pass `nil` for no initial data.
 
-#### `Planet(data map[string]any) SolardemoEntity`
+#### `Planet(data map[string]any) VoxgigSolardemoEntity`
 
 Create a new `Planet` entity instance. Pass `nil` for no initial data.
 
@@ -88,18 +95,20 @@ same parameters as `Direct()`.
 
 ```go
 moon := client.Moon(nil)
+fmt.Println(moon.GetName()) // "moon"
 ```
+
+### Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `diameter` | `float64` | Yes |  |
+| `id` | `string` | Yes |  |
+| `kind` | `string` | Yes |  |
+| `name` | `string` | Yes |  |
+| `planet_id` | `string` | Yes |  |
 
 ### Operations
-
-#### `Create(reqdata, ctrl map[string]any) (any, error)`
-
-Create a new entity with the given data.
-
-```go
-result, err := client.Moon(nil).Create(map[string]any{
-}, nil)
-```
 
 #### `List(reqmatch, ctrl map[string]any) (any, error)`
 
@@ -107,6 +116,10 @@ List entities matching the given criteria. Returns an array.
 
 ```go
 results, err := client.Moon(nil).List(nil, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(results)
 ```
 
 #### `Load(reqmatch, ctrl map[string]any) (any, error)`
@@ -114,15 +127,29 @@ results, err := client.Moon(nil).List(nil, nil)
 Load a single entity matching the given criteria.
 
 ```go
-result, err := client.Moon(nil).Load(map[string]any{"id": "moon_id"}, nil)
+result, err := client.Moon(nil).Load(map[string]any{"id": "moon_id", "planet_id": "planet_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
 ```
 
-#### `Remove(reqmatch, ctrl map[string]any) (any, error)`
+#### `Create(reqdata, ctrl map[string]any) (any, error)`
 
-Remove the entity matching the given criteria.
+Create a new entity with the given data.
 
 ```go
-result, err := client.Moon(nil).Remove(map[string]any{"id": "moon_id"}, nil)
+result, err := client.Moon(nil).Create(map[string]any{
+    "planet_id": "example_planet_id",
+    "diameter": 1,
+    "id": "example_id",
+    "kind": "example_kind",
+    "name": "example_name",
+}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
 ```
 
 #### `Update(reqdata, ctrl map[string]any) (any, error)`
@@ -132,8 +159,25 @@ Update an existing entity. The data must include the entity `id`.
 ```go
 result, err := client.Moon(nil).Update(map[string]any{
     "id": "moon_id",
+    "planet_id": "planet_id",
     // Fields to update
 }, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+#### `Remove(reqmatch, ctrl map[string]any) (any, error)`
+
+Remove the entity matching the given criteria.
+
+```go
+result, err := client.Moon(nil).Remove(map[string]any{"id": "moon_id", "planet_id": "planet_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
 ```
 
 ### Common Methods
@@ -164,18 +208,25 @@ Return the entity name.
 
 ```go
 planet := client.Planet(nil)
+fmt.Println(planet.GetName()) // "planet"
 ```
+
+### Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `diameter` | `float64` | Yes |  |
+| `forbid` | `bool` | No |  |
+| `id` | `string` | Yes |  |
+| `kind` | `string` | Yes |  |
+| `name` | `string` | Yes |  |
+| `ok` | `bool` | No |  |
+| `start` | `bool` | No |  |
+| `state` | `string` | No |  |
+| `stop` | `bool` | No |  |
+| `why` | `string` | No |  |
 
 ### Operations
-
-#### `Create(reqdata, ctrl map[string]any) (any, error)`
-
-Create a new entity with the given data.
-
-```go
-result, err := client.Planet(nil).Create(map[string]any{
-}, nil)
-```
 
 #### `List(reqmatch, ctrl map[string]any) (any, error)`
 
@@ -183,6 +234,10 @@ List entities matching the given criteria. Returns an array.
 
 ```go
 results, err := client.Planet(nil).List(nil, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(results)
 ```
 
 #### `Load(reqmatch, ctrl map[string]any) (any, error)`
@@ -191,14 +246,27 @@ Load a single entity matching the given criteria.
 
 ```go
 result, err := client.Planet(nil).Load(map[string]any{"id": "planet_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
 ```
 
-#### `Remove(reqmatch, ctrl map[string]any) (any, error)`
+#### `Create(reqdata, ctrl map[string]any) (any, error)`
 
-Remove the entity matching the given criteria.
+Create a new entity with the given data.
 
 ```go
-result, err := client.Planet(nil).Remove(map[string]any{"id": "planet_id"}, nil)
+result, err := client.Planet(nil).Create(map[string]any{
+    "diameter": 1,
+    "id": "example_id",
+    "kind": "example_kind",
+    "name": "example_name",
+}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
 ```
 
 #### `Update(reqdata, ctrl map[string]any) (any, error)`
@@ -210,6 +278,22 @@ result, err := client.Planet(nil).Update(map[string]any{
     "id": "planet_id",
     // Fields to update
 }, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+#### `Remove(reqmatch, ctrl map[string]any) (any, error)`
+
+Remove the entity matching the given criteria.
+
+```go
+result, err := client.Planet(nil).Remove(map[string]any{"id": "planet_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
 ```
 
 ### Common Methods
@@ -240,13 +324,13 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `test` | 0.0.1 | Test |
+| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
 Features are activated via the `feature` option:
 
 ```go
-client := sdk.NewSolardemoSDK(map[string]any{
+client := sdk.NewVoxgigSolardemoSDK(map[string]any{
     "feature": map[string]any{
         "test": map[string]any{"active": true},
     },

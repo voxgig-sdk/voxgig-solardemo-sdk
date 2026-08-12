@@ -3,7 +3,7 @@ package sdktest
 import (
 	"testing"
 
-	sdk "voxgigsolardemosdk"
+	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
 )
 
 func TestCustomUtility(t *testing.T) {

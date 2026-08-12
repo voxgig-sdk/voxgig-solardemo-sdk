@@ -3,7 +3,7 @@ package core
 func MakeConfig() map[string]any {
 	return map[string]any{
 		"main": map[string]any{
-			"name": "Solardemo",
+			"name": "VoxgigSolardemo",
 		},
 		"feature": map[string]any{
 			"test": map[string]any{
@@ -14,9 +14,6 @@ func MakeConfig() map[string]any {
 		},
 		"options": map[string]any{
 			"base": "http://localhost:8901",
-			"auth": map[string]any{
-				"prefix": "Bearer",
-			},
 			"headers": map[string]any{
 				"content-type": "application/json",
 			},
@@ -81,9 +78,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet/{planet_id}/moon",
 								"parts": []any{
@@ -101,8 +100,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "create",
 					},
 					"list": map[string]any{
 						"input": "data",
@@ -119,9 +120,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet/{planet_id}/moon",
 								"parts": []any{
@@ -139,8 +142,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "list",
 					},
 					"load": map[string]any{
 						"input": "data",
@@ -157,6 +162,7 @@ func MakeConfig() map[string]any {
 											"orig": "moon_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 										map[string]any{
 											"active": true,
@@ -165,9 +171,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 1,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet/{planet_id}/moon/{moon_id}",
 								"parts": []any{
@@ -192,8 +200,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "load",
 					},
 					"remove": map[string]any{
 						"input": "data",
@@ -210,6 +220,7 @@ func MakeConfig() map[string]any {
 											"orig": "moon_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 										map[string]any{
 											"active": true,
@@ -218,9 +229,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 1,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "DELETE",
 								"orig": "/api/planet/{planet_id}/moon/{moon_id}",
 								"parts": []any{
@@ -245,8 +258,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "remove",
 					},
 					"update": map[string]any{
 						"input": "data",
@@ -263,6 +278,7 @@ func MakeConfig() map[string]any {
 											"orig": "moon_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 										map[string]any{
 											"active": true,
@@ -271,9 +287,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 1,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "PUT",
 								"orig": "/api/planet/{planet_id}/moon/{moon_id}",
 								"parts": []any{
@@ -298,8 +316,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "update",
 					},
 				},
 				"relations": map[string]any{
@@ -403,6 +423,7 @@ func MakeConfig() map[string]any {
 										},
 									},
 								},
+								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet/{planet_id}/forbid",
 								"parts": []any{
@@ -426,6 +447,7 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 							map[string]any{
 								"active": true,
@@ -441,6 +463,7 @@ func MakeConfig() map[string]any {
 										},
 									},
 								},
+								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet/{planet_id}/terraform",
 								"parts": []any{
@@ -464,10 +487,12 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 1,
 							},
 							map[string]any{
 								"active": true,
 								"args": map[string]any{},
+								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet",
 								"parts": []any{
@@ -479,8 +504,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 2,
 							},
 						},
+						"key$": "create",
 					},
 					"list": map[string]any{
 						"input": "data",
@@ -489,6 +516,7 @@ func MakeConfig() map[string]any {
 							map[string]any{
 								"active": true,
 								"args": map[string]any{},
+								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet",
 								"parts": []any{
@@ -500,8 +528,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "list",
 					},
 					"load": map[string]any{
 						"input": "data",
@@ -518,9 +548,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet/{planet_id}",
 								"parts": []any{
@@ -542,8 +574,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "load",
 					},
 					"remove": map[string]any{
 						"input": "data",
@@ -560,9 +594,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "DELETE",
 								"orig": "/api/planet/{planet_id}",
 								"parts": []any{
@@ -584,8 +620,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "remove",
 					},
 					"update": map[string]any{
 						"input": "data",
@@ -602,9 +640,11 @@ func MakeConfig() map[string]any {
 											"orig": "planet_id",
 											"reqd": true,
 											"type": "`$STRING`",
+											"index$": 0,
 										},
 									},
 								},
+								"kind": "http",
 								"method": "PUT",
 								"orig": "/api/planet/{planet_id}",
 								"parts": []any{
@@ -626,8 +666,10 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"index$": 0,
 							},
 						},
+						"key$": "update",
 					},
 				},
 				"relations": map[string]any{

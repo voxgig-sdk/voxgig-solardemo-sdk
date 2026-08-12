@@ -1,7 +1,29 @@
+# VoxgigSolardemo Golang SDK
+
+
+
+The Golang SDK for the VoxgigSolardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
+
+It exposes the API as capitalised, semantic **Entities** — e.g. `client.Moon(nil)` — each with the same small set of operations (`List`, `Load`, `Create`, `Update`, `Remove`) instead of raw URL paths and query strings. You call meaning, not endpoints, which keeps the cognitive load low.
+
+> Other languages, the CLI, and MCP server live alongside this one — see
+> the [top-level README](../README.md).
+
 
 ## Install
 ```bash
-go get voxgigsolardemosdk
+go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@latest
+```
+
+The Go module proxy resolves the version from the `go/vX.Y.Z` GitHub
+release tag — see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases) for the available versions.
+
+To vendor from a local checkout instead, clone this repo alongside your
+project and add a `replace` directive pointing at the checked-out
+`go/` directory:
+
+```bash
+go mod edit -replace github.com/voxgig-sdk/voxgig-solardemo-sdk/go=../voxgig-solardemo-sdk/go
 ```
 
 
@@ -10,78 +32,61 @@ go get voxgigsolardemosdk
 This tutorial walks through creating a client, listing entities, and
 loading a specific record.
 
-### 1. Create a client
+### Quickstart
+
+A complete program: create a client, then call the entity operations.
+Each operation returns `(value, error)` — the value is the data itself
+(there is no `{ok, data}` wrapper), so check `err` and use the value
+directly.
 
 ```go
 package main
 
 import (
     "fmt"
-    "os"
-
-    sdk "voxgigsolardemosdk"
-    "voxgigsolardemosdk/core"
+    sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
 )
 
 func main() {
-    client := sdk.NewSolardemoSDK(map[string]any{
-        "apikey": os.Getenv("SOLARDEMO_APIKEY"),
-    })
-```
+    client := sdk.New()
 
-### 2. List moons
-
-```go
-    result, err := client.Moon(nil).List(nil, nil)
+    // List moon records — the value is the array of records itself.
+    moons, err := client.Moon(nil).List(nil, nil)
     if err != nil {
         panic(err)
     }
-
-    rm := core.ToMapAny(result)
-    if rm["ok"] == true {
-        for _, item := range rm["data"].([]any) {
-            p := core.ToMapAny(item)
-            fmt.Println(p["id"], p["name"])
-        }
+    for _, item := range moons.([]any) {
+        fmt.Println(item)
     }
-```
 
-### 3. Load a moon
-
-```go
-    result, err = client.Moon(nil).Load(
-        map[string]any{"id": "example_id"}, nil,
-    )
+    // Load a single moon — the value is the loaded record.
+    moon, err := client.Moon(nil).Load(map[string]any{"id": "example_id", "planet_id": "example_planet_id"}, nil)
     if err != nil {
         panic(err)
     }
+    fmt.Println(moon)
 
-    rm = core.ToMapAny(result)
-    if rm["ok"] == true {
-        fmt.Println(rm["data"])
+    // Create a moon.
+    created, err := client.Moon(nil).Create(map[string]any{"planet_id": "example_planet_id", "diameter": 1, "id": "example_id", "kind": "example_kind", "name": "example_name"}, nil)
+    if err != nil {
+        panic(err)
     }
+    fmt.Println(created)
+
+    // Update a moon.
+    updated, err := client.Moon(nil).Update(map[string]any{"id": "example_id", "planet_id": "example_planet_id", "diameter": 1}, nil)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(updated)
+
+    // Remove a moon.
+    removed, err := client.Moon(nil).Remove(map[string]any{"id": "example_id", "planet_id": "example_planet_id"}, nil)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(removed)
 }
-```
-
-### 4. Create, update, and remove
-
-```go
-// Create
-created, _ := client.Moon(nil).Create(
-    map[string]any{"name": "Example"}, nil,
-)
-cm := core.ToMapAny(created)
-newID := core.ToMapAny(cm["data"])["id"]
-
-// Update
-client.Moon(nil).Update(
-    map[string]any{"id": newID, "name": "Example-Renamed"}, nil,
-)
-
-// Remove
-client.Moon(nil).Remove(
-    map[string]any{"id": newID}, nil,
-)
 ```
 
 
@@ -158,12 +163,15 @@ fmt.Println(fetchdef["headers"])
 Create a mock client for unit testing — no server required:
 
 ```go
-client := sdk.TestSDK(nil, nil)
+client := sdk.Test()
 
-result, err := client.Planet(nil).Load(
-    map[string]any{"id": "test01"}, nil,
+moon, err := client.Moon(nil).List(
+    nil, nil,
 )
-// result contains mock response data
+if err != nil {
+    panic(err)
+}
+fmt.Println(moon) // the returned mock data
 ```
 
 ### Use a custom fetch function
@@ -182,7 +190,7 @@ mockFetch := func(url string, init map[string]any) (map[string]any, error) {
     }, nil
 }
 
-client := sdk.NewSolardemoSDK(map[string]any{
+client := sdk.NewVoxgigSolardemoSDK(map[string]any{
     "base": "http://localhost:8080",
     "system": map[string]any{
         "fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),
@@ -195,8 +203,7 @@ client := sdk.NewSolardemoSDK(map[string]any{
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
-SOLARDEMO_APIKEY=<your-key>
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -208,17 +215,16 @@ cd go && go test ./test/...
 
 ## Reference
 
-### NewSolardemoSDK
+### NewVoxgigSolardemoSDK
 
 ```go
-func NewSolardemoSDK(options map[string]any) *SolardemoSDK
+func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK
 ```
 
 Creates a new SDK client.
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `"apikey"` | `string` | API key for authentication. |
 | `"base"` | `string` | Base URL of the API server. |
 | `"prefix"` | `string` | URL path prefix prepended to all requests. |
 | `"suffix"` | `string` | URL path suffix appended to all requests. |
@@ -229,12 +235,12 @@ Creates a new SDK client.
 ### TestSDK
 
 ```go
-func TestSDK(testopts map[string]any, sdkopts map[string]any) *SolardemoSDK
+func TestSDK(testopts map[string]any, sdkopts map[string]any) *VoxgigSolardemoSDK
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `nil`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -242,12 +248,12 @@ Creates a test-mode client with mock transport. Both arguments may be `nil`.
 | `GetUtility` | `() *Utility` | Copy of the SDK utility object. |
 | `Prepare` | `(fetchargs map[string]any) (map[string]any, error)` | Build an HTTP request definition without sending. |
 | `Direct` | `(fetchargs map[string]any) (map[string]any, error)` | Build and send an HTTP request. |
-| `Moon` | `(data map[string]any) SolardemoEntity` | Create a Moon entity instance. |
-| `Planet` | `(data map[string]any) SolardemoEntity` | Create a Planet entity instance. |
+| `Moon` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Moon entity instance. |
+| `Planet` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Planet entity instance. |
 
-### Entity interface (SolardemoEntity)
+### Entity interface (VoxgigSolardemoEntity)
 
-All entities implement the `SolardemoEntity` interface.
+All entities implement the `VoxgigSolardemoEntity` interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -263,17 +269,24 @@ All entities implement the `SolardemoEntity` interface.
 
 ### Result shape
 
-Entity operations return `(any, error)`. The `any` value is a
-`map[string]any` with these keys:
+Entity operations return `(value, error)`. The `value` is the
+operation's data **directly** — there is no wrapper:
 
-| Key | Type | Description |
-| --- | --- | --- |
-| `"ok"` | `bool` | `true` if the HTTP status is 2xx. |
-| `"status"` | `int` | HTTP status code. |
-| `"headers"` | `map[string]any` | Response headers. |
-| `"data"` | `any` | Parsed JSON response body. |
+| Operation | `value` |
+| --- | --- |
+| `Load` / `Create` / `Update` / `Remove` | the entity record (`map[string]any`) |
+| `List` | a `[]any` of entity records |
 
-On error, `"ok"` is `false` and `"err"` contains the error value.
+Check `err` first, then use the value directly (or the typed
+`...Typed` variants, which return the entity's model struct and a typed
+slice):
+
+    moon, err := client.Moon(nil).List(map[string]any{/* fields */}, nil)
+    if err != nil { /* handle */ }
+    // moon is the returned record
+
+Only `Direct()` returns a response envelope — a `map[string]any` with
+`"ok"`, `"status"`, `"headers"`, and `"data"` keys.
 
 ### Entities
 
@@ -281,19 +294,164 @@ On error, `"ok"` is `false` and `"err"` contains the error value.
 
 | Field | Description |
 | --- | --- |
+| `"diameter"` |  |
+| `"id"` |  |
+| `"kind"` |  |
+| `"name"` |  |
+| `"planet_id"` |  |
 
 Operations: Create, List, Load, Remove, Update.
 
-API path: ``
+API path: `/api/planet/{planet_id}/moon`
 
 #### Planet
 
 | Field | Description |
 | --- | --- |
+| `"diameter"` |  |
+| `"forbid"` |  |
+| `"id"` |  |
+| `"kind"` |  |
+| `"name"` |  |
+| `"ok"` |  |
+| `"start"` |  |
+| `"state"` |  |
+| `"stop"` |  |
+| `"why"` |  |
 
 Operations: Create, List, Load, Remove, Update.
 
-API path: ``
+API path: `/api/planet/{planet_id}/forbid`
+
+
+
+## Entities
+
+
+### Moon
+
+Create an instance: `moon := client.Moon(nil)`
+
+#### Operations
+
+| Method | Description |
+| --- | --- |
+| `List(match, ctrl)` | List entities matching the criteria. |
+| `Load(match, ctrl)` | Load a single entity by match criteria. |
+| `Create(data, ctrl)` | Create a new entity with the given data. |
+| `Update(data, ctrl)` | Update an existing entity. |
+| `Remove(match, ctrl)` | Remove the matching entity. |
+
+#### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `diameter` | `float64` |  |
+| `id` | `string` |  |
+| `kind` | `string` |  |
+| `name` | `string` |  |
+| `planet_id` | `string` |  |
+
+#### Example: Load
+
+```go
+moon, err := client.Moon(nil).Load(map[string]any{"id": "moon_id", "planet_id": "planet_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(moon) // the loaded record
+```
+
+#### Example: List
+
+```go
+moons, err := client.Moon(nil).List(nil, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(moons) // the array of records
+```
+
+#### Example: Create
+
+```go
+result, err := client.Moon(nil).Create(map[string]any{
+    "planet_id": "example_planet_id",
+    "diameter": 1,
+    "id": "example_id",
+    "kind": "example_kind",
+    "name": "example_name",
+}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+
+### Planet
+
+Create an instance: `planet := client.Planet(nil)`
+
+#### Operations
+
+| Method | Description |
+| --- | --- |
+| `List(match, ctrl)` | List entities matching the criteria. |
+| `Load(match, ctrl)` | Load a single entity by match criteria. |
+| `Create(data, ctrl)` | Create a new entity with the given data. |
+| `Update(data, ctrl)` | Update an existing entity. |
+| `Remove(match, ctrl)` | Remove the matching entity. |
+
+#### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `diameter` | `float64` |  |
+| `forbid` | `bool` |  |
+| `id` | `string` |  |
+| `kind` | `string` |  |
+| `name` | `string` |  |
+| `ok` | `bool` |  |
+| `start` | `bool` |  |
+| `state` | `string` |  |
+| `stop` | `bool` |  |
+| `why` | `string` |  |
+
+#### Example: Load
+
+```go
+planet, err := client.Planet(nil).Load(map[string]any{"id": "planet_id"}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(planet) // the loaded record
+```
+
+#### Example: List
+
+```go
+planets, err := client.Planet(nil).List(nil, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(planets) // the array of records
+```
+
+#### Example: Create
+
+```go
+result, err := client.Planet(nil).Create(map[string]any{
+    "diameter": 1,
+    "id": "example_id",
+    "kind": "example_kind",
+    "name": "example_name",
+}, nil)
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
 
 
 ## Advanced
@@ -334,7 +492,7 @@ stage names.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: Test
+- **TestFeature**: In-memory mock transport for testing without a live server
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -350,8 +508,8 @@ Use `core.ToMapAny()` to safely cast results and nested data.
 ### Package structure
 
 ```
-voxgigsolardemosdk/
-├── solardemo.go        # Root package — type aliases and constructors
+github.com/voxgig-sdk/voxgig-solardemo-sdk/go/
+├── voxgig-solardemo.go        # Root package — type aliases and constructors
 ├── core/               # SDK core — client, types, pipeline
 ├── entity/             # Entity implementations
 ├── feature/            # Built-in features (Base, Test, Log)
@@ -359,7 +517,7 @@ voxgigsolardemosdk/
 └── test/               # Test suites
 ```
 
-The root package (`voxgigsolardemosdk`) re-exports everything needed
+The root package (`github.com/voxgig-sdk/voxgig-solardemo-sdk/go`) re-exports everything needed
 for normal use. Import sub-packages only when you need specific types
 like `core.ToMapAny`.
 

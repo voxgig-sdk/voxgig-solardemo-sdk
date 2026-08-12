@@ -4,7 +4,7 @@ main: kit: target: ts: {
   title: TypeScript
   ext: ts
   comment: line: "//"
-  module: name: 'solardemo'
+  module: name: 'voxgig-solardemo'
   base: 'node_modules/@voxgig/sdkgen/project/.sdk'
 
   deps: &: {
@@ -13,11 +13,9 @@ main: kit: target: ts: {
   }
   
   deps: {
-    'pino': { active: true, version: '^10.3.1', kind: prod }
-    'pino-pretty': { active: true, version: '^13.1.3', kind: prod }
     'dotenv': { active: true, version: '^17.4.2', kind: dev }
-    'typescript': { active: true, version: '^6.0.3', kind: dev }
-    '@types/node': { active: true, version: '^25.9.2', kind: dev }
+    'typescript': { active: true, version: '^5.9.3', kind: dev }
+    '@types/node': { active: true, version: '^25.6.0', kind: dev }
   }
 }
 
@@ -25,4 +23,17 @@ main: kit: target: ts: {
 main: kit: feature: &: target: ts: deps: &: {
   # TODO: fix aontu disjunctions!
   kind: *'prod' | string # 'peer' |'dev'
+}
+
+
+# Publication: npm registry (declared, publish pending — git-tag only).
+main: kit: target: ts: publish: {
+  tag: { active: true }
+  registry: {
+    state: 'pending'
+    active: false
+    name: 'npm'
+    url: 'https://registry.npmjs.org'
+    vault: { recipe: 'npm', alias: 'npm' }
+  }
 }

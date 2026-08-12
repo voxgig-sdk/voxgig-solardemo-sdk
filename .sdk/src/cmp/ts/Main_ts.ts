@@ -4,6 +4,7 @@ import * as Path from 'node:path'
 import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
+  entityClassName, entityCollection,
 } from '@voxgig/sdkgen'
 
 
@@ -20,8 +21,10 @@ import {
 
 import { Package } from './Package_ts'
 import { Config } from './Config_ts'
+import { Gitignore } from './Gitignore_ts'
 import { MainEntity } from './MainEntity_ts'
 import { EntityBase } from './EntityBase_ts'
+import { EntityTypes } from './EntityTypes_ts'
 import { SdkError } from './SdkError_ts'
 
 
@@ -36,15 +39,8 @@ const Main = cmp(async function Main(props: any) {
 
   Package({ target })
 
-  // Copy the tm/ts tree with the standard ProjectName substitutions.
-  //
-  // This component had drifted from the scaffold's Main_ts and lost this
-  // Copy entirely — `Copy` was still imported but never called. The scaffold
-  // relies on it to substitute placeholders across the whole template tree,
-  // INCLUDING src/feature/, which the Feature component copies without them.
-  // Losing it left `import type { ProjectNameSDK } from '../../ProjectNameSDK'`
-  // in the generated TestFeature.ts, so ts/ did not compile, dist/ was never
-  // produced, and every test failed to load the SDK.
+  Gitignore({})
+
   Copy({
     from: 'tm/' + target.name,
     replace: {
@@ -60,8 +56,14 @@ const Main = cmp(async function Main(props: any) {
 
       Line(`// ${model.const.Name} ${target.Name} SDK\n`)
 
-      List({ item: entity }, ({ item }: any) =>
-        Line(`import { ${item.Name}Entity } from './entity/${item.Name}Entity'`))
+      List({ item: entity }, ({ item }: any) => {
+        const cls = entityClassName(item, entityCollection(model))
+        return Line(`import { ${cls} } from './entity/${cls}'`)
+      })
+
+      // Re-export the generated typed models so consumers can
+      // `import { Advice, AdviceLoadMatch } from '<pkg>'`.
+      Line(`export type * from './${model.const.Name}Types'\n`)
 
       Fragment(
         {
@@ -105,6 +107,7 @@ if (fres instanceof Promise) { await fres }
 
     Config({ target })
     EntityBase({ target })
+    EntityTypes({ target })
 
   })
 })

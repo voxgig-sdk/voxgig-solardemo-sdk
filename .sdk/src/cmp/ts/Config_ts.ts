@@ -10,6 +10,9 @@ import {
   cmp,
   each,
   indent,
+  isAuthActive,
+  resolveAuthPrefix,
+  serverVariables,
 } from '@voxgig/sdkgen'
 
 
@@ -40,6 +43,25 @@ const Config = cmp(async function Config(props: any) {
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
+  const authActive = isAuthActive(model)
+  // config.auth.prefix override -> spec-derived info.security.prefix -> 'Bearer'
+  const authPrefix = resolveAuthPrefix(model)
+  const authBlock = authActive
+    ? `auth: {
+      prefix: '${authPrefix}',
+    },
+
+    `
+    : ''
+
+  // Templated server URL: emit the spec's server-variable defaults so the
+  // runtime can substitute {name} placeholders in base (see makeOptions).
+  const svars = serverVariables(model)
+  const serverBlock = 0 === svars.length ? '' :
+    'server: {\n' +
+    svars.map((v: any) => `      ${JSON.stringify(v.name)}: ${JSON.stringify(v.dflt)},\n`).join('') +
+    '    },\n\n    '
+
   File({ name: 'Config.' + target.ext }, () => {
 
     Fragment({
@@ -47,11 +69,9 @@ const Config = cmp(async function Config(props: any) {
 
       replace: {
 
-        // Config.fragment.ts carries `name: 'ProjectName'`. Without the
-        // standard replacements that placeholder reached the generated
-        // Config.ts verbatim, so the SDK reported its own name as
-        // "ProjectName" at runtime.
-        ...ctx$.stdrep,
+        "'SERVERBLOCK'": serverBlock,
+
+        "'AUTHBLOCK'": authBlock,
 
         "'HEADERS'": indent(JSON.stringify(headers, null, 2), 4).trim(),
 
@@ -61,11 +81,13 @@ const Config = cmp(async function Config(props: any) {
         }),
 
         '// #FeatureClasses': () => each(feature, (f: any) => {
-          Line(` ${f.name}: ${nom(f, 'Name')}Feature`)
+          // Trailing comma: the map has one entry per feature, so entries
+          // must be comma-separated (a single feature hid this until now).
+          Line(` ${f.name}: ${nom(f, 'Name')}Feature,`)
         }),
 
         '// #FeatureConfigs': () => each(feature, (f: any) => {
-          Line(` ${f.name}: ${formatJson(f.config, { margin: 4 })}`)
+          Line(` ${f.name}: ${formatJson(f.config, { margin: 4 })},`)
         }),
 
 

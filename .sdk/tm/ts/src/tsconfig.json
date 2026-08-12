@@ -9,8 +9,8 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2022",
+    "types": ["node"],
     "declaration": true,
-    "declarationDir": "../dist",
-    "types": ["node"]
+    "declarationDir": "../dist"
   }
 }

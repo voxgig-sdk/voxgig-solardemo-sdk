@@ -1,11 +1,11 @@
 
 import { inspect } from 'node:util'
 
-import { SolardemoEntityBase } from '../SolardemoEntityBase'
+import { VoxgigSolardemoEntityBase } from '../VoxgigSolardemoEntityBase'
 
 import type {
-  SolardemoSDK,
-} from '../SolardemoSDK'
+  VoxgigSolardemoSDK,
+} from '../VoxgigSolardemoSDK'
 
 
 import type {
@@ -14,11 +14,19 @@ import type {
   Control,
 } from '../types'
 
+import type {
+  Planet,
+  PlanetLoadMatch,
+  PlanetListMatch,
+  PlanetCreateData,
+  PlanetUpdateData,
+  PlanetRemoveMatch,
+} from '../VoxgigSolardemoTypes'
 
 // TODO: needs Entity superclass
-class PlanetEntity extends SolardemoEntityBase {
+class PlanetEntity extends VoxgigSolardemoEntityBase<Planet> {
 
-  constructor(client: SolardemoSDK, entopts: any) {
+  constructor(client: VoxgigSolardemoSDK, entopts: any) {
     super(client, entopts)
     this.name = 'planet'
     this.name_ = 'planet'
@@ -32,7 +40,7 @@ class PlanetEntity extends SolardemoEntityBase {
 
 
 
-  async load(this: any, reqmatch?: any, ctrl?: Control) {
+  async load(this: any, reqmatch?: PlanetLoadMatch, ctrl?: Control): Promise<Planet> {
 
     const utility = this._utility
 
@@ -136,14 +144,16 @@ class PlanetEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Planet> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async list(this: any, reqmatch?: any, ctrl?: Control) {
+  async list(this: any, reqmatch?: PlanetListMatch, ctrl?: Control): Promise<Planet[]> {
 
     const utility = this._utility
 
@@ -243,14 +253,16 @@ class PlanetEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Planet[]> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async create(this: any, reqdata?: any, ctrl?: Control) {
+  async create(this: any, reqdata?: PlanetCreateData, ctrl?: Control): Promise<Planet> {
 
     const utility = this._utility
     const {
@@ -349,14 +361,16 @@ class PlanetEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Planet> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async update(this: any, reqdata?: any, ctrl?: Control) {
+  async update(this: any, reqdata?: PlanetUpdateData, ctrl?: Control): Promise<Planet> {
 
     const utility = this._utility
 
@@ -461,14 +475,16 @@ class PlanetEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Planet> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async remove(this: any, reqmatch?: any, ctrl?: Control) {
+  async remove(this: any, reqmatch?: PlanetRemoveMatch, ctrl?: Control): Promise<Planet> {
 
     const utility = this._utility
 
@@ -573,7 +589,9 @@ class PlanetEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Planet> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }

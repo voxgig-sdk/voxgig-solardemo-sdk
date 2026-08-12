@@ -1,12 +1,12 @@
-# AGENTS.md — Solardemo Go SDK
+# AGENTS.md — VoxgigSolardemo Go SDK
 
-Entity-oriented client for the Solardemo API using standard Go conventions —
+Entity-oriented client for the VoxgigSolardemo API using standard Go conventions —
 no generics; data flows as `map[string]any`.
 
 ## Module path
 
 ```
-voxgigsolardemosdk
+voxgigvoxgig-solardemosdk
 ```
 
 This module is distributed as source in this repository. The module path has
@@ -15,8 +15,8 @@ pointing at the SDK source:
 
 ```
 // in the consumer's go.mod
-require voxgigsolardemosdk v0.0.0
-replace voxgigsolardemosdk => /path/to/voxgigsolardemosdk
+require voxgigvoxgig-solardemosdk v0.0.0
+replace voxgigvoxgig-solardemosdk => /path/to/voxgigvoxgig-solardemosdk
 ```
 
 ## Create a client
@@ -28,14 +28,14 @@ import (
     "fmt"
     "os"
 
-    sdk "voxgigsolardemosdk"
-    "voxgigsolardemosdk/core"
+    sdk "voxgigvoxgig-solardemosdk"
+    "voxgigvoxgig-solardemosdk/core"
 )
 
 func main() {
-    client := sdk.NewSolardemoSDK(map[string]any{
-        "base":   os.Getenv("SOLARDEMO_BASE_URL"), // API server base URL
-        "apikey": os.Getenv("SOLARDEMO_APIKEY"),
+    client := sdk.NewVoxgigSolardemoSDK(map[string]any{
+        "base":   os.Getenv("VOXGIG-SOLARDEMO_BASE_URL"), // API server base URL
+        "apikey": os.Getenv("VOXGIG-SOLARDEMO_APIKEY"),
     })
 ```
 

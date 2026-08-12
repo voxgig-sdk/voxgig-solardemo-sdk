@@ -1,2 +1,27 @@
+# preparePath joins ctx.point.parts into the URL path, in "url mode":
+# non-string and empty entries are dropped, the first part keeps any leading
+# slash but loses trailing ones, and later parts lose leading slashes — so
+# parts can be concatenated without doubling or dropping separators.
 
-basic: set: []
+basic: set: [
+
+  # Plain join.
+  { ctx: { point: { parts: ['api', 'planet'] } }, out: 'api/planet' }
+
+  # Single part.
+  { ctx: { point: { parts: ['api'] } }, out: 'api' }
+
+  # Empty entries are dropped, not turned into empty segments.
+  { ctx: { point: { parts: ['api', '', 'planet'] } }, out: 'api/planet' }
+
+  # Separators are normalised: no doubled slash from an adjacent pair.
+  { ctx: { point: { parts: ['api/', '/planet'] } }, out: 'api/planet' }
+
+  # Nested entity path, as used by moon under planet.
+  { ctx: { point: { parts: ['api', 'planet', 'p01', 'moon'] } },
+    out: 'api/planet/p01/moon' }
+
+  # No parts at all yields an empty path rather than an error.
+  { ctx: { point: { parts: [] } }, out: '' }
+
+]

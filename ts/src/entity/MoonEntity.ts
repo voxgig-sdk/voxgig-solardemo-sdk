@@ -1,11 +1,11 @@
 
 import { inspect } from 'node:util'
 
-import { SolardemoEntityBase } from '../SolardemoEntityBase'
+import { VoxgigSolardemoEntityBase } from '../VoxgigSolardemoEntityBase'
 
 import type {
-  SolardemoSDK,
-} from '../SolardemoSDK'
+  VoxgigSolardemoSDK,
+} from '../VoxgigSolardemoSDK'
 
 
 import type {
@@ -14,11 +14,19 @@ import type {
   Control,
 } from '../types'
 
+import type {
+  Moon,
+  MoonLoadMatch,
+  MoonListMatch,
+  MoonCreateData,
+  MoonUpdateData,
+  MoonRemoveMatch,
+} from '../VoxgigSolardemoTypes'
 
 // TODO: needs Entity superclass
-class MoonEntity extends SolardemoEntityBase {
+class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
 
-  constructor(client: SolardemoSDK, entopts: any) {
+  constructor(client: VoxgigSolardemoSDK, entopts: any) {
     super(client, entopts)
     this.name = 'moon'
     this.name_ = 'moon'
@@ -32,7 +40,7 @@ class MoonEntity extends SolardemoEntityBase {
 
 
 
-  async load(this: any, reqmatch?: any, ctrl?: Control) {
+  async load(this: any, reqmatch?: MoonLoadMatch, ctrl?: Control): Promise<Moon> {
 
     const utility = this._utility
 
@@ -136,14 +144,16 @@ class MoonEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Moon> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async list(this: any, reqmatch?: any, ctrl?: Control) {
+  async list(this: any, reqmatch?: MoonListMatch, ctrl?: Control): Promise<Moon[]> {
 
     const utility = this._utility
 
@@ -243,14 +253,16 @@ class MoonEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Moon[]> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async create(this: any, reqdata?: any, ctrl?: Control) {
+  async create(this: any, reqdata?: MoonCreateData, ctrl?: Control): Promise<Moon> {
 
     const utility = this._utility
     const {
@@ -349,14 +361,16 @@ class MoonEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Moon> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async update(this: any, reqdata?: any, ctrl?: Control) {
+  async update(this: any, reqdata?: MoonUpdateData, ctrl?: Control): Promise<Moon> {
 
     const utility = this._utility
 
@@ -461,14 +475,16 @@ class MoonEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Moon> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }
 
 
 
-  async remove(this: any, reqmatch?: any, ctrl?: Control) {
+  async remove(this: any, reqmatch?: MoonRemoveMatch, ctrl?: Control): Promise<Moon> {
 
     const utility = this._utility
 
@@ -573,7 +589,9 @@ class MoonEntity extends SolardemoEntityBase {
         throw err
       }
       else {
-        return undefined
+        // Off-happy-path (throw disabled): typed as any so the method's
+        // Promise<Moon> return stays clean under strict null checks.
+        return undefined as any
       }
     }
   }

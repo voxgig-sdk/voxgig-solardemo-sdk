@@ -4,19 +4,25 @@ main: kit: target: go: {
   title: Golang
   ext: go
   comment: line: "//"
-  module: name: solardemo
+  module: name: 'voxgig-solardemo'
   srcfeature: false
 
   deps: &: {
     kind: *'prod' | string
   }
 
-  deps: {
-    'github.com/voxgig/struct': { active: true, version: 'v0.0.0', replace: './utility/struct' }
-  }
+  # struct is inlined under <gomodule>/utility/struct — no external dep.
+  deps: {}
 }
 
 
 main: kit: feature: &: target: go: deps: &: {
   kind: *'prod' | string
+}
+
+
+# Publication: tag-only — the Go module proxy resolves versions from the
+# go/vX.Y.Z GitHub tag; there is no package registry to upload to.
+main: kit: target: go: publish: {
+  tag: { active: true }
 }
