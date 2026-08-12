@@ -1022,7 +1022,8 @@
                 "recipe": "github"
               },
               "via": "port"
-            }
+            },
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "title": "Golang"
@@ -1083,7 +1084,8 @@
                 "recipe": "github"
               },
               "via": "port"
-            }
+            },
+            "version": "0.0.2"
           },
           "title": "TypeScript"
         }

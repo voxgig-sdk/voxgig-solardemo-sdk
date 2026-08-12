@@ -33,6 +33,11 @@ main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
 # overwrites that file from the scaffold — which is how this pin was lost
 # once already. The scaffold leaves these keys unset so a concrete value set
 # here wins over the schema default.
+# The SDK's own release version: what ts/package.json declares and what
+# `make publish` tags. Declared here because generated output is overwritten
+# — a version hand-edited into package.json is lost on the next regeneration.
+main: kit: target: ts: publish: version: '0.0.2'
+
 main: kit: target: ts: publish: registry: {
   # 0.0.1 and 0.0.2 are live on npm.
   state: 'active'
