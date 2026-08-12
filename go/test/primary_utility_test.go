@@ -251,7 +251,7 @@ func TestPrimaryUtility(t *testing.T) {
 
 	t.Run("fetcher-live", func(t *testing.T) {
 		calls := []map[string]any{}
-		liveClient := sdk.NewVoxgigSolardemoSDK(map[string]any{
+		liveClient := sdk.NewSolardemoSDK(map[string]any{
 			// Concrete base: a live construction must satisfy any server
 			// variables a templated base URL declares; a literal base
 			// sidesteps the requirement.
@@ -285,7 +285,7 @@ func TestPrimaryUtility(t *testing.T) {
 
 	t.Run("fetcher-blocked-test-mode", func(t *testing.T) {
 		// Create a live SDK then set mode to test (not using TestSDK, which installs test feature)
-		blockedClient := sdk.NewVoxgigSolardemoSDK(map[string]any{
+		blockedClient := sdk.NewSolardemoSDK(map[string]any{
 			"base": "http://localhost:8080",
 			"system": map[string]any{
 				"fetch": func(url string, fetchdef map[string]any) (map[string]any, error) {
@@ -868,7 +868,7 @@ func (f *testInitFeature) Init(ctx *sdk.Context, options map[string]any) {
 }
 
 // Helper: create basic test context
-func makeTestCtx(client *sdk.VoxgigSolardemoSDK, utility *sdk.Utility, overrides map[string]any) *sdk.Context {
+func makeTestCtx(client *sdk.SolardemoSDK, utility *sdk.Utility, overrides map[string]any) *sdk.Context {
 	ctxmap := map[string]any{
 		"opname":  "load",
 		"client":  client,
@@ -883,7 +883,7 @@ func makeTestCtx(client *sdk.VoxgigSolardemoSDK, utility *sdk.Utility, overrides
 }
 
 // Helper: create full test context with point and match
-func makeTestFullCtx(client *sdk.VoxgigSolardemoSDK, utility *sdk.Utility) *sdk.Context {
+func makeTestFullCtx(client *sdk.SolardemoSDK, utility *sdk.Utility) *sdk.Context {
 	ctx := makeTestCtx(client, utility, nil)
 	ctx.Point = map[string]any{
 		"parts":     []any{"items", "{id}"},

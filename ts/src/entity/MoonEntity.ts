@@ -1,11 +1,11 @@
 
 import { inspect } from 'node:util'
 
-import { VoxgigSolardemoEntityBase } from '../VoxgigSolardemoEntityBase'
+import { SolardemoEntityBase } from '../SolardemoEntityBase'
 
 import type {
-  VoxgigSolardemoSDK,
-} from '../VoxgigSolardemoSDK'
+  SolardemoSDK,
+} from '../SolardemoSDK'
 
 
 import type {
@@ -21,12 +21,12 @@ import type {
   MoonCreateData,
   MoonUpdateData,
   MoonRemoveMatch,
-} from '../VoxgigSolardemoTypes'
+} from '../SolardemoTypes'
 
 // TODO: needs Entity superclass
-class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
+class MoonEntity extends SolardemoEntityBase<Moon> {
 
-  constructor(client: VoxgigSolardemoSDK, entopts: any) {
+  constructor(client: SolardemoSDK, entopts: any) {
     super(client, entopts)
     this.name = 'moon'
     this.name_ = 'moon'
@@ -40,7 +40,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
 
 
 
-  async load(this: any, reqmatch?: MoonLoadMatch, ctrl?: Control): Promise<Moon> {
+  async load(this: any, reqmatch?: MoonLoadMatch, ctrl?: Control): Promise<MoonEntity> {
 
     const utility = this._utility
 
@@ -131,7 +131,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
         }
       }
 
-      return done(ctx)
+      const out = done(ctx)
+
+      // An operation resolves to the ENTITY, not the raw data — the record
+      // has just been absorbed into this instance and is reached through
+      // data(). `done` still runs: it completes the pipeline and raises on
+      // failure, and when throwing is disabled it hands back the error
+      // payload, which passes through unchanged. See AGENTS.md "Entity
+      // operations return ENTITIES".
+      return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err: any) {
 
@@ -153,7 +161,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
 
 
 
-  async list(this: any, reqmatch?: MoonListMatch, ctrl?: Control): Promise<Moon[]> {
+  async list(this: any, reqmatch?: MoonListMatch, ctrl?: Control): Promise<MoonEntity[]> {
 
     const utility = this._utility
 
@@ -262,7 +270,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
 
 
 
-  async create(this: any, reqdata?: MoonCreateData, ctrl?: Control): Promise<Moon> {
+  async create(this: any, reqdata?: MoonCreateData, ctrl?: Control): Promise<MoonEntity> {
 
     const utility = this._utility
     const {
@@ -348,7 +356,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
         }
       }
 
-      return done(ctx)
+      const out = done(ctx)
+
+      // An operation resolves to the ENTITY, not the raw data — the record
+      // has just been absorbed into this instance and is reached through
+      // data(). `done` still runs: it completes the pipeline and raises on
+      // failure, and when throwing is disabled it hands back the error
+      // payload, which passes through unchanged. See AGENTS.md "Entity
+      // operations return ENTITIES".
+      return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err: any) {
 
@@ -370,7 +386,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
 
 
 
-  async update(this: any, reqdata?: MoonUpdateData, ctrl?: Control): Promise<Moon> {
+  async update(this: any, reqdata?: MoonUpdateData, ctrl?: Control): Promise<MoonEntity> {
 
     const utility = this._utility
 
@@ -462,7 +478,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
         }
       }
 
-      return done(ctx)
+      const out = done(ctx)
+
+      // An operation resolves to the ENTITY, not the raw data — the record
+      // has just been absorbed into this instance and is reached through
+      // data(). `done` still runs: it completes the pipeline and raises on
+      // failure, and when throwing is disabled it hands back the error
+      // payload, which passes through unchanged. See AGENTS.md "Entity
+      // operations return ENTITIES".
+      return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err: any) {
 
@@ -484,7 +508,17 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
 
 
 
-  async remove(this: any, reqmatch?: MoonRemoveMatch, ctrl?: Control): Promise<Moon> {
+  // Resolves to THIS entity, marked as deleted — like every other operation,
+  // which resolve to the entity too (see AGENTS.md). The instance keeps the
+  // data it held, so a caller can still read what was removed; `deleted()`
+  // reports that it is no longer a live record.
+  //
+  // A DELETE that answers 204 No Content therefore still resolves to
+  // something useful, where returning the raw body resolved to `undefined`
+  // against a signature that promised a record.
+  async remove(
+    this: any, reqmatch?: MoonRemoveMatch, ctrl?: Control,
+  ): Promise<MoonEntity> {
 
     const utility = this._utility
 
@@ -576,7 +610,21 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
         }
       }
 
-      return done(ctx)
+      const out = done(ctx)
+
+      // An operation resolves to the ENTITY, not the raw data — the record
+      // has just been absorbed into this instance and is reached through
+      // data(). `done` still runs: it completes the pipeline and raises on
+      // failure, and when throwing is disabled it hands back the error
+      // payload, which passes through unchanged. See AGENTS.md "Entity
+      // operations return ENTITIES".
+      if (ctx.result && ctx.result.ok) {
+        // A removed entity keeps its data but is no longer a live record.
+        this.markDeleted()
+        return this
+      }
+
+      return out
     }
     catch (err: any) {
 
@@ -590,7 +638,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase<Moon> {
       }
       else {
         // Off-happy-path (throw disabled): typed as any so the method's
-        // Promise<Moon> return stays clean under strict null checks.
+        // Promise<MoonEntity> return stays clean under strict null checks.
         return undefined as any
       }
     }

@@ -1,6 +1,6 @@
 
 import type { Context, FeatureOptions } from '../../types'
-import type { VoxgigSolardemoSDK } from '../../VoxgigSolardemoSDK'
+import type { SolardemoSDK } from '../../SolardemoSDK'
 
 import { BaseFeature } from '../base/BaseFeature'
 
@@ -13,7 +13,7 @@ class TestFeature extends BaseFeature {
   name = 'test'
   active = true
 
-  _client?: VoxgigSolardemoSDK
+  _client?: SolardemoSDK
   _options?: any
 
 

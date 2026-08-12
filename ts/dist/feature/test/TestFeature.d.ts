@@ -1,11 +1,11 @@
 import type { Context, FeatureOptions } from '../../types';
-import type { VoxgigSolardemoSDK } from '../../VoxgigSolardemoSDK';
+import type { SolardemoSDK } from '../../SolardemoSDK';
 import { BaseFeature } from '../base/BaseFeature';
 declare class TestFeature extends BaseFeature {
     version: string;
     name: string;
     active: boolean;
-    _client?: VoxgigSolardemoSDK;
+    _client?: SolardemoSDK;
     _options?: any;
     init(ctx: Context, options: FeatureOptions): void | Promise<any>;
     makeNetsim(this: any, net: any, inner: any): (ctx: any, url: string, fetchdef: any) => Promise<any>;

@@ -8,7 +8,7 @@
     "generated-sdk",
     "openapi",
     "api-client",
-    "voxgig-solardemo"
+    "solardemo"
   ],
   "homepage": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk#readme",
   "repository": {
@@ -18,15 +18,12 @@
   "bugs": {
     "url": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk/issues"
   },
-  "main": "dist/VoxgigSolardemoSDK.js",
+  "main": "dist/SolardemoSDK.js",
   "type": "commonjs",
-  "types": "dist/VoxgigSolardemoSDK.d.ts",
+  "types": "dist/SolardemoSDK.d.ts",
   "files": [
     "dist",
-    "src",
-    "AGENTS.md",
-    "REFERENCE.md",
-    "!**/*.tsbuildinfo"
+    "src"
   ],
   "scripts": {
     "pretest": "npm run build",

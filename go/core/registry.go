@@ -6,7 +6,7 @@ var NewBaseFeatureFunc func() Feature
 
 var NewTestFeatureFunc func() Feature
 
-var NewMoonEntityFunc func(client *VoxgigSolardemoSDK, entopts map[string]any) VoxgigSolardemoEntity
+var NewMoonEntityFunc func(client *SolardemoSDK, entopts map[string]any) SolardemoEntity
 
-var NewPlanetEntityFunc func(client *VoxgigSolardemoSDK, entopts map[string]any) VoxgigSolardemoEntity
+var NewPlanetEntityFunc func(client *SolardemoSDK, entopts map[string]any) SolardemoEntity
 

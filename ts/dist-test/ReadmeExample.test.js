@@ -61,11 +61,11 @@ function transformForTestMode(code, name) {
         const md = Fs.readFileSync(readmePath, 'utf8');
         const block = findFirstTsBlock(md, 'Quickstart');
         (0, node_assert_1.default)(block, 'No TypeScript code block found under "## Quickstart" in README.md');
-        const code = transformForTestMode(block, 'VoxgigSolardemo');
+        const code = transformForTestMode(block, 'Solardemo');
         // Run the (transformed) example. Async, so wrap in AsyncFunction.
         const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
         const silentConsole = { log: () => { }, error: () => { }, warn: () => { } };
-        const runner = new AsyncFunction('VoxgigSolardemoSDK', 'console', code);
+        const runner = new AsyncFunction('SolardemoSDK', 'console', code);
         // The example should at least parse and have a valid call shape
         // (every method exists on the SDK and accepts the args shown). A
         // "Not found" / 404 from test mode means the SDK accepted the call
@@ -74,7 +74,7 @@ function transformForTestMode(code, name) {
         // ReferenceError, SyntaxError) means the README example is out of
         // sync with the real SDK API and the test should fail.
         try {
-            await runner(__1.VoxgigSolardemoSDK, silentConsole);
+            await runner(__1.SolardemoSDK, silentConsole);
         }
         catch (err) {
             const msg = String(err?.message ?? err);

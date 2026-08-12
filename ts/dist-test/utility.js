@@ -83,8 +83,8 @@ function makeCtrl(explain) {
 // CLAUDE: add a full stop to each function comment
 // Overrides configuration values with environment variables if available
 function envOverride(m) {
-    if ('TRUE' === process.env.VOXGIGSOLARDEMO_TEST_LIVE ||
-        'TRUE' === process.env.VOXGIGSOLARDEMO_TEST_OVERRIDE) {
+    if ('TRUE' === process.env.SOLARDEMO_TEST_LIVE ||
+        'TRUE' === process.env.SOLARDEMO_TEST_OVERRIDE) {
         Object.entries(m).map(n => {
             let envval = process.env[n[0]];
             if (null != envval) {
@@ -93,7 +93,7 @@ function envOverride(m) {
             }
         });
     }
-    m.VOXGIGSOLARDEMO_TEST_EXPLAIN = process.env.VOXGIGSOLARDEMO_TEST_EXPLAIN || m.VOXGIGSOLARDEMO_TEST_EXPLAIN;
+    m.SOLARDEMO_TEST_EXPLAIN = process.env.SOLARDEMO_TEST_EXPLAIN || m.SOLARDEMO_TEST_EXPLAIN;
     return m;
 }
 let _testControlCache = null;

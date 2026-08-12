@@ -7,7 +7,7 @@ import (
 	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 )
 
-type VoxgigSolardemoSDK struct {
+type SolardemoSDK struct {
 	Mode     string
 	options  map[string]any
 	utility  *Utility
@@ -15,8 +15,8 @@ type VoxgigSolardemoSDK struct {
 	rootctx  *Context
 }
 
-func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK {
-	sdk := &VoxgigSolardemoSDK{
+func NewSolardemoSDK(options map[string]any) *SolardemoSDK {
+	sdk := &SolardemoSDK{
 		Mode:     "live",
 		Features: []Feature{},
 	}
@@ -84,7 +84,7 @@ func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK {
 	return sdk
 }
 
-func (sdk *VoxgigSolardemoSDK) OptionsMap() map[string]any {
+func (sdk *SolardemoSDK) OptionsMap() map[string]any {
 	out := vs.Clone(sdk.options)
 	if om, ok := out.(map[string]any); ok {
 		return om
@@ -92,15 +92,15 @@ func (sdk *VoxgigSolardemoSDK) OptionsMap() map[string]any {
 	return map[string]any{}
 }
 
-func (sdk *VoxgigSolardemoSDK) GetUtility() *Utility {
+func (sdk *SolardemoSDK) GetUtility() *Utility {
 	return CopyUtility(sdk.utility)
 }
 
-func (sdk *VoxgigSolardemoSDK) GetRootCtx() *Context {
+func (sdk *SolardemoSDK) GetRootCtx() *Context {
 	return sdk.rootctx
 }
 
-func (sdk *VoxgigSolardemoSDK) Prepare(fetchargs map[string]any) (map[string]any, error) {
+func (sdk *SolardemoSDK) Prepare(fetchargs map[string]any) (map[string]any, error) {
 	utility := sdk.utility
 
 	if fetchargs == nil {
@@ -178,7 +178,7 @@ func (sdk *VoxgigSolardemoSDK) Prepare(fetchargs map[string]any) (map[string]any
 // Raw endpoint access is operator-controllable, like every entity op.
 // Blocking it means denying BOTH the 'direct' and 'graphql' tokens, since
 // either one reaches the same endpoint.
-func (sdk *VoxgigSolardemoSDK) Direct(fetchargs map[string]any) (map[string]any, error) {
+func (sdk *SolardemoSDK) Direct(fetchargs map[string]any) (map[string]any, error) {
 	if !sdk.opAllowed("direct") {
 		return sdk.opDenied("direct"), nil
 	}
@@ -187,16 +187,16 @@ func (sdk *VoxgigSolardemoSDK) Direct(fetchargs map[string]any) (map[string]any,
 }
 
 // Is this raw-access op permitted by the SDK's allow.op option?
-func (sdk *VoxgigSolardemoSDK) opAllowed(op string) bool {
+func (sdk *SolardemoSDK) opAllowed(op string) bool {
 	allowOp, _ := vs.GetPath([]any{"allow", "op"}, sdk.options).(string)
 	return strings.Contains(allowOp, op)
 }
 
-func (sdk *VoxgigSolardemoSDK) opDenied(op string) map[string]any {
+func (sdk *SolardemoSDK) opDenied(op string) map[string]any {
 	allowOp, _ := vs.GetPath([]any{"allow", "op"}, sdk.options).(string)
 	return map[string]any{
 		"ok": false,
-		"err": fmt.Errorf("VoxgigSolardemoSDK: %s: operation not allowed by"+
+		"err": fmt.Errorf("SolardemoSDK: %s: operation not allowed by"+
 			" SDK option allow.op value: \"%s\"", op, allowOp),
 	}
 }
@@ -205,7 +205,7 @@ func (sdk *VoxgigSolardemoSDK) opDenied(op string) map[string]any {
 // its own allow.op token first. Unexported, rather than a flag on fetchargs:
 // a caller-supplied marker would let anyone opt straight back out of the
 // gate by passing it.
-func (sdk *VoxgigSolardemoSDK) rawRequest(fetchargs map[string]any) (map[string]any, error) {
+func (sdk *SolardemoSDK) rawRequest(fetchargs map[string]any) (map[string]any, error) {
 	utility := sdk.utility
 
 	fetchdef, err := sdk.Prepare(fetchargs)
@@ -292,7 +292,7 @@ func (sdk *VoxgigSolardemoSDK) rawRequest(fetchargs map[string]any) (map[string]
 //
 // NOTE: like Direct, this bypasses the feature pipeline — no retry,
 // ratelimit or paging features apply.
-func (sdk *VoxgigSolardemoSDK) Graphql(
+func (sdk *SolardemoSDK) Graphql(
 	query string, variables map[string]any, ctrl map[string]any,
 ) (map[string]any, error) {
 	if !sdk.opAllowed("graphql") {
@@ -330,7 +330,7 @@ func (sdk *VoxgigSolardemoSDK) Graphql(
 			msg = "graphql error"
 		}
 		res["ok"] = false
-		res["err"] = fmt.Errorf("VoxgigSolardemoSDK: graphql: %s", msg)
+		res["err"] = fmt.Errorf("SolardemoSDK: graphql: %s", msg)
 		res["graphql"] = errors
 	}
 
@@ -341,7 +341,7 @@ func (sdk *VoxgigSolardemoSDK) Graphql(
 // Moon returns a Moon entity bound to this client.
 // Idiomatic usage: client.Moon(nil).List(nil, nil) or
 // client.Moon(nil).Load(map[string]any{"id": ...}, nil).
-func (sdk *VoxgigSolardemoSDK) Moon(data map[string]any) VoxgigSolardemoEntity {
+func (sdk *SolardemoSDK) Moon(data map[string]any) SolardemoEntity {
 	return NewMoonEntityFunc(sdk, data)
 }
 
@@ -349,13 +349,13 @@ func (sdk *VoxgigSolardemoSDK) Moon(data map[string]any) VoxgigSolardemoEntity {
 // Planet returns a Planet entity bound to this client.
 // Idiomatic usage: client.Planet(nil).List(nil, nil) or
 // client.Planet(nil).Load(map[string]any{"id": ...}, nil).
-func (sdk *VoxgigSolardemoSDK) Planet(data map[string]any) VoxgigSolardemoEntity {
+func (sdk *SolardemoSDK) Planet(data map[string]any) SolardemoEntity {
 	return NewPlanetEntityFunc(sdk, data)
 }
 
 
 
-func TestSDK(testopts map[string]any, sdkopts map[string]any) *VoxgigSolardemoSDK {
+func TestSDK(testopts map[string]any, sdkopts map[string]any) *SolardemoSDK {
 	if sdkopts == nil {
 		sdkopts = map[string]any{}
 	}
@@ -369,7 +369,7 @@ func TestSDK(testopts map[string]any, sdkopts map[string]any) *VoxgigSolardemoSD
 
 	vs.SetPath(sdkopts, []any{"feature", "test"}, testopts)
 
-	sdk := NewVoxgigSolardemoSDK(sdkopts)
+	sdk := NewSolardemoSDK(sdkopts)
 	sdk.Mode = "test"
 
 	return sdk

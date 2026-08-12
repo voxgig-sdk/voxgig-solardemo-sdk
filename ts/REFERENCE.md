@@ -1,14 +1,14 @@
-# VoxgigSolardemo TypeScript SDK Reference
+# Solardemo TypeScript SDK Reference
 
-Complete API reference for the VoxgigSolardemo TypeScript SDK.
+Complete API reference for the Solardemo TypeScript SDK.
 
 
-## VoxgigSolardemoSDK
+## SolardemoSDK
 
 ### Constructor
 
 ```ts
-new VoxgigSolardemoSDK(options?: object)
+new SolardemoSDK(options?: object)
 ```
 
 Create a new SDK client instance.
@@ -28,12 +28,12 @@ Create a new SDK client instance.
 
 ### Static Methods
 
-#### `VoxgigSolardemoSDK.test(testopts?, sdkopts?)`
+#### `SolardemoSDK.test(testopts?, sdkopts?)`
 
 Create a test client with mock features active.
 
 ```ts
-const client = VoxgigSolardemoSDK.test()
+const client = SolardemoSDK.test()
 ```
 
 **Parameters:**
@@ -43,7 +43,7 @@ const client = VoxgigSolardemoSDK.test()
 | `testopts` | `object` | Test feature options. |
 | `sdkopts` | `object` | Additional SDK options merged with test defaults. |
 
-**Returns:** `VoxgigSolardemoSDK` instance in test mode.
+**Returns:** `SolardemoSDK` instance in test mode.
 
 
 ### Instance Methods
@@ -111,9 +111,9 @@ same parameters as `direct()`.
 
 #### `tester(testopts?, sdkopts?)`
 
-Alias for `VoxgigSolardemoSDK.test()`.
+Alias for `SolardemoSDK.test()`.
 
-**Returns:** `VoxgigSolardemoSDK` instance in test mode.
+**Returns:** `SolardemoSDK` instance in test mode.
 
 
 ---
@@ -155,7 +155,7 @@ const result = await client.Moon().create({
 List entities matching the given criteria. Returns an array.
 
 ```ts
-const results = await client.Moon().list()
+const results = await client.Moon().list({ planet_id: "example" })
 ```
 
 #### `load(match: object, ctrl?: object)`
@@ -205,7 +205,7 @@ options.
 
 #### `client()`
 
-Return the parent `VoxgigSolardemoSDK` instance.
+Return the parent `SolardemoSDK` instance.
 
 #### `entopts()`
 
@@ -234,6 +234,27 @@ const planet = client.Planet()
 | `state` | `string` | No |  |
 | `stop` | `boolean` | No |  |
 | `why` | `string` | No |  |
+
+### Actions
+
+This entity exposes custom API actions in addition to the standard
+operations. Select one with `$action` in the call's argument; the
+remaining keys are sent as that action's payload.
+
+| Action | Route | Call |
+| --- | --- | --- |
+| `forbid` | `/api/planet/{planet_id}/forbid` | `client.Planet().create({ $action: 'forbid', ... })` |
+| `terraform` | `/api/planet/{planet_id}/terraform` | `client.Planet().create({ $action: 'terraform', ... })` |
+
+An action returns that action's OWN response, which is not necessarily a
+Planet record — check the API definition for its shape.
+
+```ts
+const result = await client.Planet().create({
+  $action: 'forbid',
+  /* ...the action's own arguments */
+})
+```
 
 ### Operations
 
@@ -304,7 +325,7 @@ options.
 
 #### `client()`
 
-Return the parent `VoxgigSolardemoSDK` instance.
+Return the parent `SolardemoSDK` instance.
 
 #### `entopts()`
 
@@ -323,7 +344,7 @@ Return a copy of the entity options.
 Features are activated via the `feature` option:
 
 ```ts
-const client = new VoxgigSolardemoSDK({
+const client = new SolardemoSDK({
   feature: {
     test: { active: true },
   }

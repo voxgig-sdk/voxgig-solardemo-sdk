@@ -1,5 +1,5 @@
 
-import { VoxgigSolardemoEntityBase } from './VoxgigSolardemoEntityBase'
+import { SolardemoEntityBase } from './SolardemoEntityBase'
 
 import { Point } from './Point'
 import { Context } from './Context'
@@ -47,7 +47,7 @@ export {
   Response,
   Result,
   Spec,
-  VoxgigSolardemoEntityBase,
+  SolardemoEntityBase,
 }
 
 

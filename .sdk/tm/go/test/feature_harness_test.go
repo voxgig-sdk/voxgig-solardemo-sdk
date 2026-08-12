@@ -1,14 +1,15 @@
 package sdktest
 
-// Offline feature-test harness plus behavioural tests for the enterprise
-// features shipped with this SDK (retry, cache, rbac, telemetry, ...).
+// Offline feature-test harness: a faithful miniature of the real operation
+// pipeline (same hook order and short-circuit rules as the generated
+// Entity*Op code) driven against a configurable mock transport, with no
+// live server and no API-specific fixtures.
 //
-// Feature behaviour is unit-tested by driving each feature through a
-// faithful miniature of the real operation pipeline against a configurable
-// mock transport — the same hook order and short-circuit rules as the
-// generated Entity*Op code, but with no live server and no API-specific
-// fixtures. Each block runs only when its feature is present in this SDK
-// (see fhSkipWithout).
+// SEPARATE FROM feature_test.go ON PURPOSE. `target add` drops the
+// cross-feature suite when a project trims its feature set (it constructs
+// every shipped feature by name), but pipeline_test.go and friends use
+// these fh* helpers too — leaving them in feature_test.go took the whole
+// test package down with it.
 
 import (
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
 	sdk "GOMODULE"
 )
 
@@ -111,7 +113,7 @@ func fhF(f sdk.Feature, options map[string]any) fhFeature {
 // fhHarness wires features (in init order) to a mock transport and a mini
 // operation pipeline.
 type fhHarness struct {
-	client  *sdk.VoxgigSolardemoSDK
+	client  *sdk.SolardemoSDK
 	utility *sdk.Utility
 	rootctx *sdk.Context
 	base    string
@@ -352,22 +354,8 @@ func fhPopulateResult(ctx *sdk.Context, response any, fetchErr error) {
 
 // fhErrCode extracts the SDK error code, "" otherwise.
 func fhErrCode(err error) string {
-	if se, ok := err.(*sdk.VoxgigSolardemoError); ok {
+	if se, ok := err.(*sdk.SolardemoError); ok {
 		return se.Code
 	}
 	return ""
 }
-
-// --- NOTE ---------------------------------------------------------------
-//
-// Upstream this file also carries one TestFeature<Name> block per enterprise
-// feature (netsim, retry, timeout, ratelimit, cache, idempotency, rbac,
-// metrics, telemetry, debug, audit, clienttrack, paging, streaming, proxy).
-// Those blocks call `feat.New<Name>Feature()` directly, so they are
-// COMPILE-TIME dependent on feature source this SDK does not ship — the model
-// activates only `test`. They were removed here; the harness above is kept
-// because pipeline_test.go reuses its fh* helpers.
-//
-// Restore them by re-adding the feature templates under
-// .sdk/tm/go/feature/ and re-running `voxgig-sdkgen target add go`.
-// See design/REPORT-bugs-and-issues.md (E10).

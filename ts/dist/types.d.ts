@@ -1,4 +1,4 @@
-import { VoxgigSolardemoEntityBase } from './VoxgigSolardemoEntityBase';
+import { SolardemoEntityBase } from './SolardemoEntityBase';
 import { Point } from './Point';
 import { Context } from './Context';
 import { Control } from './Control';
@@ -28,5 +28,5 @@ interface Feature {
     PreUnexpected: (ctx: Context) => void | Promise<any>;
     SetMatch: (ctx: Context) => void | Promise<any>;
 }
-export { Point, Context, Control, Operation, Response, Result, Spec, VoxgigSolardemoEntityBase, };
+export { Point, Context, Control, Operation, Response, Result, Spec, SolardemoEntityBase, };
 export type { Feature, FeatureOptions, };

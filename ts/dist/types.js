@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VoxgigSolardemoEntityBase = exports.Spec = exports.Result = exports.Response = exports.Operation = exports.Control = exports.Context = exports.Point = void 0;
-const VoxgigSolardemoEntityBase_1 = require("./VoxgigSolardemoEntityBase");
-Object.defineProperty(exports, "VoxgigSolardemoEntityBase", { enumerable: true, get: function () { return VoxgigSolardemoEntityBase_1.VoxgigSolardemoEntityBase; } });
+exports.SolardemoEntityBase = exports.Spec = exports.Result = exports.Response = exports.Operation = exports.Control = exports.Context = exports.Point = void 0;
+const SolardemoEntityBase_1 = require("./SolardemoEntityBase");
+Object.defineProperty(exports, "SolardemoEntityBase", { enumerable: true, get: function () { return SolardemoEntityBase_1.SolardemoEntityBase; } });
 const Point_1 = require("./Point");
 Object.defineProperty(exports, "Point", { enumerable: true, get: function () { return Point_1.Point; } });
 const Context_1 = require("./Context");

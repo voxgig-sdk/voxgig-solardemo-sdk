@@ -5,7 +5,7 @@ const node_assert_1 = require("node:assert");
 const __1 = require("../..");
 (0, node_test_1.describe)('Custom', () => {
     (0, node_test_1.test)('basic', async () => {
-        const client = __1.VoxgigSolardemoSDK.test({}, {
+        const client = __1.SolardemoSDK.test({}, {
             apikey: 'APIKEY01',
             // NOTE: original utility.options must remain in place.
             utility: {

@@ -9,7 +9,7 @@ import { test, describe, afterEach } from 'node:test'
 import assert from 'node:assert'
 
 
-import { VoxgigSolardemoSDK, BaseFeature, stdutil } from '../../..'
+import { SolardemoSDK, BaseFeature, stdutil } from '../../..'
 
 import {
   envOverride,
@@ -26,11 +26,11 @@ import {
 describe('MoonEntity', async () => {
 
   // Per-test live pacing. Delay is read from sdk-test-control.json's
-  // `test.live.delayMs`; only sleeps when VOXGIGSOLARDEMO_TEST_LIVE=TRUE.
-  afterEach(liveDelay('VOXGIGSOLARDEMO_TEST_LIVE'))
+  // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
+  afterEach(liveDelay('SOLARDEMO_TEST_LIVE'))
 
   test('instance', async () => {
-    const testsdk = VoxgigSolardemoSDK.test()
+    const testsdk = SolardemoSDK.test()
     const ent = testsdk.Moon()
     assert(null != ent)
   })
@@ -38,7 +38,7 @@ describe('MoonEntity', async () => {
 
   test('basic', async (t) => {
 
-    const live = 'TRUE' === process.env.VOXGIG_SOLARDEMO_TEST_LIVE
+    const live = 'TRUE' === process.env.SOLARDEMO_TEST_LIVE
     for (const op of ['create', 'list', 'update', 'load', 'remove']) {
       if (maybeSkipControl(t, 'entityOp', 'moon.' + op, live)) return
     }
@@ -48,7 +48,7 @@ describe('MoonEntity', async () => {
     // fixture (entity TestData.json). Those don't exist on the live API.
     // Skip live runs unless the user provided a real ENTID env override.
     if (setup.syntheticOnly) {
-      t.skip('live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live')
+      t.skip('live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_MOON_ENTID JSON to run live')
       return
     }
     const client = setup.client
@@ -63,7 +63,7 @@ describe('MoonEntity', async () => {
     let moon_ref01_data = setup.data.new.moon['moon_ref01']
     moon_ref01_data['planet_id'] = setup.idmap['planet01']
 
-    moon_ref01_data = await moon_ref01_ent.create(moon_ref01_data)
+    moon_ref01_data = (await moon_ref01_ent.create(moon_ref01_data)).data()
     assert(null != moon_ref01_data.id)
 
 
@@ -71,7 +71,7 @@ describe('MoonEntity', async () => {
     const moon_ref01_match: any = {}
     moon_ref01_match['planet_id'] = setup.idmap['planet01']
 
-    const moon_ref01_list = await moon_ref01_ent.list(moon_ref01_match)
+    const moon_ref01_list = (await moon_ref01_ent.list(moon_ref01_match)).map((e: any) => e.data())
 
     assert(!isempty(select(moon_ref01_list, { id: moon_ref01_data.id })))
 
@@ -84,7 +84,7 @@ describe('MoonEntity', async () => {
     const moon_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-moon_ref01_' + setup.now }
     ;(moon_ref01_data_up0 as any)[moon_ref01_markdef_up0.name] = moon_ref01_markdef_up0.value
 
-    const moon_ref01_resdata_up0 = await moon_ref01_ent.update(moon_ref01_data_up0)
+    const moon_ref01_resdata_up0 = (await moon_ref01_ent.update(moon_ref01_data_up0)).data()
     assert(moon_ref01_resdata_up0.id === moon_ref01_data_up0.id)
 
     assert((moon_ref01_resdata_up0 as any)[moon_ref01_markdef_up0.name] === moon_ref01_markdef_up0.value)
@@ -93,7 +93,7 @@ describe('MoonEntity', async () => {
     // LOAD
     const moon_ref01_match_dt0: any = {}
     moon_ref01_match_dt0.id = moon_ref01_data.id
-    const moon_ref01_data_dt0 = await moon_ref01_ent.load(moon_ref01_match_dt0)
+    const moon_ref01_data_dt0 = (await moon_ref01_ent.load(moon_ref01_match_dt0)).data()
     assert(moon_ref01_data_dt0.id === moon_ref01_data.id)
 
 
@@ -106,7 +106,7 @@ describe('MoonEntity', async () => {
     const moon_ref01_match_rt0: any = {}
     moon_ref01_match_rt0['planet_id'] = setup.idmap['planet01']
 
-    const moon_ref01_list_rt0 = await moon_ref01_ent.list(moon_ref01_match_rt0)
+    const moon_ref01_list_rt0 = (await moon_ref01_ent.list(moon_ref01_match_rt0)).map((e: any) => e.data())
 
     assert(isempty(select(moon_ref01_list_rt0, { id: moon_ref01_data.id })))
 
@@ -133,7 +133,7 @@ function basicSetup(extra?: any) {
 
   options.entity = entityData.existing
 
-  let client = VoxgigSolardemoSDK.test(options, extra)
+  let client = SolardemoSDK.test(options, extra)
   const struct = client.utility().struct
   const merge = struct.merge
   const transform = struct.transform
@@ -151,21 +151,21 @@ function basicSetup(extra?: any) {
   // basic flow consumes synthetic IDs from the fixture file; without an
   // override those synthetic IDs reach the live API and 4xx. Surface this
   // to the test so it can skip rather than fail.
-  const idmapEnvVal = process.env['VOXGIG_SOLARDEMO_TEST_MOON_ENTID']
+  const idmapEnvVal = process.env['SOLARDEMO_TEST_MOON_ENTID']
   const idmapOverridden = null != idmapEnvVal && idmapEnvVal.trim().startsWith('{')
 
   const env = envOverride({
-    'VOXGIG_SOLARDEMO_TEST_MOON_ENTID': idmap,
-    'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
-    'VOXGIG_SOLARDEMO_TEST_EXPLAIN': 'FALSE',
+    'SOLARDEMO_TEST_MOON_ENTID': idmap,
+    'SOLARDEMO_TEST_LIVE': 'FALSE',
+    'SOLARDEMO_TEST_EXPLAIN': 'FALSE',
   })
 
-  idmap = env['VOXGIG_SOLARDEMO_TEST_MOON_ENTID']
+  idmap = env['SOLARDEMO_TEST_MOON_ENTID']
 
-  const live = 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_LIVE
+  const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE
 
   if (live) {
-    client = new VoxgigSolardemoSDK(merge([
+    client = new SolardemoSDK(merge([
       {
       },
       extra
@@ -179,7 +179,7 @@ function basicSetup(extra?: any) {
     client,
     struct,
     data: entityData,
-    explain: 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_EXPLAIN,
+    explain: 'TRUE' === env.SOLARDEMO_TEST_EXPLAIN,
     live,
     syntheticOnly: live && !idmapOverridden,
     now: Date.now(),

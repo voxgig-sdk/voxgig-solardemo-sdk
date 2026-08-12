@@ -1,22 +1,22 @@
-# AGENTS.md — VoxgigSolardemo TypeScript SDK
+# AGENTS.md — Solardemo TypeScript SDK
 
-Type-safe, entity-oriented client for the VoxgigSolardemo API. Async/await
+Type-safe, entity-oriented client for the Solardemo API. Async/await
 throughout; every operation returns a `Result`.
 
 ## Install
 
 ```bash
-npm install @voxgig-sdk/voxgig-solardemo
+npm install @voxgig-sdk/solardemo
 ```
 
 ## Create a client
 
 ```ts
-import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/solardemo'
 
-const client = new VoxgigSolardemoSDK({
-  base: process.env.VOXGIG-SOLARDEMO_BASE_URL,   // base URL of the API server
-  apikey: process.env.VOXGIG-SOLARDEMO_APIKEY,   // bearer credential
+const client = new SolardemoSDK({
+  base: process.env.SOLARDEMO_BASE_URL,   // base URL of the API server
+  apikey: process.env.SOLARDEMO_APIKEY,   // bearer credential
 })
 ```
 

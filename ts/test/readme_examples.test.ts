@@ -30,10 +30,10 @@ import * as Path from 'node:path'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 
-import { VoxgigSolardemoSDK } from '..'
+import { SolardemoSDK } from '..'
 
 
-const SDK_NAME = 'VoxgigSolardemoSDK'
+const SDK_NAME = 'SolardemoSDK'
 
 // A fixture for every entity, so list()/load() resolve offline with no
 // network. Snippet client construction is rewritten to seed this.
@@ -104,8 +104,8 @@ function isIllustrationShape(code: string): boolean {
 // gate rewrites to seeded test mode and runs.
 function isRunnable(code: string): boolean {
   return (
-    /new\s+VoxgigSolardemoSDK\b/.test(code) ||
-    /\bVoxgigSolardemoSDK\.test\b/.test(code) ||
+    /new\s+SolardemoSDK\b/.test(code) ||
+    /\bSolardemoSDK\.test\b/.test(code) ||
     /\bclient\s*\./.test(code)
   )
 }
@@ -242,8 +242,8 @@ function typeCheckBlocks(blocks: string[], key: string): {
 // that reference `client` without constructing one a shared seeded client.
 function rewriteForRun(code: string): string {
   let out = stripImports(code)
-  out = out.replace(/new\s+VoxgigSolardemoSDK\s*\([^)]*\)/g, () => SEEDED_CTOR)
-  out = out.replace(/VoxgigSolardemoSDK\.test\s*\([^)]*\)/g, () => SEEDED_CTOR)
+  out = out.replace(/new\s+SolardemoSDK\s*\([^)]*\)/g, () => SEEDED_CTOR)
+  out = out.replace(/SolardemoSDK\.test\s*\([^)]*\)/g, () => SEEDED_CTOR)
   if (/\bclient\b/.test(out) && !/\b(?:const|let|var)\s+client\b/.test(out)) {
     out = 'const client = ' + SEEDED_CTOR + '\n' + out
   }
@@ -292,7 +292,7 @@ async function executeBlocks(blocks: string[]): Promise<string[]> {
     }
 
     try {
-      await runner(VoxgigSolardemoSDK, silentConsole)
+      await runner(SolardemoSDK, silentConsole)
     } catch (err: any) {
       const msg = String((err && err.message) || err)
       // Tolerate the one expected domain error: no fixture seeded for the

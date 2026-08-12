@@ -1,7 +1,7 @@
 package core
 
-type VoxgigSolardemoError struct {
-	IsVoxgigSolardemoError bool
+type SolardemoError struct {
+	IsSolardemoError bool
 	Sdk              string
 	Code             string
 	Msg              string
@@ -10,16 +10,16 @@ type VoxgigSolardemoError struct {
 	Spec             any
 }
 
-func NewVoxgigSolardemoError(code string, msg string, ctx *Context) *VoxgigSolardemoError {
-	return &VoxgigSolardemoError{
-		IsVoxgigSolardemoError: true,
-		Sdk:              "VoxgigSolardemo",
+func NewSolardemoError(code string, msg string, ctx *Context) *SolardemoError {
+	return &SolardemoError{
+		IsSolardemoError: true,
+		Sdk:              "Solardemo",
 		Code:             code,
 		Msg:              msg,
 		Ctx:              ctx,
 	}
 }
 
-func (e *VoxgigSolardemoError) Error() string {
+func (e *SolardemoError) Error() string {
 	return e.Msg
 }

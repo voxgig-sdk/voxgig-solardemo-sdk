@@ -68,6 +68,8 @@ export interface PlanetCreateData {
     state?: string;
     stop?: boolean;
     why?: string;
+    $action?: string;
+    [action: string]: any;
 }
 export interface PlanetUpdateData {
     id: string;

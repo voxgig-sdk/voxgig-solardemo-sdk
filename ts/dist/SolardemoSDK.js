@@ -1,20 +1,20 @@
 "use strict";
-// VoxgigSolardemo Ts SDK
+// Solardemo Ts SDK
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SDK = exports.VoxgigSolardemoSDK = exports.VoxgigSolardemoEntityBase = exports.BaseFeature = exports.config = exports.stdutil = void 0;
+exports.SDK = exports.SolardemoSDK = exports.SolardemoEntityBase = exports.BaseFeature = exports.config = exports.stdutil = void 0;
 const MoonEntity_1 = require("./entity/MoonEntity");
 const PlanetEntity_1 = require("./entity/PlanetEntity");
 const node_util_1 = require("node:util");
 const Config_1 = require("./Config");
 Object.defineProperty(exports, "config", { enumerable: true, get: function () { return Config_1.config; } });
-const VoxgigSolardemoEntityBase_1 = require("./VoxgigSolardemoEntityBase");
-Object.defineProperty(exports, "VoxgigSolardemoEntityBase", { enumerable: true, get: function () { return VoxgigSolardemoEntityBase_1.VoxgigSolardemoEntityBase; } });
+const SolardemoEntityBase_1 = require("./SolardemoEntityBase");
+Object.defineProperty(exports, "SolardemoEntityBase", { enumerable: true, get: function () { return SolardemoEntityBase_1.SolardemoEntityBase; } });
 const Utility_1 = require("./utility/Utility");
 const BaseFeature_1 = require("./feature/base/BaseFeature");
 Object.defineProperty(exports, "BaseFeature", { enumerable: true, get: function () { return BaseFeature_1.BaseFeature; } });
 const stdutil = new Utility_1.Utility();
 exports.stdutil = stdutil;
-class VoxgigSolardemoSDK {
+class SolardemoSDK {
     _mode = 'live';
     _options;
     _utility = new Utility_1.Utility();
@@ -113,7 +113,7 @@ class VoxgigSolardemoSDK {
         if (!this._options.allow.op.includes('direct')) {
             return {
                 ok: false,
-                err: new Error('VoxgigSolardemoSDK: direct: operation not allowed by' +
+                err: new Error('SolardemoSDK: direct: operation not allowed by' +
                     ' SDK option allow.op value: "' + this._options.allow.op + '"'),
             };
         }
@@ -191,7 +191,7 @@ class VoxgigSolardemoSDK {
         if (!options.allow.op.includes('graphql')) {
             return {
                 ok: false,
-                err: new Error('VoxgigSolardemoSDK: graphql: operation not allowed by' +
+                err: new Error('SolardemoSDK: graphql: operation not allowed by' +
                     ' SDK option allow.op value: "' + options.allow.op + '"'),
             };
         }
@@ -212,7 +212,7 @@ class VoxgigSolardemoSDK {
         const errors = null == res.data ? undefined : res.data.errors;
         if (null != errors && Array.isArray(errors) && 0 < errors.length) {
             const first = errors[0] || {};
-            const err = new Error('VoxgigSolardemoSDK: graphql: ' +
+            const err = new Error('SolardemoSDK: graphql: ' +
                 (first.message || 'graphql error'));
             err.graphql = errors;
             return { ok: false, status: res.status, headers: res.headers, err, data: res.data };
@@ -243,24 +243,24 @@ class VoxgigSolardemoSDK {
         const testopts = getdef(clone(testoptsarg), {});
         setprop(testopts, 'active', true);
         setpath(sdkopts, 'feature.test', testopts);
-        const testsdk = new VoxgigSolardemoSDK(sdkopts);
+        const testsdk = new SolardemoSDK(sdkopts);
         testsdk._mode = 'test';
         return testsdk;
     }
     tester(testopts, sdkopts) {
-        return VoxgigSolardemoSDK.test(testopts, sdkopts);
+        return SolardemoSDK.test(testopts, sdkopts);
     }
     toJSON() {
-        return { name: 'VoxgigSolardemo' };
+        return { name: 'Solardemo' };
     }
     toString() {
-        return 'VoxgigSolardemo ' + this._utility.struct.jsonify(this.toJSON());
+        return 'Solardemo ' + this._utility.struct.jsonify(this.toJSON());
     }
     [node_util_1.inspect.custom]() {
         return this.toString();
     }
 }
-exports.VoxgigSolardemoSDK = VoxgigSolardemoSDK;
-const SDK = VoxgigSolardemoSDK;
+exports.SolardemoSDK = SolardemoSDK;
+const SDK = SolardemoSDK;
 exports.SDK = SDK;
-//# sourceMappingURL=VoxgigSolardemoSDK.js.map
+//# sourceMappingURL=SolardemoSDK.js.map

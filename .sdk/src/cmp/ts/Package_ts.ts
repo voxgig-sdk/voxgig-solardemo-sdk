@@ -11,6 +11,7 @@ import {
   repoInfo,
   PUBLISHER,
   PUBLISHER_URL,
+  packageVersion,
 } from '@voxgig/sdkgen'
 
 
@@ -54,7 +55,7 @@ const Package = cmp(async function Package(props: any) {
 
   const pkg = {
     name: packageName(model, 'npm'),
-    version: `0.0.1`,
+    version: packageVersion(model, target.name),
     description: pkgDescription(model, target.name),
     keywords: keywords(model),
     homepage: `${repoUrl}#readme`,
@@ -63,6 +64,14 @@ const Package = cmp(async function Package(props: any) {
     main: `dist/${SdkName}SDK.js`,
     type: 'commonjs',
     types: `dist/${SdkName}SDK.d.ts`,
+
+    // What actually ships. Without `files`, `npm publish` packs everything
+    // not gitignored — the test suite, dist-test/, the Makefile, the agent
+    // guides — into the published tarball. `src` IS included: the emitted
+    // .js.map files point back at it, so shipping it is what makes stack
+    // traces in a consumer resolve to SDK source. README/LICENSE/package.json
+    // are always included by npm and need no entry.
+    files: ['dist', 'src'],
     scripts: {
       // `test` and `test-coverage` run the COMPILED suite in dist-test/, which
       // a fresh clone does not have — the glob then matches nothing and the

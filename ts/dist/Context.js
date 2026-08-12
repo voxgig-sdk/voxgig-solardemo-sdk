@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Context = void 0;
 const node_util_1 = require("node:util");
-const VoxgigSolardemoError_1 = require("./VoxgigSolardemoError");
+const SolardemoError_1 = require("./SolardemoError");
 const StructUtility_1 = require("./utility/StructUtility");
 const Operation_1 = require("./Operation");
 // TODO: move to own file
@@ -79,7 +79,7 @@ class Context {
         return op;
     }
     error(code, msg) {
-        return new VoxgigSolardemoError_1.VoxgigSolardemoError(code, msg, this);
+        return new SolardemoError_1.SolardemoError(code, msg, this);
     }
     toJSON() {
         return {

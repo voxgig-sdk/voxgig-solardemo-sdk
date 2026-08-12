@@ -16,7 +16,7 @@ var envelopeResRe = regexp.MustCompile("^`body\\.([^`.]+)`$")
 
 type TestFeature struct {
 	BaseFeature
-	client   *core.VoxgigSolardemoSDK
+	client   *core.SolardemoSDK
 	options  map[string]any
 	netcalls int
 }

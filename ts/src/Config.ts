@@ -21,7 +21,7 @@ class Config {
 
 
   main = {
-    name: 'VoxgigSolardemo',
+    name: 'Solardemo',
   }
 
 
