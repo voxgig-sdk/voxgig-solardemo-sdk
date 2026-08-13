@@ -14,6 +14,10 @@
       "desc": ""
     },
     "kit": {
+      "author": {
+        "name": "Richard Rodger",
+        "url": "https://richardrodger.com"
+      },
       "config": {
         "auth": {
           "prefix": "Bearer"
@@ -28,6 +32,16 @@
         ],
         "headers": {
           "content-type": "application/json"
+        }
+      },
+      "contributor": {
+        "richardrodger": {
+          "name": "Richard Rodger",
+          "url": "https://richardrodger.com"
+        },
+        "rionastokes": {
+          "name": "Ríona Stokes",
+          "url": "https://github.com/rionastokes"
         }
       },
       "entity": {
@@ -720,6 +734,9 @@
             "go": {
               "deps": {}
             },
+            "seneca-provider": {
+              "deps": {}
+            },
             "ts": {
               "deps": {}
             }
@@ -1001,6 +1018,12 @@
             "path": ""
           },
           "name": "go",
+          "output": {
+            "adopt": false,
+            "path": "",
+            "repo": "",
+            "sdkrel": ""
+          },
           "publish": {
             "registry": {
               "active": false,
@@ -1027,6 +1050,125 @@
           },
           "srcfeature": false,
           "title": "Golang"
+        },
+        "seneca-provider": {
+          "active": true,
+          "comment": {
+            "line": "//"
+          },
+          "deps": {
+            "@seneca/doc": {
+              "active": true,
+              "kind": "dev",
+              "version": "^8.0.0"
+            },
+            "@seneca/env": {
+              "active": true,
+              "kind": "peer",
+              "version": ">=0.4"
+            },
+            "@seneca/maintain": {
+              "active": true,
+              "kind": "prod",
+              "version": "^0.1.0"
+            },
+            "@seneca/provider": {
+              "active": true,
+              "kind": "peer",
+              "version": ">=4"
+            },
+            "@types/node": {
+              "active": true,
+              "kind": "dev",
+              "version": "^24.0.0"
+            },
+            "seneca": {
+              "active": true,
+              "kind": "peer,dev",
+              "version": ">=3||>=4.0.0-rc2"
+            },
+            "seneca-entity": {
+              "active": true,
+              "kind": "peer",
+              "version": ">=26"
+            },
+            "seneca-msg-test": {
+              "active": true,
+              "kind": "dev",
+              "version": "^4.1.0"
+            },
+            "seneca-promisify": {
+              "active": true,
+              "kind": "peer",
+              "version": ">=3"
+            },
+            "typescript": {
+              "active": true,
+              "kind": "dev",
+              "version": "^5.4.5"
+            }
+          },
+          "ext": "ts",
+          "feature": {
+            "fullset": [],
+            "trim": true
+          },
+          "module": {
+            "goversion": "",
+            "name": "solardemo",
+            "package": "",
+            "path": ""
+          },
+          "name": "seneca-provider",
+          "output": {
+            "adopt": false,
+            "path": "../../seneca/solardemo-provider",
+            "repo": "",
+            "sdkrel": "../../voxgig-sdk/voxgig-solardemo-sdk"
+          },
+          "phase": {
+            "agentguide": {
+              "active": false
+            },
+            "entity": {
+              "active": false
+            },
+            "feature": {
+              "active": false
+            },
+            "readme": {
+              "active": false
+            },
+            "test": {
+              "active": false
+            }
+          },
+          "publish": {
+            "registry": {
+              "active": false,
+              "name": "npm",
+              "package": "",
+              "state": "pending",
+              "url": "https://registry.npmjs.org",
+              "vault": {
+                "alias": "npm",
+                "env": "",
+                "recipe": "npm"
+              }
+            },
+            "tag": {
+              "active": true,
+              "prefix": "",
+              "vault": {
+                "alias": "github",
+                "recipe": "github"
+              },
+              "via": "port"
+            },
+            "version": "0.3.0"
+          },
+          "srcfeature": false,
+          "title": "Seneca Provider"
         },
         "ts": {
           "active": true,
@@ -1063,6 +1205,12 @@
             "path": ""
           },
           "name": "ts",
+          "output": {
+            "adopt": false,
+            "path": "",
+            "repo": "",
+            "sdkrel": ""
+          },
           "publish": {
             "registry": {
               "active": true,
@@ -1092,6 +1240,8 @@
       },
       "test": {
         "live": {
+          "app": false,
+          "base": "",
           "strict": false
         }
       }

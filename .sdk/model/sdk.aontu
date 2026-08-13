@@ -55,6 +55,74 @@ main: kit: target: ts: publish: registry: {
 }
 
 
+# The Seneca provider target generates into ITS OWN REPO, not a folder here.
+# A provider is an independently released @seneca package with its own
+# LICENSE, CI and release cadence, and it depends on this SDK as an ordinary
+# published npm dependency rather than by path.
+#
+# The path is relative to this repo's ROOT (the `folder` that
+# .sdk/build/sdkgen.js hands the generator), and matches the standard local
+# checkout layout: ~/Projects/voxgig-sdk/<this repo> beside
+# ~/Projects/seneca/solardemo-provider.
+#
+# Here, not in model/target/seneca-provider.aontu, for the same reason as the
+# ts values above: `target add seneca-provider` overwrites that file from the
+# scaffold, and the scaffold deliberately leaves this key unset so a concrete
+# value set here wins over the default rather than conflicting with it.
+main: kit: target: 'seneca-provider': output: path: '../../seneca/solardemo-provider'
+
+# The path BACK from the provider repo to this one, which the provider's docs,
+# manual scripts and CI all have to name — the companion test server lives in
+# this repo's `app/` and is not published, so a local checkout is the only way
+# to reach it.
+#
+# Declared rather than derived. The inverse of `output: path` is
+# `../../voxgig-sdk/voxgig-solardemo-sdk`, which is correct but reaches above
+# this repo into a directory the model never mentions — i.e. it encodes THIS
+# machine's checkout layout into files that get committed. Saying it outright
+# makes it a project decision instead of an accident, and silences the
+# `external-sdkrel-derived` warning that points this out.
+main: kit: target: 'seneca-provider': output: sdkrel: '../../voxgig-sdk/voxgig-solardemo-sdk'
+
+# The provider's OWN release version — independent of the SDK's. Declared
+# here because generated output is overwritten: a version hand-edited into
+# the provider's package.json is lost on the next regeneration.
+#
+# 0.3.0 is what the repo already carries; the package name
+# (@seneca/solardemo-provider) and repo (senecajs/seneca-solardemo-provider)
+# are left to the target's own conventional derivation, which produces
+# exactly those, so pinning them here would only add a second place to keep
+# right.
+main: kit: target: 'seneca-provider': publish: version: '0.3.0'
+
+
+# Attribution — who wrote the packages generated from this model.
+#
+# Declared here because generated manifests are OVERWRITTEN: the provider
+# repo's hand-written package.json named an author and two contributors, and
+# the first regeneration deleted all three without failing anything. A name is
+# not something a build can notice is missing, so it has to be model-driven
+# like every other value this project owns about itself.
+main: kit: author: {
+  name: 'Richard Rodger'
+  url: 'https://richardrodger.com'
+}
+
+# A MAP, not a list: a new contributor is one more key, and aontu treats a
+# duplicate key as a conflict rather than silently adding a second entry.
+# Emitted in sorted-key order, so the manifest stays byte-stable.
+main: kit: contributor: {
+  'richardrodger': {
+    name: 'Richard Rodger'
+    url: 'https://richardrodger.com'
+  }
+  'rionastokes': {
+    name: 'Ríona Stokes'
+    url: 'https://github.com/rionastokes'
+  }
+}
+
+
 # API Information
 @"api/api-info.aontu"
 
