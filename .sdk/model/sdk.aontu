@@ -88,12 +88,14 @@ main: kit: target: 'seneca-provider': output: sdkrel: '../../voxgig-sdk/voxgig-s
 # here because generated output is overwritten: a version hand-edited into
 # the provider's package.json is lost on the next regeneration.
 #
-# 0.3.0 is what the repo already carries; the package name
+# 0.1.3 restores the authored peer ranges: 0.1.2 shipped them narrowed,
+# because the publish workflow's peer install rewrote package.json before
+# npm publish read it (fixed in sdkgen 3.3.1). The package name
 # (@seneca/solardemo-provider) and repo (senecajs/seneca-solardemo-provider)
 # are left to the target's own conventional derivation, which produces
 # exactly those, so pinning them here would only add a second place to keep
 # right.
-main: kit: target: 'seneca-provider': publish: version: '0.3.0'
+main: kit: target: 'seneca-provider': publish: version: '0.1.3'
 
 
 # Attribution — who wrote the packages generated from this model.
