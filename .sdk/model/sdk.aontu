@@ -108,6 +108,22 @@ main: kit: author: {
   url: 'https://richardrodger.com'
 }
 
+# ...except the SDK itself, which stays authored by the publisher.
+#
+# The SDK is a GENERATED ARTEFACT: nobody wrote it, sdkgen emitted it, and its
+# keywords, its non-affiliation notice and its published scope all name Voxgig
+# already. The provider is the opposite — an independently released package
+# with named human maintainers — which is why the model-wide value above is a
+# person.
+#
+# Pinned rather than left to inherit, because `@voxgig-sdk/voxgig-solardemo`
+# is already on npm declaring Voxgig, and a manifest's author should not
+# change identity underneath a published package.
+main: kit: target: ts: author: {
+  name: 'Voxgig'
+  url: 'https://voxgig.com'
+}
+
 # A MAP, not a list: a new contributor is one more key, and aontu treats a
 # duplicate key as a conflict rather than silently adding a second entry.
 # Emitted in sorted-key order, so the manifest stays byte-stable.

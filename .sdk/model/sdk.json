@@ -1000,6 +1000,10 @@
       "target": {
         "go": {
           "active": true,
+          "author": {
+            "name": "",
+            "url": ""
+          },
           "comment": {
             "line": "//"
           },
@@ -1053,6 +1057,10 @@
         },
         "seneca-provider": {
           "active": true,
+          "author": {
+            "name": "",
+            "url": ""
+          },
           "comment": {
             "line": "//"
           },
@@ -1172,6 +1180,10 @@
         },
         "ts": {
           "active": true,
+          "author": {
+            "name": "Voxgig",
+            "url": "https://voxgig.com"
+          },
           "base": "node_modules/@voxgig/sdkgen/project/.sdk",
           "comment": {
             "line": "//"
