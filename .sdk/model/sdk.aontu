@@ -26,6 +26,22 @@ def: 'solardemo-1.0.0-openapi-3.0.0.yaml'
 # Go module path, and the homepage/repository/bugs URLs in every manifest.
 main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
 
+# The provider's own release version — 0.3.0 is live on npm. Generated
+# output is overwritten, so a version hand-edited into its package.json is
+# lost on the next regeneration; declare it here instead.
+main: kit: target: 'seneca-provider': publish: version: '0.3.0'
+
+main: kit: target: 'seneca-provider': output: {
+  path: '../../seneca/seneca-solardemo-provider'
+  repo: 'senecajs/seneca-solardemo-provider'
+}
+
+
+# The Seneca provider is its own package in its own repo, sitting beside this
+# one in the standard checkout layout. `output: path` sends its generation
+# there; `output: repo` gives its published manifest the right identity (the
+# derivation would point every link at THIS repo).
+
 
 # Publication: npm.
 #
