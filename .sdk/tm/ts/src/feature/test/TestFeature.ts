@@ -1,6 +1,6 @@
 
 import type { Context, FeatureOptions } from '../../types'
-import type { ProjectNameSDK } from '../../ProjectNameSDK'
+import type { SolardemoSDK } from '../../SolardemoSDK'
 
 import { BaseFeature } from '../base/BaseFeature'
 
@@ -13,7 +13,7 @@ class TestFeature extends BaseFeature {
   name = 'test'
   active = true
 
-  _client?: ProjectNameSDK
+  _client?: SolardemoSDK
   _options?: any
 
 
