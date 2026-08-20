@@ -3,20 +3,19 @@
 Entity-oriented client for the Solardemo API using standard Go conventions —
 no generics; data flows as `map[string]any`.
 
-## Module path
+## Install
 
-```
-voxgigsolardemosdk
+```bash
+go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go
 ```
 
-This module is distributed as source in this repository. The module path has
-no remote host, so a downstream project consumes it with a `replace` directive
-pointing at the SDK source:
+The module path is the repository path, so the Go proxy resolves it from the
+published `go/vX.Y.Z` tags — no `replace` directive, and no local checkout
+required:
 
 ```
 // in the consumer's go.mod
-require voxgigsolardemosdk v0.0.0
-replace voxgigsolardemosdk => /path/to/voxgigsolardemosdk
+require github.com/voxgig-sdk/voxgig-solardemo-sdk/go vX.Y.Z
 ```
 
 ## Create a client
@@ -28,8 +27,8 @@ import (
     "fmt"
     "os"
 
-    sdk "voxgigsolardemosdk"
-    "voxgigsolardemosdk/core"
+    sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+    "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 func main() {

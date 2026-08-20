@@ -1,18 +1,19 @@
 # AGENTS.md — Solardemo TypeScript SDK
 
 Type-safe, entity-oriented client for the Solardemo API. Async/await
-throughout; every operation returns a `Result`.
+throughout; every entity operation resolves to an **entity** and **throws**
+on failure.
 
 ## Install
 
 ```bash
-npm install @voxgig-sdk/solardemo
+npm install @voxgig-sdk/voxgig-solardemo
 ```
 
 ## Create a client
 
 ```ts
-import { SolardemoSDK } from '@voxgig-sdk/solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
 
 const client = new SolardemoSDK({
   base: process.env.SOLARDEMO_BASE_URL,   // base URL of the API server
@@ -25,20 +26,56 @@ The SDK is **server-agnostic**: set `base` to whichever API endpoint you target.
 ## Minimal example
 
 ```ts
-const result = await client.Planet().list()
-
-if (result.ok) {
-  for (const item of result.data) {
-    console.log(item.id, item.name)
+try {
+  for (const item of await client.Planet().list()) {
+    console.log(item.data().id, item.data().name)
   }
-} else {
-  console.error(result.status, result.error)
+} catch (err) {
+  console.error('list failed:', err)
 }
 ```
 
-## Result shape
+## Entity operations return ENTITIES
 
-Every entity operation resolves to a `Result`:
+This is the single most important thing to get right, and it is where a
+`Result`-style API would mislead you:
+
+| Operation | Resolves to | On failure |
+| --- | --- | --- |
+| `load` / `create` / `update` | the **entity** | **throws** |
+| `list` | an **array of entities** | **throws** |
+| `remove` | `void` | **throws** |
+
+The record is absorbed into the entity — reach it with `.data()`:
+
+```ts
+const created = await client.Planet().create({ /* ... */ })
+console.log(created.data().id)          // the record
+const again = await client.Planet().load({ id: created.data().id })
+```
+
+There is no `.ok` and no `.data` property on these results, so do not branch
+on one — wrap calls in `try`/`catch` instead.
+
+## `direct()` is the exception
+
+The low-level `direct()` escape hatch does **not** throw. It returns either an
+`Error` or a result envelope, so check before use:
+
+```ts
+const result = await client.direct({
+  path: '/api/resource/{id}',
+  method: 'GET',
+  params: { id: 'example_id' },
+})
+
+if (result instanceof Error) {
+  throw result
+}
+if (result.ok) {
+  console.log(result.status, result.data)
+}
+```
 
 ```ts
 {
@@ -48,8 +85,6 @@ Every entity operation resolves to a `Result`:
   data: any        // parsed JSON body
 }
 ```
-
-Always branch on `result.ok` before reading `result.data`.
 
 ## Constructor options
 
@@ -122,7 +157,10 @@ Operations:
 - Obtain an entity handle with `client.Planet()`, then call an operation.
 - Pass match criteria (e.g. `{ id }`) to `load`/`remove`; pass data to
   `create`/`update`. Nested entities also need their parent id.
-- Do not throw on failure — inspect `result.ok` / `result.status`.
+- Operations **throw** on failure — use `try`/`catch`. Only `direct()` returns
+  an envelope to inspect.
+- Read the record off an entity with `.data()`; the entity itself is not the
+  record.
 - Full prose reference: [`README.md`](README.md) and [`REFERENCE.md`](REFERENCE.md).
 
 ## Building this SDK from source

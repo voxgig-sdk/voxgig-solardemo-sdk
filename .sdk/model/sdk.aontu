@@ -98,6 +98,42 @@ main: kit: target: 'seneca-provider': output: sdkrel: '../../voxgig-sdk/voxgig-s
 main: kit: target: 'seneca-provider': publish: version: '0.1.3'
 
 
+# Live tests ASSERT rather than skip.
+#
+# sdkgen's default is lenient, and correct for a fleet SDK generated against
+# an arbitrary public API: synthetic ids 4xx, so asserting would mean
+# permanent red. This project is the opposite case — it owns its test server
+# (`app/`), so a live run that cannot reach it, or that gets a non-2xx from
+# it, is a real failure and should say so.
+#
+# Left lenient, a live run proved almost nothing: a non-2xx was a bare
+# `return` in TS and a `t.Skipf` in Go, so the suite stayed green with
+# NOTHING LISTENING ON THE PORT. Only the entity `basic` tests noticed
+# ECONNREFUSED.
+#
+# Deliberately not enabled until now. While the server overwrote
+# client-supplied ids on create, every create round-trip the strict asserts
+# check was already broken, so turning this on would have produced red for a
+# server defect rather than for the SDK. That is fixed (C1), and `app`'s
+# validate suite is 20/20, so live runs can now carry weight.
+main: kit: test: live: strict: true
+
+
+# The Go language version in go/go.mod.
+#
+# HERE, not in model/target/go.aontu, for the same reason as the ts values
+# above: `target add go` overwrites that file from the scaffold, which is how
+# this pin was lost once already (August register A2 recorded it as set; it
+# was not).
+#
+# Unset, sdkgen defaults to 1.21. CI reads the version out of go.mod
+# (`go-version-file: go/go.mod`), so the whole toolchain silently ran 1.21
+# while root AGENTS.md and the CI comment both said 1.23. feature/log_feature.go
+# imports log/slog, which landed in 1.21, so it built — the drift was invisible
+# rather than harmless.
+main: kit: target: go: module: goversion: '1.23'
+
+
 # Attribution — who wrote the packages generated from this model.
 #
 # Declared here because generated manifests are OVERWRITTEN: the provider

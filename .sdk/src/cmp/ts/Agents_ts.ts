@@ -55,7 +55,8 @@ ${opRows}
     Content(`# AGENTS.md — ${s.Name} TypeScript SDK
 
 Type-safe, entity-oriented client for the ${s.Name} API. Async/await
-throughout; every operation returns a \`Result\`.
+throughout; every entity operation resolves to an **entity** and **throws**
+on failure.
 
 ## Install
 
@@ -79,20 +80,56 @@ The SDK is **server-agnostic**: set \`base\` to whichever API endpoint you targe
 ## Minimal example
 
 \`\`\`ts
-const result = await client.${exampleName}().list()
-
-if (result.ok) {
-  for (const item of result.data) {
-    console.log(item.id, item.name)
+try {
+  for (const item of await client.${exampleName}().list()) {
+    console.log(item.data().id, item.data().name)
   }
-} else {
-  console.error(result.status, result.error)
+} catch (err) {
+  console.error('list failed:', err)
 }
 \`\`\`
 
-## Result shape
+## Entity operations return ENTITIES
 
-Every entity operation resolves to a \`Result\`:
+This is the single most important thing to get right, and it is where a
+\`Result\`-style API would mislead you:
+
+| Operation | Resolves to | On failure |
+| --- | --- | --- |
+| \`load\` / \`create\` / \`update\` | the **entity** | **throws** |
+| \`list\` | an **array of entities** | **throws** |
+| \`remove\` | \`void\` | **throws** |
+
+The record is absorbed into the entity — reach it with \`.data()\`:
+
+\`\`\`ts
+const created = await client.${exampleName}().create({ /* ... */ })
+console.log(created.data().id)          // the record
+const again = await client.${exampleName}().load({ id: created.data().id })
+\`\`\`
+
+There is no \`.ok\` and no \`.data\` property on these results, so do not branch
+on one — wrap calls in \`try\`/\`catch\` instead.
+
+## \`direct()\` is the exception
+
+The low-level \`direct()\` escape hatch does **not** throw. It returns either an
+\`Error\` or a result envelope, so check before use:
+
+\`\`\`ts
+const result = await client.direct({
+  path: '/api/resource/{id}',
+  method: 'GET',
+  params: { id: 'example_id' },
+})
+
+if (result instanceof Error) {
+  throw result
+}
+if (result.ok) {
+  console.log(result.status, result.data)
+}
+\`\`\`
 
 \`\`\`ts
 {
@@ -102,8 +139,6 @@ Every entity operation resolves to a \`Result\`:
   data: any        // parsed JSON body
 }
 \`\`\`
-
-Always branch on \`result.ok\` before reading \`result.data\`.
 
 ## Constructor options
 
@@ -124,7 +159,10 @@ ${entitySections}
 - Obtain an entity handle with \`client.${exampleName}()\`, then call an operation.
 - Pass match criteria (e.g. \`{ id }\`) to \`load\`/\`remove\`; pass data to
   \`create\`/\`update\`. Nested entities also need their parent id.
-- Do not throw on failure — inspect \`result.ok\` / \`result.status\`.
+- Operations **throw** on failure — use \`try\`/\`catch\`. Only \`direct()\` returns
+  an envelope to inspect.
+- Read the record off an entity with \`.data()\`; the entity itself is not the
+  record.
 - Full prose reference: [\`README.md\`](README.md) and [\`REFERENCE.md\`](REFERENCE.md).
 
 ## Building this SDK from source

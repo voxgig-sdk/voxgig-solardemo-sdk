@@ -9,6 +9,11 @@ import {
   nom,
 } from '@voxgig/apidef'
 
+import {
+  packageName,
+  goModule,
+} from '@voxgig/sdkgen'
+
 
 type OpInfo = { name: string, method: string, path: string }
 type FieldInfo = { name: string, type: string, req: boolean }
@@ -21,24 +26,33 @@ type EntityInfo = {
 }
 
 
-// Reproduce the naming rules used by Package_ts.ts / Package_go.ts so the
-// install + import snippets match the actual published artifacts.
+// ASK sdkgen for the published identifiers — never re-derive them here.
+//
+// This function used to reproduce the derivation rules, and drifted from the
+// artifacts it claimed to describe. Both names are PINNED in the model
+// precisely because the derivation is wrong for this project:
+//
+//   npm  derived -> @voxgig-sdk/solardemo   pinned -> @voxgig-sdk/voxgig-solardemo
+//   go   derived -> voxgigsolardemosdk      real   -> github.com/voxgig-sdk/
+//                                                     voxgig-solardemo-sdk/go
+//
+// so AGENTS.md told agents to `npm install` a package that does not exist and
+// to `replace` a module path Go never resolves. Every other component here
+// already calls goModule(model, 'go') (Package_go, Main_go, Entity_go,
+// ReadmeQuick_go, ...); this was the one place with a second copy of the rule.
+//
+// packageName() reads main.kit.target.<t>.publish.registry.package, and
+// goModule() reads main.kit.target.<t>.module.path (falling back to the repo
+// path), so both honour the pins in model/sdk.aontu.
 function sdkNames(model: any) {
-  const origin = model.origin ? `@${model.origin}/` : ''
-  const npmSuffix = model.origin?.endsWith('-sdk') ? '' : '-sdk'
-  const npmName = `${origin}${model.name}${npmSuffix}`
-
-  const orgPrefix = (model.origin || '').replace(/-sdk$/, '').replace(/[^a-z0-9]/gi, '')
-  const goModule = orgPrefix + model.name + 'sdk'
-
   const Name = model.const?.Name || nom(model, 'Name')
 
   return {
     name: model.name,
     Name,
     NAME: String(model.name || '').toUpperCase(),
-    npmName,
-    goModule,
+    npmName: packageName(model, 'npm'),
+    goModule: goModule(model, 'go'),
     sdkClass: Name + 'SDK',
   }
 }

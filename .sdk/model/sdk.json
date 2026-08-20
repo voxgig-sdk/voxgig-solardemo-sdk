@@ -1016,7 +1016,7 @@
             "trim": true
           },
           "module": {
-            "goversion": "",
+            "goversion": "1.23",
             "name": "solardemo",
             "package": "",
             "path": ""
@@ -1254,7 +1254,7 @@
         "live": {
           "app": false,
           "base": "",
-          "strict": false
+          "strict": true
         }
       }
     }

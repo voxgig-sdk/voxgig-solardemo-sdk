@@ -39,9 +39,12 @@ export interface ForbidResponse {
   state: string
 }
 
-export type CreatePlanetInput = Omit<Planet, 'id'>
+// `id` is OPTIONAL on create, not absent: OpenAPI and the generated SDK types
+// both require the client to supply one, and the server generates it only when
+// it is omitted. `Omit<_, 'id'>` is what made the handlers overwrite it.
+export type CreatePlanetInput = Omit<Planet, 'id'> & { id?: string }
 export type UpdatePlanetInput = Partial<Planet>
-export type CreateMoonInput = Omit<Moon, 'id'>
+export type CreateMoonInput = Omit<Moon, 'id'> & { id?: string }
 export type UpdateMoonInput = Partial<Moon>
 
 declare module 'fastify' {

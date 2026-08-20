@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { CreatePlanetInput, UpdatePlanetInput, TerraformRequest, ForbidRequest } from '../types.js'
-import { NotFoundError } from '../utils/errors.js'
+import { ConflictError, NotFoundError } from '../utils/errors.js'
 import Nid from 'nid'
 const nid = (Nid as any).default || Nid
 
@@ -30,7 +30,19 @@ export const planetHandlers = {
     reply: FastifyReply
   ) {
     const planetStore = request.server.planetStore
-    const planet = planetStore.create({ ...request.body, id: nid(8) })
+
+    // Honour a client-supplied id. OpenAPI requires one on create and the
+    // generated SDK type does too, so overwriting it with nid(8) broke every
+    // SDK create round-trip: the caller got back a record it could not then
+    // load by the id it had chosen. Generated only when absent, which keeps
+    // the server a superset of the spec.
+    const id = request.body.id ?? nid(8)
+
+    if (planetStore.getById(id)) {
+      throw new ConflictError('Planet', id)
+    }
+
+    const planet = planetStore.create({ ...request.body, id })
     reply.code(201).send(planet)
   },
 
