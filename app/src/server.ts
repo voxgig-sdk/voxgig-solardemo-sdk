@@ -1,6 +1,6 @@
 import Fastify from 'fastify'
 import { readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { resolve, dirname, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import { config } from './config.js'
@@ -38,7 +38,16 @@ export async function build() {
     }
   })
 
-  const dataPath = resolve(__dirname, '../../solar.data.json')
+  // DATA_PATH was read into config and then ignored: this line hardcoded
+  // the file, so setting the documented env var did nothing at all.
+  //
+  // A relative value resolves against the app root rather than the CWD —
+  // the default './solar.data.json' has to keep working whichever
+  // directory the server is started from, and `npm start`, the test
+  // harness and validate:full do not agree on that.
+  const dataPath = isAbsolute(config.data.initialDataPath)
+    ? config.data.initialDataPath
+    : resolve(__dirname, '../..', config.data.initialDataPath)
   const rawData = JSON.parse(readFileSync(dataPath, 'utf-8')) as {
     planet: Record<string, Planet>
     moon: Record<string, Moon>
