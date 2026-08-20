@@ -334,8 +334,21 @@ ${loadParams.map((p: any, i: number) => `      ${jsProp('params', p.name)} = 'di
       assert(calls[0].init.method === 'GET')
 ${paramAsserts}`
 
+  // STRICT still branches on setup.live. The offline checks assert the MOCK's
+  // fixture — `result.data.id === 'direct01'` — and direct01 does not exist on
+  // a live server, so reusing them verbatim in live mode asserts the mock
+  // against reality and can never pass. What strict buys is that a non-2xx or
+  // an unreachable server now FAILS instead of returning quietly, which is the
+  // signal the lenient branch was throwing away.
   const loadChecks = strict ?
-    offlineChecks.replace(/^ {6}/gm, '    ').replace(/^ {4}$/gm, '') :
+    `    if (setup.live) {
+      // Strict live (main.kit.test.live.strict): reachability and status are
+      // asserted; fixture VALUES are not, because they describe the mock.
+      assert(result.ok === true)
+      assert(result.status >= 200 && result.status < 300)
+      assert(null != result.data)
+    } else {
+${offlineChecks}    }` :
     `    if (setup.live) {
       // Live mode is lenient: synthetic IDs frequently 4xx. Skip rather
       // than fail when the load endpoint isn't reachable with the IDs we
@@ -443,8 +456,16 @@ ${mockLines}
       assert(calls[0].init.method === 'GET')
 ${paramAsserts}`
 
+  // See generateDirectLoad: strict asserts reachability and shape, not the
+  // mock's record COUNT — the live server holds whatever it holds.
   const listChecks = strict ?
-    offlineChecks.replace(/^ {6}/gm, '    ').replace(/^ {4}$/gm, '') :
+    `    if (setup.live) {
+      assert(result.ok === true)
+      assert(result.status >= 200 && result.status < 300)
+      const listArr = unwrapListData(result.data)
+      assert(Array.isArray(listArr))
+    } else {
+${offlineChecks}    }` :
     `    if (setup.live) {
       // Live mode is lenient: synthetic IDs frequently 4xx and the list-
       // response shape varies wildly across public APIs. Skip rather than

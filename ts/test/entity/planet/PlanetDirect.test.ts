@@ -75,12 +75,11 @@ describe('PlanetDirect', async () => {
     })
 
     if (setup.live) {
-      // Live mode is lenient: synthetic IDs frequently 4xx. Skip rather
-      // than fail when the load endpoint isn't reachable with the IDs we
-      // can construct from setup.idmap.
-      if (!result.ok || result.status < 200 || result.status >= 300) {
-        return
-      }
+      // Strict live (main.kit.test.live.strict): reachability and status are
+      // asserted; fixture VALUES are not, because they describe the mock.
+      assert(result.ok === true)
+      assert(result.status >= 200 && result.status < 300)
+      assert(null != result.data)
     } else {
       assert(result.ok === true)
       assert(result.status === 200)
@@ -108,16 +107,10 @@ describe('PlanetDirect', async () => {
     })
 
     if (setup.live) {
-      // Live mode is lenient: synthetic IDs frequently 4xx and the list-
-      // response shape varies wildly across public APIs. Skip rather than
-      // fail when the call doesn't return a usable list.
-      if (!result.ok || result.status < 200 || result.status >= 300) {
-        return
-      }
+      assert(result.ok === true)
+      assert(result.status >= 200 && result.status < 300)
       const listArr = unwrapListData(result.data)
-      if (!Array.isArray(listArr)) {
-        return
-      }
+      assert(Array.isArray(listArr))
     } else {
       assert(result.ok === true)
       assert(result.status === 200)
