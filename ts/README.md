@@ -361,7 +361,7 @@ API path: `/api/planet/{planet_id}/moon`
 
 Operations: create, list, load, remove, update.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 

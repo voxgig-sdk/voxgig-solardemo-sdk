@@ -55,20 +55,19 @@ ${opRows}
 Entity-oriented client for the ${s.Name} API using standard Go conventions —
 no generics; data flows as \`map[string]any\`.
 
-## Module path
+## Install
 
-\`\`\`
-${s.goModule}
+\`\`\`bash
+go get ${s.goModule}
 \`\`\`
 
-This module is distributed as source in this repository. The module path has
-no remote host, so a downstream project consumes it with a \`replace\` directive
-pointing at the SDK source:
+The module path is the repository path, so the Go proxy resolves it from the
+published \`go/vX.Y.Z\` tags — no \`replace\` directive, and no local checkout
+required:
 
 \`\`\`
 // in the consumer's go.mod
-require ${s.goModule} v0.0.0
-replace ${s.goModule} => /path/to/${s.goModule}
+require ${s.goModule} vX.Y.Z
 \`\`\`
 
 ## Create a client

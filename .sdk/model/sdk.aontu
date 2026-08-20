@@ -98,6 +98,21 @@ main: kit: target: 'seneca-provider': output: sdkrel: '../../voxgig-sdk/voxgig-s
 main: kit: target: 'seneca-provider': publish: version: '0.1.3'
 
 
+# The Go language version in go/go.mod.
+#
+# HERE, not in model/target/go.aontu, for the same reason as the ts values
+# above: `target add go` overwrites that file from the scaffold, which is how
+# this pin was lost once already (August register A2 recorded it as set; it
+# was not).
+#
+# Unset, sdkgen defaults to 1.21. CI reads the version out of go.mod
+# (`go-version-file: go/go.mod`), so the whole toolchain silently ran 1.21
+# while root AGENTS.md and the CI comment both said 1.23. feature/log_feature.go
+# imports log/slog, which landed in 1.21, so it built — the drift was invisible
+# rather than harmless.
+main: kit: target: go: module: goversion: '1.23'
+
+
 # Attribution — who wrote the packages generated from this model.
 #
 # Declared here because generated manifests are OVERWRITTEN: the provider
