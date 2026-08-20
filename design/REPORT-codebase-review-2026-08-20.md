@@ -15,6 +15,59 @@ Generated trees (`ts/`, `go/`) are treated as symptoms. Fixes belong in
 
 ---
 
+## 0. Status — updated 2026-08-20, `main` at `27ffa87`
+
+Every **Critical** and every **High** except H3 and H4 is now fixed. The
+findings below are left as written; each addressed one carries a
+**Status** line naming the commit, so the analysis stays readable next to
+what was done about it.
+
+| ID | Status | Commit |
+| --- | --- | --- |
+| C1 create-id contract | **Fixed** | `95037bd` |
+| C2 AGENTS.md identity + Result API | **Fixed** | `41ce29a` |
+| C3 moon parent enforcement | **Fixed** | `95037bd` |
+| H1 live tests cannot fail (G3) | **Fixed** | `246eaf4` + `282d309` |
+| H2 CI never regenerates or tests `app/` | **Fixed** | `0b2da35` |
+| H3 Seneca generate on a flat clone | **Open** (CI made deterministic) | `0b2da35` |
+| H4 `SECURITY.md` linked and absent | **Open** | — |
+| H5 Go version unset | **Fixed** | `41ce29a` |
+| H6 Planet README API path | **Fixed** | `41ce29a` |
+| M3 `Config.fragment.ts` literals | **Fixed** | `41ce29a` |
+| M12 empty corpus sections | **Open**, quantified: exactly 7 files | — |
+| L16 `fs.F_OK` deprecation | **Confirmed still live** (upstream jostraca) | — |
+
+Everything else in sections 3 and 4 is untouched and still stands.
+
+**What the fixes cost, measured rather than assumed.** Each was checked in
+both directions, because several of these defects were *invisible to a
+passing check* — which is the theme of this review:
+
+- C1: `validate.ts` went 15/20 → **20/20**. The five failures were ids
+  3, 4, 11, 19, 20 — exactly the ones named below. Reproduced by stashing
+  the fix, not taken on trust.
+- H2: `generate` on a clean checkout produces **zero drift**, and
+  appending one line to `ts/src/SolardemoTypes.ts` makes the new gate
+  fire.
+- H1 + live job: with the server up, ts is 185 pass / 1 skip and go is
+  ok; with the port closed, **three suites fail in each language**
+  (`MoonDirect`, `MoonEntity`, `PlanetDirect`).
+
+**Two traps found while fixing, worth keeping in mind for the rest:**
+
+1. Setting `test.live.strict: true` alone made live runs red against a
+   *healthy* server, because the TS strict branch reused the offline
+   mock's fixture assertions (`data.id === 'direct01'`) against real
+   data. Go had this right; TS was the outlier. Strict now asserts
+   reachability and status, which is what H1 actually asks for.
+2. The first Go live negative control **passed from cache** with the port
+   closed — `go test` caches by input and reported `ok` without
+   contacting the server. The live job pins `-count=1` for that reason.
+
+App test coverage went 34 → 42 tests; CI went from 4 jobs to 5.
+
+---
+
 ## 1. Verdict
 
 The generator and published SDK identity are in better shape than the
@@ -41,6 +94,11 @@ against `app/` therefore cannot validate the create round-trip the
 generated types require.
 
 That is the review's main finding. Everything else is secondary.
+
+> **Resolved.** All four surfaces now agree: the server honours client
+> ids (C1, `95037bd`) and `AGENTS.md` is driven from the model pins and
+> documents entity-return + throw (C2, `41ce29a`). The table above is
+> kept as the record of what was found, not as current state.
 
 ---
 
@@ -86,6 +144,10 @@ disturbed while the contract issues are fixed.
 **Locus:** app. **Files:** `app/src/handlers/planet.handlers.ts:33`,
 `app/src/handlers/moon.handlers.ts:58`, `app/src/schemas/planet.schemas.ts:23-33`.
 
+**Status: FIXED** `95037bd`. Client ids honoured, generated only when
+absent, 409 on a duplicate rather than a silent overwrite. `validate.ts`
+15/20 -> 20/20; app tests 34 -> 42.
+
 ```ts
 const planet = planetStore.create({ ...request.body, id: nid(8) })
 ```
@@ -108,6 +170,11 @@ leave the four surfaces split.
 #### C2 — Per-SDK `AGENTS.md` documents a different product
 **Locus:** generator. **Files:** `.sdk/src/AgentInfo.ts:26-42`,
 `.sdk/src/cmp/ts/Agents_ts.ts:54-106`, generated `ts/AGENTS.md`, `go/AGENTS.md`.
+
+**Status: FIXED** `41ce29a`. `sdkNames()` now calls `packageName(model,
+'npm')` and `goModule(model, 'go')` instead of re-deriving, and the TS
+Agents template documents entity-return + throw with `direct()` as the
+named exception.
 
 `sdkNames()` re-derives identity instead of using sdkgen helpers
 (`packageName()`, `goModule()`) and the model pins:
@@ -135,6 +202,9 @@ entity-return + throw (TS) and `(entity, error)` (Go).
 #### C3 — Nested moon routes do not enforce parent `planet_id`
 **Locus:** app. **Files:** `app/src/handlers/moon.handlers.ts:24-37, 62-93`.
 
+**Status: FIXED** `95037bd`. get/update/delete 404 on a parent mismatch,
+checked BEFORE the mutation, and PUT can no longer reparent via the body.
+
 `get` / `update` / `delete` look up by `moon_id` only. Create is the one
 operation that checks `body.planet_id === params.planet_id`. Update will
 happily reassign `planet_id` in the body.
@@ -152,8 +222,12 @@ validation.
 
 ### High
 
-#### H1 — Live direct tests cannot fail (G3, still open)
+#### H1 — Live direct tests cannot fail (G3 — now closed, see Status)
 **Locus:** generator. **Files:** `.sdk/src/cmp/ts/TestDirect_ts.ts:339-345`.
+
+**Status: FIXED** `246eaf4` (strict) + `282d309` (a CI job that runs it).
+Note the flag alone was not enough: the TS strict branch asserted the
+offline mock fixtures against live data. See section 0.
 
 In live mode a non-2xx is a bare `return`, not `t.skip()` and not an
 assertion. Comments say “Skip rather than fail”. Go emits `t.Skipf`.
@@ -166,6 +240,10 @@ cannot prove create.
 
 #### H2 — CI never regenerates, never tests `app/`
 **Locus:** ci. **File:** `.github/workflows/ci.yml`.
+
+**Status: FIXED** `0b2da35`. Generate + drift gate (two checks: `git diff
+--exit-code` ignores untracked files) and an `app` job running typecheck,
+42 tests and `validate.ts` against a real server.
 
 Jobs: `.sdk` **build only** (no `generate`, no `git diff --exit-code`),
 `ts` build+test, `go` build+test. Missing:
@@ -182,6 +260,9 @@ also be invisible because generate is not run.
 #### H3 — Seneca provider generate fails on a flat clone
 **Locus:** generator. **File:** `.sdk/model/sdk.aontu:72`.
 
+**Status: OPEN.** `0b2da35` creates the output path explicitly so CI is
+deterministic, but the path still encodes a checkout layout.
+
 `output.path: '../../seneca/solardemo-provider'` assumes
 `~/Projects/voxgig-sdk/<this repo>` beside `~/Projects/seneca/`. In this
 workspace that resolves to `/seneca/solardemo-provider` (`EACCES`).
@@ -194,6 +275,8 @@ depending on error handling.
 #### H4 — `SECURITY.md` is linked and absent
 **Locus:** docs. **File:** `README.md:217-220`.
 
+**Status: OPEN.**
+
 Root README: “See [SECURITY.md](SECURITY.md)”. No such file. Publish
 workflow comments also point at `design/PUBLISHING.md`, which does not
 exist either.
@@ -202,6 +285,9 @@ exist either.
 **Locus:** generator. **Files:** `.sdk/model/target/go.aontu` (no
 `goversion`), `go/go.mod:3`, root `AGENTS.md:26`.
 
+**Status: FIXED** `41ce29a`. `goversion: '1.23'` pinned in `model/sdk.aontu`
+(not `target/go.aontu`, which `target add` overwrites).
+
 August report A2 claimed `module.goversion: '1.23'` was set. It is empty;
 sdkgen defaults to 1.21. CI reads `go.mod`, so runners use 1.21. The CI
 comment still talks about 1.23 / `log/slog`.
@@ -209,6 +295,8 @@ comment still talks about 1.23 / `log/slog`.
 #### H6 — Planet README “API path” is `/forbid`, not `/api/planet`
 **Locus:** generator. **Files:** `.sdk/src/cmp/ts/ReadmeModel_ts.ts:167-170`,
 `ts/README.md:364`.
+
+**Status: FIXED** `41ce29a`. `ReadmeModel_ts.ts` uses the primary point.
 
 Planet `create` has three points (forbid, terraform, plain create). The
 README takes `points[0]`. `AgentInfo.primaryPoint()` already skips
@@ -232,6 +320,9 @@ Config reads `process.env.DATA_PATH`; `build()` hardcodes
 
 #### M3 — `Config.fragment.ts` is a named-literal fork
 **Locus:** generator. **File:** `.sdk/src/cmp/ts/fragment/Config.fragment.ts:22,32`.
+
+**Status: FIXED** `41ce29a`. Restored to `$$const.Name$$` and
+`$$main.kit.info.servers.0.url$$`, byte-identical to the stock fragment.
 
 Stock placeholders are `$$const.Name$$` and
 `$$main.kit.info.servers.0.url$$`. This repo hardcodes `'Solardemo'` and
@@ -296,6 +387,9 @@ At least seven other `.sdk/test/primary/*.aontu` files still have
 a *section* with zero cases; empty `set` inside a named section may still
 slip through — confirm before closing).
 
+**Status: OPEN**, now quantified: exactly 7 files carry `basic: set: []`.
+Filling them needs authored cases per utility.
+
 ---
 
 ### Low
@@ -350,21 +444,36 @@ here is a convenience that encodes a checkout layout (H3).
 Do these in `.sdk/` or `app/`, then regenerate. Do not hand-edit `ts/` or
 `go/`.
 
-1. **C2 — Agents identity + entity-return docs.** Highest leverage for
+Items 1-5 are **done**, in this order. What remains is 6 (minus H5, H6 and
+M3) and 7.
+
+1. ~~**C2 — Agents identity + entity-return docs.**~~ **Done** `41ce29a`.
+   **C2 — Agents identity + entity-return docs.** Highest leverage for
    anyone (or any agent) consuming the SDK. Use `packageName` / `goModule`;
    rewrite the operation examples.
-2. **C1 — create-id contract.** Pick one semantics and align OpenAPI,
+2. ~~**C1 — create-id contract.**~~ **Done** `95037bd` — client-supplied
+   ids, as recommended.
+   **C1 — create-id contract.** Pick one semantics and align OpenAPI,
    Fastify schemas, handlers, entity model, `validate.ts`. Prefer
    client-supplied ids: that is what the SDK types already require.
-3. **C3 — moon parent enforcement.** Cheap, and it makes nested URLs mean
+3. ~~**C3 — moon parent enforcement.**~~ **Done** `95037bd`.
+   **C3 — moon parent enforcement.** Cheap, and it makes nested URLs mean
    something.
-4. **H2 — CI generate-diff + `app` test job.** Prevents the next silent
+4. ~~**H2 — CI generate-diff + `app` test job.**~~ **Done** `0b2da35`. The
+   Seneca guard went the other way: the output path is CREATED in CI
+   rather than the target deactivated, so generate stays fully exercised.
+   **H2 — CI generate-diff + `app` test job.** Prevents the next silent
    drift. Guard Seneca with `active: false` in CI or a writable output
    path (H3).
-5. **H1 — `test.live.strict: true`** once the app honours create ids, so
+5. ~~**H1 — `test.live.strict: true`**~~ **Done** `246eaf4`, and `282d309`
+   adds the CI job that actually runs it. Sequencing this after C1 was
+   right — before it, strict live runs would have been red for a server
+   defect.
+   **H1 — `test.live.strict: true`** once the app honours create ids, so
    live runs become evidence.
-6. **H4, H5, H6, M2, M3** — SECURITY.md, goversion, primaryPoint in
-   ReadmeModel, wire `DATA_PATH`, restore Config.fragment placeholders.
+6. **H4, ~~H5~~, ~~H6~~, M2, ~~M3~~** — H5 goversion, H6 primaryPoint and M3
+   Config.fragment placeholders are **done** in `41ce29a`. Still open:
+   **SECURITY.md** (H4) and **wire `DATA_PATH`** (M2).
 7. **M9** — either automate Go tags or stop advertising `go get @latest`
    until `go/VERSION` matches the TS 0.1.0 line.
 
@@ -374,20 +483,20 @@ Do these in `.sdk/` or `app/`, then regenerate. Do not hand-edit `ts/` or
 
 | ID | Aug 12 | Now |
 | --- | --- | --- |
-| A1–A6 | Fixed | Still fixed (A2 Go 1.23 **regressed** → H5) |
+| A1–A6 | Fixed | Still fixed; A2 regressed to H5 and is **re-fixed** (`41ce29a`) |
 | B0–B5 | Fixed by removing LogFeature | Still gone; TS generate no longer restores extra features |
-| C1–C6 | Fixed | Residual blank descriptions (L2); **new** wrong Planet API path (H6) |
+| C1–C6 | Fixed | Residual blank descriptions (L2); the new wrong Planet API path (H6) is **fixed** (`41ce29a`) |
 | D1, D2, D4 | Fixed | Still fixed |
 | D3, D5 | Open | Still open (L5, L6) |
 | E1 | Open | Still open (no stale-output prune) |
 | E3–E7 | Open | Still open |
 | E8 | Fixed | Still fixed |
-| E9 | Fixed (no forks) | **Partially regressed** — AgentInfo, Agents, Config.fragment, Root, BuildSDK are custom |
+| E9 | Fixed (no forks) | **Partly recovered** — AgentInfo now calls the sdkgen helpers and Config.fragment is back to stock placeholders (`41ce29a`); Agents, Root, BuildSDK remain custom |
 | E10 | Upstream workaround | Still truncated Go feature harness |
 | E11 dryrun | Upstream | **Fixed** in sdkgen 3.3.1 |
 | G1 | Open | Still open (L7) |
-| G2 | Fixed | Residual empty corpus files (M12) |
-| G3 | Open | **Still open** (H1); `liveStrict()` exists, unused |
+| G2 | Fixed | Residual empty corpus files (M12), now counted: exactly 7 |
+| G3 | Open | **FIXED** — `246eaf4` sets `test.live.strict`, `282d309` adds the CI job that runs it. Open across two reviews; closed now. |
 | G4 | Open / High | **Fixed** in generated output (slug `solardemo`) |
 | — | — | **New:** C1, C2, C3, H2–H6, M1–M11 |
 
@@ -416,3 +525,30 @@ live `validate:full`, consecutive generate diff. Claims about test
 leniency and create-id behaviour are from source, not from a live
 falsification this session. C1 create-id overwrite is unambiguous in
 source; a live POST is not required to confirm it.
+
+### Run during the fix pass (2026-08-20, `main` at `27ffa87`)
+
+The three caveats above are now closed. Each fix was falsified in both
+directions rather than confirmed in one:
+
+| Claim | How it was checked |
+| --- | --- |
+| C1 create-id overwrite is real | Stashed the fix, re-ran `validate.ts` against the same server: **15/20**, failing ids 3, 4, 11, 19, 20 — the exact five predicted from source. Restored: **20/20**. |
+| The H2 drift gate does not false-positive | `generate` on a clean checkout of `main`: **zero drift**, tracked and untracked. |
+| The H2 drift gate actually catches drift | Appended one line to `ts/src/SolardemoTypes.ts`: gate fires. |
+| Live runs are now evidence | Server up: ts **185 pass / 1 skip**, go ok. Port closed: **3 suites fail in each language**. |
+| The generate job is not vacuously green | Read the runner log, not the tick: apidef ran (entities=2, paths=6, methods=12), jostraca emitted go and ts, `generate-external` resolved to `/home/runner/work/seneca/solardemo-provider`. |
+| The live job is not vacuously green | Runner log shows ts `tests 186 / pass 185 / fail 0 / skipped 1` and go `ok ... 0.936s` — a real duration, **not `(cached)`**. |
+
+Full matrices: ts **186** (185 pass / 1 skip live), go ok, app **42**,
+`validate.ts` **20/20**, CI **6/6** green.
+
+Two things this pass found that source reading alone would not have:
+
+- Enabling `test.live.strict` made live runs red against a *healthy*
+  server, because the TS strict branch asserted the offline mock's
+  fixtures (`data.id === 'direct01'`) against live data. Go was correct;
+  TS was the outlier.
+- The first Go live negative control **passed from cache** with the port
+  closed. `go test` caches by input and reported `ok` without contacting
+  the server — hence `-count=1` in the live job.
