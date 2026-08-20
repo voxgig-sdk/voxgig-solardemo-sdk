@@ -185,4 +185,60 @@ describe('Planet API Integration', () => {
 
     strictEqual(res.statusCode, 404)
   })
+
+  // C1 — a client-supplied id must survive create. OpenAPI requires one and
+  // the generated SDK type PlanetCreateData.id is required, so every SDK
+  // caller sends one; the schema used to reject it outright.
+  test('POST /api/planet honours a client-supplied id', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/planet',
+      payload: {
+        id: 'pluto',
+        name: 'Pluto',
+        kind: 'rock',
+        diameter: 2377,
+      },
+    })
+
+    strictEqual(createRes.statusCode, 201)
+    strictEqual(JSON.parse(createRes.payload).id, 'pluto')
+
+    // and it is addressable by the id the caller chose
+    const getRes = await app.inject({ method: 'GET', url: '/api/planet/pluto' })
+    strictEqual(getRes.statusCode, 200)
+    strictEqual(JSON.parse(getRes.payload).name, 'Pluto')
+
+    await app.inject({ method: 'DELETE', url: '/api/planet/pluto' })
+  })
+
+  test('POST /api/planet still generates an id when none is given', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/planet',
+      payload: { name: 'Nameless', kind: 'gas', diameter: 1000 },
+    })
+
+    strictEqual(res.statusCode, 201)
+    const created = JSON.parse(res.payload)
+    ok(created.id, 'server should generate an id when the client omits one')
+
+    await app.inject({ method: 'DELETE', url: `/api/planet/${created.id}` })
+  })
+
+  test('POST /api/planet rejects a duplicate id with 409', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/planet',
+      payload: { id: 'earth', name: 'Impostor', kind: 'rock', diameter: 1 },
+    })
+
+    strictEqual(res.statusCode, 409)
+
+    // the original must be untouched, not overwritten
+    const earth = JSON.parse(
+      (await app.inject({ method: 'GET', url: '/api/planet/earth' })).payload
+    )
+    strictEqual(earth.name, 'Earth')
+  })
 })

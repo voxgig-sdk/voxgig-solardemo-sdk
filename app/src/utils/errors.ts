@@ -15,3 +15,15 @@ export class ValidationError extends Error {
     this.name = 'ValidationError'
   }
 }
+
+// Client-supplied ids make a create collide with an existing record. The
+// stores are Maps keyed by id, so without this the second create would
+// silently overwrite the first and return 201 as though it had inserted.
+export class ConflictError extends Error {
+  statusCode = 409
+
+  constructor(resource: string, id: string) {
+    super(`${resource} with id '${id}' already exists`)
+    this.name = 'ConflictError'
+  }
+}

@@ -156,4 +156,103 @@ describe('Moon API Integration', () => {
     const saturnMoons = JSON.parse(saturnRes.payload)
     strictEqual(saturnMoons.length, 6)
   })
+
+  // C3 — the parent id in the path is part of the identity. These all used to
+  // match on moon_id alone, so a moon could be read, mutated or destroyed
+  // through a planet it does not belong to.
+  describe('nested routes enforce the parent planet_id', () => {
+    // luna belongs to earth; address it under mars.
+    test('GET under the wrong parent returns 404', async () => {
+      const right = await app.inject({
+        method: 'GET',
+        url: '/api/planet/earth/moon/luna',
+      })
+      strictEqual(right.statusCode, 200)
+
+      const wrong = await app.inject({
+        method: 'GET',
+        url: '/api/planet/mars/moon/luna',
+      })
+      strictEqual(wrong.statusCode, 404)
+    })
+
+    test('PUT under the wrong parent returns 404 and does not mutate', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/planet/mars/moon/luna',
+        payload: { name: 'Hijacked' },
+      })
+      strictEqual(res.statusCode, 404)
+
+      const luna = JSON.parse(
+        (await app.inject({ method: 'GET', url: '/api/planet/earth/moon/luna' }))
+          .payload
+      )
+      strictEqual(luna.name, 'Luna')
+    })
+
+    test('DELETE under the wrong parent returns 404 and does not delete', async () => {
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/planet/mars/moon/luna',
+      })
+      strictEqual(res.statusCode, 404)
+
+      const still = await app.inject({
+        method: 'GET',
+        url: '/api/planet/earth/moon/luna',
+      })
+      strictEqual(still.statusCode, 200)
+    })
+
+    test('PUT cannot reparent a moon via the body', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/planet/earth/moon/luna',
+        payload: { planet_id: 'mars' },
+      })
+      strictEqual(res.statusCode, 400)
+
+      const luna = JSON.parse(
+        (await app.inject({ method: 'GET', url: '/api/planet/earth/moon/luna' }))
+          .payload
+      )
+      strictEqual(luna.planet_id, 'earth')
+    })
+  })
+
+  // C1 — client-supplied ids, same contract as planet create.
+  test('POST moon honours a client-supplied id and rejects duplicates', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/planet/earth/moon',
+      payload: {
+        id: 'selene',
+        name: 'Selene',
+        planet_id: 'earth',
+        kind: 'rock',
+        diameter: 3474,
+      },
+    })
+    strictEqual(created.statusCode, 201)
+    strictEqual(JSON.parse(created.payload).id, 'selene')
+
+    const dup = await app.inject({
+      method: 'POST',
+      url: '/api/planet/earth/moon',
+      payload: {
+        id: 'selene',
+        name: 'Impostor',
+        planet_id: 'earth',
+        kind: 'rock',
+        diameter: 1,
+      },
+    })
+    strictEqual(dup.statusCode, 409)
+
+    await app.inject({
+      method: 'DELETE',
+      url: '/api/planet/earth/moon/selene',
+    })
+  })
 })

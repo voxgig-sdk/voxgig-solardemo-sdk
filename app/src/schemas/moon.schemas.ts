@@ -41,6 +41,10 @@ export const moonSchemas = {
       type: 'object',
       required: ['name', 'planet_id', 'kind', 'diameter'],
       properties: {
+        // See the note in planet.schemas.ts: OpenAPI's Moon schema requires
+        // `id` on create and MoonCreateData.id is required, so the SDK always
+        // sends one. Optional here so omitting it still generates an id.
+        id: { type: 'string' },
         name: { type: 'string' },
         planet_id: { type: 'string' },
         kind: { type: 'string' },
@@ -52,6 +56,7 @@ export const moonSchemas = {
       201: { $ref: 'moon#' },
       400: { $ref: 'error#' },
       404: { $ref: 'error#' },
+      409: { $ref: 'error#' },
     },
   },
   update: {
