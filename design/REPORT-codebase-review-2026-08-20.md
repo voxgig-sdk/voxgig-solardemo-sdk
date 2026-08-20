@@ -17,7 +17,7 @@ Generated trees (`ts/`, `go/`) are treated as symptoms. Fixes belong in
 
 ## 0. Status — updated 2026-08-20, `main` at `27ffa87`
 
-Every **Critical** and every **High** except H3 and H4 is now fixed. The
+Every **Critical** and every **High** except H3 is now fixed. The
 findings below are left as written; each addressed one carries a
 **Status** line naming the commit, so the analysis stays readable next to
 what was done about it.
@@ -30,9 +30,10 @@ what was done about it.
 | H1 live tests cannot fail (G3) | **Fixed** | `246eaf4` + `282d309` |
 | H2 CI never regenerates or tests `app/` | **Fixed** | `0b2da35` |
 | H3 Seneca generate on a flat clone | **Open** (CI made deterministic) | `0b2da35` |
-| H4 `SECURITY.md` linked and absent | **Open** | — |
+| H4 `SECURITY.md` linked and absent | **Fixed** | `SECURITY.md` + `design/PUBLISHING.md` |
 | H5 Go version unset | **Fixed** | `41ce29a` |
 | H6 Planet README API path | **Fixed** | `41ce29a` |
+| M2 `DATA_PATH` documented and unused | **Fixed** | see below |
 | M3 `Config.fragment.ts` literals | **Fixed** | `41ce29a` |
 | M12 empty corpus sections | **Open**, quantified: exactly 7 files | — |
 | L16 `fs.F_OK` deprecation | **Confirmed still live** (upstream jostraca) | — |
@@ -64,7 +65,7 @@ passing check* — which is the theme of this review:
    closed — `go test` caches by input and reported `ok` without
    contacting the server. The live job pins `-count=1` for that reason.
 
-App test coverage went 34 → 42 tests; CI went from 4 jobs to 5.
+App test coverage went 34 → 45 tests; CI went from 4 jobs to 5.
 
 ---
 
@@ -146,7 +147,7 @@ disturbed while the contract issues are fixed.
 
 **Status: FIXED** `95037bd`. Client ids honoured, generated only when
 absent, 409 on a duplicate rather than a silent overwrite. `validate.ts`
-15/20 -> 20/20; app tests 34 -> 42.
+15/20 -> 20/20; app tests 34 -> 42 (45 after M2).
 
 ```ts
 const planet = planetStore.create({ ...request.body, id: nid(8) })
@@ -275,7 +276,11 @@ depending on error handling.
 #### H4 — `SECURITY.md` is linked and absent
 **Locus:** docs. **File:** `README.md:217-220`.
 
-**Status: OPEN.**
+**Status: FIXED.** Both dangling links now resolve. `SECURITY.md` states
+what is actually published, and that `app/` is a test server rather than a
+product — no auth, unauthenticated `/debug`, in-memory state — so those are
+documented design rather than findings. `design/PUBLISHING.md` documents the
+real release flow for both artifacts and records the M9 version drift.
 
 Root README: “See [SECURITY.md](SECURITY.md)”. No such file. Publish
 workflow comments also point at `design/PUBLISHING.md`, which does not
@@ -314,6 +319,11 @@ someone sets `HOST=0.0.0.0`.
 
 #### M2 — `DATA_PATH` is documented and unused
 **Locus:** app. **Files:** `app/src/config.ts:9-11`, `app/src/server.ts:41`.
+
+**Status: FIXED.** `build()` now reads `config.data.initialDataPath`. A
+relative value resolves against the app root rather than the CWD, so the
+default keeps working from any directory. Three regression tests added
+(app 42 -> 45); with the fix reverted, all three fail.
 
 Config reads `process.env.DATA_PATH`; `build()` hardcodes
 `../../solar.data.json`.
@@ -471,9 +481,8 @@ M3) and 7.
    defect.
    **H1 — `test.live.strict: true`** once the app honours create ids, so
    live runs become evidence.
-6. **H4, ~~H5~~, ~~H6~~, M2, ~~M3~~** — H5 goversion, H6 primaryPoint and M3
-   Config.fragment placeholders are **done** in `41ce29a`. Still open:
-   **SECURITY.md** (H4) and **wire `DATA_PATH`** (M2).
+6. ~~**H4, H5, H6, M2, M3**~~ — **all done.** H5, H6 and M3 in `41ce29a`;
+   H4 (SECURITY.md + PUBLISHING.md) and M2 (`DATA_PATH` wired) since.
 7. **M9** — either automate Go tags or stop advertising `go get @latest`
    until `go/VERSION` matches the TS 0.1.0 line.
 
