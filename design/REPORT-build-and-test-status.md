@@ -2,9 +2,15 @@
 
 Verified: **2026-08-12**, after the `@voxgig/sdkgen` 1.3.17 → 2.0.2 upgrade.
 
+> **Stale as of 2026-08-20.** Toolchain is sdkgen **3.3.1**, slug is
+> `solardemo` (not `voxgig-solardemo`), class is `SolardemoSDK`, G4 env-var
+> dual-spelling is gone, and `app/` `validate:full` is not green. Use
+> [REPORT-codebase-review-2026-08-20.md](REPORT-codebase-review-2026-08-20.md)
+> as the current picture. Numbers below are left as a snapshot of that day.
+
 ## Summary
 
-Everything green. The generator builds with no warnings, generation is
+Everything green *as of 2026-08-12*. The generator builds with no warnings, generation is
 idempotent, and both SDKs build and pass their full suites.
 
 | Step | Result |

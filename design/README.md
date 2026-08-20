@@ -7,13 +7,15 @@ generator.
 Everything else at the repo root is either generated (`README.md`, `AGENTS.md`)
 or a short operational note (`DEV.md`).
 
-Last verified against the working tree: **2026-08-12**, after the
-`@voxgig/sdkgen` 1.3.17 → 2.0.2 upgrade.
+Last verified against the working tree: **2026-08-20**, after the
+`@voxgig/sdkgen` 3.3.1 line (entity-returning ops, Seneca provider,
+publication pins).
 
 | Document | Kind | Status |
 | --- | --- | --- |
-| [REPORT-build-and-test-status.md](REPORT-build-and-test-status.md) | Status | Current — both SDKs green, 0 generation warnings |
-| [REPORT-bugs-and-issues.md](REPORT-bugs-and-issues.md) | Issue register | Current — 25 fixed, 14 open |
+| [REPORT-codebase-review-2026-08-20.md](REPORT-codebase-review-2026-08-20.md) | Review | **Current register** — contract splits, Agents identity, CI gaps |
+| [REPORT-build-and-test-status.md](REPORT-build-and-test-status.md) | Status | Stale numbers (sdkgen 2.0.2, 2026-08-12) — see the 2026-08-20 review |
+| [REPORT-bugs-and-issues.md](REPORT-bugs-and-issues.md) | Issue register | Historical — superseded by the 2026-08-20 review; §6 of that review maps old IDs |
 | [PROMPT-sdkgen-model-driven-customisation.md](PROMPT-sdkgen-model-driven-customisation.md) | Upstream work item | Ready to hand to an agent in the sdkgen repo |
 | [REPORT-sdkgen-feature-copy-bug.md](REPORT-sdkgen-feature-copy-bug.md) | Upstream bug | Open upstream — sdkgen ships unmodelled feature source |
 | [REPORT-sdkgen-docs-comparison.md](REPORT-sdkgen-docs-comparison.md) | Report | Historical — the doc defects it tracked are now fixed |
@@ -22,40 +24,39 @@ Last verified against the working tree: **2026-08-12**, after the
 
 ## Where the open items live
 
-`REPORT-bugs-and-issues.md` is the single register. The other reports keep their
-narrative but defer to it for status, so an item is never marked "open" in two
-places with two different answers.
+`REPORT-codebase-review-2026-08-20.md` is the current register.
+`REPORT-bugs-and-issues.md` is kept for history; do not mark an item open in
+both places with two different answers.
 
 ## Read this before running `voxgig-sdkgen target add`
 
-`.sdk/src/cmp/**` now matches the sdkgen 2.0.2 scaffold exactly — **there are no
-forked components**. But three repairs to `.sdk/tm/**` are still undone by a
-resync, because `target add` overwrites the template masters:
+sdkgen 3.3.1 mitigates TS feature restore via `srcFeatureExcludes`, and Go
+via `feature.trim`. `target add` can still overwrite template masters and
+local forks. Project-local files that a resync must not clobber:
 
-1. **Feature templates** — the 16 unmodelled feature templates come back
-   (B0, and [REPORT-sdkgen-feature-copy-bug.md](REPORT-sdkgen-feature-copy-bug.md)).
-   Delete everything under `tm/go/feature/` and `tm/ts/src/feature/` except
-   `base`, `test` and `feature_options.go`.
-2. **`tm/go/test/feature_test.go`** — restored to the full version, which then
-   fails to compile without those features (E10). Truncate it to the harness
-   (everything above the first `// --- <feature>` block) and prune the now-unused
-   imports.
-3. **Stale files** — `tm/go/utility/make_target.go`,
-   `tm/go/utility/struct/go.mod`, `tm/go/test/exists_test.go` and a substituted
-   `src/cmp/ts/fragment/Config.fragment.ts` reappear or linger (E1). Remove them.
+- `.sdk/src/AgentInfo.ts`, `Agents.ts`, `cmp/{ts,go}/Agents_*.ts`
+- `.sdk/src/cmp/ts/fragment/Config.fragment.ts` (named-literal fork)
+- `.sdk/src/Root.ts`, `Top.ts`, `BuildSDK.ts`
+- Go feature harness trim (`tm/go/test/feature_harness_test.go`)
 
-After any `target add`, re-apply all three, then `npm run build && npm run
-generate` and check both SDKs still build.
+After any `target add`, diff those paths, restore pins in `model/sdk.aontu`
+(they live there *because* `target add` overwrites target files), then
+`npm run build && npm run generate` and check both SDKs still build.
 
-All three exist because sdkgen hardcodes decisions that belong in the model.
 [PROMPT-sdkgen-model-driven-customisation.md](PROMPT-sdkgen-model-driven-customisation.md)
-specifies the upstream work that would remove the need for every one of them.
+is the upstream work that would remove most of this checklist. See also
+C2 / M3 in the 2026-08-20 review: some of these forks are themselves bugs.
 
 ## Verification commands
 
 ```bash
-cd .sdk && npm install && npm run build && npm run generate   # 0 warnings
-cd ts   && npm install && npm run build && npm test           # 186 tests
-cd go   && go build ./... && go test ./...                    # 17 tests
-cd app  && npm audit                                          # 0 vulnerabilities
+cd .sdk && npm install && npm run build && npm run generate
+cd ts   && npm install && npm run build && npm test
+cd go   && go build ./... && go test ./...
+cd app  && npm test && npm audit
 ```
+
+`npm run generate` expects a sibling `../../seneca/solardemo-provider` checkout;
+without it the Seneca pass errors after `ts/` and `go/` have been written.
+CI does not currently run generate or `app` tests — see H2 in the 2026-08-20
+review.

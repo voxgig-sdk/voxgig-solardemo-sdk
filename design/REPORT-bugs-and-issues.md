@@ -3,8 +3,15 @@
 Originally written 2026-06-08. **Re-verified and largely resolved 2026-08-12**
 during the `@voxgig/sdkgen` 1.3.17 → 2.0.2 upgrade.
 
-This is the single source of truth for issue status; the other reports in
-`design/` defer to it.
+> **Superseded as the current register** by
+> [REPORT-codebase-review-2026-08-20.md](REPORT-codebase-review-2026-08-20.md)
+> (sdkgen 3.3.1). Keep this file for history; §6 of the 2026-08-20 review
+> maps each ID below onto present status. Several items here are wrong
+> now — notably A2 (Go 1.23), E9 (no forks), G4 (hyphenated env vars),
+> and the “single source of truth” claim in the next paragraph.
+
+This **was** the single source of truth for issue status through 2026-08-12;
+the other reports in `design/` deferred to it.
 
 Severity: **High** / **Medium** / **Low**.
 Status: **Fixed** / **Open** / **Upstream**.
