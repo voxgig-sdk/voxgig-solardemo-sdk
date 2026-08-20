@@ -182,3 +182,96 @@ jobs:
       - name: Test (offline)
         working-directory: go
         run: go test ./... -v
+
+  # The payoff of H1. Until live runs asserted, a green live suite proved
+  # only that dispatch worked — a non-2xx was a bare `return` in TS and a
+  # t.Skipf in Go, so the suite passed with nothing listening on the port.
+  # Now both SDKs are run against the real companion server, which is the
+  # only implementation of this API that exists.
+  #
+  # Measured, both directions, before this job was added:
+  #
+  #                      server up        server down
+  #   ts   live          185 pass/1 skip  3 suites FAIL
+  #   go   live          ok               3 suites FAIL
+  #
+  #   (MoonDirect, MoonEntity, PlanetDirect in both languages.)
+  live-sdk:
+    name: Live SDK against the companion server
+    runs-on: ubuntu-latest
+    env:
+      SOLARDEMO_TEST_LIVE: 'TRUE'
+      # Without a real id the nested moon tests skip rather than run: they
+      # cannot invent a parent planet_id, and synthetic ids 4xx. 'earth' is
+      # seeded in app/solar.data.json. Supplying it takes the live signal
+      # from ONE failing suite to three — the planet tests self-discover an
+      # id by listing first, the moon tests cannot.
+      SOLARDEMO_TEST_MOON_ENTID: '{"planet01":"earth"}'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go/go.mod
+          cache: false
+
+      - name: Install and build the companion server
+        working-directory: app
+        run: |
+          npm install
+          npm run build
+
+      - name: Start the server
+        working-directory: app
+        run: |
+          node dist/src/server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/app.pid"
+
+      - name: Wait for the server to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 2 http://localhost:8901/api/planet >/dev/null; then
+              echo "server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::server did not become ready within 30s"
+          cat "$RUNNER_TEMP/server.log" || true
+          exit 1
+
+      - name: Build the TypeScript SDK
+        working-directory: ts
+        run: |
+          npm install
+          npx tsc --build src
+          npx tsc --build test
+
+      # .env.local would override the base URL and point the suite somewhere
+      # other than the server just started. The offline jobs strip it too.
+      - name: Remove .env.local if present
+        run: rm -f ts/.env.local go/.env.local go/test/.env.local
+
+      - name: TypeScript SDK (live)
+        working-directory: ts
+        run: npm test
+
+      # -count=1 is REQUIRED, not tidiness: go test caches by input, and a
+      # cached `ok` from an earlier offline run reports success without
+      # contacting the server at all. Reproduced while building this job —
+      # the first negative control passed purely from cache.
+      - name: Go SDK (live)
+        working-directory: go
+        run: go test -count=1 ./...
+
+      - name: Server log
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log" || true
+
+      - name: Stop the server
+        if: always()
+        run: kill "$(cat "$RUNNER_TEMP/app.pid")" 2>/dev/null || true
