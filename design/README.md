@@ -38,6 +38,15 @@ local forks. Project-local files that a resync must not clobber:
 - `.sdk/src/cmp/ts/fragment/Config.fragment.ts` (named-literal fork)
 - `.sdk/src/Root.ts`, `Top.ts`, `BuildSDK.ts`
 - Go feature harness trim (`tm/go/test/feature_harness_test.go`)
+- `tm/{ts,go}/LICENSE` — a LITERAL copyright year, not the stock
+  `$$const.year$$`. This one is load-bearing: sdkgen sets `const.year` from
+  `new Date().getFullYear()` and does so UNCONDITIONALLY (it replaces
+  `model.const` wholesale first, so the model cannot pin it). A clock-derived
+  value inside a drift-gated generated file is a time bomb — on 1 January the
+  CI generate emits the new year, the committed LICENSE still says the old
+  one, and `Generate and check for drift` fails with nothing changed. Stock
+  and fork produce byte-identical output the rest of the year, so restoring
+  stock looks harmless and stays harmless until the rollover.
 
 After any `target add`, diff those paths, restore pins in `model/sdk-base.aontu`
 (they live there *because* `target add` overwrites target files), then

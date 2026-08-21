@@ -351,7 +351,10 @@ The validation script tests:
 
 - `HOST` - Server host (default: localhost)
 - `PORT` - Server port (default: 8901)
-- `LOG_LEVEL` - Logging level (default: info)
+- `LOG_LEVEL` - Logging level (default: `error`). Deliberately quiet: the
+  test suites do not set it, so a chattier default would put request logs
+  through every `npm test` and CI run. Set `LOG_LEVEL=info` when running
+  the server by hand.
 - `NODE_ENV` - Environment (development, production)
 - `DATA_PATH` - Path to data file (default: ./solar.data.json)
 

@@ -149,3 +149,12 @@ old-*
 # committed copy would go stale silently. An ungated generated artefact is
 # worse than no artefact.
 .sdk/model/provider.json
+
+# Claude Code per-developer settings.
+#
+# The convention is `.claude/settings.json` SHARED and committed, and
+# `settings.local.json` machine-local. Both of this repo's files were tracked
+# under the .local name, so one developer's permission allow-list was imposed
+# on everyone while its name promised the opposite. The shared allow-lists are
+# now settings.json (a deliberate project decision); the .local files stay out.
+**/.claude/settings.local.json
