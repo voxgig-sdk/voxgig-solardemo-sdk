@@ -35,7 +35,7 @@ what was done about it.
 | H6 Planet README API path | **Fixed** | `41ce29a` |
 | M2 `DATA_PATH` documented and unused | **Fixed** | see below |
 | M3 `Config.fragment.ts` literals | **Fixed** | `41ce29a` |
-| M12 empty corpus sections | **Open**, quantified: exactly 7 files | — |
+| M12 empty corpus sections | **Fixed** (1 promoted, 6 deferred with cause + a guard) | see below |
 | L16 `fs.F_OK` deprecation | **Confirmed still live** (upstream jostraca) | — |
 
 Everything else in sections 3 and 4 is untouched and still stands.
@@ -428,8 +428,53 @@ At least seven other `.sdk/test/primary/*.aontu` files still have
 a *section* with zero cases; empty `set` inside a named section may still
 slip through — confirm before closing).
 
-**Status: OPEN**, now quantified: exactly 7 files carry `basic: set: []`.
-Filling them needs authored cases per utility.
+**Status: FIXED.** One section promoted with real cases, the other six
+given a machine-checkable reason, and a guard added so this cannot recur.
+
+**The count was right; the diagnosis was not.** These were not seven fixtures
+awaiting data. Six are blocked on a *runner capability*, and one was not
+blocked at all:
+
+- **`makePoint` is promoted** — 7 cases covering every branch: single point,
+  `allow.op` denial, empty-points error, `select.exist` selection and its
+  fall-through, `$action` selection, and the invalid-`$action` error. The
+  inherited note said it "requires ... a real client". It does not: `Context`
+  rebuilds `op` from `opname` + `entity` + `config.entity.<n>.op.<n>.points`,
+  and `options` can be supplied literally, so the whole utility is expressible
+  as data. Verified by running it, not by reading it.
+- **Six stay deferred, and now say why in the fixture** — `featureInit` and
+  `featureHook` need `f.init` / `f[name]` to be FUNCTIONS, which a fixture
+  compiled to JSON cannot carry; `fetcher` needs a transport; `makeFetchDef`
+  and `makeResult` need a ctx built through the SDK's own constructors;
+  `featureAdd` mutates the shared client and the runner builds one client per
+  spec, not per entry. These are runner changes, not fixture data.
+
+**Why it went unseen for two reviews.** The per-section zero-case guard in
+each language runner only fires for a section some test actually calls. None
+of the seven had a call — TS had one hand-written `makePoint-single` covering
+one branch of one of them, and Go had hand-written tests that had drifted from
+the corpus. A fixture nobody runs is indistinguishable from one that passes.
+
+`ts/test/utility/Corpus.test.ts` now guards the corpus **as a whole**, and
+deferral is DATA (`basic: pending: '<reason>'`) rather than a comment —
+comments do not survive compilation to `test.json`, so a marker written only
+in the `.aontu` source cannot be checked by the thing that consumes it. Three
+invariants, each verified able to fail: an empty section must declare a
+reason, a reason must be more than a marker, and a section that gains cases
+must drop its deferral.
+
+**Two latent TS/Go divergences surfaced while promoting `makePoint`**, both
+found because the shared corpus forces the two ports through identical input:
+
+- `options.allow.op` is a COMMA-SEPARATED STRING. Go type-asserts it to
+  `string` and uses `strings.Contains`; TS uses `.includes()`, which accepts a
+  list too. A list denies every operation in Go and passes in TS.
+- Go resolves the operation through the `Entity` INTERFACE, so a literal
+  `{name: 'planet'}` leaves `ctx.Entity` nil and every config lookup misses;
+  TS reads the same field with `getprop` and accepts the plain map.
+
+Neither is live — real callers pass a string and a real entity — so they are
+recorded here rather than raised as defects.
 
 ---
 
@@ -535,7 +580,7 @@ M3) and 7.
 | E10 | Upstream workaround | Still truncated Go feature harness |
 | E11 dryrun | Upstream | **Fixed** in sdkgen 3.3.1 |
 | G1 | Open | Still open (L7) |
-| G2 | Fixed | Residual empty corpus files (M12), now counted: exactly 7 |
+| G2 | Fixed | Residual empty corpus files (M12) now resolved: 1 promoted, 6 deferred with a machine-checked reason |
 | G3 | Open | **FIXED** — `246eaf4` sets `test.live.strict`, `282d309` adds the CI job that runs it. Open across two reviews; closed now. |
 | G4 | Open / High | **Fixed** in generated output (slug `solardemo`) |
 | — | — | **New:** C1, C2, C3, H2–H6, M1–M11 |

@@ -1,2 +1,17 @@
 
+# PENDING — this section is deliberately empty.
+#
+# featureInit(ctx, f) calls f.init(ctx, fopts). `init` is a function, and a
+# fixture compiles to JSON, so the subject of the test cannot be expressed
+# here at all. Covered per-language by the feature/ suites.
+#
+# An empty `set` runs ZERO cases. Runners must not treat that as a pass by
+# accident: the language runners keep a PENDING list, and corpus.test.ts
+# asserts that every empty fixture is declared there AND explains itself —
+# so an accidentally-blanked fixture fails the build while a knowingly
+# deferred one does not.
+
+# Machine-readable so the corpus guard can check it; the prose above
+# is the long form.
+basic: pending: 'featureInit calls f.init(ctx, fopts); init is a function, and a fixture compiles to JSON, so the subject cannot be expressed here.'
 basic: set: []
