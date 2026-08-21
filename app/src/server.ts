@@ -17,25 +17,49 @@ export async function build() {
     logger: config.logging,
   })
 
+  // ONE envelope for every failure: { error, message }.
+  //
+  // `error` used to be `err.name`, which is only meaningful for the error
+  // classes this app throws. Fastify's own failures carry internal names, so
+  // the commonest 400 of all — an Ajv schema violation — reached clients as
+  //
+  //     { "error": "Error", "message": "body must have required property 'name'" }
+  //
+  // and a malformed JSON body as "FastifyError". Meanwhile the branch that
+  // produced "Validation Error" (with a space, as app/README.md documents) was
+  // UNREACHABLE: Fastify sets statusCode 400 on a validation error before the
+  // handler runs, so the first branch always won.
+  //
+  // Now: keep the name when it is one of ours — those are the distinctions the
+  // API deliberately exposes — and otherwise use the name for the status. Every
+  // source of a given status then produces one label, in one style.
+  const OWN_ERRORS = new Set(['NotFoundError', 'ValidationError', 'ConflictError'])
+
+  const STATUS_ERRORS: Record<number, string> = {
+    400: 'ValidationError',
+    404: 'NotFoundError',
+    409: 'ConflictError',
+    500: 'InternalServerError',
+  }
+
   fastify.setErrorHandler((error, request, reply) => {
     const err = error as any
-    if ('statusCode' in err && typeof err.statusCode === 'number') {
-      reply.status(err.statusCode).send({
-        error: err.name,
-        message: err.message,
-      })
-    } else if ('validation' in err) {
-      reply.status(400).send({
-        error: 'Validation Error',
-        message: err.message,
-      })
-    } else {
+    const status =
+      'number' === typeof err.statusCode && 400 <= err.statusCode ? err.statusCode : 500
+
+    const name = OWN_ERRORS.has(err.name)
+      ? err.name
+      : (STATUS_ERRORS[status] || (500 <= status ? 'InternalServerError' : 'RequestError'))
+
+    // Only server faults are ours to investigate; a 4xx is the caller's.
+    if (500 <= status) {
       request.log.error(err)
-      reply.status(500).send({
-        error: 'Internal Server Error',
-        message: err.message,
-      })
     }
+
+    reply.status(status).send({
+      error: name,
+      message: err.message,
+    })
   })
 
   // DATA_PATH was read into config and then ignored: this line hardcoded

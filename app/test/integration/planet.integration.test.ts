@@ -1,4 +1,4 @@
-import { describe, test, before, after } from 'node:test'
+import { describe, test, beforeEach, afterEach } from 'node:test'
 import { strictEqual, ok } from 'node:assert'
 import { build } from '../../src/server.js'
 import type { FastifyInstance } from 'fastify'
@@ -6,11 +6,19 @@ import type { FastifyInstance } from 'fastify'
 describe('Planet API Integration', () => {
   let app: FastifyInstance
 
-  before(async () => {
+  // Per TEST, not per file. build() re-reads solar.data.json into fresh stores
+  // (src/server.ts), so every test starts from the seed.
+  //
+  // Sharing one instance made every absolute-count assertion in this file
+  // depend on each mutating test remembering its own cleanup DELETE, and on
+  // node:test running them in declaration order. Nothing enforced either. The
+  // review recorded the suite as "passing today, order-fragile"; the structure
+  // was real, and this removes the dependency rather than relying on it.
+  beforeEach(async () => {
     app = await build()
   })
 
-  after(async () => {
+  afterEach(async () => {
     await app.close()
   })
 
@@ -240,5 +248,27 @@ describe('Planet API Integration', () => {
       (await app.inject({ method: 'GET', url: '/api/planet/earth' })).payload
     )
     strictEqual(earth.name, 'Earth')
+  })
+  // ISOLATION GUARD. These two run in declaration order (node:test default),
+  // and the pair only passes when each test gets a fresh server: the first
+  // deliberately leaves a planet behind, the second asserts it is gone.
+  //
+  // Revert the hooks above to before/after and the second fails. Without this,
+  // the isolation would be an unenforced convention — the next person to
+  // "simplify" the hooks back would find every test still green.
+  test('isolation guard: leave a planet behind', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/planet',
+      payload: { id: 'isolation-probe', name: 'Probe', kind: 'rock', diameter: 1 },
+    })
+    strictEqual(res.statusCode, 201)
+  })
+
+  test('isolation guard: the next test cannot see it', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/planet/isolation-probe' })
+    strictEqual(res.statusCode, 404,
+      'a record created by the previous test survived — the suite is sharing ' +
+      'one server again, so every count assertion here is order-dependent')
   })
 })

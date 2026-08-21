@@ -1,4 +1,4 @@
-import { describe, test, before, after } from 'node:test'
+import { describe, test, beforeEach, afterEach } from 'node:test'
 import { strictEqual } from 'node:assert'
 import { build } from '../../src/server.js'
 import type { FastifyInstance } from 'fastify'
@@ -6,11 +6,19 @@ import type { FastifyInstance } from 'fastify'
 describe('Moon API Integration', () => {
   let app: FastifyInstance
 
-  before(async () => {
+  // Per TEST, not per file. build() re-reads solar.data.json into fresh stores
+  // (src/server.ts), so every test starts from the seed.
+  //
+  // Sharing one instance made every absolute-count assertion in this file
+  // depend on each mutating test remembering its own cleanup DELETE, and on
+  // node:test running them in declaration order. Nothing enforced either. The
+  // review recorded the suite as "passing today, order-fragile"; the structure
+  // was real, and this removes the dependency rather than relying on it.
+  beforeEach(async () => {
     app = await build()
   })
 
-  after(async () => {
+  afterEach(async () => {
     await app.close()
   })
 
