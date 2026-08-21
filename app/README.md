@@ -371,6 +371,8 @@ The validation script tests:
 
 - `HOST` - Server host (default: localhost)
 - `PORT` - Server port (default: 8901)
+- `DEBUG_ROUTE` - Force `GET /debug` on (`true`) or off (`false`). Unset, it
+  follows the bind address: served on loopback, absent otherwise.
 - `LOG_LEVEL` - Logging level (default: `error`). Deliberately quiet: the
   test suites do not set it, so a chattier default would put request logs
   through every `npm test` and CI run. Set `LOG_LEVEL=info` when running

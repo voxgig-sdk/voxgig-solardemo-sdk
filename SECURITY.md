@@ -34,8 +34,17 @@ production services need:
   no `securitySchemes`, and the server has no auth middleware. The SDKs
   carry apikey plumbing that this server never exercises.
 - **`GET /debug` returns the entire store**, unauthenticated and absent
-  from the OpenAPI definition. Harmless on the default `localhost` bind;
-  a data-disclosure endpoint the moment `HOST=0.0.0.0` is set.
+  from the OpenAPI definition. It is now registered only when the server
+  binds to loopback, so on any reachable bind the route is absent (404)
+  rather than merely refused — there is no handler for a later edit to
+  un-guard. `DEBUG_ROUTE=true` puts it back deliberately;
+  `DEBUG_ROUTE=false` removes it even on loopback.
+
+  This was previously registered unconditionally, and this file said it was
+  "harmless on the default `localhost` bind". That was true, but it made the
+  safety a property of an environment variable's DEFAULT VALUE rather than of
+  any code: setting `HOST=0.0.0.0` silently published the whole store, and
+  nothing failed.
 - **State is in memory**, seeded from a JSON file at start, and lost on
   restart.
 - **Field validation is shape-level only** — an empty `kind` or a
