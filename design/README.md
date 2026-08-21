@@ -53,12 +53,17 @@ local forks. Project-local files that a resync must not clobber:
   stock produced exactly the same bytes for the rest of the year, so restoring
   it looked harmless and stayed harmless right up to the rollover.
 
-- `src/cmp/ts/Package_ts.ts`, `src/cmp/{ts,go}/ReadmeIntro_{ts,go}.ts`,
-  `tm/ts/test/exists.test.ts` — forked here first, then carried upstream into
-  sdkgen 3.7.2. They stop being forks the moment `.sdk/package.json`'s
-  `@voxgig/sdkgen` pin is raised to that release; until then `target add`
-  reverts them. `voxgig-sdkgen doctor` reports the current fork/edit counts
-  and is the fastest way to see where this list has gone stale.
+- `src/cmp/ts/Package_ts.ts` — ONE line: the published package name is pinned
+  under the model's `npm` registry key rather than derived from the target
+  name. The trailing-newline fix that also lived here went upstream in sdkgen
+  3.7.1 and is gone from this copy now that the pin is raised.
+
+  `src/cmp/{ts,go}/ReadmeIntro_{ts,go}.ts` and `tm/ts/test/exists.test.ts` were
+  forks until 3.7.2; they are byte-identical to stock again (modulo the
+  `ProjectName` placeholder) and need no entry here.
+
+  `voxgig-sdkgen doctor` reports the current fork/edit counts and is the
+  fastest way to see where this list has gone stale.
 
 After any `target add`, diff those paths, restore pins in `model/sdk-base.aontu`
 (they live there *because* `target add` overwrites target files), then
