@@ -1,0 +1,30 @@
+
+# Generate the Seneca provider INTO ITS OWN REPO: `npm run generate-provider`.
+#
+# The sibling of model/sdk.aontu, and the only supported way to activate the
+# seneca-provider target. Both files include the same sdk-base.aontu and
+# differ in exactly one value, so the provider is generated from the same
+# inputs as everything else — this file adds no configuration of its own.
+#
+# WHY THIS EXISTS. `main: kit: target: 'seneca-provider': output: path` (see
+# sdk-base.aontu) points at a SIBLING repo, `../../seneca/solardemo-provider`,
+# relative to this repo's root. sdkgen does not refuse a destination that does
+# not exist — it creates it — so on any checkout that is not laid out as
+# `~/Projects/voxgig-sdk/<repo>` beside `~/Projects/seneca/`, a plain
+# `generate` would silently write a provider repo wherever that relative
+# traversal happens to land. sdk.aontu therefore turns the target OFF, and
+# this file turns it on deliberately.
+#
+# PREREQUISITE: the sibling checkout must exist. If it does not, generation
+# CREATES it — which is the failure this arrangement exists to prevent — so
+# check before running:
+#
+#   ls ../../seneca/solardemo-provider
+#
+# The `active` value is set HERE and in sdk.aontu, never in the shared base:
+# aontu unifies, so two concrete values for one path conflict rather than
+# override. That is why this is a second entry point and not a one-line
+# overlay on sdk.aontu.
+@"sdk-base.aontu"
+
+main: kit: target: 'seneca-provider': active: true

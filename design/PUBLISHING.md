@@ -10,7 +10,7 @@ separate tag namespaces.
 
 Both versions are declared in the **model**, not hand-edited into the
 generated manifests: `main: kit: target: ts: publish: version` in
-`.sdk/model/sdk.aontu`. A version edited into `ts/package.json` directly
+`.sdk/model/sdk-base.aontu`. A version edited into `ts/package.json` directly
 is lost on the next `npm run generate`.
 
 ## TypeScript → npm
@@ -61,7 +61,7 @@ a trusted publisher can be configured, so the very first publish of a new
 package name has to be done manually with a token. That is already done
 here — `@voxgig-sdk/voxgig-solardemo` is live — so this only matters if
 the package is ever renamed. The published name is pinned in
-`.sdk/model/sdk.aontu` precisely because a published name cannot change
+`.sdk/model/sdk-base.aontu` precisely because a published name cannot change
 without orphaning its versions.
 
 ## Go → module proxy

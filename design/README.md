@@ -39,7 +39,7 @@ local forks. Project-local files that a resync must not clobber:
 - `.sdk/src/Root.ts`, `Top.ts`, `BuildSDK.ts`
 - Go feature harness trim (`tm/go/test/feature_harness_test.go`)
 
-After any `target add`, diff those paths, restore pins in `model/sdk.aontu`
+After any `target add`, diff those paths, restore pins in `model/sdk-base.aontu`
 (they live there *because* `target add` overwrites target files), then
 `npm run build && npm run generate` and check both SDKs still build.
 
