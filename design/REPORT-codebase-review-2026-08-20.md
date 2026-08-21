@@ -436,8 +436,11 @@ Ajv hits the `statusCode` branch (`error: err.name` → `"Error"`). Custom
 per-language sentence is now model-driven: it names the active sibling targets
 and disappears when there is none. `go/README.md` carried the same false claim
 and was missed by the register. The root README's "interactive REPL" came from
-sdkgen's own `ReadmeTop.ts` — `hasJsLike` inferred a REPL from a ts/js target
-merely existing, and no target generates one.
+sdkgen's own `ReadmeTop.ts`, where the entry was gated on `hasJsLike` — a ts or
+js target merely EXISTING. That is wrong in both directions: a ts/js SDK is a
+library and ships no REPL, while `go-cli` genuinely emits one (`func repl`, a
+prompt, `/help` and `/quit`) and went uncredited. Fixed upstream by gating it
+on `hasCli`.
 
 Stock `ReadmeTop` advertises surfaces this repo does not ship. The
 Surfaces table two screens later lists only `ts/` and `go/`.
@@ -580,8 +583,10 @@ And three defects were found only because a fix needed somewhere to live:
 - The **LICENSE templates' frozen year is load-bearing**: the stock template
   derives it from the system clock, which in a drift-gated repo fails CI every
   1 January with nothing changed.
-- **sdkgen advertised an interactive REPL** in every generated root README,
-  inferred from a ts/js target merely existing. No target generates a REPL.
+- **sdkgen mis-gated its "interactive REPL" claim**, keying it on a ts/js
+  target merely existing. My first fix deleted the line on the premise that no
+  target generates a REPL — which an adversarial review refuted: `go-cli` does.
+  The entry was mis-gated, not unfounded, and is now keyed on `hasCli`.
 
 
 ### Low
