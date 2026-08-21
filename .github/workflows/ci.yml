@@ -25,18 +25,31 @@ jobs:
         working-directory: .sdk
         run: npm run build
 
-      # The seneca-provider target generates into ANOTHER repo, at a path
-      # relative to this one's root (see model/sdk.aontu). In Actions that
-      # resolves to /home/runner/work/seneca/solardemo-provider, which is
-      # writable — but only because the parent happens to exist. Created
-      # explicitly so a generate failure here means a real generator problem
-      # rather than a missing directory.
-      - name: Prepare the external provider output path
-        run: mkdir -p ../../seneca/solardemo-provider
-
       - name: Generate
         working-directory: .sdk
         run: npm run generate
+
+      # The seneca-provider target generates into ANOTHER repo, at a path
+      # relative to this one's root (see model/sdk-base.aontu). It is
+      # `active: false` in model/sdk.aontu precisely so that never happens on
+      # a checkout that is not laid out like a developer workstation — and
+      # sdkgen CREATES a missing destination rather than refusing it, so
+      # nothing else would notice.
+      #
+      # This job used to `mkdir -p ../../seneca/solardemo-provider` before
+      # generating, which made the write succeed instead of preventing it.
+      # Assert the absence instead: if `active: true` is ever committed, CI
+      # goes red here rather than quietly publishing a provider repo into
+      # /home/runner/work/.
+      - name: Fail if generation escaped the repository
+        run: |
+          if [ -e ../../seneca ]; then
+            echo "::error::Generation wrote outside the repository:"
+            find ../../seneca -maxdepth 2 | head -20
+            echo "The seneca-provider target must stay inactive in model/sdk.aontu."
+            echo "To generate it deliberately: cd .sdk && npm run generate-provider"
+            exit 1
+          fi
 
       # THE GOLDEN RULE, enforced: ts/ and go/ are generated output, so a
       # clean checkout plus `generate` must reproduce them exactly. Until now

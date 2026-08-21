@@ -1056,7 +1056,7 @@
           "title": "Golang"
         },
         "seneca-provider": {
-          "active": true,
+          "active": false,
           "author": {
             "name": "",
             "url": ""

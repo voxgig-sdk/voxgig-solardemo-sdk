@@ -1,0 +1,212 @@
+
+# Model definitions.
+@"@voxgig/apidef/model/apidef.aontu"
+@"@voxgig/sdkgen/model/sdkgen.aontu"
+
+
+# SDK Details.
+#
+# The slug is the SDK's own name, not its published or repo identity. It
+# drives the class names (SolardemoSDK) and the Go root package
+# (voxgigsolardemosdk = <origin><slug>sdk).
+#
+# It was briefly 'voxgig-solardemo', to force sdkgen's <origin>/<slug>-sdk
+# derivation onto this repo's real name back when nothing could be
+# overridden. That doubled the org prefix everywhere it was concatenated —
+# `package voxgigvoxgigsolardemosdk` — and renamed every public class. sdkgen
+# now takes explicit overrides for the two things that genuinely differ from
+# the derivation (see repo.path below and the ts registry package), so the
+# slug goes back to naming the SDK.
+name: 'solardemo'
+origin: 'voxgig-sdk'
+def: 'solardemo-1.0.0-openapi-3.0.0.yaml'
+
+
+# This repo is voxgig-solardemo-sdk, not the derived solardemo-sdk. Sets the
+# Go module path, and the homepage/repository/bugs URLs in every manifest.
+main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
+
+
+# Publication: npm.
+#
+# These live HERE, not in model/target/ts.aontu, because `target add ts`
+# overwrites that file from the scaffold — which is how this pin was lost
+# once already. The scaffold leaves these keys unset so a concrete value set
+# here wins over the schema default.
+# The SDK's own release version: what ts/package.json declares and what
+# `make publish` tags. Declared here because generated output is overwritten
+# — a version hand-edited into package.json is lost on the next regeneration.
+#
+# 0.1.0, not 0.0.3: entity operations now resolve to Entity instances rather
+# than plain data, so `(await ent.load(m)).data()` replaces `await ent.load(m)`
+# for every caller on 0.0.2. Pre-1.0, a breaking change bumps the minor.
+main: kit: target: ts: publish: version: '0.1.0'
+
+main: kit: target: ts: publish: registry: {
+  # 0.0.1 and 0.0.2 are live on npm.
+  state: 'active'
+  active: true
+
+  # PINNED, not derived. The slug is 'solardemo', so the derivation would
+  # give @voxgig-sdk/solardemo — but the published package is
+  # @voxgig-sdk/voxgig-solardemo, and a published name cannot change without
+  # orphaning its versions.
+  package: '@voxgig-sdk/voxgig-solardemo'
+}
+
+
+# The Seneca provider target generates into ITS OWN REPO, not a folder here.
+# A provider is an independently released @seneca package with its own
+# LICENSE, CI and release cadence, and it depends on this SDK as an ordinary
+# published npm dependency rather than by path.
+#
+# The path is relative to this repo's ROOT (the `folder` that
+# .sdk/build/sdkgen.js hands the generator), and matches the standard local
+# checkout layout: ~/Projects/voxgig-sdk/<this repo> beside
+# ~/Projects/seneca/solardemo-provider.
+#
+# Here, not in model/target/seneca-provider.aontu, for the same reason as the
+# ts values above: `target add seneca-provider` overwrites that file from the
+# scaffold, and the scaffold deliberately leaves this key unset so a concrete
+# value set here wins over the default rather than conflicting with it.
+main: kit: target: 'seneca-provider': output: path: '../../seneca/solardemo-provider'
+
+# `active` IS DELIBERATELY NOT SET IN THIS FILE. It is the one value that
+# differs between the two entry points that include this one:
+#
+#   model/sdk.aontu      active: false  -> `npm run generate`
+#   model/provider.aontu active: true   -> `npm run generate-provider`
+#
+# aontu UNIFIES rather than overrides: two concrete values for the same path
+# CONFLICT. Setting `active` here would therefore make one of those two
+# entry points fail outright, not lose politely. Set it there, not here.
+
+# The path BACK from the provider repo to this one, which the provider's docs,
+# manual scripts and CI all have to name — the companion test server lives in
+# this repo's `app/` and is not published, so a local checkout is the only way
+# to reach it.
+#
+# Declared rather than derived. The inverse of `output: path` is
+# `../../voxgig-sdk/voxgig-solardemo-sdk`, which is correct but reaches above
+# this repo into a directory the model never mentions — i.e. it encodes THIS
+# machine's checkout layout into files that get committed. Saying it outright
+# makes it a project decision instead of an accident, and silences the
+# `external-sdkrel-derived` warning that points this out.
+main: kit: target: 'seneca-provider': output: sdkrel: '../../voxgig-sdk/voxgig-solardemo-sdk'
+
+# The provider's OWN release version — independent of the SDK's. Declared
+# here because generated output is overwritten: a version hand-edited into
+# the provider's package.json is lost on the next regeneration.
+#
+# 0.1.3 restores the authored peer ranges: 0.1.2 shipped them narrowed,
+# because the publish workflow's peer install rewrote package.json before
+# npm publish read it (fixed in sdkgen 3.3.1). The package name
+# (@seneca/solardemo-provider) and repo (senecajs/seneca-solardemo-provider)
+# are left to the target's own conventional derivation, which produces
+# exactly those, so pinning them here would only add a second place to keep
+# right.
+main: kit: target: 'seneca-provider': publish: version: '0.1.3'
+
+
+# Live tests ASSERT rather than skip.
+#
+# sdkgen's default is lenient, and correct for a fleet SDK generated against
+# an arbitrary public API: synthetic ids 4xx, so asserting would mean
+# permanent red. This project is the opposite case — it owns its test server
+# (`app/`), so a live run that cannot reach it, or that gets a non-2xx from
+# it, is a real failure and should say so.
+#
+# Left lenient, a live run proved almost nothing: a non-2xx was a bare
+# `return` in TS and a `t.Skipf` in Go, so the suite stayed green with
+# NOTHING LISTENING ON THE PORT. Only the entity `basic` tests noticed
+# ECONNREFUSED.
+#
+# Deliberately not enabled until now. While the server overwrote
+# client-supplied ids on create, every create round-trip the strict asserts
+# check was already broken, so turning this on would have produced red for a
+# server defect rather than for the SDK. That is fixed (C1), and `app`'s
+# validate suite is 20/20, so live runs can now carry weight.
+main: kit: test: live: strict: true
+
+
+# The Go language version in go/go.mod.
+#
+# HERE, not in model/target/go.aontu, for the same reason as the ts values
+# above: `target add go` overwrites that file from the scaffold, which is how
+# this pin was lost once already (August register A2 recorded it as set; it
+# was not).
+#
+# Unset, sdkgen defaults to 1.21. CI reads the version out of go.mod
+# (`go-version-file: go/go.mod`), so the whole toolchain silently ran 1.21
+# while root AGENTS.md and the CI comment both said 1.23. feature/log_feature.go
+# imports log/slog, which landed in 1.21, so it built — the drift was invisible
+# rather than harmless.
+main: kit: target: go: module: goversion: '1.23'
+
+
+# Attribution — who wrote the packages generated from this model.
+#
+# Declared here because generated manifests are OVERWRITTEN: the provider
+# repo's hand-written package.json named an author and two contributors, and
+# the first regeneration deleted all three without failing anything. A name is
+# not something a build can notice is missing, so it has to be model-driven
+# like every other value this project owns about itself.
+main: kit: author: {
+  name: 'Richard Rodger'
+  url: 'https://richardrodger.com'
+}
+
+# ...except the SDK itself, which stays authored by the publisher.
+#
+# The SDK is a GENERATED ARTEFACT: nobody wrote it, sdkgen emitted it, and its
+# keywords, its non-affiliation notice and its published scope all name Voxgig
+# already. The provider is the opposite — an independently released package
+# with named human maintainers — which is why the model-wide value above is a
+# person.
+#
+# Pinned rather than left to inherit, because `@voxgig-sdk/voxgig-solardemo`
+# is already on npm declaring Voxgig, and a manifest's author should not
+# change identity underneath a published package.
+main: kit: target: ts: author: {
+  name: 'Voxgig'
+  url: 'https://voxgig.com'
+}
+
+# A MAP, not a list: a new contributor is one more key, and aontu treats a
+# duplicate key as a conflict rather than silently adding a second entry.
+# Emitted in sorted-key order, so the manifest stays byte-stable.
+main: kit: contributor: {
+  'richardrodger': {
+    name: 'Richard Rodger'
+    url: 'https://richardrodger.com'
+  }
+  'rionastokes': {
+    name: 'Ríona Stokes'
+    url: 'https://github.com/rionastokes'
+  }
+}
+
+
+# API Information
+@"api/api-info.aontu"
+
+
+# SDK Configuration.
+@"config.aontu"
+
+
+# SDK Entities
+@"entity/entity-index.aontu"
+
+
+# SDK Features.
+@"feature/feature-index.aontu"
+ 
+
+# SDK Targets.
+@"target/target-index.aontu"
+
+
+# Operation workflows.
+@"flow/flow-index.aontu"
+

@@ -38,7 +38,9 @@ Generation is **idempotent**: running it on an unchanged model produces no diff.
 
 | Path | Purpose |
 | --- | --- |
-| `model/sdk.aontu` | Root model — wires in entities, features, targets, config. |
+| `model/sdk-base.aontu` | Everything the project declares about itself — wires in entities, features, targets, config, and holds the pins. |
+| `model/sdk.aontu` | Entry point for `npm run generate`: the base, plus `seneca-provider` OFF. |
+| `model/provider.aontu` | Entry point for `npm run generate-provider`: the base, plus `seneca-provider` ON. Needs the sibling checkout. |
 | `model/entity/*.aontu` | Entity definitions: fields and operations. |
 | `model/target/{ts,go}.aontu` | Per-target settings and dependency versions. |
 | `tm/` | Template master files copied verbatim into the output SDKs. |

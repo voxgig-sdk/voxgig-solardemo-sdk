@@ -17,7 +17,7 @@ Generated trees (`ts/`, `go/`) are treated as symptoms. Fixes belong in
 
 ## 0. Status — updated 2026-08-20, `main` at `27ffa87`
 
-Every **Critical** and every **High** except H3 is now fixed. The
+Every **Critical** and every **High** is now fixed. The
 findings below are left as written; each addressed one carries a
 **Status** line naming the commit, so the analysis stays readable next to
 what was done about it.
@@ -29,7 +29,7 @@ what was done about it.
 | C3 moon parent enforcement | **Fixed** | `95037bd` |
 | H1 live tests cannot fail (G3) | **Fixed** | `246eaf4` + `282d309` |
 | H2 CI never regenerates or tests `app/` | **Fixed** | `0b2da35` |
-| H3 Seneca generate on a flat clone | **Open** (CI made deterministic) | `0b2da35` |
+| H3 Seneca generate escapes the repo | **Fixed** | see below |
 | H4 `SECURITY.md` linked and absent | **Fixed** | `SECURITY.md` + `design/PUBLISHING.md` |
 | H5 Go version unset | **Fixed** | `41ce29a` |
 | H6 Planet README API path | **Fixed** | `41ce29a` |
@@ -108,7 +108,7 @@ That is the review's main finding. Everything else is secondary.
 These are not faint praise. They are the parts that should not be
 disturbed while the contract issues are fixed.
 
-- **Model as source of truth.** `model/sdk.aontu` documents *why* pins live
+- **Model as source of truth.** `model/sdk-base.aontu` documents *why* pins live
   at the root (so `target add` cannot wipe them). The npm package,
   repo path, author split (SDK vs Seneca provider), and provider output
   path are explicit project decisions, not generator accidents.
@@ -255,14 +255,45 @@ Jobs: `.sdk` **build only** (no `generate`, no `git diff --exit-code`),
 - `app` `validate` / `validate:full`
 
 Hand-edits in `ts/` or `go/`, or a broken app, merge to `main` unnoticed.
-The Seneca generate error (`mkdir '/seneca/solardemo-provider'`) would
-also be invisible because generate is not run.
+The Seneca provider write outside the repo would also be invisible
+because generate is not run (H3).
 
-#### H3 — Seneca provider generate fails on a flat clone
-**Locus:** generator. **File:** `.sdk/model/sdk.aontu:72`.
+#### H3 — Seneca provider generate escapes the repository on a flat clone
+**Locus:** generator. **File:** `.sdk/model/sdk-base.aontu` (`output: path`).
 
-**Status: OPEN.** `0b2da35` creates the output path explicitly so CI is
-deterministic, but the path still encodes a checkout layout.
+**Status: FIXED.** The target is now `active: false` by default, and
+generating it is a separate, deliberate command.
+
+`model/sdk.aontu` was split into three: `sdk-base.aontu` holds everything the
+project declares about itself, and two thin entry points include it and set
+the one value that differs — `sdk.aontu` (`active: false`, used by `npm run
+generate`) and `provider.aontu` (`active: true`, used by `npm run
+generate-provider`). Two files rather than a one-line override because aontu
+UNIFIES: a concrete `false` and a concrete `true` for one path conflict, and
+the schema already defaults `active: *true` at `sdkgen.aontu:136`, so a
+competing default conflicts too.
+
+**The recorded diagnosis was wrong, and understated it.** The failure is not
+`EACCES` — that was one workspace's luck in landing on a root-owned path.
+sdkgen does not refuse a destination that does not exist:
+`checkExternalFolders` explicitly `continue`s on a missing folder, so
+generation CREATES it. Where the parent is writable, nothing fails at all.
+Observed on a clone at `/home/user/<repo>`: `npm run generate` silently wrote
+a 48-file `/home/seneca/solardemo-provider`, outside the project entirely.
+
+`0b2da35` therefore made it worse, not better: it `mkdir -p`'d the external
+path in CI so the write would succeed rather than preventing it. That step is
+removed, and replaced by a guard that fails the job if `../../seneca` exists
+after generate — so a future `active: true` goes red instead of quietly
+publishing a provider repo into `/home/runner/work/`.
+
+Verified both directions: `npm run generate` exits 0, logs
+`generate-external-skip seneca-provider inactive, not generated`, creates
+nothing outside the repo, and changes exactly one line of `model/sdk.json`
+(`active: true` -> `false`) with no `ts/`/`go/` drift; `npm run
+generate-provider` logs `generate-external -> /home/seneca/solardemo-provider`
+and writes the 48 files, confirming the opt-in path still works and that the
+guard above has something real to catch.
 
 `output.path: '../../seneca/solardemo-provider'` assumes
 `~/Projects/voxgig-sdk/<this repo>` beside `~/Projects/seneca/`. In this
@@ -290,7 +321,7 @@ exist either.
 **Locus:** generator. **Files:** `.sdk/model/target/go.aontu` (no
 `goversion`), `go/go.mod:3`, root `AGENTS.md:26`.
 
-**Status: FIXED** `41ce29a`. `goversion: '1.23'` pinned in `model/sdk.aontu`
+**Status: FIXED** `41ce29a`. `goversion: '1.23'` pinned in `model/sdk-base.aontu`
 (not `target/go.aontu`, which `target add` overwrites).
 
 August report A2 claimed `module.goversion: '1.23'` was set. It is empty;
@@ -445,7 +476,8 @@ live tests can hit, so its contract *is* the SDK’s contract for this
 repo. Treating it as “just a stub” is how C1 survived.
 
 **Seneca provider belongs in another repo.** Correct. Generation from
-here is a convenience that encodes a checkout layout (H3).
+here is a convenience that encodes a checkout layout, so it is now opt-in
+via `npm run generate-provider` rather than part of `generate` (H3).
 
 ---
 
@@ -470,11 +502,10 @@ M3) and 7.
    **C3 — moon parent enforcement.** Cheap, and it makes nested URLs mean
    something.
 4. ~~**H2 — CI generate-diff + `app` test job.**~~ **Done** `0b2da35`. The
-   Seneca guard went the other way: the output path is CREATED in CI
-   rather than the target deactivated, so generate stays fully exercised.
-   **H2 — CI generate-diff + `app` test job.** Prevents the next silent
-   drift. Guard Seneca with `active: false` in CI or a writable output
-   path (H3).
+   Seneca guard initially went the other way: the output path was CREATED
+   in CI rather than the target deactivated, which made the escaping write
+   succeed instead of preventing it. Superseded by H3 — `active: false`
+   plus a CI guard that fails if generate writes outside the repo.
 5. ~~**H1 — `test.live.strict: true`**~~ **Done** `246eaf4`, and `282d309`
    adds the CI job that actually runs it. Sequencing this after C1 was
    right — before it, strict live runs would have been red for a server
@@ -519,7 +550,7 @@ review.
 
 Read, not assumed:
 
-- `.sdk/model/sdk.aontu`, `target/go.aontu`, `AgentInfo.ts`, `Agents_ts.ts`,
+- `.sdk/model/sdk-base.aontu`, `target/go.aontu`, `AgentInfo.ts`, `Agents_ts.ts`,
   `ReadmeModel_ts.ts`, `TestDirect_ts.ts`, `Config.fragment.ts`
 - `app/src/handlers/*`, `schemas/*`, `server.ts`, `routes/index.ts`,
   `config.ts`, `validate.ts`, OpenAPI YAML (both copies identical)

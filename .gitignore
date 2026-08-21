@@ -140,3 +140,12 @@ vite.config.ts.timestamp-*
 
 old-*
 *.old
+
+# The resolved model for the provider entry point (`npm run generate-provider`).
+#
+# model/sdk.json IS committed, because CI regenerates it and gates on drift.
+# provider.json has no such gate: generating it requires the sibling
+# ../../seneca/solardemo-provider checkout, which CI does not have, so a
+# committed copy would go stale silently. An ungated generated artefact is
+# worse than no artefact.
+.sdk/model/provider.json
