@@ -65,7 +65,26 @@ cd go   && go build ./... && go test ./...
 cd app  && npm test && npm audit
 ```
 
-`npm run generate` expects a sibling `../../seneca/solardemo-provider` checkout;
-without it the Seneca pass errors after `ts/` and `go/` have been written.
-CI does not currently run generate or `app` tests — see H2 in the 2026-08-20
-review.
+`npm run generate` is portable — it no longer needs a sibling
+`../../seneca/solardemo-provider` checkout. The seneca-provider target is
+`active: false` in `model/sdk.aontu`; generating it is the separate, deliberate
+`npm run generate-provider`, which reads `model/provider.aontu` and DOES need
+that checkout (H3).
+
+CI runs generate with a drift gate, the `app` suites, ts on two Node versions,
+go, and a live-SDK job against the companion server (H2).
+
+### `.sdk/src/DocStaticRoot.ts` is inert, and left that way (L8)
+
+It looks abandoned — 45 lines whose entire body is commented out — but it is
+the create-sdkgen scaffold's `@voxgig/docgen` root, shipped **byte-identical**.
+This repo generates no doc site, and three separate things say so: the `docgen`
+action is commented out in `model/.model-config/model-config.aontu`,
+`@voxgig/docgen` is not a devDependency, and there is no `doc/` folder. Its
+only reference is `.sdk/build/docgen.js`, which only that commented-out action
+would load, so nothing on the `npm run generate` path touches it.
+
+Deliberately NOT deleted and NOT annotated in place. Deleting it means the next
+resync restores it; adding a comment makes it a fork this list would then have
+to carry. It costs nothing where it is, so the cheapest correct move is to say
+so here.
