@@ -62,6 +62,22 @@ export async function build() {
     })
   })
 
+  // Fastify's not-found path NEVER reaches setErrorHandler, so without this the
+  // commonest 404 of all — an unmatched route or an unsupported method —
+  // answered with a different shape from every other failure:
+  //
+  //   {"message":"Route GET:/nope not found","error":"Not Found","statusCode":404}
+  //
+  // Three fields instead of two, and "Not Found" with a space: exactly the
+  // style the error handler above exists to eliminate. README.md's "every
+  // failure uses one envelope" was false for it.
+  fastify.setNotFoundHandler((request, reply) => {
+    reply.status(404).send({
+      error: 'NotFoundError',
+      message: `Route ${request.method}:${request.url} not found`,
+    })
+  })
+
   // DATA_PATH was read into config and then ignored: this line hardcoded
   // the file, so setting the documented env var did nothing at all.
   //

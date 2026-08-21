@@ -58,6 +58,19 @@ describe('Error envelope', () => {
     strictEqual(body.error, 'NotFoundError')
   })
 
+  test('an unmatched route is a NotFoundError, not "Not Found"', async () => {
+    const { status, body } = await envelope({ method: 'GET', url: '/no-such-route' })
+    strictEqual(status, 404)
+    strictEqual(body.error, 'NotFoundError')
+    strictEqual(body.statusCode, undefined, 'the envelope is exactly { error, message }')
+  })
+
+  test('an unsupported method on a real path is a NotFoundError', async () => {
+    const { status, body } = await envelope({ method: 'PATCH', url: '/api/planet' })
+    strictEqual(status, 404)
+    strictEqual(body.error, 'NotFoundError')
+  })
+
   test('a duplicate id is a ConflictError', async () => {
     const { status, body } = await envelope({
       method: 'POST',
@@ -72,6 +85,12 @@ describe('Error envelope', () => {
     for (const req of [
       { method: 'POST', url: '/api/planet', payload: { kind: 'rock' } },
       { method: 'GET', url: '/api/planet/no-such-planet' },
+      // Unmatched route and unsupported method: these do NOT go through
+      // setErrorHandler — Fastify answers them on its own not-found path — so
+      // leaving them out of this list is what let the envelope diverge here
+      // while every case above passed.
+      { method: 'GET', url: '/no-such-route' },
+      { method: 'PATCH', url: '/api/planet' },
     ]) {
       const { body } = await envelope(req)
       strictEqual(typeof body.error, 'string', 'error must be present')

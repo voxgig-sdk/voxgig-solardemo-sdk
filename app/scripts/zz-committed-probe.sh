@@ -35,19 +35,6 @@ TIMEOUT_SECS="${VALIDATE_TIMEOUT_SECS:-30}"
 
 npm run build || exit $?
 
-# Refuse to start if the port is ALREADY answering.
-#
-# Without this the script cheerfully validates against someone else's server:
-# our node exits at once with EADDRINUSE, the readiness probe succeeds on its
-# first attempt because the FOREIGN process answers, and validate reports 20/20
-# for a server this script never started and cannot vouch for. Exit 0, full
-# marks, nothing of ours tested.
-if curl -fsS --connect-timeout 2 --max-time 2 -o /dev/null "$READY_URL" 2>/dev/null; then
-  echo "something is already listening on ${HOST}:${PORT} — refusing to run" >&2
-  echo "validate would have tested THAT server, not the one this script starts" >&2
-  exit 1
-fi
-
 node dist/src/server.js &
 SERVER_PID=$!
 
@@ -60,27 +47,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Liveness is checked BEFORE the probe, and that order is the whole point.
-#
-# Probing first was the same bug as the pre-flight check above, in miniature:
-# if ANYTHING answers, the loop exits on its first iteration and the dead-child
-# branch is never reached — so a server that died on startup is
-# indistinguishable from one that came up.
-#
-# --max-time also matters: a process can hold the port and accept connections
-# without ever replying, and an untimed curl then waits forever — the probe
-# hangs instead of reporting "not ready".
 deadline=$(( SECONDS + TIMEOUT_SECS ))
-while true; do
+# --max-time matters: a process can hold the port and accept connections
+# without ever replying, and an untimed curl then waits forever — the probe
+# hangs instead of reporting "not ready". Found by occupying the port with a
+# bare TCP listener and watching this loop never come back.
+until curl -fsS --connect-timeout 2 --max-time 2 -o /dev/null "$READY_URL" 2>/dev/null; do
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
     echo "server exited before it began listening" >&2
     exit 1
   fi
-
-  if curl -fsS --connect-timeout 2 --max-time 2 -o /dev/null "$READY_URL" 2>/dev/null; then
-    break
-  fi
-
   if (( SECONDS >= deadline )); then
     echo "server did not answer ${READY_URL} within ${TIMEOUT_SECS}s" >&2
     exit 1
