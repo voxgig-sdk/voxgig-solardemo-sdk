@@ -42,6 +42,30 @@ main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
 # for every caller on 0.0.2. Pre-1.0, a breaking change bumps the minor.
 main: kit: target: ts: publish: version: '0.1.0'
 
+# The Go module's release version.
+#
+# HERE, and MODEL-DRIVEN, for the same reason as the ts version above — and
+# because not doing it is what caused the drift the August review recorded as
+# M9: ts/package.json reached 0.1.0 while go/VERSION still said 0.0.1.
+#
+# The cause was not neglect, and not a fork. `tm/go/VERSION` held a literal
+# `0.0.1` because that is what it is SUPPOSED to hold: the scaffold ships the
+# placeholder `PROJECTVERSION`, and `target add` substitutes it on copy
+# (stdrep.ts templateReplacements -> packageVersion(model, target)), so the
+# project's template carries the resolved value. `generate` does NOT re-apply
+# those substitutions — put the placeholder back in tm/ and the literal string
+# PROJECTVERSION lands in the released VERSION file.
+#
+# So the value was frozen at whatever the model said when `target add go` last
+# ran. With no `publish: version` for go, that was the default, and every TS
+# release silently widened the gap. Declaring it here is what makes the next
+# `target add go` resolve to the right number.
+#
+# Same version as the ts target deliberately: both artifacts are generated
+# from this one model, so a shared number is the honest claim. They are still
+# tagged and released independently (ts/vX.Y.Z and go/vX.Y.Z).
+main: kit: target: go: publish: version: '0.1.0'
+
 main: kit: target: ts: publish: registry: {
   # 0.0.1 and 0.0.2 are live on npm.
   state: 'active'

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import planetRoutes from './planet.routes.js'
 import moonRoutes from './moon.routes.js'
+import { debugRouteEnabled } from '../config.js'
 
 export default async function routes(fastify: FastifyInstance) {
   fastify.addSchema({
@@ -38,14 +39,21 @@ export default async function routes(fastify: FastifyInstance) {
     },
   })
 
-  fastify.get('/debug', async (request, reply) => {
-    reply.send({
-      data: {
-        planet: fastify.planetStore.getAll(),
-        moon: fastify.moonStore.getAll(),
-      },
+  // Registered only when it cannot be reached off-box. See debugRouteEnabled:
+  // this dumps the whole store with no auth and is not in the OpenAPI
+  // definition, so on a non-loopback bind it is a data-disclosure endpoint.
+  // Not registering beats registering-and-refusing: there is then no route to
+  // find, and no handler that a later edit could accidentally un-guard.
+  if (debugRouteEnabled()) {
+    fastify.get('/debug', async (request, reply) => {
+      reply.send({
+        data: {
+          planet: fastify.planetStore.getAll(),
+          moon: fastify.moonStore.getAll(),
+        },
+      })
     })
-  })
+  }
 
   await fastify.register(planetRoutes)
   await fastify.register(moonRoutes)

@@ -149,3 +149,29 @@ old-*
 # committed copy would go stale silently. An ungated generated artefact is
 # worse than no artefact.
 .sdk/model/provider.json
+
+# Claude Code per-developer settings.
+#
+# The convention is `.claude/settings.json` SHARED and committed, and
+# `settings.local.json` machine-local. Both of this repo's files were tracked
+# under the .local name, so one developer's permission allow-list was imposed
+# on everyone while its name promised the opposite. The shared allow-lists are
+# now settings.json (a deliberate project decision); the .local files stay out.
+**/.claude/settings.local.json
+
+# ts/dist is COMMITTED on purpose (SECURITY.md: the repo can be cloned and
+# tested without a build step). The generic `dist` rule above — inherited from
+# the stock Node template's Nuxt block — matches a directory called dist at
+# ANY depth, so it matches ts/dist too, and those 147 files are tracked only
+# because someone force-added them.
+#
+# That is not cosmetic. While the rule stands, a NEW compiled file is invisible
+# to `git status` and to `git add -A`: verified by dropping a probe file into
+# ts/dist and watching `git add -A` ignore it. A genuinely new emitted module
+# would simply never be committed, and the drift gate could not see it either,
+# because it also works from `git status`.
+#
+# Un-ignored only for ts/dist. `.sdk/dist` and any other dist stay ignored:
+# they are local build output, not shipped.
+!/ts/dist/
+!/ts/dist/**

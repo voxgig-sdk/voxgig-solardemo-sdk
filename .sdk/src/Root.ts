@@ -4,6 +4,7 @@ import {
   cmp,
   each,
   getx,
+  requirePath,
 
   Project,
   Folder,
@@ -29,8 +30,6 @@ import { PointUtil, Content } from 'jostraca'
 import { Top } from './Top'
 import { BuildSDK } from './BuildSDK'
 import { Agents } from './Agents'
-import { AgentsTs } from './cmp/ts/Agents_ts'
-import { AgentsGo } from './cmp/go/Agents_go'
 
 
 const {
@@ -147,11 +146,26 @@ const Root = cmp(function Root(props: any) {
         // checks below already exclude any consumer target, but gating
         // them keeps the phase map meaning one thing everywhere.
         if (phaseActive('agentguide')) {
-          if ('ts' === target.name) {
-            AgentsTs({ target })
-          }
-          else if ('go' === target.name) {
-            AgentsGo({ target })
+          // Convention, not a hardcoded target list. This was an if/else on
+          // 'ts' and 'go' with both components statically imported, so a third
+          // target's agent docs needed an edit HERE as well as a new
+          // component — and silently generated nothing until someone
+          // remembered. Now cmp/<target>/Agents_<target> is used when it
+          // exists, and a target without one contributes no agent doc.
+          //
+          // `ignore: true` swallows only a genuine module-not-found; a
+          // component that resolves and then throws still propagates, so a
+          // broken Agents_* fails loudly rather than quietly emitting nothing.
+          const agentsPath = 'cmp/' + target.name + '/Agents_' + target.name
+          const agentsMod = requirePath(ctx$, agentsPath, { ignore: true })
+
+          const Agents = agentsMod && (
+            agentsMod['Agents' + target.name.charAt(0).toUpperCase() + target.name.slice(1)] ||
+            agentsMod.default
+          )
+
+          if (Agents) {
+            Agents({ target })
           }
         }
       })

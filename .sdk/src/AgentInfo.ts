@@ -116,6 +116,25 @@ function entityInfo(model: any): EntityInfo[] {
 }
 
 
+// The API's own base URL, from the model rather than typed again here.
+//
+// The agent docs carried this port as a hand-written third copy — the model
+// declares it at main.kit.info.servers[0].url, and the generated Config reads
+// exactly that path. A hardcoded copy in prose is the kind nothing notices
+// going stale: no build breaks, no test fails, the docs just start naming the
+// wrong port.
+function serverBase(model: any, fallback = 'http://localhost:8901'): string {
+  try {
+    const servers = getModelPath(model, `main.${KIT}.info.servers`)
+    const url = servers && servers[0] && servers[0].url
+    return 'string' === typeof url && '' !== url ? url : fallback
+  }
+  catch (err: any) {
+    return fallback
+  }
+}
+
+
 // Best entity for an introductory example: a root collection whose list
 // endpoint takes no path parameters. Falls back to any non-nested entity.
 function rootEntity(entities: EntityInfo[]): EntityInfo | undefined {
@@ -126,6 +145,7 @@ function rootEntity(entities: EntityInfo[]): EntityInfo | undefined {
 
 
 export {
+  serverBase,
   sdkNames,
   entityInfo,
   friendlyType,

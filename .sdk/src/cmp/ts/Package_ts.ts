@@ -124,7 +124,11 @@ const Package = cmp(async function Package(props: any) {
   }
 
   File({ name: 'package.json' }, () => {
-    Content(JSON.stringify(pkg, null, 2))
+    // Trailing newline: POSIX wants one, and without it every diff of a
+    // regenerated package.json reports "\ No newline at end of file".
+    // The stock sdkgen component had the same omission; fixed there in 3.7.1,
+    // so this stops being a fork once the @voxgig/sdkgen pin is raised.
+    Content(JSON.stringify(pkg, null, 2) + '\n')
   })
 })
 

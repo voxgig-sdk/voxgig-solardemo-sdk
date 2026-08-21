@@ -4,8 +4,6 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(npm test:*)",
-      "Bash(git stash:*)",
-      "Bash(npx tsx:*)",
       "Bash(npm run test:integration:*)"
     ]
   }

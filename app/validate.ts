@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 
-const BASE_URL = 'http://localhost:8901'
+// Same PORT/HOST the runner script binds to. Hardcoding localhost:8901 meant
+// `PORT=9123 npm run validate:full` started a server on 9123, waited for 9123,
+// and then validated against 8901 — passing against a different server, or
+// failing for the wrong reason.
+const BASE_URL =
+  process.env.VALIDATE_BASE_URL ||
+  `http://${process.env.HOST || 'localhost'}:${process.env.PORT || '8901'}`
 
 interface TestResult {
   name: string

@@ -38,6 +38,27 @@ local forks. Project-local files that a resync must not clobber:
 - `.sdk/src/cmp/ts/fragment/Config.fragment.ts` (named-literal fork)
 - `.sdk/src/Root.ts`, `Top.ts`, `BuildSDK.ts`
 - Go feature harness trim (`tm/go/test/feature_harness_test.go`)
+- `tm/{ts,go}/LICENSE` — a LITERAL copyright year, not the stock
+  `$$const.year$$`. This one is load-bearing: sdkgen sets `const.year` from
+  `new Date().getFullYear()` and does so UNCONDITIONALLY (it replaces
+  `model.const` wholesale first, so the model cannot pin it). A clock-derived
+  value inside a drift-gated generated file is a time bomb — on 1 January the
+  CI generate emits the new year, the committed LICENSE still says the old
+  one, and `Generate and check for drift` fails with nothing changed.
+
+  The year here is a RANGE — `2025-2026` — which a clock-derived value cannot
+  produce at all, so restoring stock now changes the output immediately and
+  the drift gate catches it in the same PR. That is a happy accident, not the
+  reason: before M7 aligned the three LICENSE files, the fork read `2026` and
+  stock produced exactly the same bytes for the rest of the year, so restoring
+  it looked harmless and stayed harmless right up to the rollover.
+
+- `src/cmp/ts/Package_ts.ts`, `src/cmp/{ts,go}/ReadmeIntro_{ts,go}.ts`,
+  `tm/ts/test/exists.test.ts` — forked here first, then carried upstream into
+  sdkgen 3.7.2. They stop being forks the moment `.sdk/package.json`'s
+  `@voxgig/sdkgen` pin is raised to that release; until then `target add`
+  reverts them. `voxgig-sdkgen doctor` reports the current fork/edit counts
+  and is the fastest way to see where this list has gone stale.
 
 After any `target add`, diff those paths, restore pins in `model/sdk-base.aontu`
 (they live there *because* `target add` overwrites target files), then
@@ -56,7 +77,26 @@ cd go   && go build ./... && go test ./...
 cd app  && npm test && npm audit
 ```
 
-`npm run generate` expects a sibling `../../seneca/solardemo-provider` checkout;
-without it the Seneca pass errors after `ts/` and `go/` have been written.
-CI does not currently run generate or `app` tests — see H2 in the 2026-08-20
-review.
+`npm run generate` is portable — it no longer needs a sibling
+`../../seneca/solardemo-provider` checkout. The seneca-provider target is
+`active: false` in `model/sdk.aontu`; generating it is the separate, deliberate
+`npm run generate-provider`, which reads `model/provider.aontu` and DOES need
+that checkout (H3).
+
+CI runs generate with a drift gate, the `app` suites, ts on two Node versions,
+go, and a live-SDK job against the companion server (H2).
+
+### `.sdk/src/DocStaticRoot.ts` is inert, and left that way (L8)
+
+It looks abandoned — 45 lines whose entire body is commented out — but it is
+the create-sdkgen scaffold's `@voxgig/docgen` root, shipped **byte-identical**.
+This repo generates no doc site, and three separate things say so: the `docgen`
+action is commented out in `model/.model-config/model-config.aontu`,
+`@voxgig/docgen` is not a devDependency, and there is no `doc/` folder. Its
+only reference is `.sdk/build/docgen.js`, which only that commented-out action
+would load, so nothing on the `npm run generate` path touches it.
+
+Deliberately NOT deleted and NOT annotated in place. Deleting it means the next
+resync restores it; adding a comment makes it a fork this list would then have
+to carry. It costs nothing where it is, so the cheapest correct move is to say
+so here.

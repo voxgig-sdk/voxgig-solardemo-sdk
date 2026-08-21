@@ -212,6 +212,23 @@ curl -X DELETE http://localhost:8901/api/planet/earth/moon/luna2
 
 ## Error Responses
 
+Every failure uses one envelope — `{ error, message }` — and `error` is always
+a PascalCase name. Switch on the **status code**; treat `error` as a label for
+humans reading logs, and `message` as free text that may change.
+
+### 400 Bad Request
+```json
+{
+  "error": "ValidationError",
+  "message": "body must have required property 'name'"
+}
+```
+
+Covers both a schema violation and a malformed JSON body. These used to report
+`"Error"` and `"FastifyError"` respectively — Fastify's own internal names —
+while the documented `"Validation Error"` was produced by a branch that could
+never run.
+
 ### 404 Not Found
 ```json
 {
@@ -220,21 +237,24 @@ curl -X DELETE http://localhost:8901/api/planet/earth/moon/luna2
 }
 ```
 
-### 400 Bad Request
+### 409 Conflict
 ```json
 {
-  "error": "Validation Error",
-  "message": "body must have required property 'name'"
+  "error": "ConflictError",
+  "message": "Planet with id 'earth' already exists"
 }
 ```
 
 ### 500 Internal Server Error
 ```json
 {
-  "error": "Internal Server Error",
+  "error": "InternalServerError",
   "message": "Something went wrong"
 }
 ```
+
+Server faults are logged with a stack; 4xx are not, since they are the
+caller's to fix rather than this server's.
 
 ## Data Schema
 
@@ -351,7 +371,12 @@ The validation script tests:
 
 - `HOST` - Server host (default: localhost)
 - `PORT` - Server port (default: 8901)
-- `LOG_LEVEL` - Logging level (default: info)
+- `DEBUG_ROUTE` - Force `GET /debug` on (`true`) or off (`false`). Unset, it
+  follows the bind address: served on loopback, absent otherwise.
+- `LOG_LEVEL` - Logging level (default: `error`). Deliberately quiet: the
+  test suites do not set it, so a chattier default would put request logs
+  through every `npm test` and CI run. Set `LOG_LEVEL=info` when running
+  the server by hand.
 - `NODE_ENV` - Environment (development, production)
 - `DATA_PATH` - Path to data file (default: ./solar.data.json)
 

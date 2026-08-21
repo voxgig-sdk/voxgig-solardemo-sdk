@@ -68,6 +68,18 @@ jobs:
 
       # Publishing an SDK whose own tests fail is not worth the convenience of
       # skipping this. Offline only — live tests need the app server.
+      #
+      # ci.yml strips .env.local before its equivalent step; this one did not,
+      # so "offline" was the step's NAME rather than something it enforced
+      # (register finding M10). On a GitHub-hosted runner that made no
+      # difference — .env.local matches .gitignore's `.env.*` and is untracked,
+      # so actions/checkout can never produce one. It is one line, it makes the
+      # name true, and it holds on a self-hosted or reused workspace where the
+      # checkout is not pristine.
+      - name: Remove .env.local if present
+        working-directory: ts
+        run: rm -f .env.local
+
       - name: Test (offline)
         working-directory: ts
         run: npm test

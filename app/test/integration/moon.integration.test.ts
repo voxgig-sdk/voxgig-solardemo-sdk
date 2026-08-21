@@ -1,4 +1,4 @@
-import { describe, test, before, after } from 'node:test'
+import { describe, test, beforeEach, afterEach } from 'node:test'
 import { strictEqual } from 'node:assert'
 import { build } from '../../src/server.js'
 import type { FastifyInstance } from 'fastify'
@@ -6,11 +6,19 @@ import type { FastifyInstance } from 'fastify'
 describe('Moon API Integration', () => {
   let app: FastifyInstance
 
-  before(async () => {
+  // Per TEST, not per file. build() re-reads solar.data.json into fresh stores
+  // (src/server.ts), so every test starts from the seed.
+  //
+  // Sharing one instance made every absolute-count assertion in this file
+  // depend on each mutating test remembering its own cleanup DELETE, and on
+  // node:test running them in declaration order. Nothing enforced either. The
+  // review recorded the suite as "passing today, order-fragile"; the structure
+  // was real, and this removes the dependency rather than relying on it.
+  beforeEach(async () => {
     app = await build()
   })
 
-  after(async () => {
+  afterEach(async () => {
     await app.close()
   })
 
@@ -254,5 +262,32 @@ describe('Moon API Integration', () => {
       method: 'DELETE',
       url: '/api/planet/earth/moon/selene',
     })
+  })
+  // ISOLATION GUARD — the same pair planet.integration.test.ts carries.
+  //
+  // This suite got the per-test hooks but not the guard, so reverting them
+  // here would have gone unnoticed: every assertion below happens to tolerate
+  // leftover state. These two do not. They run in declaration order, the
+  // first deliberately leaves a moon behind, the second requires it gone.
+  test('isolation guard: leave a moon behind', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/planet/earth/moon',
+      payload: {
+        id: 'isolation-probe-moon', planet_id: 'earth',
+        name: 'Probe', kind: 'rock', diameter: 1,
+      },
+    })
+    strictEqual(res.statusCode, 201)
+  })
+
+  test('isolation guard: the next test cannot see it', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/planet/earth/moon/isolation-probe-moon',
+    })
+    strictEqual(res.statusCode, 404,
+      'a moon created by the previous test survived — the suite is sharing one ' +
+      'server again, so its assertions are order-dependent')
   })
 })
