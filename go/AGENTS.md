@@ -144,5 +144,23 @@ go build ./...
 go test ./...
 ```
 
+### Coverage: use `-coverpkg`, or it reads as zero
+
+Every test file lives in `go/test/` and declares `package sdktest` — one
+EXTERNAL test package that imports the SDK by module path. `core`,
+`entity`, `feature` and `utility` therefore have no `_test.go` of
+their own, and Go's default per-package coverage credits each package only for
+tests inside it:
+
+```bash
+go test ./... -cover          # every package: 0.0% — MISLEADING
+go test ./test/ -coverpkg=./... -cover   # the real number
+```
+
+The first is what makes this look untested. It is not: the second reports
+coverage across the whole module, because the external suite exercises those
+packages from outside. Do not "fix" the zero by scattering `_test.go` stubs
+into each package — measure it correctly instead.
+
 To change behaviour, edit the model/templates in `../.sdk` and regenerate
 (see [`../AGENTS.md`](../AGENTS.md)).

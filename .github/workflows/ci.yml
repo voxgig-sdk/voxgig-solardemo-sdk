@@ -196,6 +196,32 @@ jobs:
         working-directory: go
         run: go test ./... -v
 
+      # Coverage needs -coverpkg here, and reporting it is the point.
+      #
+      # Every Go test lives in go/test as one EXTERNAL `package sdktest`, so
+      # Go's default per-package attribution credits core/entity/feature/
+      # utility with 0.0% each — which is what the review recorded as "no
+      # tests" (L7). They ARE exercised, from outside. Printing the real number
+      # means a genuine drop becomes visible instead of being masked forever by
+      # a zero nobody trusts.
+      #
+      # Reported, not gated: a hard floor would break CI on an honest refactor,
+      # and the value here is that the number stops being invisible.
+      - name: Coverage (whole module)
+        working-directory: go
+        run: |
+          OUT=$(go test ./test/ -coverpkg=./... -cover -count=1 2>&1)
+          echo "$OUT"
+          PCT=$(echo "$OUT" | grep -oE 'coverage: [0-9.]+%' | head -1)
+          {
+            echo "### Go coverage"
+            echo
+            echo "${PCT:-coverage unavailable} of statements across ./..."
+            echo
+            echo "Measured with -coverpkg: the suite is an external"
+            echo "\`package sdktest\`, so per-package coverage reads 0.0%."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # The payoff of H1. Until live runs asserted, a green live suite proved
   # only that dispatch worked — a non-2xx was a bare `return` in TS and a
   # t.Skipf in Go, so the suite passed with nothing listening on the port.
