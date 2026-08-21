@@ -13,7 +13,7 @@ import {
   Content,
 } from '@voxgig/sdkgen'
 
-import { sdkNames, entityInfo } from './AgentInfo'
+import { sdkNames, entityInfo, serverBase } from './AgentInfo'
 
 
 const Agents = cmp(function Agents(props: any) {
@@ -110,6 +110,13 @@ compatible endpoint via their \`base\` option. See [\`app/AGENTS.md\`](app/AGENT
   // The test/reference server lives in its own folder. It is hand-written and
   // not part of the generation model, so this is a thin pointer to its README.
   Folder({ name: 'app' }, () => {
+    // Base URL from the model (main.kit.info.servers[0].url), the same path
+    // the generated Config reads. It used to be typed here as a third
+    // hand-written copy of the port — a duplicate nothing notices going stale,
+    // because no build breaks and no test fails; the docs just name the wrong
+    // port.
+    const base = serverBase(model)
+
     File({ name: 'AGENTS.md' }, () => {
       Content(`# AGENTS.md — ${s.Name} test/reference server
 
@@ -127,7 +134,7 @@ Prerequisites: Node.js >= 24.
 cd app
 npm install
 npm run build
-npm start          # serves http://localhost:8901 by default
+npm start          # serves ${base} by default
 \`\`\`
 
 See [\`README.md\`](README.md) for the full endpoint list, data model and test
@@ -136,7 +143,7 @@ commands.
 ## Using it with an SDK (local end-to-end)
 
 Point an SDK client's \`base\` option at this server, e.g.
-\`http://localhost:8901\`, to exercise the SDK against a real implementation.
+\`${base}\`, to exercise the SDK against a real implementation.
 `)
     })
   })
