@@ -17,7 +17,8 @@ Generated trees (`ts/`, `go/`) are treated as symptoms. Fixes belong in
 
 ## 0. Status — updated 2026-08-20, `main` at `27ffa87`
 
-Every **Critical** and every **High** is now fixed. The
+Every **Critical**, **High**, **Medium** and **Low** finding now has a
+final disposition. The
 findings below are left as written; each addressed one carries a
 **Status** line naming the commit, so the analysis stays readable next to
 what was done about it.
@@ -36,7 +37,22 @@ what was done about it.
 | M2 `DATA_PATH` documented and unused | **Fixed** | see below |
 | M3 `Config.fragment.ts` literals | **Fixed** | `41ce29a` |
 | M12 empty corpus sections | **Fixed** (1 promoted, 6 deferred with cause + a guard) | see below |
-| L16 `fs.F_OK` deprecation | **Confirmed still live** (upstream jostraca) | — |
+| M1 unauthenticated `/debug` | **Fixed** | `ed26ca9` |
+| M4 OpenAPI thinner + two unsynced copies | **Fixed** (sync guarded; thinness recorded) | `4c677a2` |
+| M5 inconsistent error envelope | **Fixed** | `ae1f34d` |
+| M6 README surface claims | **Fixed** here; root README fixed in sdkgen | `bbb488d` |
+| M7 LICENSE copyright split | **Fixed** | `c99d0f2` |
+| M8 `.claude/settings.local.json` tracked | **Fixed** | `c99d0f2` |
+| M9 no Go release workflow; version drift | **Fixed** | `956e916` |
+| M10 `publish-ts.yml` `.env.local` | **Fixed** (defence in depth) | `956e916` |
+| M11 app tests share one server | **Fixed** | `ae1f34d` |
+| L1, L13, L14 | **Fixed** | `c99d0f2`, `0ba4f68` |
+| L3, L4, L7, L8, L12, L18 | **Fixed** | `fa93ea9`, `4610d64`, `bbb488d`, `4c677a2`, `ed26ca9` |
+| L5, L6 | **Fixed** (toolchain pinned, types aligned) | `4c677a2` |
+| L9, L10, L11, L15 | **Documented as deliberate** in `SECURITY.md` | `4c677a2` |
+| L2 | **Upstream** — needs `apidef` to carry field descriptions | — |
+| L16 `fs.F_OK` deprecation | **REGISTER WRONG** — does not reproduce | `4c677a2` |
+| L17 committed `ts/dist` | **Won't fix** — intentional, and now un-ignored (L18) | — |
 
 Everything else in sections 3 and 4 is untouched and still stands.
 
@@ -478,6 +494,39 @@ recorded here rather than raised as defects.
 
 ---
 
+### What the Medium/Low sweep changed about the findings themselves
+
+Five entries were wrong or incomplete as recorded, and the corrections matter
+more than the fixes:
+
+- **L16 does not reproduce at all.** No `F_OK` in jostraca, either version.
+- **M9's cause was not neglect.** `tm/go/VERSION` is *supposed* to hold a
+  resolved literal — `target add` substitutes `PROJECTVERSION`, `generate`
+  does not — so the version froze at whatever the model said when the target
+  was last added. Restoring the placeholder by hand ships the literal string.
+- **L13 was two defects.** The `sleep 3`, and `$!` capturing the `npm start`
+  wrapper rather than the `node` server. The second is what caused the
+  `EADDRINUSE` the register blamed on the first.
+- **L7 was a measurement artefact, not a gap.** Go coverage is 76.3% with
+  `-coverpkg`; the default per-package mode reports 0.0% because the suite is
+  one external `package sdktest`.
+- **L18's wording was half wrong.** The bare `dist` rule matched `ts/dist`
+  but never `ts/dist-test`. The real hazard was that a NEW file under
+  `ts/dist` was invisible to `git add -A`.
+
+And three defects were found only because a fix needed somewhere to live:
+
+- `app/package.json`'s test glob **never ran top-level test files** — `**`
+  requires at least one directory, and every existing suite happened to be
+  nested. A test added at `app/test/*.test.ts` compiled and silently did not
+  run.
+- The **LICENSE templates' frozen year is load-bearing**: the stock template
+  derives it from the system clock, which in a drift-gated repo fails CI every
+  1 January with nothing changed.
+- **sdkgen advertised an interactive REPL** in every generated root README,
+  inferred from a ts/js target merely existing. No target generates a REPL.
+
+
 ### Low
 
 | ID | Issue |
@@ -497,7 +546,7 @@ recorded here rather than raised as defects.
 | L13 | `validate:full` uses `sleep 3` + PID file; races on `EADDRINUSE`. |
 | L14 | App `LOG_LEVEL` default is `error`; README says `info`. |
 | L15 | Weak field validation (empty `kind`, negative `diameter`). Acceptable for a stub. |
-| L16 | `jostraca` `fs.F_OK` deprecation (E7) — not re-verified this pass. |
+| L16 | ~~`jostraca` `fs.F_OK` deprecation (E7)~~ **Does not reproduce.** Zero `F_OK` references in installed jostraca 0.31.2 AND in the upstream clone; the only hits in the tree are `@types/node` type declarations, and `npm run generate` emits no deprecation at all. Carried from an earlier review and never re-verified. |
 | L17 | Committed `ts/dist` and `ts/dist-test` — intentional for clone-and-test, noisy diffs. |
 | L18 | Root `.gitignore` ignores `dist` globally; generated SDKs force-add it. |
 
