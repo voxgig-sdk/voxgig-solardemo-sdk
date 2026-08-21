@@ -615,7 +615,7 @@ And three defects were found only because a fix needed somewhere to live:
 | L13 | `validate:full` uses `sleep 3` + PID file; races on `EADDRINUSE`. |
 | L14 | App `LOG_LEVEL` default is `error`; README says `info`. |
 | L15 | Weak field validation (empty `kind`, negative `diameter`). Acceptable for a stub. |
-| L16 | ~~`jostraca` `fs.F_OK` deprecation (E7)~~ **Does not reproduce.** Zero `F_OK` references in installed jostraca 0.31.2 AND in the upstream clone; the only hits in the tree are `@types/node` type declarations, and `npm run generate` emits no deprecation at all. Carried from an earlier review and never re-verified. |
+| L16 | ~~`jostraca` `fs.F_OK` deprecation (E7)~~ **Does not reproduce.** Zero `F_OK` references in installed jostraca 0.31.2 AND in the upstream clone; The finding names jostraca specifically, and jostraca is clean. `F_OK` does occur elsewhere in the tree — `@types/node` declarations, and `memfs`'s runtime JS — but not on any path this project executes: `npm run generate` emits no deprecation at all. Carried from an earlier review and never re-verified. |
 | L17 | Committed `ts/dist` and `ts/dist-test` — intentional for clone-and-test, noisy diffs. |
 | L18 | Root `.gitignore` ignores `dist` globally; generated SDKs force-add it. |
 

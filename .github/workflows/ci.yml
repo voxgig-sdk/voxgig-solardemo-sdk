@@ -106,7 +106,7 @@ jobs:
           node dist/src/server.js > "$RUNNER_TEMP/server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/app.pid"
 
-      # Poll rather than `sleep 3` (which validate:full does, and which races
+      # Poll rather than sleeping a fixed interval and hoping (which races
       # on a slow runner: EADDRINUSE or a connection refused mid-suite).
       - name: Wait for the server to accept connections
         run: |

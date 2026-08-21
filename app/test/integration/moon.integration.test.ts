@@ -263,4 +263,31 @@ describe('Moon API Integration', () => {
       url: '/api/planet/earth/moon/selene',
     })
   })
+  // ISOLATION GUARD — the same pair planet.integration.test.ts carries.
+  //
+  // This suite got the per-test hooks but not the guard, so reverting them
+  // here would have gone unnoticed: every assertion below happens to tolerate
+  // leftover state. These two do not. They run in declaration order, the
+  // first deliberately leaves a moon behind, the second requires it gone.
+  test('isolation guard: leave a moon behind', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/planet/earth/moon',
+      payload: {
+        id: 'isolation-probe-moon', planet_id: 'earth',
+        name: 'Probe', kind: 'rock', diameter: 1,
+      },
+    })
+    strictEqual(res.statusCode, 201)
+  })
+
+  test('isolation guard: the next test cannot see it', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/planet/earth/moon/isolation-probe-moon',
+    })
+    strictEqual(res.statusCode, 404,
+      'a moon created by the previous test survived — the suite is sharing one ' +
+      'server again, so its assertions are order-dependent')
+  })
 })

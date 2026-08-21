@@ -44,9 +44,21 @@ local forks. Project-local files that a resync must not clobber:
   `model.const` wholesale first, so the model cannot pin it). A clock-derived
   value inside a drift-gated generated file is a time bomb — on 1 January the
   CI generate emits the new year, the committed LICENSE still says the old
-  one, and `Generate and check for drift` fails with nothing changed. Stock
-  and fork produce byte-identical output the rest of the year, so restoring
-  stock looks harmless and stays harmless until the rollover.
+  one, and `Generate and check for drift` fails with nothing changed.
+
+  The year here is a RANGE — `2025-2026` — which a clock-derived value cannot
+  produce at all, so restoring stock now changes the output immediately and
+  the drift gate catches it in the same PR. That is a happy accident, not the
+  reason: before M7 aligned the three LICENSE files, the fork read `2026` and
+  stock produced exactly the same bytes for the rest of the year, so restoring
+  it looked harmless and stayed harmless right up to the rollover.
+
+- `src/cmp/ts/Package_ts.ts`, `src/cmp/{ts,go}/ReadmeIntro_{ts,go}.ts`,
+  `tm/ts/test/exists.test.ts` — forked here first, then carried upstream into
+  sdkgen 3.7.2. They stop being forks the moment `.sdk/package.json`'s
+  `@voxgig/sdkgen` pin is raised to that release; until then `target add`
+  reverts them. `voxgig-sdkgen doctor` reports the current fork/edit counts
+  and is the fastest way to see where this list has gone stale.
 
 After any `target add`, diff those paths, restore pins in `model/sdk-base.aontu`
 (they live there *because* `target add` overwrites target files), then

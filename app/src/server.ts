@@ -33,8 +33,19 @@ export async function build() {
   // Now: keep the name when it is one of ours — those are the distinctions the
   // API deliberately exposes — and otherwise use the name for the status. Every
   // source of a given status then produces one label, in one style.
-  const OWN_ERRORS = new Set(['NotFoundError', 'ValidationError', 'ConflictError'])
-
+  // Label per STATUS, not per thrown class.
+  //
+  // This began as "keep err.name when it is one of ours, else derive from the
+  // status", then gained an agreement check so a 500 could not be labelled
+  // ValidationError just because something of that name threw. With that check
+  // in place the name branch became a no-op — it returned err.name only when
+  // err.name already equalled the status label — so it is gone, along with the
+  // set of names it consulted.
+  //
+  // Nothing is lost: the map below reproduces every name this app throws
+  // (NotFoundError 404, ValidationError 400, ConflictError 409), and deriving
+  // from the status is what makes Fastify's own failures answer in the same
+  // shape as ours.
   const STATUS_ERRORS: Record<number, string> = {
     400: 'ValidationError',
     404: 'NotFoundError',
@@ -47,16 +58,8 @@ export async function build() {
     const status =
       'number' === typeof err.statusCode && 400 <= err.statusCode ? err.statusCode : 500
 
-    // The name is trusted only when it AGREES with the status. Matching on the
-    // name alone let a 500 be labelled ValidationError purely because
-    // something threw an error of that name — reporting a server fault as a
-    // caller's mistake, which is the one direction that actually misleads.
-    const byStatus = STATUS_ERRORS[status] ||
+    const name = STATUS_ERRORS[status] ||
       (500 <= status ? 'InternalServerError' : 'RequestError')
-
-    const name = (OWN_ERRORS.has(err.name) && err.name === byStatus)
-      ? err.name
-      : byStatus
 
     // Only server faults are ours to investigate; a 4xx is the caller's.
     if (500 <= status) {
