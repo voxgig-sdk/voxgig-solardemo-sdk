@@ -583,10 +583,13 @@ more than the fixes:
 
 And three defects were found only because a fix needed somewhere to live:
 
-- `app/package.json`'s test glob **never ran top-level test files** — `**`
-  requires at least one directory, and every existing suite happened to be
-  nested. A test added at `app/test/*.test.ts` compiled and silently did not
-  run.
+- `app/package.json`'s test glob **never ran top-level test files** — the
+  SHELL's `**` (globstar off) requires at least one directory, and every
+  existing suite happened to be nested, so nothing had ever noticed. A test
+  added at `app/test/*.test.ts` compiled and silently did not run. (Node's own
+  `**` handles it correctly; an earlier note here blamed both, because at the
+  time the new file was throwing during construction and contributing zero
+  tests either way.)
 - The **LICENSE templates' frozen year is load-bearing**: the stock template
   derives it from the system clock, which in a drift-gated repo fails CI every
   1 January with nothing changed.

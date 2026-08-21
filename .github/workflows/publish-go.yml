@@ -36,6 +36,11 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go/go.mod
+          # Matches ci.yml's two go jobs. Without it setup-go looks for a
+          # go.sum to key the module cache on, does not find one where it
+          # expects, and every run reports a cache restore failure — noise that
+          # trains people to ignore this job's output.
+          cache: false
 
       # The same assertion publish-ts.yml makes against package.json. go/VERSION
       # is model-driven (main: kit: target: go: publish: version), so a tag that
@@ -72,7 +77,14 @@ jobs:
           {
             echo "### Go module release"
             echo
-            echo "- tag: \`${GITHUB_REF#refs/tags/}\`"
+            # workflow_dispatch runs on a BRANCH, so GITHUB_REF is
+            # refs/heads/<branch> and stripping refs/tags/ leaves it untouched.
+            # Label it for what it is rather than calling a branch a tag.
+            if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+              echo "- tag: \`${GITHUB_REF#refs/tags/}\`"
+            else
+              echo "- ref: \`${GITHUB_REF}\` (manual run — no tag)"
+            fi
             echo "- go/VERSION: \`$(cat go/VERSION)\`"
             echo "- commit: \`${GITHUB_SHA}\`"
             echo

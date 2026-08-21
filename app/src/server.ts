@@ -30,9 +30,6 @@ export async function build() {
   // UNREACHABLE: Fastify sets statusCode 400 on a validation error before the
   // handler runs, so the first branch always won.
   //
-  // Now: keep the name when it is one of ours — those are the distinctions the
-  // API deliberately exposes — and otherwise use the name for the status. Every
-  // source of a given status then produces one label, in one style.
   // Label per STATUS, not per thrown class.
   //
   // This began as "keep err.name when it is one of ours, else derive from the
