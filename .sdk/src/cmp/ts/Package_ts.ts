@@ -61,6 +61,11 @@ const Package = cmp(async function Package(props: any) {
   const { repoUrl, issuesUrl } = repoInfo(model)
 
   const pkg = {
+    // PROJECT FORK, and the only one left in this file: the published name is
+    // pinned under the 'npm' registry key in the model rather than derived
+    // from the target name. The trailing-newline fix that used to live here
+    // too is now in the stock component (sdkgen 3.7.1), so it is gone from
+    // this copy.
     name: packageName(model, 'npm'),
     version: packageVersion(model, target.name),
     description: pkgDescription(model, target.name),
@@ -126,8 +131,6 @@ const Package = cmp(async function Package(props: any) {
   File({ name: 'package.json' }, () => {
     // Trailing newline: POSIX wants one, and without it every diff of a
     // regenerated package.json reports "\ No newline at end of file".
-    // The stock sdkgen component had the same omission; fixed there in 3.7.1,
-    // so this stops being a fork once the @voxgig/sdkgen pin is raised.
     Content(JSON.stringify(pkg, null, 2) + '\n')
   })
 })

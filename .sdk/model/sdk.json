@@ -32,7 +32,8 @@
         ],
         "headers": {
           "content-type": "application/json"
-        }
+        },
+        "repr": "auto"
       },
       "contributor": {
         "richardrodger": {
@@ -44,6 +45,7 @@
           "url": "https://github.com/rionastokes"
         }
       },
+      "docs": {},
       "entity": {
         "moon": {
           "active": true,
@@ -670,6 +672,7 @@
       "feature": {
         "test": {
           "active": true,
+          "base": "",
           "config": {
             "options": {
               "active": false
@@ -730,6 +733,8 @@
             }
           },
           "name": "test",
+          "origname": "",
+          "package": "",
           "target": {
             "go": {
               "deps": {}
@@ -1004,6 +1009,7 @@
             "name": "",
             "url": ""
           },
+          "base": "",
           "comment": {
             "line": "//"
           },
@@ -1022,12 +1028,14 @@
             "path": ""
           },
           "name": "go",
+          "origname": "",
           "output": {
             "adopt": false,
             "path": "",
             "repo": "",
             "sdkrel": ""
           },
+          "package": "",
           "publish": {
             "registry": {
               "active": false,
@@ -1061,6 +1069,7 @@
             "name": "",
             "url": ""
           },
+          "base": "",
           "comment": {
             "line": "//"
           },
@@ -1128,12 +1137,14 @@
             "path": ""
           },
           "name": "seneca-provider",
+          "origname": "",
           "output": {
             "adopt": false,
             "path": "../../seneca/solardemo-provider",
             "repo": "",
             "sdkrel": "../../voxgig-sdk/voxgig-solardemo-sdk"
           },
+          "package": "",
           "phase": {
             "agentguide": {
               "active": false
@@ -1217,12 +1228,14 @@
             "path": ""
           },
           "name": "ts",
+          "origname": "",
           "output": {
             "adopt": false,
             "path": "",
             "repo": "",
             "sdkrel": ""
           },
+          "package": "",
           "publish": {
             "registry": {
               "active": true,
