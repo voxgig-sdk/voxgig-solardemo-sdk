@@ -45,10 +45,29 @@ production services need:
   safety a property of an environment variable's DEFAULT VALUE rather than of
   any code: setting `HOST=0.0.0.0` silently published the whole store, and
   nothing failed.
+- **No CORS headers.** `@fastify/cors` is not a dependency and nothing sets
+  the headers, so a browser will refuse cross-origin calls. Node and Go
+  clients — which is all this server exists for — are unaffected, since CORS
+  is enforced by browsers, not servers. Adding it would widen who can reach
+  an unauthenticated store, so it stays off until something actually needs
+  it (L9).
 - **State is in memory**, seeded from a JSON file at start, and lost on
   restart.
+- **No health/readiness endpoint and no graceful shutdown.** Deliberate:
+  every route here is in the OpenAPI definition, and `/debug` is already the
+  cautionary example of one that is not. Readiness is polled against
+  `/api/planet` by `app/scripts/validate-full.sh`, which needs no extra
+  surface. Nothing here runs long enough for draining to matter (L11).
 - **Field validation is shape-level only** — an empty `kind` or a
-  negative `diameter` is accepted.
+  negative `diameter` is accepted. The schemas declare types and required
+  keys, nothing more. The SDKs' own tests do not depend on rejection, and
+  tightening it here would make this server stricter than the definition the
+  SDKs are generated from — a divergence worse than the laxity (L15).
+- **`message` on a 5xx is the raw `Error.message`.** Fine for a server that
+  never leaves a developer's machine and holds no secrets — its entire state
+  is a seeded JSON file of planets — but it is the line to change first if
+  any of that stops being true. The label beside it is normalised
+  (`InternalServerError`); only the message passes through (L10).
 
 If you deploy it anyway, none of the above is a vulnerability report; it
 is the documented design. Reports about `app/` are welcome where the
