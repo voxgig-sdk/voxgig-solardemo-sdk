@@ -76,5 +76,8 @@ jobs:
             echo "- go/VERSION: \`$(cat go/VERSION)\`"
             echo "- commit: \`${GITHUB_SHA}\`"
             echo
-            echo "Fetch with: \`go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@${GITHUB_REF#refs/tags/}\`"
+            # The module query takes the VERSION, not the tag: the tag is
+            # go/vX.Y.Z (Go's submodule convention) and `...@go/v0.1.0` is
+            # not a valid query — the module path already carries the /go.
+            echo "Fetch with: \`go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@v$(cat go/VERSION)\`"
           } >> "$GITHUB_STEP_SUMMARY"

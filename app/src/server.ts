@@ -47,9 +47,16 @@ export async function build() {
     const status =
       'number' === typeof err.statusCode && 400 <= err.statusCode ? err.statusCode : 500
 
-    const name = OWN_ERRORS.has(err.name)
+    // The name is trusted only when it AGREES with the status. Matching on the
+    // name alone let a 500 be labelled ValidationError purely because
+    // something threw an error of that name — reporting a server fault as a
+    // caller's mistake, which is the one direction that actually misleads.
+    const byStatus = STATUS_ERRORS[status] ||
+      (500 <= status ? 'InternalServerError' : 'RequestError')
+
+    const name = (OWN_ERRORS.has(err.name) && err.name === byStatus)
       ? err.name
-      : (STATUS_ERRORS[status] || (500 <= status ? 'InternalServerError' : 'RequestError'))
+      : byStatus
 
     // Only server faults are ours to investigate; a 4xx is the caller's.
     if (500 <= status) {

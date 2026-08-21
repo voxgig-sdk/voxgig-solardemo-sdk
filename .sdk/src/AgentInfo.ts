@@ -116,8 +116,6 @@ function entityInfo(model: any): EntityInfo[] {
 }
 
 
-// Best entity for an introductory example: a root collection whose list
-// endpoint takes no path parameters. Falls back to any non-nested entity.
 // The API's own base URL, from the model rather than typed again here.
 //
 // The agent docs carried this port as a hand-written third copy — the model
@@ -137,6 +135,8 @@ function serverBase(model: any, fallback = 'http://localhost:8901'): string {
 }
 
 
+// Best entity for an introductory example: a root collection whose list
+// endpoint takes no path parameters. Falls back to any non-nested entity.
 function rootEntity(entities: EntityInfo[]): EntityInfo | undefined {
   return entities.find((e) => e.ops.some((o) => 'list' === o.name && !o.path.includes('{')))
     || entities.find((e) => 0 === e.ancestors.length)

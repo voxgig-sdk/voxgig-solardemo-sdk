@@ -32,12 +32,15 @@ describe('OpenAPI definition copies', () => {
   const sha = (p: string) =>
     createHash('sha256').update(readFileSync(p)).digest('hex')
 
+  // BOTH directions. Iterating app/def alone would miss a definition added
+  // only under .sdk/def — which is the copy the SDKs are actually generated
+  // from, so that is the more dangerous direction of the two.
   test('both locations hold the same definition files', () => {
     const appFiles = yamls(APP_DEF)
+    const sdkFiles = yamls(SDK_DEF)
     ok(0 < appFiles.length, 'no .yaml found under app/def')
-    for (const f of appFiles) {
-      ok(yamls(SDK_DEF).includes(f), `${f} is in app/def but not .sdk/def`)
-    }
+    strictEqual(appFiles.join(','), sdkFiles.join(','),
+      'app/def and .sdk/def list different definition files')
   })
 
   test('the copies are byte-identical', () => {

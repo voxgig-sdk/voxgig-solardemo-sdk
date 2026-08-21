@@ -5,16 +5,11 @@
       "Bash(npm install)",
       "Bash(npm run build:*)",
       "Bash(npm test)",
-      "Bash(curl:*)",
-      "Bash(pkill:*)",
       "Bash(npm run validate:*)",
       "Bash(npm run validate:full:*)",
-      "Bash(timeout 5 npm run server:*)",
-      "Bash(find:*)",
       "Bash(go build:*)",
       "Bash(go test:*)",
       "Bash(make:*)",
-      "Bash(python3:*)",
       "Bash(go clean:*)"
     ]
   }
