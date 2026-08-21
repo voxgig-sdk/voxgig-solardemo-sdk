@@ -361,6 +361,12 @@ README takes `points[0]`. `AgentInfo.primaryPoint()` already skips
 #### M1 — Unauthenticated `/debug` dumps the whole store
 **Locus:** app. **File:** `app/src/routes/index.ts:41-48`.
 
+**Status: FIXED** `ed26ca9`. The bind address now decides: loopback keeps
+`/debug`, anything else does not register it — 404, as though it never existed,
+so no handler survives for a later edit to un-guard. `DEBUG_ROUTE=true|false`
+overrides either way. Eight tests, including that `DEBUG_ROUTE=0|no|1|yes` are
+NOT overrides. Forcing the guard back to `true` fails three of them.
+
 Not in OpenAPI. No env guard. Harmless on `HOST=localhost`; a footgun if
 someone sets `HOST=0.0.0.0`.
 
@@ -394,6 +400,12 @@ anyone reading the utility in isolation.
 **Locus:** app / model. **File:** `app/def/` and `.sdk/def/` (identical
 copies).
 
+**Status: FIXED** `4c677a2`. The two copies are now guarded byte-for-byte by
+`app/test/defsync.test.ts`; appending one line to `app/def` fails it. The
+spec's thinness relative to the server is left as-is deliberately — widening it
+regenerates SDK types, which is a far larger blast radius than the drift risk
+this closes.
+
 Missing: 4xx responses, `terraformState` / `forbidState` / `forbidReason`
 on Planet, `/debug`, error schema. Entity model then *widens* Planet with
 `forbid`, `ok`, `start`, `state`, `stop`, `why` from action payloads —
@@ -405,12 +417,27 @@ Two copies of the YAML, no check they stay in sync. They match today.
 #### M5 — Error envelope is inconsistent
 **Locus:** app. **File:** `app/src/server.ts:20-38`.
 
+**Status: FIXED** `ae1f34d`. One envelope, `{ error, message }`, with `error`
+kept when it is one of this app's own classes and derived from the status
+otherwise. The `'validation'` branch was UNREACHABLE — Fastify sets
+`statusCode` 400 before the handler runs — so the documented
+`"Validation Error"` never appeared and Ajv failures reached clients as
+`"Error"`. Measured across all five paths. `errors.integration.test.ts` pins
+it; reverting the handler fails three of its cases.
+
 Ajv hits the `statusCode` branch (`error: err.name` → `"Error"`). Custom
 `ValidationError` → `"ValidationError"`. README documents
 `"Validation Error"`. The `'validation' in err` branch looks dead.
 
 #### M6 — README surface claims (REPL, CLI, MCP)
 **Locus:** generated docs. **Files:** `README.md:9`, `ts/README.md:12-13`.
+
+**Status: FIXED** `bbb488d` (here) + `voxgig/sdkgen#85` (root README). The
+per-language sentence is now model-driven: it names the active sibling targets
+and disappears when there is none. `go/README.md` carried the same false claim
+and was missed by the register. The root README's "interactive REPL" came from
+sdkgen's own `ReadmeTop.ts` — `hasJsLike` inferred a REPL from a ts/js target
+merely existing, and no target generates one.
 
 Stock `ReadmeTop` advertises surfaces this repo does not ship. The
 Surfaces table two screens later lists only `ts/` and `go/`.
@@ -419,23 +446,53 @@ Surfaces table two screens later lists only `ts/` and `go/`.
 **Locus:** docs. Root `LICENSE`: `Copyright (c) 2025 voxgig-sdk`.
 `ts/LICENSE` and `go/LICENSE`: `Copyright (c) 2026 Voxgig`.
 
+**Status: FIXED** `c99d0f2`. All three files read
+`Copyright (c) 2025-2026 Voxgig`. The `tm/{ts,go}/LICENSE` fork turned out to
+be load-bearing: the stock template derives the year from
+`new Date().getFullYear()`, unconditionally, so in a drift-gated repo CI would
+fail every 1 January with nothing changed. Recorded in `design/README.md`.
+
 #### M8 — `.claude/settings.local.json` is tracked
 **Locus:** docs. Root and `app/`. Permission allow-lists only, no secrets
 today. `.local` implies machine-local; `.gitignore` does not exclude
 `.claude/`.
+
+**Status: FIXED** `c99d0f2`. Both files renamed to `settings.json` — shared
+and deliberate — with `**/.claude/settings.local.json` ignored. The `**` is
+required: a pattern containing a slash anchors to the repo root and would have
+missed `app/`.
 
 #### M9 — No Go release workflow; `go/VERSION` is `0.0.1`
 **Locus:** ci. TS publishes on `ts/v*` tags. Go documents `go get …@latest`
 via `go/vX.Y.Z`. Makefile `publish` pushes tags and **explicitly does not
 run tests**. TS SDK is `0.1.0`; Go module file still says `0.0.1`.
 
+**Status: FIXED** `956e916`. The Go version is model-driven and both
+artifacts read 0.1.0. The cause was not neglect: `tm/go/VERSION` holds a
+resolved literal because `target add` substitutes `PROJECTVERSION` and
+`generate` does not, so it froze at whatever the model said when the target was
+last added. `publish-go.yml` now asserts the tag matches `go/VERSION` and runs
+the suite offline.
+
 #### M10 — `publish-ts.yml` does not strip `.env.local`
 **Locus:** ci. CI does (`ci.yml:57-59`); publish runs `npm test` without
 that step.
 
+**Status: FIXED** `956e916`, as defence in depth rather than the
+vulnerability the register implied. `.env.local` matches `.gitignore`'s
+`.env.*` and is untracked, so `actions/checkout` cannot produce one — but the
+step was NAMED "Test (offline)" while nothing enforced it. One line makes the
+name true, and it holds on a reused workspace.
+
 #### M11 — App integration tests share one mutable server
 **Locus:** app. Single `build()` in `before()`; terraform/forbid/create
 mutate seed data. Passing today, order-fragile.
+
+**Status: FIXED** `ae1f34d`. Both suites build per test. The register's
+structural claim was right; its asserted consequence (failures today) could not
+be reproduced. The isolation-guard pair is the durable part — the first test
+leaves a planet behind, the second asserts the next cannot see it — so
+reverting the hooks fails loudly instead of silently restoring the coupling.
 
 #### M12 — Empty primary test corpus sections
 **Locus:** generator. G2 filled `preparePath` / `clean` / `prepareAuth`.
