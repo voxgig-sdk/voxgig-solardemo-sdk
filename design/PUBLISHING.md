@@ -9,9 +9,17 @@ separate tag namespaces.
 | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go` | `go/VERSION` | `go/vX.Y.Z` | Go module proxy — tag only, no upload |
 
 Both versions are declared in the **model**, not hand-edited into the
-generated manifests: `main: kit: target: ts: publish: version` in
-`.sdk/model/sdk-base.aontu`. A version edited into `ts/package.json` directly
-is lost on the next `npm run generate`.
+generated manifests — `main: kit: target: {ts,go}: publish: version` in
+`.sdk/model/sdk-base.aontu`. A version edited into `ts/package.json` or
+`go/VERSION` directly is lost on the next `npm run generate`.
+
+The Go side is a little different, and it is the difference that caused the
+drift below. `go/VERSION` is produced from `tm/go/VERSION`, and the scaffold
+ships that as the placeholder `PROJECTVERSION`, which **`target add`**
+substitutes when it copies the template — not `generate`. So the project's
+template carries a resolved literal, frozen at whatever the model said when
+`target add go` last ran. Put the placeholder back by hand and the literal
+string `PROJECTVERSION` ships in the released VERSION file.
 
 ## TypeScript → npm
 
@@ -80,16 +88,27 @@ Note that `go/Makefile`'s `publish` target is **deliberately not gated on
 `go test`** — the comment there explains why. Quality is gated by CI, not
 by the tag push.
 
-## Known gap: the two versions have drifted
+## The two versions agreed again (was M9)
 
-`ts/package.json` is at **0.1.0**; `go/VERSION` is still at **0.0.1**.
+`ts/package.json` and `go/VERSION` are both at **0.1.0**.
 
-This is finding **M9** in
-[`REPORT-codebase-review-2026-08-20.md`](REPORT-codebase-review-2026-08-20.md)
-and is open. There is no Go release workflow — the TS side publishes from
-CI on a tag, while Go tags are pushed from a workstation — so the Go
-module has not tracked the TS line. Either automate the Go tag or stop
-advertising `go get …@latest` until the versions agree.
+They had drifted — TS reached 0.1.0 while Go still said 0.0.1 — because the
+Go version was not declared in the model at all, so `tm/go/VERSION` stayed
+frozen at the default resolved by an old `target add go` while every TS
+release moved on. `main: kit: target: go: publish: version` now declares it,
+which is what makes the next `target add go` resolve to the right number.
 
-Until then: do not assume the two artifacts describe the same SDK
-revision. The `go/vX.Y.Z` tags that exist are what the proxy serves.
+A shared number is deliberate: both artifacts are generated from one model, so
+claiming one revision is honest. They are still **released independently** —
+separate tags, separate cadence — so nothing forces them to stay equal.
+
+`publish-go.yml` now runs on a `go/v*` tag. It cannot publish, because Go has
+no upload — by the time it runs the tag is already public — but it asserts the
+tag matches `go/VERSION`, builds, and runs the tests offline, which is what
+the TS side gets for free by publishing from CI. `go/Makefile`'s publish target
+is deliberately not gated on `go test`, so before this there was nothing
+checking a Go release at all.
+
+A failure there means the tag is **already** serving a broken or mislabelled
+module. Fix forward with a new tag: a Go module version, once fetched by the
+proxy, is immutable.

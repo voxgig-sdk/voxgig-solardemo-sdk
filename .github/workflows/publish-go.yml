@@ -1,0 +1,80 @@
+name: Publish Go SDK
+
+# The Go module has NO REGISTRY UPLOAD. Publishing a version *is* pushing the
+# tag `go/vX.Y.Z` — the module proxy and pkg.go.dev fetch it on demand. So this
+# workflow cannot "publish" anything; by the time it runs, the release is
+# already public.
+#
+# What it can do is what the TS side gets for free by publishing from CI: catch
+# a bad release and say so loudly. Before this existed there was no Go release
+# workflow at all (register finding M9), so a `go/v*` tag was pushed from a
+# workstation with nothing checking that the tag matched the module, that the
+# module built, or that its tests passed — and `go/Makefile`'s publish target
+# is DELIBERATELY not gated on `go test` (the comment there explains why).
+#
+# A failure here means the tag is already serving a broken or mislabelled
+# module. Fix forward with a new tag: a Go module version, once fetched by the
+# proxy, is immutable.
+
+on:
+  push:
+    tags:
+      - 'go/v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify the tagged Go module
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go/go.mod
+
+      # The same assertion publish-ts.yml makes against package.json. go/VERSION
+      # is model-driven (main: kit: target: go: publish: version), so a tag that
+      # disagrees with it means someone tagged by hand instead of releasing what
+      # the model declares.
+      - name: Tag matches go/VERSION
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VER=$(cat go/VERSION)
+          TAG="${GITHUB_REF#refs/tags/go/v}"
+          echo "go/VERSION=$VER tag=$TAG"
+          [ "$VER" = "$TAG" ] \
+            || { echo "::error::tag go/v$TAG does not match go/VERSION $VER"; exit 1; }
+
+      - name: Build
+        working-directory: go
+        run: go build ./...
+
+      # Same offline discipline as ci.yml: the suites reach the companion
+      # server when .env.local is present, and a release check must not depend
+      # on one being reachable.
+      - name: Remove .env.local if present
+        working-directory: go
+        run: rm -f .env.local test/.env.local
+
+      - name: Test (offline)
+        working-directory: go
+        run: go test ./... -count=1
+
+      # The proxy serves whatever the tag pointed at, so record what that was.
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Go module release"
+            echo
+            echo "- tag: \`${GITHUB_REF#refs/tags/}\`"
+            echo "- go/VERSION: \`$(cat go/VERSION)\`"
+            echo "- commit: \`${GITHUB_SHA}\`"
+            echo
+            echo "Fetch with: \`go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@${GITHUB_REF#refs/tags/}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
