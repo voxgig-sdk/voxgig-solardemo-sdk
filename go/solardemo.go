@@ -1,10 +1,10 @@
 package voxgigsolardemosdk
 
 import (
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/entity"
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/feature"
-	_ "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/entity"
+	"github.com/voxgig-sdk/solardemo-sdk/go/feature"
+	_ "github.com/voxgig-sdk/solardemo-sdk/go/utility"
 )
 
 // Type aliases preserve external API.
@@ -49,6 +49,7 @@ var NewResult = core.NewResult
 var NewResponse = core.NewResponse
 var NewOperation = core.NewOperation
 var MakeConfig = core.MakeConfig
+var SharedConfig = core.SharedConfig
 
 // No-arg convenience constructors. Go has no default-argument syntax,
 // so these aliases let callers write `sdk.New()` / `sdk.Test()`

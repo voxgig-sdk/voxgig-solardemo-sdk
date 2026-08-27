@@ -1,9 +1,9 @@
 package entity
 
 import (
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 )
 
 type MoonEntity struct {

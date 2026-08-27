@@ -3,7 +3,7 @@ package sdktest
 import (
 	"testing"
 
-	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
 )
 
 func TestExists(t *testing.T) {

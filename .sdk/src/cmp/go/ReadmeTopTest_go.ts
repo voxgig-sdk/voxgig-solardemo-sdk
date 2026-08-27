@@ -1,5 +1,5 @@
 
-import { cmp, Content, canonKey, entityIdField, pickExampleEntity, opRequestShape, goModule } from '@voxgig/sdkgen'
+import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, goModule } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -10,7 +10,7 @@ import {
 
 // A type-correct Go literal for a field's canonical type.
 function goLit(type: any): string {
-  const k = canonKey(type)
+  const k = canonScalarKey(type)
   if ('INTEGER' === k || 'NUMBER' === k) return '1'
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return '[]any{}'
@@ -28,7 +28,7 @@ const ReadmeTopTest = cmp(function ReadmeTopTest(props: any) {
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Go module path == repo path on GitHub (org from model.origin).
-  const gomodule = goModule(model, 'go')
+  const gomodule = goModule(model, target.name)
 
   // Pick an entity with a real op (prefer a read op) — never fabricate a
   // `load` on an op-less entity like Cloudsmith's `Abort`.

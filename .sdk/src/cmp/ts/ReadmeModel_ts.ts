@@ -1,12 +1,10 @@
 
-import { cmp, each, Content, isAuthActive, entityPrimaryOp } from '@voxgig/sdkgen'
+import { cmp, each, Content, isAuthActive } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
-
-import { primaryPoint } from '../../AgentInfo'
 
 
 const ReadmeModel = cmp(function ReadmeModel(props: any) {
@@ -166,19 +164,10 @@ The \`prepare()\` method returns:
     const fields = ent.fields || []
     const opnames = Object.keys(ent.op || {})
     const ops = ent.op || {}
-    // The entity's canonical endpoint, in two steps, because BOTH were wrong:
-    // entityPrimaryOp() picks the op in sdkgen's canonical order (create,
-    // load, ...) rather than whichever key enumerated first, and primaryPoint()
-    // then skips `$action` selector points inside it.
-    //
-    // The previous form flattened every point of every op and took [0]. Planet
-    // declares three create points — forbid, terraform, plain create — so the
-    // README advertised Planet's "API path" as `/forbid`, an action endpoint,
-    // instead of `/api/planet`. AgentInfo already had primaryPoint() for
-    // exactly this; ReadmeModel was the copy that did not use it.
-    const primaryOpName = entityPrimaryOp(ent)
-    const primaryOp = primaryOpName ? (ops as any)[primaryOpName] : null
-    const path = (primaryOp ? primaryPoint(primaryOp)?.orig : '') || ''
+    const points = each(ops).map((op: any) =>
+      op.points ? each(op.points) : []
+    ).flat()
+    const path = points.length > 0 ? (points[0] as any).orig || '' : ''
 
     Content(`#### ${ent.Name}
 

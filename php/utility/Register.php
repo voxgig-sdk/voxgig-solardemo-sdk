@@ -1,0 +1,70 @@
+<?php
+declare(strict_types=1);
+
+// Solardemo SDK utility registration
+
+require_once __DIR__ . '/../core/UtilityType.php';
+require_once __DIR__ . '/Clean.php';
+require_once __DIR__ . '/Done.php';
+require_once __DIR__ . '/MakeError.php';
+require_once __DIR__ . '/FeatureAdd.php';
+require_once __DIR__ . '/FeatureHook.php';
+require_once __DIR__ . '/FeatureInit.php';
+require_once __DIR__ . '/Fetcher.php';
+require_once __DIR__ . '/MakeFetchDef.php';
+require_once __DIR__ . '/MakeContext.php';
+require_once __DIR__ . '/MakeOptions.php';
+require_once __DIR__ . '/MakeRequest.php';
+require_once __DIR__ . '/MakeResponse.php';
+require_once __DIR__ . '/MakeResult.php';
+require_once __DIR__ . '/MakePoint.php';
+require_once __DIR__ . '/MakeSpec.php';
+require_once __DIR__ . '/MakeUrl.php';
+require_once __DIR__ . '/Param.php';
+require_once __DIR__ . '/PrepareAuth.php';
+require_once __DIR__ . '/PrepareBody.php';
+require_once __DIR__ . '/Graphql.php';
+require_once __DIR__ . '/PrepareHeaders.php';
+require_once __DIR__ . '/PrepareMethod.php';
+require_once __DIR__ . '/PrepareParams.php';
+require_once __DIR__ . '/PreparePath.php';
+require_once __DIR__ . '/PrepareQuery.php';
+require_once __DIR__ . '/ResultBasic.php';
+require_once __DIR__ . '/ResultBody.php';
+require_once __DIR__ . '/ResultHeaders.php';
+require_once __DIR__ . '/TransformRequest.php';
+require_once __DIR__ . '/TransformResponse.php';
+
+SolardemoUtility::setRegistrar(function (SolardemoUtility $u): void {
+    $u->clean = [SolardemoClean::class, 'call'];
+    $u->done = [SolardemoDone::class, 'call'];
+    $u->make_error = [SolardemoMakeError::class, 'call'];
+    $u->feature_add = [SolardemoFeatureAdd::class, 'call'];
+    $u->feature_hook = [SolardemoFeatureHook::class, 'call'];
+    $u->feature_init = [SolardemoFeatureInit::class, 'call'];
+    $u->fetcher = [SolardemoFetcher::class, 'call'];
+    $u->make_fetch_def = [SolardemoMakeFetchDef::class, 'call'];
+    $u->make_context = [SolardemoMakeContext::class, 'call'];
+    $u->make_options = [SolardemoMakeOptions::class, 'call'];
+    $u->make_request = [SolardemoMakeRequest::class, 'call'];
+    $u->make_response = [SolardemoMakeResponse::class, 'call'];
+    $u->make_result = [SolardemoMakeResult::class, 'call'];
+    $u->make_point = [SolardemoMakePoint::class, 'call'];
+    $u->make_spec = [SolardemoMakeSpec::class, 'call'];
+    $u->make_url = [SolardemoMakeUrl::class, 'call'];
+    $u->param = [SolardemoParam::class, 'call'];
+    $u->prepare_auth = [SolardemoPrepareAuth::class, 'call'];
+    $u->prepare_body = [SolardemoPrepareBody::class, 'call'];
+    $u->prepare_headers = [SolardemoPrepareHeaders::class, 'call'];
+    $u->prepare_method = [SolardemoPrepareMethod::class, 'call'];
+    $u->prepare_params = [SolardemoPrepareParams::class, 'call'];
+    $u->prepare_path = [SolardemoPreparePath::class, 'call'];
+    $u->prepare_query = [SolardemoPrepareQuery::class, 'call'];
+    $u->graphql_body = [SolardemoGraphql::class, 'body'];
+    $u->graphql_errors = [SolardemoGraphql::class, 'errors'];
+    $u->result_basic = [SolardemoResultBasic::class, 'call'];
+    $u->result_body = [SolardemoResultBody::class, 'call'];
+    $u->result_headers = [SolardemoResultHeaders::class, 'call'];
+    $u->transform_request = [SolardemoTransformRequest::class, 'call'];
+    $u->transform_response = [SolardemoTransformResponse::class, 'call'];
+});

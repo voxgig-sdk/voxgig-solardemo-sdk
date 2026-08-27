@@ -12,9 +12,9 @@ import (
 	"sync"
 	"testing"
 
-	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 )
 
 var envLocalOnce sync.Once
@@ -216,7 +216,7 @@ func getSpec(spec map[string]any, keys ...string) map[string]any {
 type RunSubject func(entry map[string]any) (any, error)
 
 // PENDING sections are the ones deliberately left empty in the shared corpus
-// (.sdk/test/primary/<name>.aontu). Everything else MUST contribute cases.
+// (.sdk/test/primary/<name>.aon). Everything else MUST contribute cases.
 var pendingSections = map[string]bool{
 	"fetcher": true, "makeFetchDef": true, "makeResult": true,
 	"featureAdd": true, "featureHook": true, "featureInit": true,

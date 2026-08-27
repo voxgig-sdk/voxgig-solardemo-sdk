@@ -1,71 +1,174 @@
-# AGENTS.md — Solardemo SDK workspace
+# Solardemo SDK — Agent Guide
 
-This repository holds **generated** client SDKs for the Solardemo API in
-multiple target languages. All SDKs are produced from a single model by the
-generator in `.sdk/` (built on [@voxgig/sdkgen](https://github.com/voxgig/sdkgen)).
+This is a **generated** multi-language SDK project. The client libraries in
+each language directory are produced by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen)
+from an API model; the generator, model, templates, and components all live in
+`.sdk/`. Treat the language directories as build output — change the model,
+a template, or a component and regenerate.
 
-> This file orients an AI coding agent. Start here.
+There are companion guides deeper in the tree: one per language
+(`<lang>/AGENTS.md`) and one per feature
+(`<lang>/src/feature/<name>/AGENTS.md`).
 
-## Repository layout
+## Project map
 
-| Path | What it is | Edit here? |
+**Targets** (26):
+
+| Target | Directory | Build guide |
 | --- | --- | --- |
-| `.sdk/` | The generator: model, templates and components. **Source of truth.** | ✅ Yes |
-| `ts/` | Generated TypeScript SDK. | ⛔ Generated |
-| `go/` | Generated Go SDK. | ⛔ Generated |
-| `app/` | Standalone REST server, separate from the SDKs (see below). | Independent |
+| `c` | `c/` | [`c/AGENTS.md`](./c/AGENTS.md) |
+| `clojure` | `clojure/` | [`clojure/AGENTS.md`](./clojure/AGENTS.md) |
+| `cpp` | `cpp/` | [`cpp/AGENTS.md`](./cpp/AGENTS.md) |
+| `csharp` | `csharp/` | [`csharp/AGENTS.md`](./csharp/AGENTS.md) |
+| `dart` | `dart/` | [`dart/AGENTS.md`](./dart/AGENTS.md) |
+| `elixir` | `elixir/` | [`elixir/AGENTS.md`](./elixir/AGENTS.md) |
+| `go` | `go/` | [`go/AGENTS.md`](./go/AGENTS.md) |
+| `go-cli` | `go-cli/` — A CLI surface, not an SDK client library. | [`go-cli/AGENTS.md`](./go-cli/AGENTS.md) |
+| `go-mcp` | `go-mcp/` — An MCP server surface for AI agents, not an SDK client library. | [`go-mcp/AGENTS.md`](./go-mcp/AGENTS.md) |
+| `java` | `java/` | [`java/AGENTS.md`](./java/AGENTS.md) |
+| `js` | `js/` | [`js/AGENTS.md`](./js/AGENTS.md) |
+| `kotlin` | `kotlin/` | [`kotlin/AGENTS.md`](./kotlin/AGENTS.md) |
+| `lean` | `lean/` | [`lean/AGENTS.md`](./lean/AGENTS.md) |
+| `lua` | `lua/` | [`lua/AGENTS.md`](./lua/AGENTS.md) |
+| `ocaml` | `ocaml/` | [`ocaml/AGENTS.md`](./ocaml/AGENTS.md) |
+| `perl` | `perl/` | [`perl/AGENTS.md`](./perl/AGENTS.md) |
+| `php` | `php/` | [`php/AGENTS.md`](./php/AGENTS.md) |
+| `py` | `py/` | [`py/AGENTS.md`](./py/AGENTS.md) |
+| `py-data` | `py-data/` — A pandas/notebook surface layered on the sibling Python SDK, not an SDK client library. | [`py-data/AGENTS.md`](./py-data/AGENTS.md) |
+| `rb` | `rb/` | [`rb/AGENTS.md`](./rb/AGENTS.md) |
+| `rust` | `rust/` | [`rust/AGENTS.md`](./rust/AGENTS.md) |
+| `scala` | `scala/` | [`scala/AGENTS.md`](./scala/AGENTS.md) |
+| `seneca-provider` | `seneca-provider/` | [`seneca-provider/AGENTS.md`](./seneca-provider/AGENTS.md) |
+| `swift` | `swift/` | [`swift/AGENTS.md`](./swift/AGENTS.md) |
+| `ts` | `ts/` | [`ts/AGENTS.md`](./ts/AGENTS.md) |
+| `zig` | `zig/` | [`zig/AGENTS.md`](./zig/AGENTS.md) |
 
-## Golden rule
+**Features** (1): `test`.
 
-`ts/` and `go/` are **generated output**. Do not hand-edit them — changes are
-overwritten on the next `generate`. To change an SDK, edit the model or
-templates under `.sdk/` and regenerate.
+Each feature is generated into every SDK target — as a directory
+`<lang>/src/feature/<name>/` (ts/js) or a flat file in the `<lang>/feature/`
+package (other languages). Each target's guide documents its features.
 
-## Build the SDKs (regenerate `ts/` and `go/`)
+**Entities** (2): `Moon`, `Planet`.
 
-Prerequisites: Node.js >= 24, Go >= 1.23.
+## Generating and updating the SDK
+
+All generation is driven from the `.sdk/` directory. The generated language
+directories (`ts/`, `go/`, …) are **build output** — never edit them by
+hand; fix the model, a template, or a component and regenerate.
 
 ```bash
 cd .sdk
-npm install
-npm run build      # compile the generator (src/ -> dist/)
-npm run generate   # regenerate ts/ and go/ from the model
+npm run add-target <lang>     # scaffold a language target (ts js go py php rb lua ...)
+npm run add-feature <name>    # scaffold a feature (e.g. log, test)
+npm run build                 # compile .sdk/src/cmp -> .sdk/dist
+npm run generate              # emit/refresh the SDK into ../<lang>
 ```
 
-Generation is **idempotent**: running it on an unchanged model produces no diff.
+`generate` **merges** into existing files and does **not** re-apply
+placeholder substitution to merged content. If you ever see a literal
+`ProjectName` or `GOMODULE` in generated output, delete that one file and
+regenerate it fresh:
 
-## Where things live in `.sdk/`
+```bash
+rm <lang>/<the-file-with-the-placeholder>
+npm run generate
+```
 
-| Path | Purpose |
+Note: the `voxgig-sdkgen` CLI only *scaffolds* (`target add` /
+`feature add`). Generation itself runs via `npm run generate` (backed by
+`@voxgig/model`) — there is no `generate` CLI subcommand.
+## Adding a feature
+
+A **feature** is a pipeline extension: an object of hooks that fire at named
+stages of every entity operation (each target's guide documents its
+features). Built-in features are `log` and `test`.
+
+```bash
+cd .sdk
+npm run add-feature <name>    # e.g. log  (comma-separated for several)
+npm run build && npm run generate
+```
+
+To author a **new** feature:
+
+1. Define its model at `.sdk/model/feature/<name>.aon` — `name: key()`,
+   `title`, `version`, `active`, `config.options.active`, a `hook`
+   map (`<Stage>: active: true`), and per-language `deps`.
+2. Register it in `.sdk/model/feature/feature-index.aon` with
+   `@"<name>.aon"`.
+3. Provide the per-language runtime under that target's feature template dir
+   (`.sdk/tm/<lang>/src/feature/<name>/` for ts/js, `.sdk/tm/<lang>/feature/`
+   otherwise) — the `FEATURE_Name` / `FEATURE_VERSION` placeholders are
+   substituted on `add-feature`.
+4. `npm run add-feature <name> && npm run build && npm run generate`.
+## Customising: model, templates, components
+
+Each language target is generated from **two layers**:
+
+| Layer | Path | Nature |
+| --- | --- | --- |
+| **Templates** | `.sdk/tm/<lang>/` | Plain target-language source, copied verbatim with placeholder substitution. Edit when the file is the **same for every API** (transport, base classes, runtime, utilities). |
+| **Components** | `.sdk/src/cmp/<lang>/` | TypeScript that **generates** source by walking the model. Edit when the file's shape **depends on the API** (entity classes, the constructor, README, tests). |
+
+> Decision rule: *same for every API → template; depends on the API →
+> component.*
+
+Placeholders substituted on copy: `ProjectName` (Pascal-case SDK name),
+`GOMODULE` (Go module path), `FEATURE_Name` / `FEATURE_VERSION`, and the
+`$$path$$` interpolation of a model value (such as the name) in `.aon`.
+
+Propagate a change: edit the template/component → `npm run build` (only
+needed if you touched a component) → `npm run generate`. Target shape and
+deps live in `.sdk/model/target/<lang>.aon`; features in
+`.sdk/model/feature/<name>.aon`.
+## The model language (aontu, `.aon` files)
+
+The model is one structured object assembled by **aontu** (a unification
+engine) from three sources: the API model (entities/operations, from the
+OpenAPI spec via `@voxgig/apidef`), the base schema, and the target/feature
+definitions in `.sdk/model/`. An `.aon` file is a relaxed JSON (jsonic
+syntax) with unification semantics:
+
+| Syntax | Meaning |
 | --- | --- |
-| `model/sdk-base.aontu` | Everything the project declares about itself — wires in entities, features, targets, config, and holds the pins. |
-| `model/sdk.aontu` | Entry point for `npm run generate`: the base, plus `seneca-provider` OFF. |
-| `model/provider.aontu` | Entry point for `npm run generate-provider`: the base, plus `seneca-provider` ON. Needs the sibling checkout. |
-| `model/entity/*.aontu` | Entity definitions: fields and operations. |
-| `model/target/{ts,go}.aontu` | Per-target settings and dependency versions. |
-| `tm/` | Template master files copied verbatim into the output SDKs. |
-| `src/cmp/{ts,go}/` | Programmatic generators (package.json, code, README, AGENTS). |
-| `src/Root.ts` | Top-level generation entry; orchestrates every component. |
+| `a: b: c: 1` | Nested-object shorthand for `a:{b:{c:1}}`. |
+| `&: { ... }` | Schema applied to **every** child of a map (one rule, many entries). |
+| `*default \| type` | A default value unified against a type (e.g. `*true \| boolean`). |
+| `name: key()` | Bind a field to its map key (so `feature: log: {}` gets `name: 'log'`). |
+| `$$path$$` | Interpolate a model value into a string — e.g. the SDK `name`. |
+| `@"file.aon"` | Include another fragment (how the index files work). |
+| `x: .y` | Reference another path's value (e.g. `deps: ts: .js`). |
 
-A typical change: edit `model/entity/<name>.aontu` (or a template under
-`tm/`), then `npm run build && npm run generate`, then build/test each SDK.
+For example, the schema for every feature entry:
 
-## Build & test each SDK
+```aontu
+main: kit: feature: &: {
+  name: key()
+  active: *false | boolean
+  title: string
+  version: *'0.0.1' | string
+  hook: &: { active: *false | boolean, await: *false | boolean }
+}
+```
 
-- **TypeScript** — see [`ts/AGENTS.md`](ts/AGENTS.md).
-- **Go** — see [`go/AGENTS.md`](go/AGENTS.md).
+Caveat: literal disjunctions (`'prod' | 'peer' | 'dev'`) are fragile in
+aontu, so the model uses `*'prod' | string` and enforces the enum in code —
+do not "fix" these into literal disjunctions.
+## Where things live
 
-## API entities
+```
+.sdk/
+  model/          the model: target/, feature/, and index .aon files
+  src/cmp/<lang>/  components — TypeScript that generates API-specific source
+  tm/<lang>/       templates — verbatim source copied with placeholders
+  dist/            compiled components (npm run build)
+<lang>/           generated SDK for each target (build output)
+README.md         human-facing overview
+Makefile          per-target deploy recipes
+```
 
-- **Moon** (`moon`) — operations: create, list, load, remove, update
-- **Planet** (`planet`) — operations: create, list, load, remove, update
+---
 
-Each entity exposes the listed operations on a typed handle obtained from the
-client. See the per-SDK `AGENTS.md` for language-specific usage.
-
-## Companion test server (separate)
-
-`app/` is a **standalone REST server** that implements the Solardemo API. It
-exists for local development and validation of the SDKs and is **not** part of
-any SDK distribution. The SDKs are server-agnostic — point them at any
-compatible endpoint via their `base` option. See [`app/AGENTS.md`](app/AGENTS.md).
+Generated by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen). Regenerate
+with `cd .sdk && npm run generate`.

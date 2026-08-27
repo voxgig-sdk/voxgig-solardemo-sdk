@@ -18,14 +18,14 @@ import (
 	"strings"
 	"testing"
 
-	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
 )
 
 // --- harness ----------------------------------------------------------------
 
 // fhHasFeature is true when this SDK was generated with the named feature.
 func fhHasFeature(name string) bool {
-	config := sdk.MakeConfig()
+	config := sdk.SharedConfig()
 	fm, _ := config["feature"].(map[string]any)
 	return fm != nil && fm[name] != nil
 }

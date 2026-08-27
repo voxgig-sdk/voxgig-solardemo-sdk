@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <AssemblyName>SolardemoSDK</AssemblyName>
+    <RootNamespace>SolardemoSdk</RootNamespace>
+    <!-- Loose-object-model port: suppress repetitive nullability noise. -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS1591</NoWarn>
+
+    <!-- NuGet package metadata (publication pending; see Makefile). -->
+    <Version>0.1.0</Version>
+    <PackageId>Solardemo.Sdk</PackageId>
+    <Authors>Voxgig</Authors>
+    <Description>Unofficial generated csharp SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/voxgig-sdk/solardemo-sdk</RepositoryUrl>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="test/**" />
+  </ItemGroup>
+</Project>

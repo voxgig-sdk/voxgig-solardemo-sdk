@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 )
 
 type SolardemoSDK struct {
@@ -23,7 +23,7 @@ func NewSolardemoSDK(options map[string]any) *SolardemoSDK {
 
 	sdk.utility = NewUtility()
 
-	config := MakeConfig()
+	config := SharedConfig()
 
 	sdk.rootctx = sdk.utility.MakeContext(map[string]any{
 		"client":  sdk,

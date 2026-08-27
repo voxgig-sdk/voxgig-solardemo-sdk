@@ -1,166 +1,50 @@
-# AGENTS.md — Solardemo Go SDK
+# Solardemo Golang — Agent Guide
 
-Entity-oriented client for the Solardemo API using standard Go conventions —
-no generics; data flows as `map[string]any`.
+The Golang client for the Solardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
-## Install
+> Paths below (`.sdk/…`) are relative to the **project root** — one level up
+> from this `go/` directory.
 
-```bash
-go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go
-```
-
-The module path is the repository path, so the Go proxy resolves it from the
-published `go/vX.Y.Z` tags — no `replace` directive, and no local checkout
-required:
-
-```
-// in the consumer's go.mod
-require github.com/voxgig-sdk/voxgig-solardemo-sdk/go vX.Y.Z
-```
-
-## Create a client
-
-```go
-package main
-
-import (
-    "fmt"
-    "os"
-
-    sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
-    "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
-)
-
-func main() {
-    client := sdk.NewSolardemoSDK(map[string]any{
-        "base":   os.Getenv("SOLARDEMO_BASE_URL"), // API server base URL
-        "apikey": os.Getenv("SOLARDEMO_APIKEY"),
-    })
-```
-
-The SDK is **server-agnostic**: set `base` to whichever API endpoint you target.
-
-## Minimal example
-
-```go
-    result, err := client.Planet(nil).List(nil, nil)
-    if err != nil {
-        panic(err)
-    }
-
-    rm := core.ToMapAny(result)
-    if rm["ok"] == true {
-        for _, item := range rm["data"].([]any) {
-            row := core.ToMapAny(item)
-            fmt.Println(row["id"], row["name"])
-        }
-    }
-}
-```
-
-## Result shape
-
-Operations return `(result, err)`. Convert the result with
-`core.ToMapAny(result)`; it carries:
-
-| Key | Meaning |
-| --- | --- |
-| `ok` | `true` when the HTTP status is 2xx |
-| `status` | HTTP status code |
-| `headers` | response headers |
-| `data` | parsed JSON body (`map[string]any` or `[]any`) |
-
-## Entities
-
-### Moon
-
-Handle: `client.Moon(nil)`
-
-Fields:
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `diameter` | number | yes |
-| `id` | string | yes |
-| `kind` | string | yes |
-| `name` | string | yes |
-| `planet_id` | string | yes |
-
-Operations:
-
-| Operation | Method | Path |
-| --- | --- | --- |
-| `create` | POST | `/api/planet/{planet_id}/moon` |
-| `list` | GET | `/api/planet/{planet_id}/moon` |
-| `load` | GET | `/api/planet/{planet_id}/moon/{moon_id}` |
-| `remove` | DELETE | `/api/planet/{planet_id}/moon/{moon_id}` |
-| `update` | PUT | `/api/planet/{planet_id}/moon/{moon_id}` |
-
-### Planet
-
-Handle: `client.Planet(nil)`
-
-Fields:
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `diameter` | number | yes |
-| `forbid` | boolean | no |
-| `id` | string | yes |
-| `kind` | string | yes |
-| `name` | string | yes |
-| `ok` | boolean | no |
-| `start` | boolean | no |
-| `state` | string | no |
-| `stop` | boolean | no |
-| `why` | string | no |
-
-Operations:
-
-| Operation | Method | Path |
-| --- | --- | --- |
-| `create` | POST | `/api/planet` |
-| `list` | GET | `/api/planet` |
-| `load` | GET | `/api/planet/{planet_id}` |
-| `remove` | DELETE | `/api/planet/{planet_id}` |
-| `update` | PUT | `/api/planet/{planet_id}` |
-
-## Conventions for agents
-
-- Obtain a handle with `client.Planet(nil)`, then call an operation
-  method (`List`, `Load`, `Create`, `Update`, `Remove`).
-- Operation methods take `(args map[string]any, ctrl map[string]any)` and
-  return `(any, error)`. Pass `nil` when you have no args.
-- Use `core.ToMapAny` to read the result; branch on `rm["ok"]`.
-- Full prose reference: [`README.md`](README.md) and [`REFERENCE.md`](REFERENCE.md).
-
-## Building this SDK from source
-
-This package is **generated** from `../.sdk`. Do not hand-edit files here.
+## Regenerate this target
 
 ```bash
-cd go
-go build ./...
-go test ./...
+cd ../.sdk
+npm run build        # only if you changed a component
+npm run generate     # refreshes this go/ directory
 ```
 
-### Coverage: use `-coverpkg`, or it reads as zero
-
-Every test file lives in `go/test/` and declares `package sdktest` — one
-EXTERNAL test package that imports the SDK by module path. `core`,
-`entity`, `feature` and `utility` therefore have no `_test.go` of
-their own, and Go's default per-package coverage credits each package only for
-tests inside it:
+Then build and test the generated output:
 
 ```bash
-go test ./... -cover          # every package: 0.0% — MISLEADING
-go test ./test/ -coverpkg=./... -cover   # the real number
+# in this target directory (go/):
+make build
+make test
 ```
 
-The first is what makes this look untested. It is not: the second reports
-coverage across the whole module, because the external suite exercises those
-packages from outside. Do not "fix" the zero by scattering `_test.go` stubs
-into each package — measure it correctly instead.
 
-To change behaviour, edit the model/templates in `../.sdk` and regenerate
-(see [`../AGENTS.md`](../AGENTS.md)).
+## What generates this target
+
+| Source | Path | Edit when… |
+| --- | --- | --- |
+| Target definition | `.sdk/model/target/go.aon` | deps, module, extension, phases change |
+| Templates | `.sdk/tm/go/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
+| Components | `.sdk/src/cmp/go/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
+
+Decision rule: *same for every API → template; depends on the API →
+component.* After editing a component run `npm run build` before
+`npm run generate`; template-only edits just need `npm run generate`.
+
+## Features in this target
+
+Each feature is a flat file in the `feature/` package. Its hooks and
+default activation come from `.sdk/model/feature/<name>.aon`; customise
+the runtime under `.sdk/tm/go/feature/` and regenerate.
+
+| Feature | Runtime file | Active hooks |
+| --- | --- | --- |
+| **test** — In-memory mock transport for testing without a live server | `feature/test_feature.go` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+
+---
+
+Generated by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen). See the
+[project guide](../AGENTS.md).

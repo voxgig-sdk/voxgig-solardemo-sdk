@@ -8,6 +8,46 @@ import { BaseFeature } from '../base/BaseFeature'
 const S_NOT_FOUND = 'Not found'
 
 
+// Which param is entity X's own identifier, as opposed to a parent key —
+// the load op's canonical point's LAST path segment, by construction (a
+// route addresses parents first, the record last). Mirrors recordKey in
+// sdkgen's Main_seneca-provider.ts; written again here because a template
+// ships standalone, outside that package. A renamed id (e.g. Airtable's
+// record_id) needs its own seeded field: matching only ever happens
+// against the API's real param names, never a bare 'id' the API itself
+// does not use.
+function ownIdField(config: any, getpath: any, entityName: string): string {
+  for (const opname of ['load', 'remove', 'update']) {
+    const points = getpath(config, ['entity', entityName, 'op', opname, 'points']) || []
+    const canonical = points.filter((pt: any) =>
+      null == (pt && pt.select && pt.select['$action']))
+    const use = 0 < canonical.length ? canonical : points
+    let best = use[0]
+    for (const pt of use) {
+      if (null == pt || null == pt.parts || null == best || null == best.parts) continue
+      const ptterm = 0 < pt.parts.length && String(pt.parts[pt.parts.length - 1]).startsWith('{')
+      const bestterm = 0 < best.parts.length && String(best.parts[best.parts.length - 1]).startsWith('{')
+      if (ptterm !== bestterm ? ptterm : pt.parts.length < best.parts.length) best = pt
+    }
+    const parts: string[] = (best && best.parts) || []
+    // THE LAST PART, not the last param anywhere in the path. A record route
+    // ENDS in its key: /orgs/{org}/private-registries/{secret_name} does,
+    // /orgs/{org}/private-registries/public-key does not. Reading the last
+    // param wherever it fell returned `{org}` for that second path — a PARENT
+    // reference — and the seeding walk then stamped the record's own key over
+    // org_id, destroying the ORG01 the fixture set and the test looks up from
+    // idmap. github's private_registry failed its update with a 404 that named
+    // nothing to do with orgs.
+    //
+    // A point that does not end in a param says nothing about this entity's
+    // key, so move on to the next op rather than guess from it.
+    const lastPart = 0 < parts.length ? String(parts[parts.length - 1]) : ''
+    if (lastPart.startsWith('{')) return lastPart.slice(1, -1)
+  }
+  return 'id'
+}
+
+
 class TestFeature extends BaseFeature {
   version = '0.0.1'
   name = 'test'
@@ -30,10 +70,16 @@ class TestFeature extends BaseFeature {
 
     this._client._mode = 'test'
 
+    const getpath = struct.getpath
+
     // Ensure entity ids are correct.
     walk(entity, (k: any, v: any, _parent: any, path: any) => {
       if (2 === size(path)) {
         setprop(v, 'id', k)
+        const idField = ownIdField(ctx.config, getpath, String(path[0]))
+        if ('id' !== idField) {
+          setprop(v, idField, k)
+        }
       }
       return v
     })
@@ -172,6 +218,16 @@ class TestFeature extends BaseFeature {
 
         const ent = clone(ctx.reqdata)
         setprop(ent, 'id', id)
+
+        // A record created during the run needs the same real-key seeding
+        // the initial walk gives seed data (see ownIdField above) — without
+        // it, only `id` is set, and a load by the entity's own key right
+        // after create (recordKey !== 'id') finds nothing.
+        const idField = ownIdField(ctx.config, struct.getpath, getprop(op, 'entity'))
+        if ('id' !== idField && null == getprop(ent, idField)) {
+          setprop(ent, idField, id)
+        }
+
         setprop(entmap, id, ent)
         delprop(ent, '$KEY')
         const out = clone(ent)
@@ -253,9 +309,28 @@ class TestFeature extends BaseFeature {
     const isempty = struct.isempty
 
     const opname = getprop(op, 'name')
-    const point =
-      getelem(getpath(ctx.config, [
-        'entity', getprop(ctx.entity, 'name'), 'op', opname, 'points']), -1)
+    const points = getpath(ctx.config, [
+      'entity', getprop(ctx.entity, 'name'), 'op', opname, 'points']) || []
+
+    // Pick the entity's own endpoint, not a cross-reference from another
+    // resource that also returns it — the same rule makePoint falls back to,
+    // so the seed-data query is built from the endpoint the request will
+    // actually be sent to: a terminal `{id}` marks a record route, and
+    // failing that the shallower path wins.
+    const isterm = (pt: any) => {
+      const parts = pt.parts
+      const last = 0 < parts.length ? parts[parts.length - 1] : ''
+      return 'string' === typeof last && 0 === last.indexOf('{')
+    }
+
+    let point = getelem(points, 0)
+    for (let i = 1; i < points.length; i++) {
+      const cand = getelem(points, i)
+      if (isterm(cand) !== isterm(point) ? isterm(cand) :
+        cand.parts.length < point.parts.length) {
+        point = cand
+      }
+    }
 
     const reqd = transform(
       select(getpath(point, ['args', 'params']), { reqd: true }),
@@ -291,7 +366,8 @@ class TestFeature extends BaseFeature {
 
 
 export {
-  TestFeature
+  TestFeature,
+  ownIdField,
 }
 
 

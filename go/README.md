@@ -6,24 +6,24 @@ The Golang SDK for the Solardemo API — an entity-oriented client using standar
 
 It exposes the API as capitalised, semantic **Entities** — e.g. `client.Moon(nil)` — each with the same small set of operations (`List`, `Load`, `Create`, `Update`, `Remove`) instead of raw URL paths and query strings. You call meaning, not endpoints, which keeps the cognitive load low.
 
-> Also generated from this model: `ts` — see
+> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go-cli`, `go-mcp`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `ts`, `zig` — see
 > the [top-level README](../README.md).
 
 
 ## Install
 ```bash
-go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@latest
+go get github.com/voxgig-sdk/solardemo-sdk/go@latest
 ```
 
 The Go module proxy resolves the version from the `go/vX.Y.Z` GitHub
-release tag — see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases) for the available versions.
+release tag — see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases) for the available versions.
 
 To vendor from a local checkout instead, clone this repo alongside your
 project and add a `replace` directive pointing at the checked-out
 `go/` directory:
 
 ```bash
-go mod edit -replace github.com/voxgig-sdk/voxgig-solardemo-sdk/go=../voxgig-solardemo-sdk/go
+go mod edit -replace github.com/voxgig-sdk/solardemo-sdk/go=../solardemo-sdk/go
 ```
 
 
@@ -44,7 +44,7 @@ package main
 
 import (
     "fmt"
-    sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+    sdk "github.com/voxgig-sdk/solardemo-sdk/go"
 )
 
 func main() {
@@ -508,7 +508,7 @@ Use `core.ToMapAny()` to safely cast results and nested data.
 ### Package structure
 
 ```
-github.com/voxgig-sdk/voxgig-solardemo-sdk/go/
+github.com/voxgig-sdk/solardemo-sdk/go/
 ├── solardemo.go        # Root package — type aliases and constructors
 ├── core/               # SDK core — client, types, pipeline
 ├── entity/             # Entity implementations
@@ -517,7 +517,7 @@ github.com/voxgig-sdk/voxgig-solardemo-sdk/go/
 └── test/               # Test suites
 ```
 
-The root package (`github.com/voxgig-sdk/voxgig-solardemo-sdk/go`) re-exports everything needed
+The root package (`github.com/voxgig-sdk/solardemo-sdk/go`) re-exports everything needed
 for normal use. Import sub-packages only when you need specific types
 like `core.ToMapAny`.
 

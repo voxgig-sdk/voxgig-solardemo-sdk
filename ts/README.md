@@ -9,14 +9,17 @@ The API is exposed as capitalised, semantic **Entities** — e.g.
 instead of raw URL paths and query parameters. This keeps the surface
 predictable and low-friction for both humans and AI agents.
 
-> Also generated from this model: `go` — see
+> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go`, `go-cli`, `go-mcp`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `zig` — see
 > the [top-level README](../README.md).
 
 
 ## Install
-```bash
-npm install @voxgig-sdk/voxgig-solardemo
-```
+This package is not yet published to npm. Install it from the GitHub
+release tag (`ts/vX.Y.Z`):
+
+- Releases: [https://github.com/voxgig-sdk/solardemo-sdk/releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)
+
+
 ## Tutorial: your first API call
 
 This tutorial walks through creating a client, listing entities, and
@@ -25,7 +28,7 @@ loading a specific record.
 ### 1. Create a client
 
 ```ts
-import { SolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/solardemo'
 
 const client = new SolardemoSDK()
 ```
@@ -361,7 +364,7 @@ API path: `/api/planet/{planet_id}/moon`
 
 Operations: create, list, load, remove, update.
 
-API path: `/api/planet`
+API path: `/api/planet/{planet_id}/forbid`
 
 
 
@@ -529,7 +532,7 @@ solardemo/
 Import the SDK from the package root:
 
 ```ts
-import { SolardemoSDK } from '@voxgig-sdk/voxgig-solardemo'
+import { SolardemoSDK } from '@voxgig-sdk/solardemo'
 ```
 
 ### Entity state

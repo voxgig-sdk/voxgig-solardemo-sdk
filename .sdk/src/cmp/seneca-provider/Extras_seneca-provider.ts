@@ -242,8 +242,15 @@ function seedRecord(e: any, idx: number): Record<string, any> {
     else if (e.parents.includes(f.name)) {
       // A nested entity's parent id must match a record the parent seeds, or
       // the offline store answers nothing and every nested test reads as a
-      // false pass.
-      out[f.name] = `${f.parentEntity}0`
+      // false pass. Reuses parentSeed's fallback rather than f.parentEntity
+      // directly: when no entity in the model shares this key's name (the
+      // common case for a scoping param like `user_id` with no `user`
+      // entity, or a same-named response field that means something else
+      // entirely, like GitHub's `owner`), f.parentEntity is '' and seeding
+      // '0' desynced the record from every query built against the SAME
+      // key via parentSeed (parentPairs, crudTest, ...) — 0 results, or a
+      // seeded field asserted against the wrong literal.
+      out[f.name] = parentSeed(e, f.name)
     }
     else if ('number' === f.kind) {
       out[f.name] = 100 * (idx + 1)
@@ -407,11 +414,20 @@ describe('${provider.fileBase}', () => {
 
 `)
 
-      if (subject.cmds.includes('list')) {
-        Content(`
-  it('${subject.name}-list', async () => {
+      // Every flat entity (no parent keys), not just one "subject" — a
+      // provider with two or more flat siblings used to leave every one
+      // but the busiest untested beyond the accessor check above. A bare
+      // `list$()`/`load$(id)` call has no way to carry a parent key, so
+      // entities that need one are covered by the `nested` block below
+      // instead, with their keys filled in.
+      const flat = provider.entities.filter((e: any) => 0 === e.parents.length)
+
+      each(flat, (e: any) => {
+        if (e.cmds.includes('list')) {
+          Content(`
+  it('${e.name}-list', async () => {
     const seneca = await makeSeneca()
-    const list = await seneca.entity('provider/${provider.lower}/${subject.name}').list$()
+    const list = await seneca.entity('provider/${provider.lower}/${e.name}').list$()
 
     assert.equal(list.length, 2)
 
@@ -420,25 +436,25 @@ describe('${provider.fileBase}', () => {
     // survive into the Seneca entity.
     assert.equal(
       list[0].canon$({ string: true }),
-      'provider/${provider.lower}/${subject.name}',
+      'provider/${provider.lower}/${e.name}',
     )
   })
 
 `)
-      }
+        }
 
-      if (subject.cmds.includes('load')) {
-        Content(`
-  it('${subject.name}-load', async () => {
+        if (e.cmds.includes('load')) {
+          Content(`
+  it('${e.name}-load', async () => {
     const seneca = await makeSeneca()
     const found = await seneca
-      .entity('provider/${provider.lower}/${subject.name}')
-      .load$('${subject.name}0')
+      .entity('provider/${provider.lower}/${e.name}')
+      .load$('${e.name}0')
 
-    assert.equal(found.${subject.idf || 'id'}, '${subject.name}0')
+    assert.equal(found.${e.idf || 'id'}, '${e.name}0')
     assert.equal(
       found.canon$({ string: true }),
-      'provider/${provider.lower}/${subject.name}',
+      'provider/${provider.lower}/${e.name}',
     )
   })
 
@@ -446,17 +462,18 @@ describe('${provider.fileBase}', () => {
   // A 404 from a single-item read is an ordinary "not found" answer, not a
   // failure: the provider turns it into null rather than letting the SDK
   // throw.
-  it('${subject.name}-load-missing', async () => {
+  it('${e.name}-load-missing', async () => {
     const seneca = await makeSeneca()
     const missing = await seneca
-      .entity('provider/${provider.lower}/${subject.name}')
-      .load$('nosuch${subject.name}')
+      .entity('provider/${provider.lower}/${e.name}')
+      .load$('nosuch${e.name}')
 
     assert.equal(missing, null)
   })
 
 `)
-      }
+        }
+      })
 
       // A nested entity cannot build its path without the parent id. That is
       // the mistake this target exists to make impossible, so pin it.
@@ -469,17 +486,31 @@ describe('${provider.fileBase}', () => {
         const pairs = e.parents
           .map((k: string) => `${k}: '${parentSeed(e, k)}'`).join(', ')
 
-        Content(`
+        // The guard is PER OP (Main's opParents), not a blanket property of
+        // the entity, so the op this test calls has to be one that actually
+        // requires `key` — hardcoding `list` assumed every nested entity's
+        // list is parent-scoped, which fails for e.g. an entity guarded on
+        // load/update/remove but whose list is unscoped (GitHub's `repo`:
+        // owner guards load, not list).
+        const guardOp = ['list', 'load', 'update', 'remove']
+          .find((op: string) => (e.opParents[op] || []).includes(key))
+
+        if (null != guardOp) {
+          const call = 'list' === guardOp ?
+            `${guardOp}$({})` : `${guardOp}$({ id: '${e.name}0' })`
+
+          Content(`
   it('${e.name}-needs-${key}', async () => {
     const seneca = await makeSeneca()
 
     await assert.rejects(
-      () => seneca.entity('provider/${provider.lower}/${e.name}').list$({}),
+      () => seneca.entity('provider/${provider.lower}/${e.name}').${call},
       /${key} is required/,
     )
   })
 
 `)
+        }
         if (e.cmds.includes('list')) {
           // Assert on the SEEDED RECORDS, not merely that an array came back.
           // `Array.isArray` is true of the empty array, so the nested-list
@@ -4024,4 +4055,6 @@ export {
   Workflow,
   Readme,
   Docs,
+  seedRecord,
+  parentSeed,
 }
