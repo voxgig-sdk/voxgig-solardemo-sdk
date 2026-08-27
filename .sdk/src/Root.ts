@@ -4,7 +4,6 @@ import {
   cmp,
   each,
   getx,
-  requirePath,
 
   Project,
   Folder,
@@ -13,6 +12,7 @@ import {
   Entity,
   Feature,
   Readme,
+  AgentGuide,
   Test,
 
 } from '@voxgig/sdkgen'
@@ -29,7 +29,6 @@ import { PointUtil, Content } from 'jostraca'
 
 import { Top } from './Top'
 import { BuildSDK } from './BuildSDK'
-import { Agents } from './Agents'
 
 
 const {
@@ -78,9 +77,6 @@ const Root = cmp(function Root(props: any) {
     // TODO: jostraca should accept no props
     Top({})
 
-    // Top-level agent docs (AGENTS.md) + the separate test-server's app/AGENTS.md
-    Agents({})
-
     BuildSDK({})
 
     each(target, (target: any) => {
@@ -100,22 +96,16 @@ const Root = cmp(function Root(props: any) {
         //   }
         //
         // Defaults are inclusive — when a phase entry is absent (or
-        // active is not explicitly false), the phase runs. Standard
-        // language targets don't declare `phase` and keep current
-        // behaviour, so this is a no-op for ts/go here.
-        //
-        // CONSUMER targets need it: go-cli, go-mcp and py-data switch
-        // every phase off and emit only Main, because they consume a
-        // sibling SDK rather than being one. Without this gate they fail
-        // outright with `Cannot find module cmp/<target>/Entity_<target>`,
-        // which is exactly what this repo did before the resync — the
-        // scaffold grew the gate and this Root.ts never picked it up.
+        // active is not explicitly false), the phase runs. Existing
+        // standard targets don't declare `phase` and keep current
+        // behaviour. A CLI-style target switches all five off and
+        // only emits Main.
         const phase = target.phase || {}
         const phaseActive = (name: string): boolean =>
           false !== (phase[name] && phase[name].active)
 
         if (phaseActive('entity')) {
-          each(entity, (entity: any) => {
+          each(entity).filter((entity: any) => entity.active).map((entity: any) => {
             names(entity, entity.name)
             Entity({ target, entity })
           })
@@ -134,39 +124,15 @@ const Root = cmp(function Root(props: any) {
           Readme({ target })
         }
 
-        if (phaseActive('test')) {
-          Test({ target })
+        // Per-target agent guides: <lang>/AGENTS.md + CLAUDE.md, and (driven
+        // internally by AgentGuide) a guide per active feature under
+        // <lang>/src/feature/<name>/. Placement mirrors Readme.
+        if (phaseActive('agentguide')) {
+          AgentGuide({ target })
         }
 
-        // Per-SDK usage docs for AI coding agents (server-agnostic).
-        //
-        // These are this repo's own components, kept in place of the
-        // scaffold's standard AgentGuide. They are per-target agent docs,
-        // so they belong under the `agentguide` phase — the per-language
-        // checks below already exclude any consumer target, but gating
-        // them keeps the phase map meaning one thing everywhere.
-        if (phaseActive('agentguide')) {
-          // Convention, not a hardcoded target list. This was an if/else on
-          // 'ts' and 'go' with both components statically imported, so a third
-          // target's agent docs needed an edit HERE as well as a new
-          // component — and silently generated nothing until someone
-          // remembered. Now cmp/<target>/Agents_<target> is used when it
-          // exists, and a target without one contributes no agent doc.
-          //
-          // `ignore: true` swallows only a genuine module-not-found; a
-          // component that resolves and then throws still propagates, so a
-          // broken Agents_* fails loudly rather than quietly emitting nothing.
-          const agentsPath = 'cmp/' + target.name + '/Agents_' + target.name
-          const agentsMod = requirePath(ctx$, agentsPath, { ignore: true })
-
-          const Agents = agentsMod && (
-            agentsMod['Agents' + target.name.charAt(0).toUpperCase() + target.name.slice(1)] ||
-            agentsMod.default
-          )
-
-          if (Agents) {
-            Agents({ target })
-          }
+        if (phaseActive('test')) {
+          Test({ target })
         }
       })
     })

@@ -2,7 +2,7 @@ import {
   cmp, each,
   File, Content, Copy, Folder,
   entityCollection, entityOps, entityIdField, entityClassName,
-  opRequestShape, opParams, entityPath,
+  opRequestShape, opParams, ownPoint, entityPath,
   collectDeps, repoInfo, packageName, packageVersion, apiName, envName,
   authorInfo, contributorList, isAuthActive, jsKey, jsProp,
   SdkGenError,
@@ -14,6 +14,7 @@ import {
 } from '@voxgig/apidef'
 
 import { Tests, Scripts, Workflow, Readme, Docs } from './Extras_seneca-provider'
+import { Gitignore } from './Gitignore_seneca-provider'
 
 
 // The `seneca-provider` target: a Seneca plugin exposing this API's entities
@@ -21,7 +22,7 @@ import { Tests, Scripts, Workflow, Readme, Docs } from './Extras_seneca-provider
 // `ts` SDK.
 //
 // A consumer target in the go-cli / py-data mould — every standard phase is
-// off in model/target/seneca-provider.aontu and this component emits the
+// off in model/target/seneca-provider.aon and this component emits the
 // whole package. It differs from those in one way that shapes everything
 // here: it generates into ITS OWN REPO (`output: path`), depends on the SDK
 // as a PUBLISHED npm package rather than by path, and therefore carries a
@@ -73,12 +74,19 @@ function requiredKeys(ent: any, opname: string): string[] {
 // `<entity>_id` path param to `id` besides, which is why most APIs never reach
 // the fallback.
 //
-// When it does NOT answer, the record key is the LAST required path param of a
-// single-item op: a route addresses parents first and the record last, by
-// construction. Without this the key was simply unknown, so a param named
-// `code` failed the `!== idf` test in opParentKeys and was classified as a
-// PARENT — `load$('SAVE20')` threw "coupon load: code is required" instead of
-// loading anything, and the entity was treated as nested throughout.
+// When it does NOT answer, the record key is the LAST path param of the
+// op's own point, in PATH order — a route addresses parents first and the
+// record last, by construction. Without this the key was simply unknown,
+// so a param named `code` failed the `!== idf` test in opParentKeys and
+// was classified as a PARENT — `load$('SAVE20')` threw "coupon load: code
+// is required" instead of loading anything, and the entity was treated as
+// nested throughout.
+//
+// opParams(op) is NOT the source here: it alphabetizes params for output
+// stability, which loses path order on a 3+-param route — Airtable's
+// record (base_id, table_id, record_id) alphabetizes with table_id last,
+// so the old `params[params.length - 1]` picked the wrong parent as the
+// record's own key. The point's own `parts` still has the true order.
 function recordKey(ent: any): string {
   const idf = entityIdField(ent)
   if (null != idf && '' !== idf) {
@@ -87,13 +95,18 @@ function recordKey(ent: any): string {
 
   for (const opname of ['load', 'remove', 'update']) {
     const op = (ent.op || {})[opname]
-    if (null == op) {
+    if (null == op || 0 === (op.points || []).length) {
       continue
     }
 
-    const params = opParams(op).filter((p: any) => false !== p.reqd)
-    if (0 < params.length) {
-      return String((params[params.length - 1] as any).name)
+    const canonical = op.points.filter((pt: any) =>
+      null == (pt && pt.select && pt.select['$action']))
+    const point = ownPoint(0 < canonical.length ? canonical : op.points)
+    const parts: string[] = (point && point.parts) || []
+    const lastParam = [...parts].reverse().find((p: string) => p.startsWith('{'))
+
+    if (null != lastParam) {
+      return lastParam.slice(1, -1)
     }
   }
 
@@ -206,9 +219,10 @@ function parentEntityOf(key: string, names: string[]): string {
 // published package to the SDK instead.
 //
 // Order: the project's `output: repo`, else the Seneca convention.
-function providerRepo(model: any, lower: string): { url: string, path: string } {
+function providerRepo(model: any, lower: string, tname: string):
+  { url: string, path: string } {
   const host = model?.main?.[KIT]?.repo?.host || 'github.com'
-  const declared = model?.main?.[KIT]?.target?.['seneca-provider']?.output?.repo
+  const declared = model?.main?.[KIT]?.target?.[tname]?.output?.repo
   const path = null != declared && '' !== declared ?
     String(declared) : `senecajs/seneca-${lower}-provider`
 
@@ -219,8 +233,8 @@ function providerRepo(model: any, lower: string): { url: string, path: string } 
 // The provider's published package name: the project's pin when it has one,
 // else `@seneca/<name>-provider`. packageName() cannot answer this — its
 // derivations are all SDK-shaped (`@<origin>/<slug>-sdk`).
-function providerPackage(model: any, lower: string): string {
-  const declared = model?.main?.[KIT]?.target?.['seneca-provider']
+function providerPackage(model: any, lower: string, tname: string): string {
+  const declared = model?.main?.[KIT]?.target?.[tname]
     ?.publish?.registry?.package
   return null != declared && '' !== declared ?
     String(declared) : `@seneca/${lower}-provider`
@@ -253,6 +267,8 @@ const Main = cmp(function Main(props: any) {
   // The SDK is a PUBLISHED dependency, not a path: this package lives in its
   // own repo. Its name is whatever the ts target publishes under, pin
   // included, so the two can never disagree.
+  // The TypeScript SDK this provider WRAPS — a different target, so it
+  // keeps its own name and does not follow this provider's alias.
   const sdkPkg = packageName(model, 'npm')
   const sdkVersion = packageVersion(model, 'ts')
 
@@ -374,7 +390,7 @@ const Main = cmp(function Main(props: any) {
       'all. Remove the target, or add an entity with CRUD ops.')
   }
 
-  const repo = providerRepo(model, lower)
+  const repo = providerRepo(model, lower, target.name)
 
   // The companion test server lives in the SDK repo's `app/` and is NOT
   // published, so the only way to reach it is the local checkout. The path
@@ -440,7 +456,7 @@ const Main = cmp(function Main(props: any) {
     // The provider's OWN published name. Not derived from the SDK slug the
     // way a language target's is — a provider is `@seneca/<name>-provider` —
     // so read the project's pin directly and default to that shape.
-    pkgName: providerPackage(model, lower),
+    pkgName: providerPackage(model, lower, target.name),
     // Whether this API authenticates at all. Decides if the plugin plumbs a
     // credential: the SDK's auth stage emits nothing for an auth-inactive
     // model and strips the authorization header regardless of options, so
@@ -448,14 +464,20 @@ const Main = cmp(function Main(props: any) {
     authActive: isAuthActive(model),
   }
 
-  // Static furniture: LICENSE, CODE_OF_CONDUCT, Makefile, .gitignore,
-  // tsfmt.json and both tsconfigs. Same for every provider.
+  // `.gitignore` is EMITTED rather than copied — npm strips that filename
+  // from the tarball, so as a template it reached only checkout users. See
+  // Gitignore_seneca-provider. Called before the Copy, as every language
+  // target calls its own.
+  Gitignore({})
+
+  // Static furniture: LICENSE, CODE_OF_CONDUCT, Makefile, tsfmt.json and
+  // both tsconfigs. Same for every provider.
   Copy({
     from: 'tm/' + target.name,
     replace: { ...ctx$.stdrep },
   })
 
-  PackageJson({ provider })
+  PackageJson({ provider, target })
   ProviderSource({ provider })
   ProviderDoc({ provider })
   Tests({ provider })
@@ -469,9 +491,8 @@ const Main = cmp(function Main(props: any) {
 // --- package.json -----------------------------------------------------------
 
 const PackageJson = cmp(function PackageJson(props: any) {
-  const { provider } = props
+  const { provider, target } = props
   const { model } = props.ctx$
-  const target = model.main[KIT].target['seneca-provider']
 
   const deps = collectDeps(model, target.name, target.deps, props.ctx$.log)
 
@@ -957,4 +978,5 @@ if ('undefined' !== typeof module) {
 
 export {
   Main,
+  recordKey,
 }

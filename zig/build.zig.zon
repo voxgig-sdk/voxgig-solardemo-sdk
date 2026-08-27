@@ -1,0 +1,11 @@
+.{
+    .name = "solardemo_sdk",
+    .version = "0.1.0",
+    .dependencies = .{},
+    .paths = .{
+        "src",
+        "test",
+        "build.zig",
+        "build.zig.zon",
+    },
+}

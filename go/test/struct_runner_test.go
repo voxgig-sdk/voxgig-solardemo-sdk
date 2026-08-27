@@ -6,7 +6,7 @@ package sdktest
 import (
 	"fmt"
 
-	voxgigstruct "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	voxgigstruct "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 
 	"encoding/json"
 	"errors"

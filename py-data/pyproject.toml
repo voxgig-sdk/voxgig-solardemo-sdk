@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxgig-sdk-solardemo-data"
+version = "0.1.0"
+description = "Unofficial generated Python Data SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+keywords = ["voxgig", "sdk", "generated-sdk", "openapi", "api-client", "solardemo", "pandas", "dataframe", "notebook", "colab"]
+dependencies = [
+    "voxgig-sdk-solardemo",
+    "pandas>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/voxgig-sdk/solardemo-sdk"
+Repository = "https://github.com/voxgig-sdk/solardemo-sdk"
+Issues = "https://github.com/voxgig-sdk/solardemo-sdk/issues"
+
+# A single package, deliberately. Emitting auth/fetch/frames as top-level
+# modules would put names that are both real PyPI distributions and common
+# notebook scratch files onto sys.path, where Colab's working directory wins.
+[tool.setuptools.packages.find]
+include = ["solardemo_data*"]

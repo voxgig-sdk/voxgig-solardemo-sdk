@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	voxgigstruct "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	voxgigstruct "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 )
 
 const STRUCT_TEST_JSON = "../../.sdk/test/test.json"

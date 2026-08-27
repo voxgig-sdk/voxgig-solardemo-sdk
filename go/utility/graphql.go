@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 )
 
 // GraphQL transport. API-INDEPENDENT: every GraphQL SDK this generator

@@ -61,12 +61,7 @@ const Package = cmp(async function Package(props: any) {
   const { repoUrl, issuesUrl } = repoInfo(model)
 
   const pkg = {
-    // PROJECT FORK, and the only one left in this file: the published name is
-    // pinned under the 'npm' registry key in the model rather than derived
-    // from the target name. The trailing-newline fix that used to live here
-    // too is now in the stock component (sdkgen 3.7.1), so it is gone from
-    // this copy.
-    name: packageName(model, 'npm'),
+    name: packageName(model, target.name),
     version: packageVersion(model, target.name),
     description: pkgDescription(model, target.name),
     keywords: keywords(model),

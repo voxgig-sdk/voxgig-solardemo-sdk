@@ -9,7 +9,7 @@ package entity
 import (
 	"encoding/json"
 
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 )
 
 // Moon is the typed data model for the moon entity.

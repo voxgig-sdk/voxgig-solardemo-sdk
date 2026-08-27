@@ -3,9 +3,9 @@ package utility
 import (
 	"strings"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 )
 
 func prepareMethodUtil(ctx *core.Context) string {

@@ -1,6 +1,6 @@
 package utility
 
-import "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+import "github.com/voxgig-sdk/solardemo-sdk/go/core"
 
 // featureAddUtil appends a feature to the client's feature list. A feature
 // that implements AddOptions (every BaseFeature embedder does, via the

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 )
 
 func TestPrimaryUtility(t *testing.T) {

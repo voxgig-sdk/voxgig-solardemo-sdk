@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 )
 
 func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, error) {
@@ -55,6 +55,20 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 				Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
 			}
 		}
+	}
+
+	// Honour a redirect annotation: "manual" surfaces a 3xx as an ordinary
+	// response instead of auto-following it. In the ts/js targets fetchdef
+	// rides straight into fetch(), where `redirect` is a native option -
+	// this is the same seam for Go's auto-following http.Client. The
+	// station feature sets it under a hosts egress policy, so a Location
+	// off the allowlist cannot pull an automatic credentialed follow-up.
+	if redirect, ok := fetchdef["redirect"].(string); ok && redirect == "manual" {
+		manual := *client
+		manual.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		client = &manual
 	}
 
 	resp, err := client.Do(req)

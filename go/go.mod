@@ -1,4 +1,4 @@
-module github.com/voxgig-sdk/voxgig-solardemo-sdk/go
+module github.com/voxgig-sdk/solardemo-sdk/go
 
-go 1.23
+go 1.21
 

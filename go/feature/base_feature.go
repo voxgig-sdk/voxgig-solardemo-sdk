@@ -1,7 +1,7 @@
 package feature
 
 import (
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 )
 
 type BaseFeature struct {

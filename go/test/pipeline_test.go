@@ -11,7 +11,7 @@ package sdktest
 import (
 	"testing"
 
-	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
 )
 
 // plClient builds a client + isolated utility + context factory for

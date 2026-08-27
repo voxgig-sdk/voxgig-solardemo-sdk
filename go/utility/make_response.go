@@ -1,6 +1,6 @@
 package utility
 
-import "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+import "github.com/voxgig-sdk/solardemo-sdk/go/core"
 
 func makeResponseUtil(ctx *core.Context) (*core.Response, error) {
 	if ctx.Out["response"] != nil {

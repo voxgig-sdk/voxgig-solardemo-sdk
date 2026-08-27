@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
-	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
+	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
+	"github.com/voxgig-sdk/solardemo-sdk/go/core"
 
-	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
 )
 
 func TestMoonEntity(t *testing.T) {
@@ -52,7 +52,7 @@ func TestMoonEntity(t *testing.T) {
 
 		// Inbound: streaming active -> yields each item from the feature iterator.
 		hasStreaming := false
-		if fm, ok := core.MakeConfig()["feature"].(map[string]any); ok {
+		if fm, ok := core.SharedConfig()["feature"].(map[string]any); ok {
 			_, hasStreaming = fm["streaming"]
 		}
 		if hasStreaming {
