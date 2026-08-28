@@ -87,10 +87,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # 1.25, not the 1.24 the other Go jobs use: go-mcp/go.mod declares
+      # `go 1.25.0`, and the workflow runs with GOTOOLCHAIN=local, so a 1.24
+      # toolchain refuses the module outright rather than fetching a newer one
+      # ("go.mod requires go >= 1.25.0"). go/go.mod is 1.21 and go-cli/go.mod
+      # is 1.24.7, so only this job needs the higher floor.
       - if: hashFiles('go-mcp/go.mod') != ''
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - if: hashFiles('go-mcp/go.mod') != ''
         run: |
           cd go-mcp
@@ -374,8 +379,11 @@ jobs:
         uses: ocaml/setup-ocaml@605a7e998e76e035b82c14d618a6e1010732c4ce # v3
         with:
           ocaml-compiler: '5.2'
+      # Through `opam exec`: setup-ocaml creates the switch but does not put
+      # its binaries on PATH for subsequent steps, so a bare make found no
+      # ocamlc and died with exit 127.
       - if: hashFiles('ocaml/Makefile') != ''
-        run: make -C ocaml test
+        run: opam exec -- make -C ocaml test
 
   haskell:
     runs-on: ubuntu-latest
