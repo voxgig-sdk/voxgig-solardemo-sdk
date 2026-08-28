@@ -49,6 +49,129 @@ permissions:
   contents: read
 
 jobs:
+  # THE GOLDEN RULE, enforced. Every language directory below is GENERATED
+  # output, so a clean checkout plus `generate` must reproduce it exactly.
+  # This gate was dropped when #24 replaced the workflow with the per-language
+  # matrix, and its absence is exactly how `.sdk/model/sdk.json` came to sit
+  # out of step with its own model without anything reporting it.
+  sdk-generate:
+    name: Generate and check for drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: .sdk
+        run: npm install
+
+      - name: Build
+        working-directory: .sdk
+        run: npm run build
+
+      - name: Generate
+        working-directory: .sdk
+        run: npm run generate
+
+      # The seneca-provider target can generate into ANOTHER repo, at a path
+      # relative to this one's root (see model/target/seneca-provider.aon,
+      # whose `output: path` may be pointed at ../../seneca/...). sdkgen
+      # CREATES a missing destination rather than refusing it, so nothing else
+      # would notice. Assert the absence: if such a path is ever committed, CI
+      # goes red here rather than quietly publishing a provider repo into
+      # /home/runner/work/.
+      - name: Fail if generation escaped the repository
+        run: |
+          if [ -e ../../seneca ]; then
+            echo "::error::Generation wrote outside the repository:"
+            find ../../seneca -maxdepth 2 | head -20
+            echo "The seneca-provider target must not write outside this repo."
+            echo "To generate it deliberately: cd .sdk && npm run generate-provider"
+            exit 1
+          fi
+
+      - name: Fail if generated output drifted
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated output does not match the model."
+            echo "Someone hand-edited a generated directory, or changed .sdk/ without regenerating."
+            echo "Fix: cd .sdk && npm run generate, then commit the result."
+            exit 1
+          fi
+          # --exit-code ignores untracked files; a new generated file is drift too.
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "::error::Generate produced untracked files:"
+            git status --porcelain --untracked-files=all
+            exit 1
+          fi
+
+  # `app/` is not an SDK, but it IS the only implementation of this API that
+  # exists, so the live SDK tests reach it and its contract is this repo's
+  # contract. Leaving it untested is how the create-id defect (C1) survived:
+  # validate.ts was red at 15/20 and nothing reported it. Dropped by #24
+  # alongside the drift gate.
+  app-build-test:
+    name: App build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+
+      - name: Typecheck
+        working-directory: app
+        run: npm run typecheck
+
+      - name: Test (unit + integration)
+        working-directory: app
+        run: npm test
+
+      # stdout/stderr are redirected deliberately: a background process that
+      # inherits the step's stdout can keep the pipe open and hang the step
+      # after the script itself has finished.
+      - name: Start the server
+        working-directory: app
+        run: |
+          npm run build
+          node dist/src/server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/app.pid"
+
+      # Poll rather than sleeping a fixed interval and hoping (which races
+      # on a slow runner: EADDRINUSE or a connection refused mid-suite).
+      - name: Wait for the server to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 2 http://localhost:8901/api/planet >/dev/null; then
+              echo "server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::server did not become ready within 30s"
+          cat "$RUNNER_TEMP/server.log" || true
+          exit 1
+
+      - name: Validate against the running server
+        working-directory: app
+        run: npx tsx validate.ts
+
+      - name: Server log
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log" || true
+
+      - name: Stop the server
+        if: always()
+        run: kill "$(cat "$RUNNER_TEMP/app.pid")" 2>/dev/null || true
+
   go:
     runs-on: ubuntu-latest
     steps:
