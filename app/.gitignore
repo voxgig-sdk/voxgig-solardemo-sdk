@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+#
+# dist/ is IGNORED here, unlike ts/dist and ts/dist-test which are committed
+# deliberately (see ts/.gitignore). That distinction is the point: ts/ is the
+# published SDK, so a consumer reads and runs its compiled form straight from
+# a clone. app/ is the demo API server, and nothing consumes its compiled
+# form without producing it first. Every entry point builds: `npm test`,
+# `npm run test:unit`, `npm run test:integration` and `npm run server` all run
+# `tsc` first, scripts/validate-full.sh starts with `npm run build`, the CI
+# app job builds before it starts the server, and README/AGENTS both document
+# `npm start` as requiring a build. A committed dist/ therefore has no reader,
+# only the standing risk that it goes stale and someone runs old code.
+#
+# It also kept a trap in the drift gate: that gate fails on any untracked file
+# in the tree, so a locally built app/dist/test/*.js would report as generator
+# drift it has nothing to do with.
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
