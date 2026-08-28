@@ -38,6 +38,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual re-run. A run that dies at STARTUP — the org's Actions policy
+  # rejecting an action, say — creates no jobs, so GitHub refuses to retry it
+  # ("This workflow run cannot be retried"). Without this trigger the only way
+  # to re-test a commit after fixing the cause is to push another one, which
+  # is why the policy breakage that killed CI here went unverified for a week.
+  workflow_dispatch:
 
 permissions:
   contents: read
