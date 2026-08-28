@@ -1,7 +1,7 @@
 
 # Model definitions.
-@"@voxgig/apidef/model/apidef.aontu"
-@"@voxgig/sdkgen/model/sdkgen.aontu"
+@"@voxgig/apidef/model/apidef.aon"
+@"@voxgig/sdkgen/model/sdkgen.aon"
 
 
 # SDK Details.
@@ -29,7 +29,7 @@ main: kit: repo: path: 'voxgig-sdk/voxgig-solardemo-sdk'
 
 # Publication: npm.
 #
-# These live HERE, not in model/target/ts.aontu, because `target add ts`
+# These live HERE, not in model/target/ts.aon, because `target add ts`
 # overwrites that file from the scaffold — which is how this pin was lost
 # once already. The scaffold leaves these keys unset so a concrete value set
 # here wins over the schema default.
@@ -89,7 +89,7 @@ main: kit: target: ts: publish: registry: {
 # checkout layout: ~/Projects/voxgig-sdk/<this repo> beside
 # ~/Projects/seneca/solardemo-provider.
 #
-# Here, not in model/target/seneca-provider.aontu, for the same reason as the
+# Here, not in model/target/seneca-provider.aon, for the same reason as the
 # ts values above: `target add seneca-provider` overwrites that file from the
 # scaffold, and the scaffold deliberately leaves this key unset so a concrete
 # value set here wins over the default rather than conflicting with it.
@@ -98,8 +98,8 @@ main: kit: target: 'seneca-provider': output: path: '../../seneca/solardemo-prov
 # `active` IS DELIBERATELY NOT SET IN THIS FILE. It is the one value that
 # differs between the two entry points that include this one:
 #
-#   model/sdk.aontu      active: false  -> `npm run generate`
-#   model/provider.aontu active: true   -> `npm run generate-provider`
+#   model/sdk.aon      active: false  -> `npm run generate`
+#   model/provider.aon active: true   -> `npm run generate-provider`
 #
 # aontu UNIFIES rather than overrides: two concrete values for the same path
 # CONFLICT. Setting `active` here would therefore make one of those two
@@ -155,7 +155,7 @@ main: kit: test: live: strict: true
 
 # The Go language version in go/go.mod.
 #
-# HERE, not in model/target/go.aontu, for the same reason as the ts values
+# HERE, not in model/target/go.aon, for the same reason as the ts values
 # above: `target add go` overwrites that file from the scaffold, which is how
 # this pin was lost once already (August register A2 recorded it as set; it
 # was not).
@@ -212,25 +212,25 @@ main: kit: contributor: {
 
 
 # API Information
-@"api/api-info.aontu"
+@"api/api-info.aon"
 
 
 # SDK Configuration.
-@"config.aontu"
+@"config.aon"
 
 
 # SDK Entities
-@"entity/entity-index.aontu"
+@"entity/entity-index.aon"
 
 
 # SDK Features.
-@"feature/feature-index.aontu"
+@"feature/feature-index.aon"
  
 
 # SDK Targets.
-@"target/target-index.aontu"
+@"target/target-index.aon"
 
 
 # Operation workflows.
-@"flow/flow-index.aontu"
+@"flow/flow-index.aon"
 

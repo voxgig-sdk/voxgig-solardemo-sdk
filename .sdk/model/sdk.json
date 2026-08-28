@@ -747,6 +747,7 @@
             }
           },
           "title": "In-memory mock transport for testing without a live server",
+          "transport": "none",
           "version": "0.0.1"
         }
       },
@@ -1031,6 +1032,7 @@
           "origname": "",
           "output": {
             "adopt": false,
+            "create": true,
             "path": "",
             "repo": "",
             "sdkrel": ""
@@ -1140,6 +1142,7 @@
           "origname": "",
           "output": {
             "adopt": false,
+            "create": true,
             "path": "../../seneca/solardemo-provider",
             "repo": "",
             "sdkrel": "../../voxgig-sdk/voxgig-solardemo-sdk"
@@ -1231,6 +1234,7 @@
           "origname": "",
           "output": {
             "adopt": false,
+            "create": true,
             "path": "",
             "repo": "",
             "sdkrel": ""

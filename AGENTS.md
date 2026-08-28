@@ -38,11 +38,11 @@ Generation is **idempotent**: running it on an unchanged model produces no diff.
 
 | Path | Purpose |
 | --- | --- |
-| `model/sdk-base.aontu` | Everything the project declares about itself — wires in entities, features, targets, config, and holds the pins. |
-| `model/sdk.aontu` | Entry point for `npm run generate`: the base, plus `seneca-provider` OFF. |
-| `model/provider.aontu` | Entry point for `npm run generate-provider`: the base, plus `seneca-provider` ON. Needs the sibling checkout. |
-| `model/entity/*.aontu` | Entity definitions: fields and operations. |
-| `model/target/{ts,go}.aontu` | Per-target settings and dependency versions. |
+| `model/sdk-base.aon` | Everything the project declares about itself — wires in entities, features, targets, config, and holds the pins. |
+| `model/sdk.aon` | Entry point for `npm run generate`: the base, plus `seneca-provider` OFF. |
+| `model/provider.aon` | Entry point for `npm run generate-provider`: the base, plus `seneca-provider` ON. Needs the sibling checkout. |
+| `model/entity/*.aon` | Entity definitions: fields and operations. |
+| `model/target/{ts,go}.aon` | Per-target settings and dependency versions. |
 | `tm/` | Template master files copied verbatim into the output SDKs. |
 | `src/cmp/{ts,go}/` | Programmatic generators (package.json, code, README, AGENTS). |
 | `src/Root.ts` | Top-level generation entry; orchestrates every component. |

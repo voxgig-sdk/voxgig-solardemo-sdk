@@ -43,7 +43,7 @@ type EntityInfo = {
 //
 // packageName() reads main.kit.target.<t>.publish.registry.package, and
 // goModule() reads main.kit.target.<t>.module.path (falling back to the repo
-// path), so both honour the pins in model/sdk-base.aontu.
+// path), so both honour the pins in model/sdk-base.aon.
 function sdkNames(model: any) {
   const Name = model.const?.Name || nom(model, 'Name')
 

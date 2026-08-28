@@ -1,7 +1,7 @@
 
 # Generate the Seneca provider INTO ITS OWN REPO: `npm run generate-provider`.
 #
-# The sibling of model/sdk.aontu, and the only supported way to activate the
+# The sibling of model/sdk.aon, and the only supported way to activate the
 # seneca-provider target. Both files include the same sdk-base.aontu and
 # differ in exactly one value, so the provider is generated from the same
 # inputs as everything else — this file adds no configuration of its own.
@@ -25,6 +25,6 @@
 # aontu unifies, so two concrete values for one path conflict rather than
 # override. That is why this is a second entry point and not a one-line
 # overlay on sdk.aontu.
-@"sdk-base.aontu"
+@"sdk-base.aon"
 
 main: kit: target: 'seneca-provider': active: true

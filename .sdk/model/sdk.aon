@@ -32,9 +32,9 @@
 #
 #   cd .sdk && npm run generate-provider
 #
-# which reads model/provider.aontu — the same base, `active: true` — instead
+# which reads model/provider.aon — the same base, `active: true` — instead
 # of this file. Do not add `active: true` here: it re-breaks every other
 # clone, including CI.
-@"sdk-base.aontu"
+@"sdk-base.aon"
 
 main: kit: target: 'seneca-provider': active: false
