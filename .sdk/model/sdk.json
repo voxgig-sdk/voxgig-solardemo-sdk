@@ -1,6 +1,15 @@
 {
+  "NAME": "SOLARDEMO",
+  "Name": "Solardemo",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
+    "api": {
+      "entity": {},
+      "guide": {}
+    },
+    "custom": {
+      "plurals": {}
+    },
     "def": {
       "desc": ""
     },
@@ -2803,5 +2812,8 @@
     }
   },
   "name": "solardemo",
+  "name-": "solardemo",
+  "name_": "solardemo",
+  "name__orig": "solardemo",
   "origin": "voxgig-sdk"
 }
