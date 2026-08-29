@@ -1,7 +1,40 @@
 "use strict";
 // Solardemo Ts SDK
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SDK = exports.SolardemoSDK = exports.SolardemoEntityBase = exports.BaseFeature = exports.config = exports.stdutil = void 0;
+exports.SDK = exports.SolardemoSDK = exports.SolardemoEntityBase = exports.BaseFeature = exports.sekreto = exports.config = exports.stdutil = void 0;
 const MoonEntity_1 = require("./entity/MoonEntity");
 const PlanetEntity_1 = require("./entity/PlanetEntity");
 const node_util_1 = require("node:util");
@@ -10,6 +43,11 @@ Object.defineProperty(exports, "config", { enumerable: true, get: function () { 
 const SolardemoEntityBase_1 = require("./SolardemoEntityBase");
 Object.defineProperty(exports, "SolardemoEntityBase", { enumerable: true, get: function () { return SolardemoEntityBase_1.SolardemoEntityBase; } });
 const Utility_1 = require("./utility/Utility");
+// The vendored @voxgig/sekreto surface, re-exported so SDK users can build
+// provider chains (env/dotenv/vault/custom) for options.feature.secrets
+// without a separate dependency.
+const sekreto = __importStar(require("./utility/sekreto"));
+exports.sekreto = sekreto;
 const BaseFeature_1 = require("./feature/base/BaseFeature");
 Object.defineProperty(exports, "BaseFeature", { enumerable: true, get: function () { return BaseFeature_1.BaseFeature; } });
 const stdutil = new Utility_1.Utility();
@@ -20,6 +58,8 @@ class SolardemoSDK {
     _utility = new Utility_1.Utility();
     _features;
     _rootctx;
+    // Set by SecretsFeature.init when options.feature.secrets is active.
+    _secrets;
     constructor(options) {
         this._rootctx = this._utility.makeContext({
             client: this,
@@ -74,6 +114,13 @@ class SolardemoSDK {
     utility() {
         return this._utility.struct.clone(this._utility);
     }
+    // The live sekreto instance when the secrets feature is active, else
+    // undefined: `await sdk.secrets().get('db.password')`. NOT a clone —
+    // sekreto instances hold provider state (caches, vault leases) that
+    // must stay live to be useful.
+    secrets() {
+        return this._secrets?._sekreto;
+    }
     async prepare(fetchargs) {
         const utility = this._utility;
         const struct = utility.struct;
@@ -84,6 +131,12 @@ class SolardemoSDK {
             opname: 'prepare',
             ctrl: fetchargs.ctrl || {},
         }, this._rootctx);
+        // prepare() bypasses the feature hook pipeline, so the async secrets
+        // resolution the PreSpec hook does for entity ops must happen here
+        // explicitly, before the options are read for auth.
+        if (null != this._secrets) {
+            await this._secrets.resolve();
+        }
         const options = this._options;
         // Build spec directly from SDK options + user-provided fetch args.
         const spec = {

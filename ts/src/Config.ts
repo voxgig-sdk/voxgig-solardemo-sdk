@@ -1,10 +1,12 @@
 
 import { BaseFeature } from './feature/base/BaseFeature'
+import { SecretsFeature } from './feature/secrets/SecretsFeature'
 import { TestFeature } from './feature/test/TestFeature'
 
 
 
 const FEATURE_CLASS: Record<string, typeof BaseFeature> = {
+   secrets: SecretsFeature,
    test: TestFeature,
 
 }
@@ -37,6 +39,11 @@ class Config {
 
 
   feature = {
+     secrets:  {
+      "options": {
+        "active": false
+      }
+    },
      test:     {
       "options": {
         "active": false

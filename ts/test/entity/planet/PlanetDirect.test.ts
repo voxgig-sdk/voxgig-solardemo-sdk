@@ -1,6 +1,4 @@
 
-const envlocal = __dirname + '/../../../.env.local'
-require('dotenv').config({ quiet: true, path: [envlocal] })
 
 import { test, describe, afterEach } from 'node:test'
 import assert from 'node:assert'
@@ -13,7 +11,12 @@ import {
   liveDelay,
   maybeSkipControl,
   skipIfMissingIds,
+  loadEnvLocal,
 } from '../../utility'
+
+// Env overrides from .env.local, parsed by the SDK's vendored sekreto
+// (replacing the dotenv devDependency). Existing env vars win, as before.
+loadEnvLocal(__dirname + '/../../../.env.local')
 
 
 describe('PlanetDirect', async () => {

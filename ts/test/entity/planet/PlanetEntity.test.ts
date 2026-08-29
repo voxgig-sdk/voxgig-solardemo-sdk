@@ -1,6 +1,4 @@
 
-const envlocal = __dirname + '/../../../.env.local'
-require('dotenv').config({ quiet: true, path: [envlocal] })
 
 import Path from 'node:path'
 import * as Fs from 'node:fs'
@@ -20,7 +18,12 @@ import {
   makeStepData,
   makeValid,
   maybeSkipControl,
+  loadEnvLocal,
 } from '../../utility'
+
+// Env overrides from .env.local, parsed by the SDK's vendored sekreto
+// (replacing the dotenv devDependency). Existing env vars win, as before.
+loadEnvLocal(__dirname + '/../../../.env.local')
 
 
 describe('PlanetEntity', async () => {

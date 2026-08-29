@@ -51,8 +51,10 @@ exports.maybeSkipControl = maybeSkipControl;
 exports.skipIfMissingIds = skipIfMissingIds;
 exports.liveDelayMs = liveDelayMs;
 exports.liveDelay = liveDelay;
+exports.loadEnvLocal = loadEnvLocal;
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
+const __1 = require("..");
 // Creates a new step data structure within the data model
 function makeStepData(dm, stepname) {
     dm.s[stepname] = {
@@ -169,5 +171,27 @@ function liveDelay(liveEnvVar) {
             await new Promise(r => setTimeout(r, liveDelayMs()));
         }
     };
+}
+// Load a .env.local file into process.env, via the vendored sekreto
+// parser — replacing the dotenv devDependency, the SDK's last non-tooling
+// package. Same semantics dotenv gave the entity tests: a missing file is
+// fine, and keys already present in the environment are never overridden.
+function loadEnvLocal(file) {
+    let text;
+    try {
+        text = Fs.readFileSync(file).toString('utf8');
+    }
+    catch (err) {
+        if ('ENOENT' === err.code) {
+            return;
+        }
+        throw err;
+    }
+    const values = __1.sekreto.parsedotenv(text);
+    for (const key of Object.keys(values)) {
+        if (undefined === process.env[key]) {
+            process.env[key] = values[key];
+        }
+    }
 }
 //# sourceMappingURL=utility.js.map

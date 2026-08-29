@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = void 0;
+const SecretsFeature_1 = require("./feature/secrets/SecretsFeature");
 const TestFeature_1 = require("./feature/test/TestFeature");
 const FEATURE_CLASS = {
+    secrets: SecretsFeature_1.SecretsFeature,
     test: TestFeature_1.TestFeature,
 };
 class Config {
@@ -25,6 +27,11 @@ class Config {
         target: "ts",
     };
     feature = {
+        secrets: {
+            "options": {
+                "active": false
+            }
+        },
         test: {
             "options": {
                 "active": false

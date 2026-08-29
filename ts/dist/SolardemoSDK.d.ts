@@ -6,6 +6,7 @@ import type { Context, Feature } from './types';
 import { config } from './Config';
 import { SolardemoEntityBase } from './SolardemoEntityBase';
 import { Utility } from './utility/Utility';
+import * as sekreto from './utility/sekreto';
 import { BaseFeature } from './feature/base/BaseFeature';
 declare const stdutil: Utility;
 declare class SolardemoSDK {
@@ -14,9 +15,11 @@ declare class SolardemoSDK {
     _utility: Utility;
     _features: Feature[];
     _rootctx: Context;
+    _secrets?: any;
     constructor(options?: any);
     options(): any;
     utility(): any;
+    secrets(): any;
     prepare(fetchargs?: any): Promise<any>;
     direct(fetchargs?: any): Promise<Error | {
         ok: boolean;
@@ -56,4 +59,4 @@ declare class SolardemoSDK {
     [inspect.custom](): string;
 }
 declare const SDK: typeof SolardemoSDK;
-export { stdutil, config, BaseFeature, SolardemoEntityBase, SolardemoSDK, SDK, };
+export { stdutil, config, sekreto, BaseFeature, SolardemoEntityBase, SolardemoSDK, SDK, };

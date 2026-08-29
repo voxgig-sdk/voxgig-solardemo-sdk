@@ -14,6 +14,11 @@ import { config } from './Config'
 import { SolardemoEntityBase } from './SolardemoEntityBase'
 import { Utility } from './utility/Utility'
 
+// The vendored @voxgig/sekreto surface, re-exported so SDK users can build
+// provider chains (env/dotenv/vault/custom) for options.feature.secrets
+// without a separate dependency.
+import * as sekreto from './utility/sekreto'
+
 
 import { BaseFeature } from './feature/base/BaseFeature'
 
@@ -27,6 +32,8 @@ class SolardemoSDK {
   _utility = new Utility()
   _features: Feature[]
   _rootctx: Context
+  // Set by SecretsFeature.init when options.feature.secrets is active.
+  _secrets?: any
 
   constructor(options?: any) {
 
@@ -100,6 +107,15 @@ class SolardemoSDK {
   }
 
 
+  // The live sekreto instance when the secrets feature is active, else
+  // undefined: `await sdk.secrets().get('db.password')`. NOT a clone —
+  // sekreto instances hold provider state (caches, vault leases) that
+  // must stay live to be useful.
+  secrets() {
+    return this._secrets?._sekreto
+  }
+
+
   async prepare(fetchargs?: any) {
     const utility = this._utility
     const struct = utility.struct
@@ -118,6 +134,13 @@ class SolardemoSDK {
       opname: 'prepare',
       ctrl: fetchargs.ctrl || {},
     }, this._rootctx)
+
+    // prepare() bypasses the feature hook pipeline, so the async secrets
+    // resolution the PreSpec hook does for entity ops must happen here
+    // explicitly, before the options are read for auth.
+    if (null != this._secrets) {
+      await this._secrets.resolve()
+    }
 
     const options = this._options
 
@@ -359,6 +382,7 @@ const SDK = SolardemoSDK
 export {
   stdutil,
   config,
+  sekreto,
 
   BaseFeature,
   SolardemoEntityBase,

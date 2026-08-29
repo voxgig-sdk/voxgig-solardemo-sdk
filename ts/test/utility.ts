@@ -8,6 +8,8 @@
 import * as Fs from 'node:fs'
 import * as Path from 'node:path'
 
+import { sekreto } from '..'
+
 
 // Creates a new step data structure within the data model
 function makeStepData(dm: Record<string, any>, stepname: string): Record<string, any> {
@@ -188,6 +190,31 @@ function liveDelay(liveEnvVar: string): () => Promise<void> {
 }
 
 
+// Load a .env.local file into process.env, via the vendored sekreto
+// parser — replacing the dotenv devDependency, the SDK's last non-tooling
+// package. Same semantics dotenv gave the entity tests: a missing file is
+// fine, and keys already present in the environment are never overridden.
+function loadEnvLocal(file: string): void {
+  let text: string
+  try {
+    text = Fs.readFileSync(file).toString('utf8')
+  }
+  catch (err: any) {
+    if ('ENOENT' === err.code) {
+      return
+    }
+    throw err
+  }
+
+  const values = sekreto.parsedotenv(text)
+  for (const key of Object.keys(values)) {
+    if (undefined === process.env[key]) {
+      process.env[key] = values[key]
+    }
+  }
+}
+
+
 export {
   makeStepData,
   makeMatch,
@@ -201,4 +228,5 @@ export {
   skipIfMissingIds,
   liveDelayMs,
   liveDelay,
+  loadEnvLocal,
 }

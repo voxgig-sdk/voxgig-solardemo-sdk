@@ -36,14 +36,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const envlocal = __dirname + '/../../../.env.local';
-require('dotenv').config({ quiet: true, path: [envlocal] });
 const node_path_1 = __importDefault(require("node:path"));
 const Fs = __importStar(require("node:fs"));
 const node_test_1 = require("node:test");
 const node_assert_1 = __importDefault(require("node:assert"));
 const __1 = require("../../..");
 const utility_1 = require("../../utility");
+// Env overrides from .env.local, parsed by the SDK's vendored sekreto
+// (replacing the dotenv devDependency). Existing env vars win, as before.
+(0, utility_1.loadEnvLocal)(__dirname + '/../../../.env.local');
 (0, node_test_1.describe)('PlanetEntity', async () => {
     // Per-test live pacing. Delay is read from sdk-test-control.json's
     // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.

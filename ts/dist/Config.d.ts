@@ -9,6 +9,11 @@ declare class Config {
         target: string;
     };
     feature: {
+        secrets: {
+            options: {
+                active: boolean;
+            };
+        };
         test: {
             options: {
                 active: boolean;
