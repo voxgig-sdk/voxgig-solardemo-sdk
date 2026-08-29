@@ -9,7 +9,7 @@ import {
   makeRunner,
   nullModifier,
   NULLMARK,
-} from '../runner'
+} from '../omni'
 
 
 import {
