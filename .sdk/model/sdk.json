@@ -1,6 +1,15 @@
 {
+  "NAME": "SOLARDEMO",
+  "Name": "Solardemo",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
+    "api": {
+      "entity": {},
+      "guide": {}
+    },
+    "custom": {
+      "plurals": {}
+    },
     "def": {
       "desc": ""
     },
@@ -90,11 +99,19 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet/{planet_id}/moon",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    }
                   ],
                   "select": {
                     "exist": [
@@ -129,11 +146,19 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet/{planet_id}/moon",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    }
                   ],
                   "select": {
                     "exist": [
@@ -176,18 +201,28 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "moon_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id",
@@ -230,18 +265,28 @@
                   "kind": "http",
                   "method": "DELETE",
                   "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "moon_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id",
@@ -284,18 +329,28 @@
                   "kind": "http",
                   "method": "PUT",
                   "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "moon_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id",
@@ -412,17 +467,25 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet/{planet_id}/forbid",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}",
-                    "forbid"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    },
+                    {
+                      "lit": "forbid"
+                    }
+                  ],
                   "select": {
                     "$action": "forbid",
                     "exist": [
@@ -451,17 +514,25 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet/{planet_id}/terraform",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}",
-                    "terraform"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    },
+                    {
+                      "lit": "terraform"
+                    }
+                  ],
                   "select": {
                     "$action": "terraform",
                     "exist": [
@@ -479,9 +550,13 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet",
-                  "parts": [
-                    "api",
-                    "planet"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    }
                   ],
                   "select": {},
                   "transform": {
@@ -501,9 +576,13 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet",
-                  "parts": [
-                    "api",
-                    "planet"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    }
                   ],
                   "select": {},
                   "transform": {
@@ -534,16 +613,22 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet/{planet_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id"
@@ -577,16 +662,22 @@
                   "kind": "http",
                   "method": "DELETE",
                   "orig": "/api/planet/{planet_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id"
@@ -620,16 +711,22 @@
                   "kind": "http",
                   "method": "PUT",
                   "orig": "/api/planet/{planet_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id"
@@ -712,8 +809,11 @@
             }
           },
           "name": "test",
+          "needs": {},
           "origname": "",
           "package": "@voxgig/sdkgen",
+          "plugin": {},
+          "spec": {},
           "target": {
             "c": {
               "deps": {}
@@ -1087,6 +1187,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1146,6 +1247,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1207,6 +1309,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1268,6 +1371,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1327,6 +1431,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1386,6 +1491,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1447,6 +1553,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1523,6 +1630,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1598,6 +1706,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1658,6 +1767,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1723,6 +1833,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1783,6 +1894,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1859,6 +1971,7 @@
               "active": true
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1924,6 +2037,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1983,6 +2097,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2042,6 +2157,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2101,6 +2217,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2166,6 +2283,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2248,6 +2366,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2318,6 +2437,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2385,6 +2505,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2444,6 +2565,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2571,6 +2693,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2632,6 +2755,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2675,11 +2799,6 @@
               "kind": "dev",
               "version": "^25.6.0"
             },
-            "dotenv": {
-              "active": true,
-              "kind": "dev",
-              "version": "^17.4.2"
-            },
             "typescript": {
               "active": true,
               "kind": "dev",
@@ -2707,6 +2826,9 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {
+            "sekreto": true
+          },
           "publish": {
             "registry": {
               "active": false,
@@ -2765,6 +2887,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2803,5 +2926,8 @@
     }
   },
   "name": "solardemo",
+  "name-": "solardemo",
+  "name_": "solardemo",
+  "name__orig": "solardemo",
   "origin": "voxgig-sdk"
 }

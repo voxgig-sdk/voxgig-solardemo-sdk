@@ -116,11 +116,19 @@ class Config {
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/moon",
-              "parts": [
-                "api",
-                "planet",
-                "{planet_id}",
-                "moon"
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "planet_id"
+                },
+                {
+                  "lit": "moon"
+                }
               ],
               "select": {
                 "exist": [
@@ -130,7 +138,13 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{planet_id}",
+                "moon"
+              ]
             }
           ]
         },
@@ -153,11 +167,19 @@ class Config {
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}/moon",
-              "parts": [
-                "api",
-                "planet",
-                "{planet_id}",
-                "moon"
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "planet_id"
+                },
+                {
+                  "lit": "moon"
+                }
               ],
               "select": {
                 "exist": [
@@ -167,7 +189,13 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{planet_id}",
+                "moon"
+              ]
             }
           ]
         },
@@ -197,18 +225,28 @@ class Config {
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-              "parts": [
-                "api",
-                "planet",
-                "{planet_id}",
-                "moon",
-                "{id}"
-              ],
               "rename": {
                 "param": {
                   "moon_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "planet_id"
+                },
+                {
+                  "lit": "moon"
+                },
+                {
+                  "var": "id"
+                }
+              ],
               "select": {
                 "exist": [
                   "id",
@@ -218,7 +256,14 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{planet_id}",
+                "moon",
+                "{id}"
+              ]
             }
           ]
         },
@@ -248,18 +293,28 @@ class Config {
               "kind": "http",
               "method": "DELETE",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-              "parts": [
-                "api",
-                "planet",
-                "{planet_id}",
-                "moon",
-                "{id}"
-              ],
               "rename": {
                 "param": {
                   "moon_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "planet_id"
+                },
+                {
+                  "lit": "moon"
+                },
+                {
+                  "var": "id"
+                }
+              ],
               "select": {
                 "exist": [
                   "id",
@@ -269,7 +324,14 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{planet_id}",
+                "moon",
+                "{id}"
+              ]
             }
           ]
         },
@@ -299,18 +361,28 @@ class Config {
               "kind": "http",
               "method": "PUT",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-              "parts": [
-                "api",
-                "planet",
-                "{planet_id}",
-                "moon",
-                "{id}"
-              ],
               "rename": {
                 "param": {
                   "moon_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "planet_id"
+                },
+                {
+                  "lit": "moon"
+                },
+                {
+                  "var": "id"
+                }
+              ],
               "select": {
                 "exist": [
                   "id",
@@ -320,7 +392,14 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{planet_id}",
+                "moon",
+                "{id}"
+              ]
             }
           ]
         }
@@ -401,17 +480,25 @@ class Config {
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/forbid",
-              "parts": [
-                "api",
-                "planet",
-                "{id}",
-                "forbid"
-              ],
               "rename": {
                 "param": {
                   "planet_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "id"
+                },
+                {
+                  "lit": "forbid"
+                }
+              ],
               "select": {
                 "$action": "forbid",
                 "exist": [
@@ -421,7 +508,13 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{id}",
+                "forbid"
+              ]
             },
             {
               "args": {
@@ -438,17 +531,25 @@ class Config {
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/terraform",
-              "parts": [
-                "api",
-                "planet",
-                "{id}",
-                "terraform"
-              ],
               "rename": {
                 "param": {
                   "planet_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "id"
+                },
+                {
+                  "lit": "terraform"
+                }
+              ],
               "select": {
                 "$action": "terraform",
                 "exist": [
@@ -458,22 +559,36 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{id}",
+                "terraform"
+              ]
             },
             {
               "args": {},
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet",
-              "parts": [
-                "api",
-                "planet"
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                }
               ],
               "select": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet"
+              ]
             }
           ]
         },
@@ -486,15 +601,23 @@ class Config {
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet",
-              "parts": [
-                "api",
-                "planet"
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                }
               ],
               "select": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet"
+              ]
             }
           ]
         },
@@ -517,16 +640,22 @@ class Config {
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}",
-              "parts": [
-                "api",
-                "planet",
-                "{id}"
-              ],
               "rename": {
                 "param": {
                   "planet_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "id"
+                }
+              ],
               "select": {
                 "exist": [
                   "id"
@@ -535,7 +664,12 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{id}"
+              ]
             }
           ]
         },
@@ -558,16 +692,22 @@ class Config {
               "kind": "http",
               "method": "DELETE",
               "orig": "/api/planet/{planet_id}",
-              "parts": [
-                "api",
-                "planet",
-                "{id}"
-              ],
               "rename": {
                 "param": {
                   "planet_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "id"
+                }
+              ],
               "select": {
                 "exist": [
                   "id"
@@ -576,7 +716,12 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{id}"
+              ]
             }
           ]
         },
@@ -599,16 +744,22 @@ class Config {
               "kind": "http",
               "method": "PUT",
               "orig": "/api/planet/{planet_id}",
-              "parts": [
-                "api",
-                "planet",
-                "{id}"
-              ],
               "rename": {
                 "param": {
                   "planet_id": "id"
                 }
               },
+              "segments": [
+                {
+                  "lit": "api"
+                },
+                {
+                  "lit": "planet"
+                },
+                {
+                  "var": "id"
+                }
+              ],
               "select": {
                 "exist": [
                   "id"
@@ -617,7 +768,12 @@ class Config {
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
-              }
+              },
+              "parts": [
+                "api",
+                "planet",
+                "{id}"
+              ]
             }
           ]
         }

@@ -34,7 +34,16 @@ fn moon_direct_setup(mockres: Value) -> MoonDirectSetup {
     let live = getp(&env, "SOLARDEMO_TEST_LIVE") == Value::str("TRUE");
 
     if live {
-        let client = SolardemoSDK::new(jo(vec![]));
+        // live_client_options() FIRST, so the generated entries below win:
+        // sdk-test-control.json's test.client.options adds to the live
+        // client, it does not redirect it.
+        let client = SolardemoSDK::new(to_map(&vs::merge(
+            &ja(vec![
+                live_client_options(),
+                jo(vec![]),
+            ]),
+            None,
+        )));
         let idmap = match to_map(&getp(&env, "SOLARDEMO_TEST_MOON_ENTID")) {
             Value::Map(m) => Value::Map(m),
             _ => Value::empty_map(),

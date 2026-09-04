@@ -159,7 +159,10 @@ Map<String, dynamic> directSetup([dynamic mockres]) {
   final live = 'TRUE' == env['SOLARDEMO_TEST_LIVE'];
 
   if (live) {
-    final client = SolardemoSDK({
+    // Spread FIRST, so the generated fields below win: sdk-test-control.json's
+    // test.client.options adds to the live client, it does not redirect it.
+    final client = SolardemoSDK(<String, dynamic>{
+      ...liveClientOptions(),
     });
 
     dynamic idmap = env['SOLARDEMO_TEST_MOON_ENTID'];

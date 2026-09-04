@@ -5,6 +5,8 @@ import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
   entityClassName, entityCollection,
+  targetFeatures,
+  TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
 
 
@@ -32,7 +34,10 @@ const Main = cmp(async function Main(props: any) {
   const { model } = props.ctx$
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   // The one package directory everything the SDK owns lives in.
   const pkgdir = model.const.Name.toLowerCase() + '_sdk'
@@ -46,7 +51,7 @@ const Main = cmp(async function Main(props: any) {
   // below.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, /pkg\//],
+    exclude: [/src\//, /pkg\//, TEST_CONTROL_EXCLUDE],
     replace: {
       ...props.ctx$.stdrep,
     }

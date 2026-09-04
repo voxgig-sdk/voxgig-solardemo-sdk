@@ -68,17 +68,26 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet/{planet_id}/moon"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{planet_id}");
-                  (Str "moon") ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "planet_id")) ]);
+                  (jo [
+                    ("lit", (Str "moon")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "planet_id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{planet_id}");
+                  (Str "moon") ])) ]) ])) ]));
           ("list", (jo [
             ("input", (Str "data"));
             ("name", (Str "list"));
@@ -95,17 +104,26 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet/{planet_id}/moon"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{planet_id}");
-                  (Str "moon") ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "planet_id")) ]);
+                  (jo [
+                    ("lit", (Str "moon")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "planet_id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{planet_id}");
+                  (Str "moon") ])) ]) ])) ]));
           ("load", (jo [
             ("input", (Str "data"));
             ("name", (Str "load"));
@@ -128,22 +146,33 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet/{planet_id}/moon/{moon_id}"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{planet_id}");
-                  (Str "moon");
-                  (Str "{id}") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("moon_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "planet_id")) ]);
+                  (jo [
+                    ("lit", (Str "moon")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id");
                     (Str "planet_id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{planet_id}");
+                  (Str "moon");
+                  (Str "{id}") ])) ]) ])) ]));
           ("remove", (jo [
             ("input", (Str "data"));
             ("name", (Str "remove"));
@@ -166,22 +195,33 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "DELETE"));
                 ("orig", (Str "/api/planet/{planet_id}/moon/{moon_id}"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{planet_id}");
-                  (Str "moon");
-                  (Str "{id}") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("moon_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "planet_id")) ]);
+                  (jo [
+                    ("lit", (Str "moon")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id");
                     (Str "planet_id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{planet_id}");
+                  (Str "moon");
+                  (Str "{id}") ])) ]) ])) ]));
           ("update", (jo [
             ("input", (Str "data"));
             ("name", (Str "update"));
@@ -204,22 +244,33 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "PUT"));
                 ("orig", (Str "/api/planet/{planet_id}/moon/{moon_id}"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{planet_id}");
-                  (Str "moon");
-                  (Str "{id}") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("moon_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "planet_id")) ]);
+                  (jo [
+                    ("lit", (Str "moon")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id");
                     (Str "planet_id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{planet_id}");
+                  (Str "moon");
+                  (Str "{id}") ])) ]) ])) ])) ]));
         ("relations", (jo [
           ("ancestors", (ja [
             (ja [
@@ -278,21 +329,30 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet/{planet_id}/forbid"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{id}");
-                  (Str "forbid") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("planet_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]);
+                  (jo [
+                    ("lit", (Str "forbid")) ]) ]));
                 ("select", (jo [
                   ("$action", (Str "forbid"));
                   ("exist", (ja [
                     (Str "id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]);
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{id}");
+                  (Str "forbid") ])) ]);
               (jo [
                 ("args", (jo [
                   ("params", (ja [
@@ -305,33 +365,47 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet/{planet_id}/terraform"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{id}");
-                  (Str "terraform") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("planet_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]);
+                  (jo [
+                    ("lit", (Str "terraform")) ]) ]));
                 ("select", (jo [
                   ("$action", (Str "terraform"));
                   ("exist", (ja [
                     (Str "id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]);
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{id}");
+                  (Str "terraform") ])) ]);
               (jo [
                 ("args", (empty_map ()));
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet") ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]) ]));
                 ("select", (empty_map ()));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet") ])) ]) ])) ]));
           ("list", (jo [
             ("input", (Str "data"));
             ("name", (Str "list"));
@@ -341,13 +415,18 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet") ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]) ]));
                 ("select", (empty_map ()));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet") ])) ]) ])) ]));
           ("load", (jo [
             ("input", (Str "data"));
             ("name", (Str "load"));
@@ -364,19 +443,26 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet/{planet_id}"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{id}") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("planet_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{id}") ])) ]) ])) ]));
           ("remove", (jo [
             ("input", (Str "data"));
             ("name", (Str "remove"));
@@ -393,19 +479,26 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "DELETE"));
                 ("orig", (Str "/api/planet/{planet_id}"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{id}") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("planet_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{id}") ])) ]) ])) ]));
           ("update", (jo [
             ("input", (Str "data"));
             ("name", (Str "update"));
@@ -422,19 +515,26 @@ let make_config () : value =
                 ("kind", (Str "http"));
                 ("method", (Str "PUT"));
                 ("orig", (Str "/api/planet/{planet_id}"));
-                ("parts", (ja [
-                  (Str "api");
-                  (Str "planet");
-                  (Str "{id}") ]));
                 ("rename", (jo [
                   ("param", (jo [
                     ("planet_id", (Str "id")) ])) ]));
+                ("segments", (ja [
+                  (jo [
+                    ("lit", (Str "api")) ]);
+                  (jo [
+                    ("lit", (Str "planet")) ]);
+                  (jo [
+                    ("var", (Str "id")) ]) ]));
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id") ])) ]));
                 ("transform", (jo [
                   ("req", (Str "`reqdata`"));
-                  ("res", (Str "`body`")) ])) ]) ])) ])) ]));
+                  ("res", (Str "`body`")) ]));
+                ("parts", (ja [
+                  (Str "api");
+                  (Str "planet");
+                  (Str "{id}") ])) ]) ])) ])) ]));
         ("relations", (jo [
           ("ancestors", (empty_list ())) ])) ])) ])) ])
 

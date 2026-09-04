@@ -7,6 +7,12 @@ import {
   each,
   isAuthActive,
   resolveAuthPrefix,
+  targetFeatures,
+} from '@voxgig/sdkgen'
+
+
+import {
+  serverVariables,
 } from '@voxgig/sdkgen'
 
 
@@ -37,7 +43,10 @@ const Config = cmp(async function Config(props: any) {
   const javapackage = javaPackage(model)
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
@@ -71,19 +80,31 @@ const Config = cmp(async function Config(props: any) {
   const options: Record<string, any> = {
     base: baseUrl,
   }
+
+  // Templated server URL: emit the spec's server-variable defaults so the
+  // runtime can substitute {name} placeholders in base (see MakeOptions).
+  // Without this block the placeholder reaches the wire verbatim — java
+  // shipped `http://host/api/{account_id}/element` as a real URL, which is
+  // worse than the construction error every other target raises.
+  const svars = serverVariables(model)
+  if (0 < svars.length) {
+    options.server = svars.reduce(
+      (a: any, v: any) => (a[v.name] = v.dflt, a), {} as Record<string, string>)
+  }
+
   if (authActive) {
     options.auth = { prefix: authPrefix }
   }
   options.headers = headers
   options.entity = optionsEntity
 
-  const entityConfig = Object.values(entity).reduce((a: any, n: any) => (
-    a[n.name] = cleanModel({
-      fields: n.fields,
-      name: n.name,
-      op: n.op,
-      relations: n.relations,
-    }, true), a), {})
+  // configDefinition's `def.entity` verbatim, NOT rebuilt here. This reduce
+  // was one of fourteen copies of that function's entityDefs loop, and when
+  // configDefinition started reconstructing a point's `parts` from apidef's
+  // segment vector (its ADR-003), only the copies that read `configDef` got
+  // it — this target's literal config emitted paths with no parts at all
+  // while its data config had them. One rule, one place.
+  const entityConfig = configDef.entity
 
   const config = {
     main: configDef.main,

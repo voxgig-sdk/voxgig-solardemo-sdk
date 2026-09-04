@@ -8,15 +8,16 @@ import {
   Fragment,
   Line,
   cmp,
-  clean,
   configDefinition,
   configReprSetting,
   each,
   indent,
   isAuthActive,
   isConfigData,
+  isHttpBasicAuth,
   resolveAuthPrefix,
   serverVariables,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -40,7 +41,10 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   const ff = Path.normalize(__dirname + '/../../../src/cmp/ts/fragment/')
 
@@ -49,9 +53,11 @@ const Config = cmp(async function Config(props: any) {
   const authActive = isAuthActive(model)
   // config.auth.prefix override -> spec-derived info.security.prefix -> 'Bearer'
   const authPrefix = resolveAuthPrefix(model)
+  const authBasic = isHttpBasicAuth(model)
   const authBlock = authActive
     ? `auth: {
-      prefix: '${authPrefix}',
+      prefix: '${authPrefix}',${authBasic ? `
+      basic: true,` : ''}
     },
 
     `
@@ -92,10 +98,13 @@ const Config = cmp(async function Config(props: any) {
 
         replace: {
 
-          '// #ImportFeatures': () => each(feature, (f: any) => {
-            Line(`import { ${nom(f, 'Name')}Feature } from ` +
-              `'./feature/${f.name}/${nom(f, 'Name')}Feature'`)
-          }),
+          '// #ImportFeatures': () => {
+            each(feature, (f: any) => {
+              Line(`import { ${nom(f, 'Name')}Feature } from ` +
+                `'./feature/${f.name}/${nom(f, 'Name')}Feature'`)
+            })
+            pluginImports(feature)
+          },
 
           '// #FeatureClasses': () => each(feature, (f: any) => {
             Line(` ${f.name}: ${nom(f, 'Name')}Feature,`)
@@ -123,10 +132,13 @@ const Config = cmp(async function Config(props: any) {
 
         "'HEADERS'": indent(JSON.stringify(headers, null, 2), 4).trim(),
 
-        '// #ImportFeatures': () => each(feature, (f: any) => {
-          Line(`import { ${nom(f, 'Name')}Feature } from ` +
-            `'./feature/${f.name}/${nom(f, 'Name')}Feature'`)
-        }),
+        '// #ImportFeatures': () => {
+          each(feature, (f: any) => {
+            Line(`import { ${nom(f, 'Name')}Feature } from ` +
+              `'./feature/${f.name}/${nom(f, 'Name')}Feature'`)
+          })
+          pluginImports(feature)
+        },
 
         // Values from configDefinition's def, not re-derived here, so the
         // literal rep and the data rep cannot disagree on identity.
@@ -157,18 +169,54 @@ const Config = cmp(async function Config(props: any) {
 `)
         }),
 
-        "'ENTITYMAP'": formatJson(Object.values(entity)
-          .reduce((a: any, n: any) => (a[n.name] = clean({
-            fields: n.fields,
-            name: n.name,
-            op: n.op,
-            relations: n.relations,
-          }, true), a), {}), { margin: 2 }).trim(),
+        // configDefinition's `def.entity` verbatim, NOT rebuilt here. This
+        // reduce was a second copy of that function's entityDefs loop, and
+        // when configDefinition started reconstructing a point's `parts`
+        // from apidef's segment vector (its ADR-003), only the data
+        // representation got it — the literal one emitted empty paths. The
+        // config-repr equivalence test caught it, which is what it is for.
+        "'ENTITYMAP'": formatJson(configDef.entity, { margin: 2 }).trim(),
       }
     })
   })
 })
 
+
+
+// PLUGIN REGISTRATION IMPORTS.
+//
+// A sekreto provider module registers itself when it is imported, and
+// nothing else imports it: the core surface deliberately does not reach a
+// platform-dependent provider, and the full-set barrel — the file whose
+// job was to reach all of them — is not vendored into an SDK at all.
+//
+// So without these lines an SDK generates `provider/dotenv.ts`, never
+// imports it, and throws `unknown provider kind: dotenv` the first time a
+// chain names it. Emitted here because Config already imports every active
+// feature from the model, and this is the same list one level down.
+//
+// Import for SIDE EFFECT only — `import '...'`, no bindings. The module's
+// top-level `register()` call is the whole point.
+function pluginImports(feature: any) {
+  each(feature, (f: any) => {
+    each(f.plugin, (plugin: any) => {
+      // Filter on `active` HERE rather than trusting the feature object to
+      // arrive filtered. Whether a model path was read with `only_active`
+      // varies by call site, and getting it wrong in this direction emits
+      // an import for a module the trim just deleted — an SDK that does
+      // not compile, rather than one that merely carries too much.
+      if (false === plugin.active || null == plugin.active) return
+
+      for (const one of (plugin.path || [])) {
+        const path = String(one)
+        // Only a provider MODULE registers a kind; a plugin may own other
+        // files (Sigv4.ts is signing support, not a provider).
+        if (!/\/provider\/[^/]+\.ts$/.test(path)) continue
+        Line(`import '${'./' + path.replace(/^src\//, '').replace(/\.ts$/, '')}'`)
+      }
+    })
+  })
+}
 
 export {
   Config
