@@ -1553,7 +1553,9 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
-          "provides": {},
+          "provides": {
+            "sekreto": true
+          },
           "publish": {
             "registry": {
               "active": false,
@@ -2283,7 +2285,9 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
-          "provides": {},
+          "provides": {
+            "sekreto": true
+          },
           "publish": {
             "registry": {
               "active": false,
