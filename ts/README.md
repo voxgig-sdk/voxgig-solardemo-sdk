@@ -474,7 +474,7 @@ const planet = await client.Planet().create({
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 2 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -483,7 +483,26 @@ above:
 
 | Feature | What it does |
 |---|---|
+| [`secrets`](#secrets) | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | [`test`](#test) | In-memory mock transport for testing without a live server |
+
+### secrets
+
+Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
@@ -534,6 +553,7 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
+- **SecretsFeature**: Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
 - **TestFeature**: In-memory mock transport for testing without a live server
 
 Features are initialized in order. Hooks fire in the order features

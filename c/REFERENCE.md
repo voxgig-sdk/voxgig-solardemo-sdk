@@ -272,6 +272,7 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -279,7 +280,8 @@ Features are activated via the `feature` option:
 
 ```c
 SolardemoSDK* client = solardemo_sdk_new(cmap(1,
-    "feature", cmap(1,
+    "feature", cmap(2,
+        "secrets", cmap(1, "active", v_bool(true)),
         "test", cmap(1, "active", v_bool(true)))
 ));
 ```

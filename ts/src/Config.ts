@@ -1,11 +1,13 @@
 
 import { BaseFeature } from './feature/base/BaseFeature'
+import { SecretsFeature } from './feature/secrets/SecretsFeature'
 import { TestFeature } from './feature/test/TestFeature'
 
 
 
 const FEATURE_CLASS: Record<string, typeof BaseFeature> = {
-   test: TestFeature,
+   secrets: SecretsFeature,
+ test: TestFeature,
 
 }
 
@@ -48,7 +50,28 @@ class Config {
 
 
   feature = {
-     test:     {
+     secrets:     {
+      "options": {
+        "active": false,
+        "cache": true,
+        "exchange": {
+          "active": false,
+          "method": "POST",
+          "path": "auth/token",
+          "refresh": "",
+          "request": "refresh_token",
+          "response": "access_token",
+          "retries": 1,
+          "statuses": [
+            401
+          ]
+        },
+        "name": "apikey",
+        "providers": []
+      },
+      "transport": "wrap"
+    },
+ test:     {
       "options": {
         "active": false
       },

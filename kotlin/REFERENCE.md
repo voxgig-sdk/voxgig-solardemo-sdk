@@ -269,6 +269,7 @@ The entity name (read-only property).
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -276,6 +277,7 @@ Features are activated via the `feature` option:
 
 ```kotlin
 val feature = mutableMapOf<String, Any?>(
+    "secrets" to mapOf("active" to true),
     "test" to mapOf("active" to true),
 )
 val client = SolardemoSDK(mutableMapOf<String, Any?>("feature" to feature))

@@ -302,6 +302,7 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -310,6 +311,7 @@ Features are activated via the `feature` option:
 ```zig
 const client = sdk.SolardemoSDK.new(h.jo(&.{
     .{ "feature", h.jo(&.{
+        .{ "secrets", h.jo(&.{.{ "active", h.vbool(true) }}) },
         .{ "test", h.jo(&.{.{ "active", h.vbool(true) }}) },
     }) },
 }));

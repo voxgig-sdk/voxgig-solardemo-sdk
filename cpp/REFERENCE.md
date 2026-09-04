@@ -275,6 +275,7 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -283,6 +284,7 @@ Features are activated via the `feature` option:
 ```cpp
 auto client = std::make_shared<SolardemoSDK>(vmap({
     {"feature", vmap({
+        {"secrets", vmap({{"active", Value(true)}})},
         {"test", vmap({{"active", Value(true)}})},
     })},
 }));

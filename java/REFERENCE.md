@@ -269,6 +269,7 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -276,6 +277,7 @@ Features are activated via the `feature` option:
 
 ```java
 Map<String, Object> feature = new java.util.LinkedHashMap<>();
+feature.put("secrets", Map.of("active", true));
 feature.put("test", Map.of("active", true));
 Map<String, Object> options = new java.util.LinkedHashMap<>();
 options.put("feature", feature);

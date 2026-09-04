@@ -16,6 +16,27 @@ func MakeConfig() map[string]any {
 			"target": "go",
 		},
 		"feature": map[string]any{
+			"secrets": map[string]any{
+				"options": map[string]any{
+					"active": false,
+					"cache": true,
+					"exchange": map[string]any{
+						"active": false,
+						"method": "POST",
+						"path": "auth/token",
+						"refresh": "",
+						"request": "refresh_token",
+						"response": "access_token",
+						"retries": 1,
+						"statuses": []any{
+							401,
+						},
+					},
+					"name": "apikey",
+					"providers": []any{},
+				},
+				"transport": "wrap",
+			},
 			"test": map[string]any{
 				"options": map[string]any{
 					"active": false,
@@ -784,6 +805,10 @@ func SharedConfig() map[string]any {
 
 func makeFeature(name string) Feature {
 	switch name {
+	case "secrets":
+		if NewSecretsFeatureFunc != nil {
+			return NewSecretsFeatureFunc()
+		}
 	case "test":
 		if NewTestFeatureFunc != nil {
 			return NewTestFeatureFunc()

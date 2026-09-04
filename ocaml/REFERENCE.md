@@ -293,6 +293,7 @@ The entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -301,6 +302,7 @@ Features are activated via the `feature` option:
 ```ocaml
 let client = Sdk_client.make (jo [
     ("feature", jo [
+        ("secrets", jo [("active", Bool true)]);
         ("test", jo [("active", Bool true)]);
     ]);
 ])

@@ -8,7 +8,7 @@ Learn more about Voxgig SDKs at [voxgig.com/sdk](https://voxgig.com/sdk/).
 
 > TypeScript, Python, PHP, Golang, Ruby, Lua, C, Clojure, C++, C#, Dart, Elixir, Java, JavaScript, Kotlin, Lean, OCaml, Perl, Python Data, Rust, Scala, Seneca Provider, Swift, Zig SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
 
-> **Features:** `test` — opt-in,
+> **Features:** `secrets`, `test` — opt-in,
 > inactive until switched on, and configured per client. See the Features
 > section of any SDK README below for what each one does.
 
@@ -984,6 +984,7 @@ forking the SDK.
 
 | Feature | Purpose |
 | --- | --- |
+| **SecretsFeature** | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | **TestFeature** | In-memory mock transport for testing without a live server |
 
 Pass custom features via the `extend` option at construction time.

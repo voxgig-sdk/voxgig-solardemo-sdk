@@ -10,6 +10,25 @@ declare class Config {
         target: string;
     };
     feature: {
+        secrets: {
+            options: {
+                active: boolean;
+                cache: boolean;
+                exchange: {
+                    active: boolean;
+                    method: string;
+                    path: string;
+                    refresh: string;
+                    request: string;
+                    response: string;
+                    retries: number;
+                    statuses: number[];
+                };
+                name: string;
+                providers: never[];
+            };
+            transport: string;
+        };
         test: {
             options: {
                 active: boolean;

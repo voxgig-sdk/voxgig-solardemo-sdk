@@ -41,6 +41,27 @@ def make_config():
             "target": "py",
         },
         "feature": {
+            "secrets": {
+        "options": {
+          "active": False,
+          "cache": True,
+          "exchange": {
+            "active": False,
+            "method": "POST",
+            "path": "auth/token",
+            "refresh": "",
+            "request": "refresh_token",
+            "response": "access_token",
+            "retries": 1,
+            "statuses": [
+              401,
+            ],
+          },
+          "name": "apikey",
+          "providers": [],
+        },
+        "transport": "wrap",
+      },
             "test": {
         "options": {
           "active": False,

@@ -317,6 +317,7 @@ Return a copy of the entity options.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -325,6 +326,7 @@ Features are activated via the `feature` option:
 ```ts
 const client = new SolardemoSDK({
   feature: {
+    secrets: { active: true },
     test: { active: true },
   }
 })

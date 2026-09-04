@@ -1,7 +1,40 @@
 "use strict";
 // Solardemo Ts SDK
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SDK = exports.SolardemoSDK = exports.SolardemoEntityBase = exports.BaseFeature = exports.config = exports.stdutil = void 0;
+exports.SDK = exports.SolardemoSDK = exports.SolardemoEntityBase = exports.BaseFeature = exports.sekreto = exports.config = exports.stdutil = void 0;
 const MoonEntity_1 = require("./entity/MoonEntity");
 const PlanetEntity_1 = require("./entity/PlanetEntity");
 const node_util_1 = require("node:util");
@@ -12,6 +45,8 @@ Object.defineProperty(exports, "SolardemoEntityBase", { enumerable: true, get: f
 const Utility_1 = require("./utility/Utility");
 const BaseFeature_1 = require("./feature/base/BaseFeature");
 Object.defineProperty(exports, "BaseFeature", { enumerable: true, get: function () { return BaseFeature_1.BaseFeature; } });
+const sekreto = __importStar(require("./feature/secrets/sekreto"));
+exports.sekreto = sekreto;
 const stdutil = new Utility_1.Utility();
 exports.stdutil = stdutil;
 class SolardemoSDK {
@@ -20,6 +55,7 @@ class SolardemoSDK {
     _utility = new Utility_1.Utility();
     _features;
     _rootctx;
+    _secrets;
     constructor(options) {
         this._rootctx = this._utility.makeContext({
             client: this,
@@ -74,6 +110,9 @@ class SolardemoSDK {
     utility() {
         return this._utility.struct.clone(this._utility);
     }
+    secrets() {
+        return this._secrets && this._secrets.sekreto();
+    }
     async prepare(fetchargs) {
         const utility = this._utility;
         const struct = utility.struct;
@@ -104,6 +143,14 @@ class SolardemoSDK {
             const uheaders = fetchargs.headers;
             for (let key in uheaders) {
                 spec.headers[key] = uheaders[key];
+            }
+        }
+        if (null != this._secrets) {
+            try {
+                await this._secrets.resolve();
+            }
+            catch (err) {
+                return err instanceof Error ? err : new Error(String(err));
             }
         }
         // Apply SDK auth (apikey, auth prefix, etc.)

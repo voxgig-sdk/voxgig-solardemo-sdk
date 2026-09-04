@@ -278,6 +278,7 @@ Return the entity name.
 
 | Feature | Version | Description |
 | --- | --- | --- |
+| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
 | `test` | 0.0.1 | In-memory mock transport for testing without a live server |
 
 
@@ -288,6 +289,7 @@ var client = new SolardemoSDK(new Dictionary<string, object?>
 {
     ["feature"] = new Dictionary<string, object?>
     {
+        ["secrets"] = new Dictionary<string, object?> { ["active"] = true },
         ["test"] = new Dictionary<string, object?> { ["active"] = true },
     },
 });

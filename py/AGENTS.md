@@ -43,6 +43,7 @@ the runtime under `.sdk/tm/py/feature/` and regenerate.
 
 | Feature | Runtime file | Active hooks |
 | --- | --- | --- |
+| **secrets** — Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens | `feature/secrets_feature.py` | `PreSpec` |
 | **test** — In-memory mock transport for testing without a live server | `feature/test_feature.py` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
 
 ---

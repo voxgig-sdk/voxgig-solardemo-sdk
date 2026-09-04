@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FEATURE_PLUGINS = exports.config = void 0;
+const SecretsFeature_1 = require("./feature/secrets/SecretsFeature");
 const TestFeature_1 = require("./feature/test/TestFeature");
 const FEATURE_CLASS = {
+    secrets: SecretsFeature_1.SecretsFeature,
     test: TestFeature_1.TestFeature,
 };
 // Per-feature plugin DEFINITIONS (voxgig/plugin `Definition` values), from
@@ -33,6 +35,27 @@ class Config {
         target: "ts",
     };
     feature = {
+        secrets: {
+            "options": {
+                "active": false,
+                "cache": true,
+                "exchange": {
+                    "active": false,
+                    "method": "POST",
+                    "path": "auth/token",
+                    "refresh": "",
+                    "request": "refresh_token",
+                    "response": "access_token",
+                    "retries": 1,
+                    "statuses": [
+                        401
+                    ]
+                },
+                "name": "apikey",
+                "providers": []
+            },
+            "transport": "wrap"
+        },
         test: {
             "options": {
                 "active": false
