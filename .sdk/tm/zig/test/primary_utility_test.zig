@@ -356,7 +356,7 @@ test "primary new sdk smoke" {
 // ---------------------------------------------------------------------------
 
 const runner = @import("struct_runner.zig");
-const vs = @import("../utility/voxgigstruct/struct.zig");
+const vs = @import("voxgig-struct");
 
 const StdJson = std.json.Value;
 
@@ -407,7 +407,7 @@ fn corpusCtxOpts(alloc: std.mem.Allocator, ctxstd: StdJson, sdkopts: sdk.Value) 
                 if (ev == .object) {
                     if (ev.object.get("message")) |m| {
                         if (m == .string and 0 < m.string.len) {
-                            r.err = sdk.SolardemoError.make("", m.string);
+                            r.err = sdk.ProjectNameError.make("", m.string);
                         }
                     }
                 }
@@ -589,7 +589,7 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
                             ctx.result = rr;
                             break :blk rr;
                         };
-                        r.err = sdk.SolardemoError.make("", m.string);
+                        r.err = sdk.ProjectNameError.make("", m.string);
                     }
                 }
             }
