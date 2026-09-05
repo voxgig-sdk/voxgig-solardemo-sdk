@@ -1,6 +1,14 @@
 # Solardemo SDK configuration
 
 
+# The sekreto plugin DEFINITIONS the model selected per feature, imported
+# above by name from the modules the catalogue's active `plugin.def`
+# entries declare. Handed to each feature (secrets builds its Sekreto
+# with them): a provider kind not listed here is unknown to that SDK.
+FEATURE_PLUGINS = {
+}
+
+
 _shared_config = None
 
 
@@ -33,6 +41,27 @@ def make_config():
             "target": "py",
         },
         "feature": {
+            "secrets": {
+        "options": {
+          "active": False,
+          "cache": True,
+          "exchange": {
+            "active": False,
+            "method": "POST",
+            "path": "auth/token",
+            "refresh": "",
+            "request": "refresh_token",
+            "response": "access_token",
+            "retries": 1,
+            "statuses": [
+              401,
+            ],
+          },
+          "name": "apikey",
+          "providers": [],
+        },
+        "transport": "wrap",
+      },
             "test": {
         "options": {
           "active": False,
@@ -100,11 +129,19 @@ def make_config():
                 "kind": "http",
                 "method": "POST",
                 "orig": "/api/planet/{planet_id}/moon",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{planet_id}",
-                  "moon",
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "planet_id",
+                  },
+                  {
+                    "lit": "moon",
+                  },
                 ],
                 "select": {
                   "exist": [
@@ -115,6 +152,12 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{planet_id}",
+                  "moon",
+                ],
               },
             ],
           },
@@ -137,11 +180,19 @@ def make_config():
                 "kind": "http",
                 "method": "GET",
                 "orig": "/api/planet/{planet_id}/moon",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{planet_id}",
-                  "moon",
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "planet_id",
+                  },
+                  {
+                    "lit": "moon",
+                  },
                 ],
                 "select": {
                   "exist": [
@@ -152,6 +203,12 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{planet_id}",
+                  "moon",
+                ],
               },
             ],
           },
@@ -181,18 +238,28 @@ def make_config():
                 "kind": "http",
                 "method": "GET",
                 "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{planet_id}",
-                  "moon",
-                  "{id}",
-                ],
                 "rename": {
                   "param": {
                     "moon_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "planet_id",
+                  },
+                  {
+                    "lit": "moon",
+                  },
+                  {
+                    "var": "id",
+                  },
+                ],
                 "select": {
                   "exist": [
                     "id",
@@ -203,6 +270,13 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{planet_id}",
+                  "moon",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -232,18 +306,28 @@ def make_config():
                 "kind": "http",
                 "method": "DELETE",
                 "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{planet_id}",
-                  "moon",
-                  "{id}",
-                ],
                 "rename": {
                   "param": {
                     "moon_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "planet_id",
+                  },
+                  {
+                    "lit": "moon",
+                  },
+                  {
+                    "var": "id",
+                  },
+                ],
                 "select": {
                   "exist": [
                     "id",
@@ -254,6 +338,13 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{planet_id}",
+                  "moon",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -283,18 +374,28 @@ def make_config():
                 "kind": "http",
                 "method": "PUT",
                 "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{planet_id}",
-                  "moon",
-                  "{id}",
-                ],
                 "rename": {
                   "param": {
                     "moon_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "planet_id",
+                  },
+                  {
+                    "lit": "moon",
+                  },
+                  {
+                    "var": "id",
+                  },
+                ],
                 "select": {
                   "exist": [
                     "id",
@@ -305,6 +406,13 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{planet_id}",
+                  "moon",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -385,17 +493,25 @@ def make_config():
                 "kind": "http",
                 "method": "POST",
                 "orig": "/api/planet/{planet_id}/forbid",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{id}",
-                  "forbid",
-                ],
                 "rename": {
                   "param": {
                     "planet_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "id",
+                  },
+                  {
+                    "lit": "forbid",
+                  },
+                ],
                 "select": {
                   "$action": "forbid",
                   "exist": [
@@ -406,6 +522,12 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{id}",
+                  "forbid",
+                ],
               },
               {
                 "args": {
@@ -422,17 +544,25 @@ def make_config():
                 "kind": "http",
                 "method": "POST",
                 "orig": "/api/planet/{planet_id}/terraform",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{id}",
-                  "terraform",
-                ],
                 "rename": {
                   "param": {
                     "planet_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "id",
+                  },
+                  {
+                    "lit": "terraform",
+                  },
+                ],
                 "select": {
                   "$action": "terraform",
                   "exist": [
@@ -443,21 +573,35 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{id}",
+                  "terraform",
+                ],
               },
               {
                 "args": {},
                 "kind": "http",
                 "method": "POST",
                 "orig": "/api/planet",
-                "parts": [
-                  "api",
-                  "planet",
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
                 ],
                 "select": {},
                 "transform": {
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                ],
               },
             ],
           },
@@ -470,15 +614,23 @@ def make_config():
                 "kind": "http",
                 "method": "GET",
                 "orig": "/api/planet",
-                "parts": [
-                  "api",
-                  "planet",
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
                 ],
                 "select": {},
                 "transform": {
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                ],
               },
             ],
           },
@@ -501,16 +653,22 @@ def make_config():
                 "kind": "http",
                 "method": "GET",
                 "orig": "/api/planet/{planet_id}",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{id}",
-                ],
                 "rename": {
                   "param": {
                     "planet_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "id",
+                  },
+                ],
                 "select": {
                   "exist": [
                     "id",
@@ -520,6 +678,11 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -542,16 +705,22 @@ def make_config():
                 "kind": "http",
                 "method": "DELETE",
                 "orig": "/api/planet/{planet_id}",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{id}",
-                ],
                 "rename": {
                   "param": {
                     "planet_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "id",
+                  },
+                ],
                 "select": {
                   "exist": [
                     "id",
@@ -561,6 +730,11 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{id}",
+                ],
               },
             ],
           },
@@ -583,16 +757,22 @@ def make_config():
                 "kind": "http",
                 "method": "PUT",
                 "orig": "/api/planet/{planet_id}",
-                "parts": [
-                  "api",
-                  "planet",
-                  "{id}",
-                ],
                 "rename": {
                   "param": {
                     "planet_id": "id",
                   },
                 },
+                "segments": [
+                  {
+                    "lit": "api",
+                  },
+                  {
+                    "lit": "planet",
+                  },
+                  {
+                    "var": "id",
+                  },
+                ],
                 "select": {
                   "exist": [
                     "id",
@@ -602,6 +782,11 @@ def make_config():
                   "req": "`reqdata`",
                   "res": "`body`",
                 },
+                "parts": [
+                  "api",
+                  "planet",
+                  "{id}",
+                ],
               },
             ],
           },

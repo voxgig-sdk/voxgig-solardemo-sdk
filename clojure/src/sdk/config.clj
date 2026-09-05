@@ -50,6 +50,15 @@
                   "planet"
                   "{planet_id}"
                   "moon")
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "planet_id")
+                  (vs/jm
+                    "lit" "moon"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "planet_id"))
@@ -77,6 +86,15 @@
                   "planet"
                   "{planet_id}"
                   "moon")
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "planet_id")
+                  (vs/jm
+                    "lit" "moon"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "planet_id"))
@@ -114,6 +132,17 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "moon_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "planet_id")
+                  (vs/jm
+                    "lit" "moon")
+                  (vs/jm
+                    "var" "id"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "id"
@@ -152,6 +181,17 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "moon_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "planet_id")
+                  (vs/jm
+                    "lit" "moon")
+                  (vs/jm
+                    "var" "id"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "id"
@@ -190,6 +230,17 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "moon_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "planet_id")
+                  (vs/jm
+                    "lit" "moon")
+                  (vs/jm
+                    "var" "id"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "id"
@@ -263,6 +314,15 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "id")
+                  (vs/jm
+                    "lit" "forbid"))
                 "select" (vs/jm
                   "$action" "forbid"
                   "exist" (vs/jt
@@ -290,6 +350,15 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "id")
+                  (vs/jm
+                    "lit" "terraform"))
                 "select" (vs/jm
                   "$action" "terraform"
                   "exist" (vs/jt
@@ -305,6 +374,11 @@
                 "parts" (vs/jt
                   "api"
                   "planet")
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet"))
                 "select" (vs/jm)
                 "transform" (vs/jm
                   "req" "`reqdata`"
@@ -321,6 +395,11 @@
                 "parts" (vs/jt
                   "api"
                   "planet")
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet"))
                 "select" (vs/jm)
                 "transform" (vs/jm
                   "req" "`reqdata`"
@@ -348,6 +427,13 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "id"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "id"))
@@ -377,6 +463,13 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "id"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "id"))
@@ -406,6 +499,13 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "segments" (vs/jt
+                  (vs/jm
+                    "lit" "api")
+                  (vs/jm
+                    "lit" "planet")
+                  (vs/jm
+                    "var" "id"))
                 "select" (vs/jm
                   "exist" (vs/jt
                     "id"))

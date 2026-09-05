@@ -105,12 +105,24 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet/{planet_id}/moon",
-                                    ["parts"] = new List<object?>
+                                    ["segments"] = new List<object?>
                                     {
-                                        "api",
-                                        "planet",
-                                        "{planet_id}",
-                                        "moon",
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "planet_id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "moon",
+                                        },
                                     },
                                     ["select"] = new Dictionary<string, object?>
                                     {
@@ -123,6 +135,13 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{planet_id}",
+                                        "moon",
                                     },
                                 },
                             },
@@ -152,12 +171,24 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet/{planet_id}/moon",
-                                    ["parts"] = new List<object?>
+                                    ["segments"] = new List<object?>
                                     {
-                                        "api",
-                                        "planet",
-                                        "{planet_id}",
-                                        "moon",
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "planet_id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "moon",
+                                        },
                                     },
                                     ["select"] = new Dictionary<string, object?>
                                     {
@@ -170,6 +201,13 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{planet_id}",
+                                        "moon",
                                     },
                                 },
                             },
@@ -207,19 +245,34 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet/{planet_id}/moon/{moon_id}",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{planet_id}",
-                                        "moon",
-                                        "{id}",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["moon_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "planet_id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "moon",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -234,6 +287,14 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{planet_id}",
+                                        "moon",
+                                        "{id}",
                                     },
                                 },
                             },
@@ -271,19 +332,34 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "DELETE",
                                     ["orig"] = "/api/planet/{planet_id}/moon/{moon_id}",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{planet_id}",
-                                        "moon",
-                                        "{id}",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["moon_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "planet_id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "moon",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -298,6 +374,14 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{planet_id}",
+                                        "moon",
+                                        "{id}",
                                     },
                                 },
                             },
@@ -335,19 +419,34 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "PUT",
                                     ["orig"] = "/api/planet/{planet_id}/moon/{moon_id}",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{planet_id}",
-                                        "moon",
-                                        "{id}",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["moon_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "planet_id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "moon",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -362,6 +461,14 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{planet_id}",
+                                        "moon",
+                                        "{id}",
                                     },
                                 },
                             },
@@ -465,18 +572,30 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet/{planet_id}/forbid",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                        "forbid",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "forbid",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -491,6 +610,13 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                        "forbid",
                                     },
                                 },
                                 new Dictionary<string, object?>
@@ -512,18 +638,30 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet/{planet_id}/terraform",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                        "terraform",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "terraform",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -539,6 +677,13 @@ public static class SdkConfig
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
                                     },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                        "terraform",
+                                    },
                                 },
                                 new Dictionary<string, object?>
                                 {
@@ -546,16 +691,27 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet",
-                                    ["parts"] = new List<object?>
+                                    ["segments"] = new List<object?>
                                     {
-                                        "api",
-                                        "planet",
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
                                     },
                                     ["select"] = new Dictionary<string, object?>(),
                                     ["transform"] = new Dictionary<string, object?>
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
                                     },
                                 },
                             },
@@ -572,16 +728,27 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet",
-                                    ["parts"] = new List<object?>
+                                    ["segments"] = new List<object?>
                                     {
-                                        "api",
-                                        "planet",
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
                                     },
                                     ["select"] = new Dictionary<string, object?>(),
                                     ["transform"] = new Dictionary<string, object?>
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
                                     },
                                 },
                             },
@@ -611,17 +778,26 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet/{planet_id}",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -635,6 +811,12 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
                                     },
                                 },
                             },
@@ -664,17 +846,26 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "DELETE",
                                     ["orig"] = "/api/planet/{planet_id}",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -688,6 +879,12 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
                                     },
                                 },
                             },
@@ -717,17 +914,26 @@ public static class SdkConfig
                                     ["kind"] = "http",
                                     ["method"] = "PUT",
                                     ["orig"] = "/api/planet/{planet_id}",
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                    },
                                     ["rename"] = new Dictionary<string, object?>
                                     {
                                         ["param"] = new Dictionary<string, object?>
                                         {
                                             ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["segments"] = new List<object?>
+                                    {
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "api",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["lit"] = "planet",
+                                        },
+                                        new Dictionary<string, object?>
+                                        {
+                                            ["var"] = "id",
                                         },
                                     },
                                     ["select"] = new Dictionary<string, object?>
@@ -741,6 +947,12 @@ public static class SdkConfig
                                     {
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
+                                    },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
                                     },
                                 },
                             },

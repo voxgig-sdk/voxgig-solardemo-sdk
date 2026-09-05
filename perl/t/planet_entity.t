@@ -153,6 +153,9 @@ sub planet_basic_setup {
 
   if ((($env->{'SOLARDEMO_TEST_LIVE'}) || '') eq 'TRUE') {
     my $merged_opts = Voxgig::Struct::merge([
+      # FIRST, so the generated fields below win: sdk-test-control.json's
+      # test.client.options adds to the live client, it does not redirect it.
+      SolardemoTestRunner::live_client_options(),
       {
       },
       (Voxgig::Struct::ismap($extra) ? $extra : {}),

@@ -37,6 +37,7 @@ component.* After editing a component run `npm run build` before
 
 ## Features in this target
 
+- [`secrets`](./src/feature/secrets/AGENTS.md) — Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
 - [`test`](./src/feature/test/AGENTS.md) — In-memory mock transport for testing without a live server
 
 Each feature's runtime and its own guide live in `src/feature/<name>/`.

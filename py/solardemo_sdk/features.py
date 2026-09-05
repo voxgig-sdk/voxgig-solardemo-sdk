@@ -1,11 +1,13 @@
 # Solardemo SDK feature factory
 
 from solardemo_sdk.feature.base_feature import SolardemoBaseFeature
+from solardemo_sdk.feature.secrets_feature import SolardemoSecretsFeature
 from solardemo_sdk.feature.test_feature import SolardemoTestFeature
 
 
 _FEATURES = {
     "base": lambda: SolardemoBaseFeature(),
+    "secrets": lambda: SolardemoSecretsFeature(),
     "test": lambda: SolardemoTestFeature(),
 }
 
