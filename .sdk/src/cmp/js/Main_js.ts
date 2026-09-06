@@ -5,6 +5,8 @@ import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
   entityClassName, entityCollection, srcFeatureExcludes, stationLibrary,
+  targetFeatures,
+  TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
 
 
@@ -35,7 +37,10 @@ const Main = cmp(async function Main(props: any) {
   const { model } = props.ctx$
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   Package({ target })
 
@@ -45,7 +50,7 @@ const Main = cmp(async function Main(props: any) {
     from: 'tm/' + target.name,
     // Root copies src/feature/<name>/ per ACTIVE feature; keep this blanket
     // copy from restoring one that was switched off after `target add`.
-    exclude: srcFeatureExcludes(model),
+    exclude: [...srcFeatureExcludes(model), TEST_CONTROL_EXCLUDE],
     replace: {
       ...props.ctx$.stdrep,
     }

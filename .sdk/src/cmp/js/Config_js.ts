@@ -8,7 +8,6 @@ import {
   Fragment,
   Line,
   cmp,
-  clean,
   configDefinition,
   configReprSetting,
   each,
@@ -17,6 +16,7 @@ import {
   isConfigData,
   resolveAuthPrefix,
   serverVariables,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -40,7 +40,10 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   const ff = Path.normalize(__dirname + '/../../../src/cmp/js/fragment/')
 
@@ -157,13 +160,13 @@ const Config = cmp(async function Config(props: any) {
 `)
         }),
 
-        "'ENTITYMAP'": formatJson(Object.values(entity)
-          .reduce((a: any, n: any) => (a[n.name] = clean({
-            fields: n.fields,
-            name: n.name,
-            op: n.op,
-            relations: n.relations,
-          }, true), a), {}), { margin: 2 }).trim(),
+        // configDefinition's `def.entity` verbatim, NOT rebuilt here. This
+        // reduce was a second copy of that function's entityDefs loop, and
+        // when configDefinition started reconstructing a point's `parts`
+        // from apidef's segment vector (its ADR-003), only the data
+        // representation got it — the literal one emitted empty paths. The
+        // config-repr equivalence test caught it, which is what it is for.
+        "'ENTITYMAP'": formatJson(configDef.entity, { margin: 2 }).trim(),
       }
     })
   })

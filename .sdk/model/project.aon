@@ -52,3 +52,8 @@ main: kit: target: 'swift': publish: version: '0.1.0'
 main: kit: target: 'ts': publish: version: '0.1.0'
 main: kit: target: 'zig': publish: version: '0.1.0'
 # --- end cedar: release version
+
+# --- vendor-tag rollout: the secrets feature, ACTIVE (proof state).
+# Chain: builtin env provider (prefix SOLARDEMO_) — no plugin groups
+# needed; the gated per-target secrets tests drive their own chains.
+main: kit: feature: secrets: active: true

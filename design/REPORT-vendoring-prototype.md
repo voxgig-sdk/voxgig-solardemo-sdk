@@ -212,3 +212,47 @@ heuristic resolves one level too deep for the compiled layout.
    repo's pin and regenerate.
 4. Move `ts/src/ext/secrets/` into an sdkgen feature template once the
    gate exists, and delete it here.
+
+## Outcome
+
+All four next steps landed, and this branch is where they arrive.
+
+1. **The three omni fixes are upstream** as
+   [voxgig/omni PR #64](https://github.com/voxgig/omni/pull/64) — base-read
+   `match`, an ancestor-set cycle guard in `jsonstr`, and map-shaped error
+   handling in `errify`/`errmessage` — each with a spec entry pinning it in
+   the js, py and go ports.
+2. **The applicability gate exists.** A target declares what it `provides`,
+   a feature declares what it `needs`, and generation filters the per-target
+   model view in one place, so `Copy` never stat-fails on a missing source
+   and no target carries an import of a feature it has no source for. The
+   gate is what lets `secrets` be generated for `ts`, `go` and `py` while
+   the other targets simply do not see it.
+3. **struct 0.3.2 and the omni runner are template phases.** Both arrive by
+   regeneration, with the null-semantics questions the corpus never asked
+   now in `.sdk/test/struct/nullsem.aon` and wired up per target as it
+   migrates.
+4. **`ts/src/ext/` is gone**, as its own header said it would be. `secrets`
+   is a generated feature at `ts/src/feature/secrets/`, with sekreto and
+   plugin vendored under it at the shared tag.
+
+Keeping the prototype alongside the generated feature was not an option:
+both answer to the name `secrets`, so `SolardemoSDK` added the generated
+class from the feature order AND the extend-supplied instance, installing
+the same feature twice and wrapping the transport twice.
+
+Two prototype tests recorded behaviour this work deliberately changed, and
+both are replaced by a generated test that pins the new answer:
+
+| prototype test | replaced by |
+|---|---|
+| `auth null is rejected by this SDK optspec` | `auth null suppresses the credential, chain or no chain` (plus the explicit-apikey case) |
+| `a provider ERROR fails direct() as a value, not a throw` | `a provider ERROR is returned by prepare, not thrown` |
+
+The first is the `auth: null` fix itself. The prototype's comment explains
+that the null branch was unreachable "because this SDK's generated optspec
+always supplies `auth: { prefix: '' }`, so `auth: null` is rejected by
+validate" — which is exactly the stored-null defect: under the old struct a
+present key holding a null read back as a VALUE, so validate saw one and
+refused it. Under 0.3.2 a stored null reads as no value, the optspec default
+does not fire, and the documented way to suppress auth works.

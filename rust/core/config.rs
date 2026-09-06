@@ -82,11 +82,19 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/moon")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{planet_id}"),
-                                    Value::str("moon"),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("planet_id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("moon")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -96,6 +104,12 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{planet_id}"),
+                                    Value::str("moon"),
                                 ])),
                             ]),
                         ])),
@@ -119,11 +133,19 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/moon")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{planet_id}"),
-                                    Value::str("moon"),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("planet_id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("moon")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -133,6 +155,12 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{planet_id}"),
+                                    Value::str("moon"),
                                 ])),
                             ]),
                         ])),
@@ -163,17 +191,27 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/moon/{moon_id}")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{planet_id}"),
-                                    Value::str("moon"),
-                                    Value::str("{id}"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("moon_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("planet_id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("moon")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -184,6 +222,13 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{planet_id}"),
+                                    Value::str("moon"),
+                                    Value::str("{id}"),
                                 ])),
                             ]),
                         ])),
@@ -214,17 +259,27 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("DELETE")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/moon/{moon_id}")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{planet_id}"),
-                                    Value::str("moon"),
-                                    Value::str("{id}"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("moon_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("planet_id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("moon")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -235,6 +290,13 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{planet_id}"),
+                                    Value::str("moon"),
+                                    Value::str("{id}"),
                                 ])),
                             ]),
                         ])),
@@ -265,17 +327,27 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("PUT")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/moon/{moon_id}")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{planet_id}"),
-                                    Value::str("moon"),
-                                    Value::str("{id}"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("moon_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("planet_id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("moon")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -286,6 +358,13 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{planet_id}"),
+                                    Value::str("moon"),
+                                    Value::str("{id}"),
                                 ])),
                             ]),
                         ])),
@@ -367,16 +446,24 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/forbid")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{id}"),
-                                    Value::str("forbid"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("planet_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("forbid")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("$action".to_string(), Value::str("forbid")),
@@ -387,6 +474,12 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{id}"),
+                                    Value::str("forbid"),
                                 ])),
                             ]),
                             Value::map_of([
@@ -404,16 +497,24 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/terraform")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{id}"),
-                                    Value::str("terraform"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("planet_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("terraform")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("$action".to_string(), Value::str("terraform")),
@@ -425,20 +526,34 @@ pub fn make_config() -> Value {
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
                                 ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{id}"),
+                                    Value::str("terraform"),
+                                ])),
                             ]),
                             Value::map_of([
                                 ("args".to_string(), Value::empty_map()),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
                                 ("orig".to_string(), Value::str("/api/planet")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::empty_map()),
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
                                 ])),
                             ]),
                         ])),
@@ -452,14 +567,22 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
                                 ("orig".to_string(), Value::str("/api/planet")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::empty_map()),
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
                                 ])),
                             ]),
                         ])),
@@ -483,15 +606,21 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{id}"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("planet_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -501,6 +630,11 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{id}"),
                                 ])),
                             ]),
                         ])),
@@ -524,15 +658,21 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("DELETE")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{id}"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("planet_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -542,6 +682,11 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{id}"),
                                 ])),
                             ]),
                         ])),
@@ -565,15 +710,21 @@ pub fn make_config() -> Value {
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("PUT")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}")),
-                                ("parts".to_string(), Value::list(vec![
-                                    Value::str("api"),
-                                    Value::str("planet"),
-                                    Value::str("{id}"),
-                                ])),
                                 ("rename".to_string(), Value::map_of([
                                     ("param".to_string(), Value::map_of([
                                         ("planet_id".to_string(), Value::str("id")),
                                     ])),
+                                ])),
+                                ("segments".to_string(), Value::list(vec![
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("api")),
+                                    ]),
+                                    Value::map_of([
+                                        ("lit".to_string(), Value::str("planet")),
+                                    ]),
+                                    Value::map_of([
+                                        ("var".to_string(), Value::str("id")),
+                                    ]),
                                 ])),
                                 ("select".to_string(), Value::map_of([
                                     ("exist".to_string(), Value::list(vec![
@@ -583,6 +734,11 @@ pub fn make_config() -> Value {
                                 ("transform".to_string(), Value::map_of([
                                     ("req".to_string(), Value::str("`reqdata`")),
                                     ("res".to_string(), Value::str("`body`")),
+                                ])),
+                                ("parts".to_string(), Value::list(vec![
+                                    Value::str("api"),
+                                    Value::str("planet"),
+                                    Value::str("{id}"),
                                 ])),
                             ]),
                         ])),

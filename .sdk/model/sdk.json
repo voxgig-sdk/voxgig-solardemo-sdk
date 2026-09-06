@@ -99,11 +99,19 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet/{planet_id}/moon",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    }
                   ],
                   "select": {
                     "exist": [
@@ -138,11 +146,19 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet/{planet_id}/moon",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    }
                   ],
                   "select": {
                     "exist": [
@@ -185,18 +201,28 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "moon_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id",
@@ -239,18 +265,28 @@
                   "kind": "http",
                   "method": "DELETE",
                   "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "moon_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id",
@@ -293,18 +329,28 @@
                   "kind": "http",
                   "method": "PUT",
                   "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{planet_id}",
-                    "moon",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "moon_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "planet_id"
+                    },
+                    {
+                      "lit": "moon"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id",
@@ -421,17 +467,25 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet/{planet_id}/forbid",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}",
-                    "forbid"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    },
+                    {
+                      "lit": "forbid"
+                    }
+                  ],
                   "select": {
                     "$action": "forbid",
                     "exist": [
@@ -460,17 +514,25 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet/{planet_id}/terraform",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}",
-                    "terraform"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    },
+                    {
+                      "lit": "terraform"
+                    }
+                  ],
                   "select": {
                     "$action": "terraform",
                     "exist": [
@@ -488,9 +550,13 @@
                   "kind": "http",
                   "method": "POST",
                   "orig": "/api/planet",
-                  "parts": [
-                    "api",
-                    "planet"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    }
                   ],
                   "select": {},
                   "transform": {
@@ -510,9 +576,13 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet",
-                  "parts": [
-                    "api",
-                    "planet"
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    }
                   ],
                   "select": {},
                   "transform": {
@@ -543,16 +613,22 @@
                   "kind": "http",
                   "method": "GET",
                   "orig": "/api/planet/{planet_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id"
@@ -586,16 +662,22 @@
                   "kind": "http",
                   "method": "DELETE",
                   "orig": "/api/planet/{planet_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id"
@@ -629,16 +711,22 @@
                   "kind": "http",
                   "method": "PUT",
                   "orig": "/api/planet/{planet_id}",
-                  "parts": [
-                    "api",
-                    "planet",
-                    "{id}"
-                  ],
                   "rename": {
                     "param": {
                       "planet_id": "id"
                     }
                   },
+                  "segments": [
+                    {
+                      "lit": "api"
+                    },
+                    {
+                      "lit": "planet"
+                    },
+                    {
+                      "var": "id"
+                    }
+                  ],
                   "select": {
                     "exist": [
                       "id"
@@ -658,6 +746,322 @@
         }
       },
       "feature": {
+        "secrets": {
+          "active": true,
+          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "config": {
+            "options": {
+              "active": false,
+              "cache": true,
+              "exchange": {
+                "active": false,
+                "method": "POST",
+                "path": "auth/token",
+                "refresh": "",
+                "request": "refresh_token",
+                "response": "access_token",
+                "retries": 1,
+                "statuses": [
+                  401
+                ]
+              },
+              "name": "apikey",
+              "providers": []
+            }
+          },
+          "hook": {
+            "GetData": {
+              "active": false,
+              "await": false
+            },
+            "GetMatch": {
+              "active": false,
+              "await": false
+            },
+            "PostConstruct": {
+              "active": false,
+              "await": false
+            },
+            "PostConstructEntity": {
+              "active": false,
+              "await": false
+            },
+            "PostOperation": {
+              "active": false,
+              "await": false
+            },
+            "PreRequest": {
+              "active": false,
+              "await": false
+            },
+            "PreResponse": {
+              "active": false,
+              "await": false
+            },
+            "PreResult": {
+              "active": false,
+              "await": false
+            },
+            "PreSpec": {
+              "active": true,
+              "await": true
+            },
+            "PreTarget": {
+              "active": false,
+              "await": false
+            },
+            "SetData": {
+              "active": false,
+              "await": false
+            }
+          },
+          "name": "secrets",
+          "needs": {
+            "sekreto": true
+          },
+          "origname": "",
+          "package": "@voxgig/sdkgen",
+          "plugin": {
+            "aws": {
+              "active": false,
+              "def": {
+                "go": {
+                  "aws.Params": "feature/secrets/plugins/aws/aws.go",
+                  "aws.Secrets": "feature/secrets/plugins/aws/aws.go"
+                },
+                "py": {
+                  "awsparams": "pkg/feature/secrets/voxgig_sekreto/plugins/aws.py",
+                  "awssecrets": "pkg/feature/secrets/voxgig_sekreto/plugins/aws.py"
+                },
+                "ts": {
+                  "awsparams": "src/feature/secrets/sekreto/plugins/aws.ts",
+                  "awssecrets": "src/feature/secrets/sekreto/plugins/aws.ts"
+                }
+              },
+              "name": "aws",
+              "needs": {
+                "crypto": true,
+                "fetch": true
+              },
+              "path": [
+                "src/feature/secrets/sekreto/plugins/aws.ts",
+                "src/feature/secrets/sekreto/plugins/sigv4.ts",
+                "feature/secrets/plugins/aws/aws.go",
+                "feature/secrets/plugins/aws/sigv4.go",
+                "feature/secrets/voxgig_sekreto/plugins/aws.py",
+                "feature/secrets/voxgig_sekreto/plugins/sigv4.py"
+              ],
+              "title": "AWS Secrets Manager and Parameter Store (SigV4 signing)"
+            },
+            "cloud": {
+              "active": false,
+              "def": {
+                "go": {
+                  "azuresecrets.Plugin": "feature/secrets/plugins/azuresecrets/azuresecrets.go",
+                  "gcpsecrets.Plugin": "feature/secrets/plugins/gcpsecrets/gcpsecrets.go"
+                },
+                "py": {
+                  "azuresecrets": "pkg/feature/secrets/voxgig_sekreto/plugins/azuresecrets.py",
+                  "gcpsecrets": "pkg/feature/secrets/voxgig_sekreto/plugins/gcpsecrets.py"
+                },
+                "ts": {
+                  "azuresecrets": "src/feature/secrets/sekreto/plugins/azuresecrets.ts",
+                  "gcpsecrets": "src/feature/secrets/sekreto/plugins/gcpsecrets.ts"
+                }
+              },
+              "name": "cloud",
+              "needs": {
+                "fetch": true
+              },
+              "path": [
+                "src/feature/secrets/sekreto/plugins/gcpsecrets.ts",
+                "src/feature/secrets/sekreto/plugins/azuresecrets.ts",
+                "feature/secrets/plugins/gcpsecrets/gcpsecrets.go",
+                "feature/secrets/plugins/azuresecrets/azuresecrets.go",
+                "feature/secrets/voxgig_sekreto/plugins/gcpsecrets.py",
+                "feature/secrets/voxgig_sekreto/plugins/azuresecrets.py"
+              ],
+              "title": "GCP Secret Manager and Azure Key Vault"
+            },
+            "saas": {
+              "active": false,
+              "def": {
+                "go": {
+                  "doppler.Plugin": "feature/secrets/plugins/doppler/doppler.go",
+                  "infisical.Plugin": "feature/secrets/plugins/infisical/infisical.go",
+                  "onepassword.Plugin": "feature/secrets/plugins/onepassword/onepassword.go"
+                },
+                "py": {
+                  "doppler": "pkg/feature/secrets/voxgig_sekreto/plugins/doppler.py",
+                  "infisical": "pkg/feature/secrets/voxgig_sekreto/plugins/infisical.py",
+                  "onepassword": "pkg/feature/secrets/voxgig_sekreto/plugins/onepassword.py"
+                },
+                "ts": {
+                  "doppler": "src/feature/secrets/sekreto/plugins/doppler.ts",
+                  "infisical": "src/feature/secrets/sekreto/plugins/infisical.ts",
+                  "onepassword": "src/feature/secrets/sekreto/plugins/onepassword.ts"
+                }
+              },
+              "name": "saas",
+              "needs": {
+                "fetch": true
+              },
+              "path": [
+                "src/feature/secrets/sekreto/plugins/onepassword.ts",
+                "src/feature/secrets/sekreto/plugins/doppler.ts",
+                "src/feature/secrets/sekreto/plugins/infisical.ts",
+                "feature/secrets/plugins/onepassword/onepassword.go",
+                "feature/secrets/plugins/doppler/doppler.go",
+                "feature/secrets/plugins/infisical/infisical.go",
+                "feature/secrets/voxgig_sekreto/plugins/onepassword.py",
+                "feature/secrets/voxgig_sekreto/plugins/doppler.py",
+                "feature/secrets/voxgig_sekreto/plugins/infisical.py"
+              ],
+              "title": "1Password, Doppler and Infisical"
+            },
+            "secretspec": {
+              "active": false,
+              "def": {
+                "go": {
+                  "secretspec.Plugin": "feature/secrets/plugins/secretspec/secretspec.go"
+                },
+                "py": {
+                  "secretspec": "pkg/feature/secrets/voxgig_sekreto/plugins/secretspec.py"
+                },
+                "ts": {
+                  "secretspec": "src/feature/secrets/sekreto/plugins/secretspec.ts"
+                }
+              },
+              "name": "secretspec",
+              "needs": {
+                "fs": true
+              },
+              "path": [
+                "src/feature/secrets/sekreto/plugins/secretspec.ts",
+                "feature/secrets/plugins/secretspec/secretspec.go",
+                "feature/secrets/voxgig_sekreto/plugins/secretspec.py"
+              ],
+              "title": "secretspec CLI bridge (child process)"
+            },
+            "vault": {
+              "active": false,
+              "def": {
+                "go": {
+                  "boru.Plugin": "feature/secrets/plugins/boru/boru.go",
+                  "hashicorp.Plugin": "feature/secrets/plugins/hashicorp/hashicorp.go"
+                },
+                "py": {
+                  "boru": "pkg/feature/secrets/voxgig_sekreto/plugins/boru.py",
+                  "hashicorp": "pkg/feature/secrets/voxgig_sekreto/plugins/hashicorp.py"
+                },
+                "ts": {
+                  "boru": "src/feature/secrets/sekreto/plugins/boru.ts",
+                  "hashicorp": "src/feature/secrets/sekreto/plugins/hashicorp.ts"
+                }
+              },
+              "name": "vault",
+              "needs": {
+                "fetch": true,
+                "fs": true
+              },
+              "path": [
+                "src/feature/secrets/sekreto/plugins/hashicorp.ts",
+                "src/feature/secrets/sekreto/plugins/boru.ts",
+                "feature/secrets/plugins/hashicorp/hashicorp.go",
+                "feature/secrets/plugins/boru/boru.go",
+                "feature/secrets/voxgig_sekreto/plugins/hashicorp.py",
+                "feature/secrets/voxgig_sekreto/plugins/boru.py"
+              ],
+              "title": "HashiCorp Vault and boru"
+            }
+          },
+          "spec": {
+            "authexchange": "exchange"
+          },
+          "target": {
+            "c": {
+              "deps": {}
+            },
+            "clojure": {
+              "deps": {}
+            },
+            "cpp": {
+              "deps": {}
+            },
+            "csharp": {
+              "deps": {}
+            },
+            "dart": {
+              "deps": {}
+            },
+            "elixir": {
+              "deps": {}
+            },
+            "go": {
+              "deps": {}
+            },
+            "go-cli": {
+              "deps": {}
+            },
+            "go-mcp": {
+              "deps": {}
+            },
+            "java": {
+              "deps": {}
+            },
+            "js": {
+              "deps": {}
+            },
+            "kotlin": {
+              "deps": {}
+            },
+            "lean": {
+              "deps": {}
+            },
+            "lua": {
+              "deps": {}
+            },
+            "ocaml": {
+              "deps": {}
+            },
+            "perl": {
+              "deps": {}
+            },
+            "php": {
+              "deps": {}
+            },
+            "py": {
+              "deps": {}
+            },
+            "py-data": {
+              "deps": {}
+            },
+            "rb": {
+              "deps": {}
+            },
+            "rust": {
+              "deps": {}
+            },
+            "scala": {
+              "deps": {}
+            },
+            "seneca-provider": {
+              "deps": {}
+            },
+            "swift": {
+              "deps": {}
+            },
+            "ts": {
+              "deps": {}
+            },
+            "zig": {
+              "deps": {}
+            }
+          },
+          "title": "Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens",
+          "transport": "wrap",
+          "version": "0.1.0"
+        },
         "test": {
           "active": true,
           "base": "node_modules/@voxgig/sdkgen/project/.sdk",
@@ -721,8 +1125,11 @@
             }
           },
           "name": "test",
+          "needs": {},
           "origname": "",
           "package": "@voxgig/sdkgen",
+          "plugin": {},
+          "spec": {},
           "target": {
             "c": {
               "deps": {}
@@ -1067,7 +1474,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1082,7 +1489,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1095,7 +1502,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1121,6 +1529,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "tests/runner.h"
+          ],
           "title": "C"
         },
         "clojure": {
@@ -1129,7 +1540,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": ";"
           },
@@ -1141,7 +1552,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1154,7 +1565,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1180,6 +1592,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Clojure"
         },
         "cpp": {
@@ -1188,7 +1601,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1202,7 +1615,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1215,7 +1628,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1241,6 +1655,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/struct_runner.hpp"
+          ],
           "title": "C++"
         },
         "csharp": {
@@ -1277,6 +1694,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1310,7 +1728,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1322,7 +1740,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1335,7 +1753,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1361,6 +1780,10 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/runner.dart",
+            "test/struct_corpus.dart"
+          ],
           "title": "Dart"
         },
         "elixir": {
@@ -1369,7 +1792,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "#"
           },
@@ -1381,7 +1804,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1394,7 +1817,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1420,6 +1844,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/support/struct_corpus.ex"
+          ],
           "title": "Elixir"
         },
         "go": {
@@ -1456,6 +1883,9 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {
+            "sekreto": true
+          },
           "publish": {
             "registry": {
               "active": false,
@@ -1481,6 +1911,10 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/runner_test.go",
+            "test/struct_runner_test.go"
+          ],
           "title": "Golang"
         },
         "go-cli": {
@@ -1532,6 +1966,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1607,6 +2042,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1667,6 +2103,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1732,6 +2169,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1756,6 +2194,9 @@
             },
             "version": "0.1.0"
           },
+          "superseded": [
+            "test/runner.js"
+          ],
           "title": "JavaScript"
         },
         "kotlin": {
@@ -1792,6 +2233,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1825,7 +2267,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "--"
           },
@@ -1837,7 +2279,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1850,7 +2292,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "phase": {
             "agentguide": {
               "active": true
@@ -1868,6 +2310,7 @@
               "active": true
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1893,6 +2336,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Lean"
         },
         "lua": {
@@ -1933,6 +2377,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -1966,7 +2411,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1978,7 +2423,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1991,7 +2436,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2017,6 +2463,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/corpus_runner.ml"
+          ],
           "title": "OCaml"
         },
         "perl": {
@@ -2051,6 +2500,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2110,6 +2560,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2175,6 +2626,9 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {
+            "sekreto": true
+          },
           "publish": {
             "registry": {
               "active": false,
@@ -2200,6 +2654,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/struct_runner.py"
+          ],
           "title": "Python"
         },
         "py-data": {
@@ -2257,6 +2714,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2327,6 +2785,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2360,7 +2819,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -2380,7 +2839,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2393,7 +2852,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2419,6 +2879,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "tests/struct_runner/mod.rs"
+          ],
           "title": "Rust"
         },
         "scala": {
@@ -2427,7 +2890,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -2439,7 +2902,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2452,7 +2915,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2478,6 +2942,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Scala"
         },
         "seneca-provider": {
@@ -2580,6 +3045,7 @@
               "active": false
             }
           },
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2613,7 +3079,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -2627,7 +3093,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2640,7 +3106,8 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,
@@ -2666,6 +3133,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Swift"
         },
         "ts": {
@@ -2683,11 +3151,6 @@
               "active": true,
               "kind": "dev",
               "version": "^25.6.0"
-            },
-            "dotenv": {
-              "active": true,
-              "kind": "dev",
-              "version": "^17.4.2"
             },
             "typescript": {
               "active": true,
@@ -2716,6 +3179,9 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {
+            "sekreto": true
+          },
           "publish": {
             "registry": {
               "active": false,
@@ -2740,6 +3206,14 @@
             },
             "version": "0.1.0"
           },
+          "superseded": [
+            "test/runner.ts",
+            "test/vendor/omni/compat.ts",
+            "src/feature/secrets/sekreto/Providers.ts",
+            "src/feature/secrets/sekreto/Sigv4.ts",
+            "src/feature/secrets/sekreto/provider/Registry.ts",
+            "src/feature/secrets/sekreto/provider/http.ts"
+          ],
           "title": "TypeScript"
         },
         "zig": {
@@ -2774,6 +3248,7 @@
             "sdkrel": ""
           },
           "package": "@voxgig/sdkgen",
+          "provides": {},
           "publish": {
             "registry": {
               "active": false,

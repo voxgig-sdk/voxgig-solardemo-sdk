@@ -16,6 +16,7 @@ import {
   rawStringLiteral,
   resolveAuthPrefix,
   serverVariables,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -28,7 +29,6 @@ import {
 
 
 import {
-  clean,
   formatRubyHash,
 } from './utility_rb'
 
@@ -40,7 +40,10 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
@@ -161,12 +164,7 @@ ${serverBlock}${authBlock}        "headers" => ${formatRubyHash(headers, 4)},
     Content(`        },
       },
       "entity" => ${formatRubyHash(
-      Object.values(entity).reduce((a: any, n: any) => (a[n.name] = clean({
-        fields: n.fields,
-        name: n.name,
-        op: n.op,
-        relations: n.relations,
-      }, true), a), {}), 3)},
+configDef.entity, 3)},
     }
   end
 `)

@@ -2,7 +2,7 @@
 const envlocal = __dirname + '/../../../.env.local'
 require('dotenv').config({ quiet: true, path: [envlocal] })
 
-const { test, describe } = require('node:test')
+const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert')
 
 
@@ -10,10 +10,16 @@ const { SolardemoSDK } = require('../../..')
 
 const {
   envOverride,
+  liveClientOptions,
+  liveDelay,
 } = require('../../utility')
 
 
 describe('MoonDirect', async () => {
+
+  // Per-test live pacing. Delay is read from sdk-test-control.json's
+  // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
+  afterEach(liveDelay('SOLARDEMO_TEST_LIVE'))
 
   test('direct-exists', async () => {
     const sdk = new SolardemoSDK({
@@ -116,8 +122,11 @@ function directSetup(mockres) {
   const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE
 
   if (live) {
-    const client = new SolardemoSDK({
-    })
+    // Merged so the generated fields win: sdk-test-control.json's
+    // test.client.options adds to the live client, it does not redirect it.
+    const client = new SolardemoSDK(
+      Object.assign({}, liveClientOptions(), {
+      }))
 
     let idmap = env['SOLARDEMO_TEST_MOON_ENTID']
     if ('string' === typeof idmap && idmap.startsWith('{')) {

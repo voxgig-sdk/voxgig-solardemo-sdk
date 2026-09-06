@@ -23,9 +23,10 @@ use PHPUnit\Framework\TestCase;
 
 class FeatureCorpusTest extends TestCase
 {
-    // Features with a corpus section. A name here with no section is a skip,
-    // not a failure: an SDK generated without the feature has nothing to run.
-    private const FEATURE_CORPUS_NAMES = ['cost'];
+    // Features with a corpus section are read from the corpus itself (see
+    // testFeatureCorpus), so a project-authored section - a custom feature
+    // added under .sdk/test/feature/ - runs without editing this file. An
+    // SDK generated without a listed feature still skips, not fails.
 
     // The standard operation names, in the order the runner prefers them.
     private const FEATURE_CORPUS_OPS = ['load', 'list', 'create', 'update', 'remove'];
@@ -90,7 +91,16 @@ class FeatureCorpusTest extends TestCase
      */
     private static function buildClient(array $kase)
     {
-        $opts = ['utility' => ['fetcher' => self::scriptedFetcher($kase['res'] ?? null)]];
+        // 'test' here is the OPTION, not the `test` FEATURE. It says "this
+        // client is not live", which is what makes a REQUIRED OpenAPI server
+        // variable resolve to a deterministic test-<name> rather than throw
+        // at construction (see makeOptions). It installs no transport, so the
+        // scripted fetcher still stands - the FEATURE is transport: 'base'
+        // and would shadow it.
+        $opts = [
+            'test' => ['active' => true],
+            'utility' => ['fetcher' => self::scriptedFetcher($kase['res'] ?? null)],
+        ];
         if (isset($kase['feature'])) {
             $opts['feature'] = $kase['feature'];
         }
@@ -300,7 +310,9 @@ class FeatureCorpusTest extends TestCase
                 . 'the corpus (create-sdkgen .sdk/test/feature/) to run these cases');
         }
 
-        foreach (self::FEATURE_CORPUS_NAMES as $name) {
+        $names = array_keys(self::corpus()['feature'] ?? []);
+        sort($names);
+        foreach ($names as $name) {
             $section = self::corpus()['feature'][$name] ?? null;
             if (null === $section) {
                 continue;

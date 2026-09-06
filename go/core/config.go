@@ -16,6 +16,27 @@ func MakeConfig() map[string]any {
 			"target": "go",
 		},
 		"feature": map[string]any{
+			"secrets": map[string]any{
+				"options": map[string]any{
+					"active": false,
+					"cache": true,
+					"exchange": map[string]any{
+						"active": false,
+						"method": "POST",
+						"path": "auth/token",
+						"refresh": "",
+						"request": "refresh_token",
+						"response": "access_token",
+						"retries": 1,
+						"statuses": []any{
+							401,
+						},
+					},
+					"name": "apikey",
+					"providers": []any{},
+				},
+				"transport": "wrap",
+			},
 			"test": map[string]any{
 				"options": map[string]any{
 					"active": false,
@@ -83,11 +104,19 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet/{planet_id}/moon",
-								"parts": []any{
-									"api",
-									"planet",
-									"{planet_id}",
-									"moon",
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "planet_id",
+									},
+									map[string]any{
+										"lit": "moon",
+									},
 								},
 								"select": map[string]any{
 									"exist": []any{
@@ -97,6 +126,12 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{planet_id}",
+									"moon",
 								},
 							},
 						},
@@ -120,11 +155,19 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet/{planet_id}/moon",
-								"parts": []any{
-									"api",
-									"planet",
-									"{planet_id}",
-									"moon",
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "planet_id",
+									},
+									map[string]any{
+										"lit": "moon",
+									},
 								},
 								"select": map[string]any{
 									"exist": []any{
@@ -134,6 +177,12 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{planet_id}",
+									"moon",
 								},
 							},
 						},
@@ -164,16 +213,26 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet/{planet_id}/moon/{moon_id}",
-								"parts": []any{
-									"api",
-									"planet",
-									"{planet_id}",
-									"moon",
-									"{id}",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"moon_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "planet_id",
+									},
+									map[string]any{
+										"lit": "moon",
+									},
+									map[string]any{
+										"var": "id",
 									},
 								},
 								"select": map[string]any{
@@ -185,6 +244,13 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{planet_id}",
+									"moon",
+									"{id}",
 								},
 							},
 						},
@@ -215,16 +281,26 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "DELETE",
 								"orig": "/api/planet/{planet_id}/moon/{moon_id}",
-								"parts": []any{
-									"api",
-									"planet",
-									"{planet_id}",
-									"moon",
-									"{id}",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"moon_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "planet_id",
+									},
+									map[string]any{
+										"lit": "moon",
+									},
+									map[string]any{
+										"var": "id",
 									},
 								},
 								"select": map[string]any{
@@ -236,6 +312,13 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{planet_id}",
+									"moon",
+									"{id}",
 								},
 							},
 						},
@@ -266,16 +349,26 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "PUT",
 								"orig": "/api/planet/{planet_id}/moon/{moon_id}",
-								"parts": []any{
-									"api",
-									"planet",
-									"{planet_id}",
-									"moon",
-									"{id}",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"moon_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "planet_id",
+									},
+									map[string]any{
+										"lit": "moon",
+									},
+									map[string]any{
+										"var": "id",
 									},
 								},
 								"select": map[string]any{
@@ -287,6 +380,13 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{planet_id}",
+									"moon",
+									"{id}",
 								},
 							},
 						},
@@ -368,15 +468,23 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet/{planet_id}/forbid",
-								"parts": []any{
-									"api",
-									"planet",
-									"{id}",
-									"forbid",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"planet_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "id",
+									},
+									map[string]any{
+										"lit": "forbid",
 									},
 								},
 								"select": map[string]any{
@@ -388,6 +496,12 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{id}",
+									"forbid",
 								},
 							},
 							map[string]any{
@@ -405,15 +519,23 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet/{planet_id}/terraform",
-								"parts": []any{
-									"api",
-									"planet",
-									"{id}",
-									"terraform",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"planet_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "id",
+									},
+									map[string]any{
+										"lit": "terraform",
 									},
 								},
 								"select": map[string]any{
@@ -426,20 +548,34 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{id}",
+									"terraform",
+								},
 							},
 							map[string]any{
 								"args": map[string]any{},
 								"kind": "http",
 								"method": "POST",
 								"orig": "/api/planet",
-								"parts": []any{
-									"api",
-									"planet",
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
 								},
 								"select": map[string]any{},
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
 								},
 							},
 						},
@@ -453,14 +589,22 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet",
-								"parts": []any{
-									"api",
-									"planet",
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
 								},
 								"select": map[string]any{},
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
 								},
 							},
 						},
@@ -484,14 +628,20 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "GET",
 								"orig": "/api/planet/{planet_id}",
-								"parts": []any{
-									"api",
-									"planet",
-									"{id}",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"planet_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "id",
 									},
 								},
 								"select": map[string]any{
@@ -502,6 +652,11 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{id}",
 								},
 							},
 						},
@@ -525,14 +680,20 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "DELETE",
 								"orig": "/api/planet/{planet_id}",
-								"parts": []any{
-									"api",
-									"planet",
-									"{id}",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"planet_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "id",
 									},
 								},
 								"select": map[string]any{
@@ -543,6 +704,11 @@ func MakeConfig() map[string]any {
 								"transform": map[string]any{
 									"req": "`reqdata`",
 									"res": "`body`",
+								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{id}",
 								},
 							},
 						},
@@ -566,14 +732,20 @@ func MakeConfig() map[string]any {
 								"kind": "http",
 								"method": "PUT",
 								"orig": "/api/planet/{planet_id}",
-								"parts": []any{
-									"api",
-									"planet",
-									"{id}",
-								},
 								"rename": map[string]any{
 									"param": map[string]any{
 										"planet_id": "id",
+									},
+								},
+								"segments": []any{
+									map[string]any{
+										"lit": "api",
+									},
+									map[string]any{
+										"lit": "planet",
+									},
+									map[string]any{
+										"var": "id",
 									},
 								},
 								"select": map[string]any{
@@ -585,6 +757,11 @@ func MakeConfig() map[string]any {
 									"req": "`reqdata`",
 									"res": "`body`",
 								},
+								"parts": []any{
+									"api",
+									"planet",
+									"{id}",
+								},
 							},
 						},
 					},
@@ -595,6 +772,17 @@ func MakeConfig() map[string]any {
 			},
 		},
 	}
+}
+
+// The plugin definitions the model selected per feature, as []any so a
+// feature package can consume them without core naming its types. Empty
+// when no active feature declares active plugin groups for this target.
+var featurePlugins = map[string][]any{
+}
+
+// FeaturePlugins is the definitions list for one feature's chain.
+func FeaturePlugins(name string) []any {
+	return featurePlugins[name]
 }
 
 var (
@@ -617,6 +805,10 @@ func SharedConfig() map[string]any {
 
 func makeFeature(name string) Feature {
 	switch name {
+	case "secrets":
+		if NewSecretsFeatureFunc != nil {
+			return NewSecretsFeatureFunc()
+		}
 	case "test":
 		if NewTestFeatureFunc != nil {
 			return NewTestFeatureFunc()

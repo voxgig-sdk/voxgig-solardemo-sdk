@@ -9,6 +9,7 @@ import {
   isAuthActive,
   isConfigData,
   resolveAuthPrefix,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -21,7 +22,6 @@ import {
 
 import {
   cStringLiteral,
-  clean,
   formatCValue,
 } from './utility_c'
 
@@ -36,7 +36,10 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
@@ -77,13 +80,13 @@ const Config = cmp(async function Config(props: any) {
     options.auth = { prefix: authPrefix }
   }
 
-  const entityConfig = Object.values(entity || {}).reduce((a: any, n: any) => (
-    a[n.name] = clean({
-      fields: n.fields,
-      name: n.name,
-      op: n.op,
-      relations: n.relations,
-    }, true), a), {})
+  // configDefinition's `def.entity` verbatim, NOT rebuilt here. This reduce
+  // was one of fourteen copies of that function's entityDefs loop, and when
+  // configDefinition started reconstructing a point's `parts` from apidef's
+  // segment vector (its ADR-003), only the copies that read `configDef` got
+  // it — this target's literal config emitted paths with no parts at all
+  // while its data config had them. One rule, one place.
+  const entityConfig = configDef.entity
 
   const config = {
     // main from configDefinition's def, not re-derived here, so the literal

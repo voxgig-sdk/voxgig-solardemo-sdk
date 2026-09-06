@@ -82,11 +82,19 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/moon") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{planet_id}"),
-                                    h.vstr("moon"),
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("planet_id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("moon") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -96,6 +104,12 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{planet_id}"),
+                                    h.vstr("moon"),
                                 }) },
                             }),
                         }) },
@@ -119,11 +133,19 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/moon") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{planet_id}"),
-                                    h.vstr("moon"),
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("planet_id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("moon") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -133,6 +155,12 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{planet_id}"),
+                                    h.vstr("moon"),
                                 }) },
                             }),
                         }) },
@@ -163,17 +191,27 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/moon/{moon_id}") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{planet_id}"),
-                                    h.vstr("moon"),
-                                    h.vstr("{id}"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "moon_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("planet_id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("moon") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -184,6 +222,13 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{planet_id}"),
+                                    h.vstr("moon"),
+                                    h.vstr("{id}"),
                                 }) },
                             }),
                         }) },
@@ -214,17 +259,27 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("DELETE") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/moon/{moon_id}") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{planet_id}"),
-                                    h.vstr("moon"),
-                                    h.vstr("{id}"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "moon_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("planet_id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("moon") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -235,6 +290,13 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{planet_id}"),
+                                    h.vstr("moon"),
+                                    h.vstr("{id}"),
                                 }) },
                             }),
                         }) },
@@ -265,17 +327,27 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("PUT") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/moon/{moon_id}") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{planet_id}"),
-                                    h.vstr("moon"),
-                                    h.vstr("{id}"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "moon_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("planet_id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("moon") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -286,6 +358,13 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{planet_id}"),
+                                    h.vstr("moon"),
+                                    h.vstr("{id}"),
                                 }) },
                             }),
                         }) },
@@ -367,16 +446,24 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/forbid") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{id}"),
-                                    h.vstr("forbid"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "planet_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("forbid") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "$action", h.vstr("forbid") },
@@ -387,6 +474,12 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{id}"),
+                                    h.vstr("forbid"),
                                 }) },
                             }),
                             h.jo(&.{
@@ -404,16 +497,24 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/terraform") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{id}"),
-                                    h.vstr("terraform"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "planet_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("terraform") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "$action", h.vstr("terraform") },
@@ -425,20 +526,34 @@ pub fn make_config() Value {
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
                                 }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{id}"),
+                                    h.vstr("terraform"),
+                                }) },
                             }),
                             h.jo(&.{
                                 .{ "args", h.omap() },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
                                 .{ "orig", h.vstr("/api/planet") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
                                 }) },
                                 .{ "select", h.omap() },
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
                                 }) },
                             }),
                         }) },
@@ -452,14 +567,22 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
                                 .{ "orig", h.vstr("/api/planet") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
                                 }) },
                                 .{ "select", h.omap() },
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
                                 }) },
                             }),
                         }) },
@@ -483,15 +606,21 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{id}"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "planet_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -501,6 +630,11 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{id}"),
                                 }) },
                             }),
                         }) },
@@ -524,15 +658,21 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("DELETE") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{id}"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "planet_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -542,6 +682,11 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{id}"),
                                 }) },
                             }),
                         }) },
@@ -565,15 +710,21 @@ pub fn make_config() Value {
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("PUT") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}") },
-                                .{ "parts", h.ja(&.{
-                                    h.vstr("api"),
-                                    h.vstr("planet"),
-                                    h.vstr("{id}"),
-                                }) },
                                 .{ "rename", h.jo(&.{
                                     .{ "param", h.jo(&.{
                                         .{ "planet_id", h.vstr("id") },
                                     }) },
+                                }) },
+                                .{ "segments", h.ja(&.{
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("api") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "lit", h.vstr("planet") },
+                                    }),
+                                    h.jo(&.{
+                                        .{ "var", h.vstr("id") },
+                                    }),
                                 }) },
                                 .{ "select", h.jo(&.{
                                     .{ "exist", h.ja(&.{
@@ -583,6 +734,11 @@ pub fn make_config() Value {
                                 .{ "transform", h.jo(&.{
                                     .{ "req", h.vstr("`reqdata`") },
                                     .{ "res", h.vstr("`body`") },
+                                }) },
+                                .{ "parts", h.ja(&.{
+                                    h.vstr("api"),
+                                    h.vstr("planet"),
+                                    h.vstr("{id}"),
                                 }) },
                             }),
                         }) },

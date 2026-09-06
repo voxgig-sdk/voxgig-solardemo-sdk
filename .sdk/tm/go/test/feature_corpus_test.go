@@ -27,9 +27,10 @@ import (
 	sdk "GOMODULE"
 )
 
-// Features with a corpus section. A name here with no section is a skip, not
-// a failure: an SDK generated without the feature has nothing to run.
-var featureCorpusNames = []string{"cost"}
+// Features with a corpus section are read from the corpus itself (see
+// TestFeatureCorpus), so a project-authored section — a custom feature
+// added under .sdk/test/feature/ — runs without editing this file. An
+// SDK generated without a listed feature still skips, not fails.
 
 // The standard operation names, in the order the runner prefers them. Every
 // entity declares every CRUD method, so an op that the API does not define
@@ -113,7 +114,14 @@ func fcFetcher(res []any) sdk.FetcherFunc {
 // REPLACES the transport, so a client in test mode would shadow the script.
 func fcClient(kase map[string]any) *sdk.SolardemoSDK {
 	res, _ := kase["res"].([]any)
+	// "test" here is the OPTION, not the `test` FEATURE. It says "this
+	// client is not live", which is what makes a REQUIRED OpenAPI server
+	// variable resolve to a deterministic test-<name> rather than panic at
+	// construction (see makeOptions). It installs no transport, so the
+	// scripted fetcher still stands — the FEATURE is transport: 'base' and
+	// would shadow it, which is why this cannot just turn the feature on.
 	opts := map[string]any{
+		"test":    map[string]any{"active": true},
 		"utility": map[string]any{"fetcher": fcFetcher(res)},
 	}
 	if f, ok := kase["feature"]; ok {
@@ -449,6 +457,12 @@ func TestFeatureCorpus(t *testing.T) {
 		t.Fatal("no declared operation completed against a plain 200 - the " +
 			"corpus cannot exercise a feature without one")
 	}
+
+	featureCorpusNames := make([]string, 0, len(featureSection))
+	for name := range featureSection {
+		featureCorpusNames = append(featureCorpusNames, name)
+	}
+	sort.Strings(featureCorpusNames)
 
 	for _, name := range featureCorpusNames {
 		name := name

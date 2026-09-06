@@ -29,6 +29,9 @@ func init() {
 	core.NewBaseFeatureFunc = func() core.Feature {
 		return feature.NewBaseFeature()
 	}
+	core.NewSecretsFeatureFunc = func() core.Feature {
+		return feature.NewSecretsFeature()
+	}
 	core.NewTestFeatureFunc = func() core.Feature {
 		return feature.NewTestFeature()
 	}
@@ -58,4 +61,5 @@ var SharedConfig = core.SharedConfig
 func New() *SolardemoSDK  { return NewSolardemoSDK(nil) }
 func Test() *SolardemoSDK { return TestSDK(nil, nil) }
 var NewBaseFeature = feature.NewBaseFeature
+var NewSecretsFeature = feature.NewSecretsFeature
 var NewTestFeature = feature.NewTestFeature

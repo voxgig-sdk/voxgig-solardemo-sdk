@@ -107,11 +107,19 @@ class Config {
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet/{planet_id}/moon',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{planet_id}',
-                'moon',
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'planet_id',
+                },
+                <String, dynamic>{
+                  'lit': 'moon',
+                },
               ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
@@ -122,6 +130,12 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{planet_id}',
+                'moon',
+              ],
             },
           ],
         },
@@ -144,11 +158,19 @@ class Config {
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet/{planet_id}/moon',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{planet_id}',
-                'moon',
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'planet_id',
+                },
+                <String, dynamic>{
+                  'lit': 'moon',
+                },
               ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
@@ -159,6 +181,12 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{planet_id}',
+                'moon',
+              ],
             },
           ],
         },
@@ -188,18 +216,28 @@ class Config {
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet/{planet_id}/moon/{moon_id}',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{planet_id}',
-                'moon',
-                '{id}',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'moon_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'planet_id',
+                },
+                <String, dynamic>{
+                  'lit': 'moon',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+              ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
                   'id',
@@ -210,6 +248,13 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{planet_id}',
+                'moon',
+                '{id}',
+              ],
             },
           ],
         },
@@ -239,18 +284,28 @@ class Config {
               'kind': 'http',
               'method': 'DELETE',
               'orig': '/api/planet/{planet_id}/moon/{moon_id}',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{planet_id}',
-                'moon',
-                '{id}',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'moon_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'planet_id',
+                },
+                <String, dynamic>{
+                  'lit': 'moon',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+              ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
                   'id',
@@ -261,6 +316,13 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{planet_id}',
+                'moon',
+                '{id}',
+              ],
             },
           ],
         },
@@ -290,18 +352,28 @@ class Config {
               'kind': 'http',
               'method': 'PUT',
               'orig': '/api/planet/{planet_id}/moon/{moon_id}',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{planet_id}',
-                'moon',
-                '{id}',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'moon_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'planet_id',
+                },
+                <String, dynamic>{
+                  'lit': 'moon',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+              ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
                   'id',
@@ -312,6 +384,13 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{planet_id}',
+                'moon',
+                '{id}',
+              ],
             },
           ],
         },
@@ -392,17 +471,25 @@ class Config {
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet/{planet_id}/forbid',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{id}',
-                'forbid',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'planet_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+                <String, dynamic>{
+                  'lit': 'forbid',
+                },
+              ],
               'select': <String, dynamic>{
                 '\$action': 'forbid',
                 'exist': <dynamic>[
@@ -413,6 +500,12 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{id}',
+                'forbid',
+              ],
             },
             <String, dynamic>{
               'args': <String, dynamic>{
@@ -429,17 +522,25 @@ class Config {
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet/{planet_id}/terraform',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{id}',
-                'terraform',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'planet_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+                <String, dynamic>{
+                  'lit': 'terraform',
+                },
+              ],
               'select': <String, dynamic>{
                 '\$action': 'terraform',
                 'exist': <dynamic>[
@@ -450,21 +551,35 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{id}',
+                'terraform',
+              ],
             },
             <String, dynamic>{
               'args': <String, dynamic>{},
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet',
-              'parts': <dynamic>[
-                'api',
-                'planet',
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
               ],
               'select': <String, dynamic>{},
               'transform': <String, dynamic>{
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+              ],
             },
           ],
         },
@@ -477,15 +592,23 @@ class Config {
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet',
-              'parts': <dynamic>[
-                'api',
-                'planet',
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
               ],
               'select': <String, dynamic>{},
               'transform': <String, dynamic>{
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+              ],
             },
           ],
         },
@@ -508,16 +631,22 @@ class Config {
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet/{planet_id}',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{id}',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'planet_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+              ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
                   'id',
@@ -527,6 +656,11 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{id}',
+              ],
             },
           ],
         },
@@ -549,16 +683,22 @@ class Config {
               'kind': 'http',
               'method': 'DELETE',
               'orig': '/api/planet/{planet_id}',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{id}',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'planet_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+              ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
                   'id',
@@ -568,6 +708,11 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{id}',
+              ],
             },
           ],
         },
@@ -590,16 +735,22 @@ class Config {
               'kind': 'http',
               'method': 'PUT',
               'orig': '/api/planet/{planet_id}',
-              'parts': <dynamic>[
-                'api',
-                'planet',
-                '{id}',
-              ],
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'planet_id': 'id',
                 },
               },
+              'segments': <dynamic>[
+                <String, dynamic>{
+                  'lit': 'api',
+                },
+                <String, dynamic>{
+                  'lit': 'planet',
+                },
+                <String, dynamic>{
+                  'var': 'id',
+                },
+              ],
               'select': <String, dynamic>{
                 'exist': <dynamic>[
                   'id',
@@ -609,6 +760,11 @@ class Config {
                 'req': '`reqdata`',
                 'res': '`body`',
               },
+              'parts': <dynamic>[
+                'api',
+                'planet',
+                '{id}',
+              ],
             },
           ],
         },

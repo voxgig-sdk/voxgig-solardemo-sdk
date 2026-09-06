@@ -101,7 +101,7 @@ func TestMoonEntity(t *testing.T) {
 		// CREATE
 		moonRef01Ent := client.Moon(nil)
 		moonRef01Data := core.ToMapAny(vs.GetProp(
-			vs.GetPath([]any{"new", "moon"}, setup.data), "moon_ref01"))
+			vs.GetPath(setup.data, []any{"new", "moon"}), "moon_ref01"))
 		moonRef01Data["planet_id"] = setup.idmap["planet01"]
 
 		moonRef01DataResult, err := moonRef01Ent.Create(moonRef01Data, nil)
@@ -231,7 +231,7 @@ func moonBasicSetup(extra map[string]any) *entityTestSetup {
 	client := sdk.TestSDK(options, extra)
 
 	// Generate idmap via transform, matching TS pattern.
-	idmap := vs.Transform(
+	idmap, _ := vs.Transform(
 		[]any{"moon01", "moon02", "moon03", "planet01", "planet02", "planet03"},
 		map[string]any{
 			"`$PACK`": []any{"", map[string]any{
@@ -263,10 +263,22 @@ func moonBasicSetup(extra map[string]any) *entityTestSetup {
 	}
 
 	if env["SOLARDEMO_TEST_LIVE"] == "TRUE" {
+		// An empty map, not a nil one: Merge returns nil when its last entry
+		// is nil, and BasicSetup is normally called with no extras - so a
+		// bare nil silently discarded the apikey and server values below.
+		extraOpts := extra
+		if extraOpts == nil {
+			extraOpts = map[string]any{}
+		}
+
 		mergedOpts := vs.Merge([]any{
+			// liveClientOptions() FIRST, so the generated fields below win:
+			// sdk-test-control.json's test.client.options adds to the live
+			// client, it does not redirect it.
+			liveClientOptions(),
 			map[string]any{
 			},
-			extra,
+			extraOpts,
 		})
 		client = sdk.NewSolardemoSDK(core.ToMapAny(mergedOpts))
 	}

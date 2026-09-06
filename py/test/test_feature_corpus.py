@@ -23,9 +23,20 @@ from solardemo_sdk import SolardemoSDK
 
 _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Features with a corpus section. A name here with no section is a skip, not
-# a failure: an SDK generated without the feature has nothing to run.
-FEATURE_CORPUS_NAMES = ["cost"]
+# Features with a corpus section — read from the corpus itself, so a
+# project-authored section (a custom feature added under
+# .sdk/test/feature/) runs without editing this file. Read eagerly:
+# parametrize needs the names at collection time. An SDK generated
+# without a listed feature still skips, not fails.
+def _corpus_feature_names():
+    try:
+        with open(os.path.join(_TEST_DIR, "../../.sdk/test/test.json"), "r") as f:
+            return sorted((json.loads(f.read()).get("feature") or {}).keys())
+    except OSError:
+        return []
+
+
+FEATURE_CORPUS_NAMES = _corpus_feature_names()
 
 # The standard operation names, in the order the runner prefers them.
 FEATURE_CORPUS_OPS = ["load", "list", "create", "update", "remove"]
@@ -84,7 +95,16 @@ def _client(kase):
     transport: 'base' and REPLACES the transport, so a client in test mode
     would shadow the script.
     """
-    opts = {"utility": {"fetcher": _scripted_fetcher(kase.get("res"))}}
+    # "test" here is the OPTION, not the `test` FEATURE. It says "this
+    # client is not live", which is what makes a REQUIRED OpenAPI server
+    # variable resolve to a deterministic test-<name> rather than raise at
+    # construction (see make_options). It installs no transport, so the
+    # scripted fetcher still stands - the FEATURE is transport: 'base' and
+    # would shadow it, which is why this cannot just turn the feature on.
+    opts = {
+        "test": {"active": True},
+        "utility": {"fetcher": _scripted_fetcher(kase.get("res"))},
+    }
     if kase.get("feature") is not None:
         opts["feature"] = kase["feature"]
     return SolardemoSDK(opts)

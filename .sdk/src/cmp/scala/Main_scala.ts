@@ -4,6 +4,8 @@ import * as Path from 'node:path'
 import {
   cmp, each,
   File, Content, Copy, Folder, Fragment,
+  targetFeatures,
+  TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
 
 
@@ -33,7 +35,10 @@ const Main = cmp(async function Main(props: any) {
   const { model } = props.ctx$
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = getModelPath(model, `main.${KIT}.feature`)
+  // Gated by the applicability tags, so this target never imports or
+  // registers a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
 
   // The Scala package root for every runtime piece (like GOMODULE for go).
   const scalapackage = scalaPackage(model)
@@ -47,7 +52,7 @@ const Main = cmp(async function Main(props: any) {
   // ProjectName carries the SDK name into vendored template strings.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//],
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
     replace: {
       ...props.ctx$.stdrep,
       ProjectName: model.const.Name,

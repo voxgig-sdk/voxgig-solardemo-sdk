@@ -937,10 +937,13 @@ let fetcher_util (ctx : ctx) (fullurl : string) (fetchdef : value) : (value * sd
 let opt_spec_value () : value =
   jo [
     ("apikey", Str "");
+    ("secret", Str "");
     ("base", Str "http://localhost:8000");
     ("prefix", Str "");
     ("suffix", Str "");
-    ("auth", jo [("prefix", Str "")]);
+    (* `basic` and `secret`: HTTP Basic Auth needs a second credential and a
+       flag to say the pair is Basic rather than a single bearer token. *)
+    ("auth", jo [("prefix", Str ""); ("basic", Bool false)]);
     ("headers", jo [("`$CHILD`", Str "`$STRING`")]);
     ("allow", jo [("method", Str "GET,PUT,POST,PATCH,DELETE,OPTIONS");
                   ("op", Str "create,update,load,list,remove,command,direct,graphql")]);
@@ -965,7 +968,16 @@ let make_options_util (ctx : ctx) : value =
       | Some u -> List.iter (fun k -> setp u.u_custom k (getp custom_utils k)) (keysof custom_utils)
       | None -> ())
    | _ -> ());
+  (* `auth: null` is the documented way to suppress auth outright. validate()
+     treats a STORED null as "no value" (getprop returns the alt), so the
+     optspec `auth` default would fire and turn the suppression into "use the
+     default auth" - transmitting a credential the caller withheld. getprop_raw
+     is the only reader that tells a stored Null from an absent key. Withhold
+     the key across merge/validate, then restore the null below. *)
+  let auth_suppressed =
+    (match getprop_raw options "auth" with Null -> true | _ -> false) in
   let opts = match clone options with Map _ as m -> m | _ -> empty_map () in
+  let () = if auth_suppressed then ignore (delprop opts (Str "auth")) in
   (* Feature add-order. options.feature may be given as an ordered LIST of
      {name; active; ...opts} entries (list position = add order) or a
      {name => {opts}} map. Normalize a list to a map (so merge/validate/init
@@ -996,6 +1008,8 @@ let make_options_util (ctx : ctx) : value =
   let merged = merge (ja [empty_map (); cfgopts; opts]) in
   let validated = validate merged optspec in
   let opts = match validated with Map _ as m -> m | _ -> empty_map () in
+  (* Restore the suppression the optspec default would otherwise erase. *)
+  let () = if auth_suppressed then setp opts "auth" Null in
   (* Resolve a templated base URL (e.g. https://{tenant_id}.hanko.io).
      Every placeholder must resolve to a non-empty value: from options.server
      (user), else the Config default. A placeholder that resolves to "" is a
