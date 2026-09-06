@@ -1474,7 +1474,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1489,7 +1489,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1502,7 +1502,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -1529,6 +1529,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "tests/runner.h"
+          ],
           "title": "C"
         },
         "clojure": {
@@ -1537,7 +1540,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": ";"
           },
@@ -1549,7 +1552,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1562,7 +1565,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -1589,6 +1592,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Clojure"
         },
         "cpp": {
@@ -1597,7 +1601,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1611,7 +1615,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1624,7 +1628,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -1651,6 +1655,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/struct_runner.hpp"
+          ],
           "title": "C++"
         },
         "csharp": {
@@ -1721,7 +1728,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -1733,7 +1740,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1746,7 +1753,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -1773,6 +1780,10 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/runner.dart",
+            "test/struct_corpus.dart"
+          ],
           "title": "Dart"
         },
         "elixir": {
@@ -1781,7 +1792,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "#"
           },
@@ -1793,7 +1804,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -1806,7 +1817,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -1833,6 +1844,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/support/struct_corpus.ex"
+          ],
           "title": "Elixir"
         },
         "go": {
@@ -2253,7 +2267,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "--"
           },
@@ -2265,7 +2279,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2278,7 +2292,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "phase": {
             "agentguide": {
               "active": true
@@ -2322,6 +2336,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Lean"
         },
         "lua": {
@@ -2396,7 +2411,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -2408,7 +2423,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2421,7 +2436,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -2448,6 +2463,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "test/corpus_runner.ml"
+          ],
           "title": "OCaml"
         },
         "perl": {
@@ -2801,7 +2819,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -2821,7 +2839,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2834,7 +2852,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -2861,6 +2879,9 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [
+            "tests/struct_runner/mod.rs"
+          ],
           "title": "Rust"
         },
         "scala": {
@@ -2869,7 +2890,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -2881,7 +2902,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -2894,7 +2915,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -2921,6 +2942,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Scala"
         },
         "seneca-provider": {
@@ -3057,7 +3079,7 @@
             "name": "",
             "url": ""
           },
-          "base": "node_modules/@voxgig/sdkgen/project/.sdk",
+          "base": "BASE",
           "comment": {
             "line": "//"
           },
@@ -3071,7 +3093,7 @@
           },
           "module": {
             "goversion": "",
-            "name": "solardemo",
+            "name": "$$name$$",
             "package": "",
             "path": ""
           },
@@ -3084,7 +3106,7 @@
             "repo": "",
             "sdkrel": ""
           },
-          "package": "@voxgig/sdkgen",
+          "package": "",
           "provides": {},
           "publish": {
             "registry": {
@@ -3111,6 +3133,7 @@
             "version": "0.1.0"
           },
           "srcfeature": false,
+          "superseded": [],
           "title": "Swift"
         },
         "ts": {

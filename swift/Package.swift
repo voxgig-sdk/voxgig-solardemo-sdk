@@ -16,8 +16,11 @@ let package = Package(
             name: "SolardemoSdk",
             path: "Sources/SolardemoSdk"),
         .testTarget(
+            name: "Omni",
+            path: "Tests/vendor/omni"),
+        .testTarget(
             name: "SolardemoSdkTests",
-            dependencies: ["SolardemoSdk"],
+            dependencies: ["SolardemoSdk", "Omni"],
             path: "Tests/SolardemoSdkTests"),
     ]
 )

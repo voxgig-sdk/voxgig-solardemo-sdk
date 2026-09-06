@@ -1,4 +1,4 @@
-// Solardemo SDK — pipeline utility builders (mirrors java utility/*.java).
+// ProjectName SDK — pipeline utility builders (mirrors java utility/*.java).
 //
 // Every pipeline step is a free function bound onto the Utility function
 // fields by register_all(). Features and tests may replace individual
@@ -58,7 +58,7 @@ inline Value makeError(CtxPtr ctx, SdkErrorPtr err) {
   if (!err) err = ctx->makeError("unknown", "unknown error");
 
   std::string errmsg = err->getMessage();
-  std::string msg = "SolardemoSDK: " + opname + ": " + errmsg;
+  std::string msg = "ProjectNameSDK: " + opname + ": " + errmsg;
 
   result->err = nullptr;
 
@@ -874,7 +874,13 @@ inline std::string prepareMethod(CtxPtr ctx) {
   if (opname == "list") return "GET";
   if (opname == "remove") return "DELETE";
   if (opname == "patch") return "PATCH";
-  return "GET";
+
+  // An op the API does not define resolves NO method — ts answers undefined
+  // here (`methodMap[key]`), and "" is C++'s spelling of the same "no
+  // value", as it is go's. The stray "GET" that used to sit here was hidden
+  // by the retired silent-pass engine; the shared corpus pins it now
+  // (primary.prepareMethod, opname "bad" -> no output).
+  return "";
 }
 
 // ---- prepareBody ------------------------------------------------------
