@@ -2,55 +2,43 @@
   "existing": {
     "planet": {
       "PLANET00": {
-        "diameter": 100,
-        "forbid": false,
+        "diameter": 70,
+        "forbidReason": "s47",
+        "forbidState": "s48",
         "id": "PLANET00",
-        "kind": "s67",
-        "name": "s68",
-        "ok": false,
-        "start": true,
-        "state": "s6b",
-        "stop": true,
-        "why": "s6d"
+        "kind": "s4a",
+        "name": "s4b",
+        "terraformState": "s4c"
       },
       "PLANET01": {
-        "diameter": 200,
-        "forbid": false,
+        "diameter": 140,
+        "forbidReason": "s8d",
+        "forbidState": "s8e",
         "id": "PLANET01",
-        "kind": "scb",
-        "name": "scc",
-        "ok": false,
-        "start": true,
-        "state": "scf",
-        "stop": true,
-        "why": "sd1"
+        "kind": "s90",
+        "name": "s91",
+        "terraformState": "s92"
       },
       "PLANET02": {
-        "diameter": 300,
-        "forbid": false,
+        "diameter": 210,
+        "forbidReason": "sd3",
+        "forbidState": "sd4",
         "id": "PLANET02",
-        "kind": "s12f",
-        "name": "s130",
-        "ok": false,
-        "start": true,
-        "state": "s133",
-        "stop": true,
-        "why": "s135"
+        "kind": "sd6",
+        "name": "sd7",
+        "terraformState": "sd8"
       }
     }
   },
   "new": {
     "planet": {
       "planet_ref01": {
-        "diameter": 400,
-        "forbid": false,
-        "kind": "s193",
-        "name": "s194",
-        "ok": false,
-        "start": true,
-        "state": "s197",
-        "stop": true,
-        "why": "s199"
+        "diameter": 280,
+        "forbidReason": "s119",
+        "forbidState": "s11a",
+        "kind": "s11c",
+        "name": "s11d",
+        "terraformState": "s11e"
       }
     }
   }

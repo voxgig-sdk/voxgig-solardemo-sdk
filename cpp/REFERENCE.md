@@ -187,15 +187,12 @@ auto planet = client->planet();
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `diameter` | `double` | Yes |  |
-| `forbid` | `bool` | No |  |
+| `forbidReason` | `std::string` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `std::string` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `std::string` | Yes |  |
 | `kind` | `std::string` | Yes |  |
 | `name` | `std::string` | Yes |  |
-| `ok` | `bool` | No |  |
-| `start` | `bool` | No |  |
-| `state` | `std::string` | No |  |
-| `stop` | `bool` | No |  |
-| `why` | `std::string` | No |  |
+| `terraformState` | `std::string` | No | Set by the terraform action, and absent until it first runs. |
 
 ### Operations
 

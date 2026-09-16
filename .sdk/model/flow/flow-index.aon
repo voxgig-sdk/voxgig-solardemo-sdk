@@ -1,4 +1,4 @@
 # Flows
 
-@"BasicMoonFlow.aon"
-@"BasicPlanetFlow.aon"
+@"./BasicMoonFlow.aon"
+@"./BasicPlanetFlow.aon"

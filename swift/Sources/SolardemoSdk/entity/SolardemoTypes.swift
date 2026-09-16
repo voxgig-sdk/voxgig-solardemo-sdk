@@ -57,15 +57,12 @@ public struct MoonRemoveMatch {
 /// Planet is the typed data model for the planet entity.
 public struct Planet {
   public var diameter: Double
-  public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var id: String
   public var kind: String
   public var name: String
-  public var ok: Bool?
-  public var start: Bool?
-  public var state: String?
-  public var stop: Bool?
-  public var why: String?
+  public var terraformState: String?
 }
 
 /// PlanetLoadMatch is the typed request payload for Planet.load.
@@ -76,43 +73,34 @@ public struct PlanetLoadMatch {
 /// PlanetListMatch is the typed request payload for Planet.list.
 public struct PlanetListMatch {
   public var diameter: Double?
-  public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var id: String?
   public var kind: String?
   public var name: String?
-  public var ok: Bool?
-  public var start: Bool?
-  public var state: String?
-  public var stop: Bool?
-  public var why: String?
+  public var terraformState: String?
 }
 
 /// PlanetCreateData is the typed request payload for Planet.create.
 public struct PlanetCreateData {
   public var diameter: Double
-  public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var id: String
   public var kind: String
   public var name: String
-  public var ok: Bool?
-  public var start: Bool?
-  public var state: String?
-  public var stop: Bool?
-  public var why: String?
+  public var terraformState: String?
 }
 
 /// PlanetUpdateData is the typed request payload for Planet.update.
 public struct PlanetUpdateData {
   public var id: String
   public var diameter: Double?
-  public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var kind: String?
   public var name: String?
-  public var ok: Bool?
-  public var start: Bool?
-  public var state: String?
-  public var stop: Bool?
-  public var why: String?
+  public var terraformState: String?
 }
 
 /// PlanetRemoveMatch is the typed request payload for Planet.remove.

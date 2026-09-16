@@ -51,9 +51,9 @@ os.environ["SOLARDEMO_APIKEY"] = "your-api-key"
 | Call | Entity | Returns | Columns |
 |---|---|---|---|
 | `moons()` | `moon` | DataFrame | 5 |
-| `planets()` | `planet` | DataFrame | 10 |
+| `planets()` | `planet` | DataFrame | 7 |
 | `moon(id)` | `moon` | Series | 5 |
-| `planet(id)` | `planet` | Series | 10 |
+| `planet(id)` | `planet` | Series | 7 |
 
 Every frame accessor takes the same keyword arguments:
 
@@ -84,15 +84,12 @@ Every frame accessor takes the same keyword arguments:
 | Column | dtype | Required |
 |---|---|---|
 | `diameter` | `Float64` | yes |
-| `forbid` | `boolean` |  |
+| `forbidReason` | `string` |  |
+| `forbidState` | `string` |  |
 | `id` | `string` | yes |
 | `kind` | `string` | yes |
 | `name` | `string` | yes |
-| `ok` | `boolean` |  |
-| `start` | `boolean` |  |
-| `state` | `string` |  |
-| `stop` | `boolean` |  |
-| `why` | `string` |  |
+| `terraformState` | `string` |  |
 
 
 ## How it works

@@ -48,11 +48,17 @@ declare class Config {
     };
     entity: {
         moon: {
-            fields: {
+            fields: ({
+                format: string;
                 name: string;
                 req: boolean;
                 type: string;
-            }[];
+            } | {
+                name: string;
+                req: boolean;
+                type: string;
+                format?: undefined;
+            })[];
             name: string;
             op: {
                 create: {
@@ -67,6 +73,12 @@ declare class Config {
                                 reqd: boolean;
                                 type: string;
                             }[];
+                        };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
                         };
                         kind: string;
                         method: string;
@@ -101,6 +113,12 @@ declare class Config {
                                 type: string;
                             }[];
                         };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
+                        };
                         kind: string;
                         method: string;
                         orig: string;
@@ -133,6 +151,12 @@ declare class Config {
                                 reqd: boolean;
                                 type: string;
                             }[];
+                        };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
                         };
                         kind: string;
                         method: string;
@@ -172,6 +196,12 @@ declare class Config {
                                 type: string;
                             }[];
                         };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
+                        };
                         kind: string;
                         method: string;
                         orig: string;
@@ -209,6 +239,12 @@ declare class Config {
                                 reqd: boolean;
                                 type: string;
                             }[];
+                        };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
                         };
                         kind: string;
                         method: string;
@@ -242,13 +278,26 @@ declare class Config {
         };
         planet: {
             fields: ({
+                format: string;
                 name: string;
                 req: boolean;
                 type: string;
+                readOnly?: undefined;
+                short?: undefined;
             } | {
                 name: string;
+                readOnly: boolean;
+                short: string;
                 type: string;
+                format?: undefined;
                 req?: undefined;
+            } | {
+                name: string;
+                req: boolean;
+                type: string;
+                format?: undefined;
+                readOnly?: undefined;
+                short?: undefined;
             })[];
             name: string;
             op: {
@@ -264,6 +313,12 @@ declare class Config {
                                 reqd: boolean;
                                 type: string;
                             }[];
+                        };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
                         };
                         kind: string;
                         method: string;
@@ -293,6 +348,12 @@ declare class Config {
                         args: {
                             params?: undefined;
                         };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
+                        };
                         kind: string;
                         method: string;
                         orig: string;
@@ -316,6 +377,12 @@ declare class Config {
                     name: string;
                     points: {
                         args: {};
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
+                        };
                         kind: string;
                         method: string;
                         orig: string;
@@ -342,6 +409,12 @@ declare class Config {
                                 reqd: boolean;
                                 type: string;
                             }[];
+                        };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
                         };
                         kind: string;
                         method: string;
@@ -381,6 +454,12 @@ declare class Config {
                                 type: string;
                             }[];
                         };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
+                        };
                         kind: string;
                         method: string;
                         orig: string;
@@ -418,6 +497,12 @@ declare class Config {
                                 reqd: boolean;
                                 type: string;
                             }[];
+                        };
+                        contract: {
+                            id: string;
+                            json: string;
+                            source: string;
+                            version: number;
                         };
                         kind: string;
                         method: string;

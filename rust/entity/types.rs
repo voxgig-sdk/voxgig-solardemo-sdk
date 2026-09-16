@@ -65,15 +65,12 @@ pub struct MoonRemoveMatch {
 #[derive(Debug, Clone)]
 pub struct Planet {
     pub diameter: f64,
-    pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub id: String,
     pub kind: String,
     pub name: String,
-    pub ok: Option<bool>,
-    pub start: Option<bool>,
-    pub state: Option<String>,
-    pub stop: Option<bool>,
-    pub why: Option<String>,
+    pub terraformstate: Option<String>,
 }
 
 /// PlanetLoadMatch is the typed request payload for Planet.load.
@@ -86,30 +83,24 @@ pub struct PlanetLoadMatch {
 #[derive(Debug, Clone)]
 pub struct PlanetListMatch {
     pub diameter: Option<f64>,
-    pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub id: Option<String>,
     pub kind: Option<String>,
     pub name: Option<String>,
-    pub ok: Option<bool>,
-    pub start: Option<bool>,
-    pub state: Option<String>,
-    pub stop: Option<bool>,
-    pub why: Option<String>,
+    pub terraformstate: Option<String>,
 }
 
 /// PlanetCreateData is the typed request payload for Planet.create.
 #[derive(Debug, Clone)]
 pub struct PlanetCreateData {
     pub diameter: f64,
-    pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub id: String,
     pub kind: String,
     pub name: String,
-    pub ok: Option<bool>,
-    pub start: Option<bool>,
-    pub state: Option<String>,
-    pub stop: Option<bool>,
-    pub why: Option<String>,
+    pub terraformstate: Option<String>,
 }
 
 /// PlanetUpdateData is the typed request payload for Planet.update.
@@ -117,14 +108,11 @@ pub struct PlanetCreateData {
 pub struct PlanetUpdateData {
     pub id: String,
     pub diameter: Option<f64>,
-    pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub kind: Option<String>,
     pub name: Option<String>,
-    pub ok: Option<bool>,
-    pub start: Option<bool>,
-    pub state: Option<String>,
-    pub stop: Option<bool>,
-    pub why: Option<String>,
+    pub terraformstate: Option<String>,
 }
 
 /// PlanetRemoveMatch is the typed request payload for Planet.remove.

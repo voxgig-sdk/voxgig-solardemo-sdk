@@ -269,6 +269,24 @@ components:
         diameter:
           type: number
           format: float
+        terraformState:
+          type: string
+          readOnly: true
+          description: >-
+            Set by the terraform action, and absent until it first runs.
+            One of idle, terraforming or complete.
+        forbidState:
+          type: string
+          readOnly: true
+          description: >-
+            Set by the forbid action, and absent until it first runs.
+            One of allowed or forbidden.
+        forbidReason:
+          type: string
+          readOnly: true
+          description: >-
+            Why the planet is forbidden, carried from the forbid action's
+            `why`. Absent while the planet is allowed.
     Moon:
       type: object
       required:

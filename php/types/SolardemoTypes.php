@@ -66,15 +66,12 @@ class MoonRemoveMatch
 class Planet
 {
     public float $diameter;
-    public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public string $id;
     public string $kind;
     public string $name;
-    public ?bool $ok = null;
-    public ?bool $start = null;
-    public ?string $state = null;
-    public ?bool $stop = null;
-    public ?string $why = null;
+    public ?string $terraformState = null;
 }
 
 /** Request payload for Planet#load. */
@@ -87,30 +84,24 @@ class PlanetLoadMatch
 class PlanetListMatch
 {
     public ?float $diameter = null;
-    public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public ?string $id = null;
     public ?string $kind = null;
     public ?string $name = null;
-    public ?bool $ok = null;
-    public ?bool $start = null;
-    public ?string $state = null;
-    public ?bool $stop = null;
-    public ?string $why = null;
+    public ?string $terraformState = null;
 }
 
 /** Request payload for Planet#create. */
 class PlanetCreateData
 {
     public float $diameter;
-    public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public string $id;
     public string $kind;
     public string $name;
-    public ?bool $ok = null;
-    public ?bool $start = null;
-    public ?string $state = null;
-    public ?bool $stop = null;
-    public ?string $why = null;
+    public ?string $terraformState = null;
 }
 
 /** Request payload for Planet#update. */
@@ -118,14 +109,11 @@ class PlanetUpdateData
 {
     public string $id;
     public ?float $diameter = null;
-    public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public ?string $kind = null;
     public ?string $name = null;
-    public ?bool $ok = null;
-    public ?bool $start = null;
-    public ?string $state = null;
-    public ?bool $stop = null;
-    public ?string $why = null;
+    public ?string $terraformState = null;
 }
 
 /** Request payload for Planet#remove. */

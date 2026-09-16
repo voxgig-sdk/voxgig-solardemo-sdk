@@ -182,15 +182,12 @@ Entity* planet = solardemo_planet(client, NULL);
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `diameter` | `double` | Yes |  |
-| `forbid` | `bool` | No |  |
+| `forbidReason` | `char*` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `char*` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `char*` | Yes |  |
 | `kind` | `char*` | Yes |  |
 | `name` | `char*` | Yes |  |
-| `ok` | `bool` | No |  |
-| `start` | `bool` | No |  |
-| `state` | `char*` | No |  |
-| `stop` | `bool` | No |  |
-| `why` | `char*` | No |  |
+| `terraformState` | `char*` | No | Set by the terraform action, and absent until it first runs. |
 
 ### Operations
 

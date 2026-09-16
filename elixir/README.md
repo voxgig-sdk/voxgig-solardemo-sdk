@@ -321,15 +321,12 @@ API path: `/api/planet/{planet_id}/moon`
 | Field | Description |
 | --- | --- |
 | `diameter` |  |
-| `forbid` |  |
+| `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
-| `ok` |  |
-| `start` |  |
-| `state` |  |
-| `stop` |  |
-| `why` |  |
+| `terraformState` | Set by the terraform action, and absent until it first runs. |
 
 Operations: Create, List, Load, Remove, Update.
 
@@ -414,15 +411,12 @@ Create a handle: `planet = Solardemo.planet(sdk)`
 | Field | Type | Description |
 | --- | --- | --- |
 | `diameter` | `float()` |  |
-| `forbid` | `boolean()` |  |
+| `forbidReason` | `String.t()` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String.t()` | Set by the forbid action, and absent until it first runs. |
 | `id` | `String.t()` |  |
 | `kind` | `String.t()` |  |
 | `name` | `String.t()` |  |
-| `ok` | `boolean()` |  |
-| `start` | `boolean()` |  |
-| `state` | `String.t()` |  |
-| `stop` | `boolean()` |  |
-| `why` | `String.t()` |  |
+| `terraformState` | `String.t()` | Set by the terraform action, and absent until it first runs. |
 
 #### Example: Load
 

@@ -59,15 +59,12 @@ type MoonRemoveMatch struct {
 // Planet is the typed data model for the planet entity.
 type Planet struct {
 	Diameter float64 `json:"diameter"`
-	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Id string `json:"id"`
 	Kind string `json:"kind"`
 	Name string `json:"name"`
-	Ok *bool `json:"ok,omitempty"`
-	Start *bool `json:"start,omitempty"`
-	State *string `json:"state,omitempty"`
-	Stop *bool `json:"stop,omitempty"`
-	Why *string `json:"why,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 }
 
 // PlanetLoadMatch is the typed request payload for Planet.LoadTyped.
@@ -78,43 +75,34 @@ type PlanetLoadMatch struct {
 // PlanetListMatch is the typed request payload for Planet.ListTyped.
 type PlanetListMatch struct {
 	Diameter *float64 `json:"diameter,omitempty"`
-	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Id *string `json:"id,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	Name *string `json:"name,omitempty"`
-	Ok *bool `json:"ok,omitempty"`
-	Start *bool `json:"start,omitempty"`
-	State *string `json:"state,omitempty"`
-	Stop *bool `json:"stop,omitempty"`
-	Why *string `json:"why,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 }
 
 // PlanetCreateData is the typed request payload for Planet.CreateTyped.
 type PlanetCreateData struct {
 	Diameter float64 `json:"diameter"`
-	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Id string `json:"id"`
 	Kind string `json:"kind"`
 	Name string `json:"name"`
-	Ok *bool `json:"ok,omitempty"`
-	Start *bool `json:"start,omitempty"`
-	State *string `json:"state,omitempty"`
-	Stop *bool `json:"stop,omitempty"`
-	Why *string `json:"why,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 }
 
 // PlanetUpdateData is the typed request payload for Planet.UpdateTyped.
 type PlanetUpdateData struct {
 	Id string `json:"id"`
 	Diameter *float64 `json:"diameter,omitempty"`
-	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	Name *string `json:"name,omitempty"`
-	Ok *bool `json:"ok,omitempty"`
-	Start *bool `json:"start,omitempty"`
-	State *string `json:"state,omitempty"`
-	Stop *bool `json:"stop,omitempty"`
-	Why *string `json:"why,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 }
 
 // PlanetRemoveMatch is the typed request payload for Planet.RemoveTyped.

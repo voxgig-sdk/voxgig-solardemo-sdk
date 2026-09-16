@@ -53,15 +53,12 @@
 /**
  * @typedef {Object} Planet
  * @property {number} diameter
- * @property {boolean} [forbid]
+ * @property {string} [forbidReason]
+ * @property {string} [forbidState]
  * @property {string} id
  * @property {string} kind
  * @property {string} name
- * @property {boolean} [ok]
- * @property {boolean} [start]
- * @property {string} [state]
- * @property {boolean} [stop]
- * @property {string} [why]
+ * @property {string} [terraformState]
  */
 
 /**
@@ -72,43 +69,34 @@
 /**
  * @typedef {Object} PlanetListMatch
  * @property {number} [diameter]
- * @property {boolean} [forbid]
+ * @property {string} [forbidReason]
+ * @property {string} [forbidState]
  * @property {string} [id]
  * @property {string} [kind]
  * @property {string} [name]
- * @property {boolean} [ok]
- * @property {boolean} [start]
- * @property {string} [state]
- * @property {boolean} [stop]
- * @property {string} [why]
+ * @property {string} [terraformState]
  */
 
 /**
  * @typedef {Object} PlanetCreateData
  * @property {number} diameter
- * @property {boolean} [forbid]
+ * @property {string} [forbidReason]
+ * @property {string} [forbidState]
  * @property {string} id
  * @property {string} kind
  * @property {string} name
- * @property {boolean} [ok]
- * @property {boolean} [start]
- * @property {string} [state]
- * @property {boolean} [stop]
- * @property {string} [why]
+ * @property {string} [terraformState]
  */
 
 /**
  * @typedef {Object} PlanetUpdateData
  * @property {string} id
  * @property {number} [diameter]
- * @property {boolean} [forbid]
+ * @property {string} [forbidReason]
+ * @property {string} [forbidState]
  * @property {string} [kind]
  * @property {string} [name]
- * @property {boolean} [ok]
- * @property {boolean} [start]
- * @property {string} [state]
- * @property {boolean} [stop]
- * @property {string} [why]
+ * @property {string} [terraformState]
  */
 
 /**

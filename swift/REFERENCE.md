@@ -183,15 +183,12 @@ let planet = client.Planet()
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `diameter` | `Double` | Yes |  |
-| `forbid` | `Bool` | No |  |
+| `forbidReason` | `String` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `String` | Yes |  |
 | `kind` | `String` | Yes |  |
 | `name` | `String` | Yes |  |
-| `ok` | `Bool` | No |  |
-| `start` | `Bool` | No |  |
-| `state` | `String` | No |  |
-| `stop` | `Bool` | No |  |
-| `why` | `String` | No |  |
+| `terraformState` | `String` | No | Set by the terraform action, and absent until it first runs. |
 
 ### Operations
 

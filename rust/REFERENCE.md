@@ -192,15 +192,12 @@ let planet = client.planet(Value::Noval);
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `diameter` | `f64` | Yes |  |
-| `forbid` | `bool` | No |  |
+| `forbidReason` | `String` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `String` | Yes |  |
 | `kind` | `String` | Yes |  |
 | `name` | `String` | Yes |  |
-| `ok` | `bool` | No |  |
-| `start` | `bool` | No |  |
-| `state` | `String` | No |  |
-| `stop` | `bool` | No |  |
-| `why` | `String` | No |  |
+| `terraformState` | `String` | No | Set by the terraform action, and absent until it first runs. |
 
 ### Operations
 

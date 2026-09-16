@@ -21,7 +21,6 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "x-ref": "#/components/schemas/Planet",
                     "type": "object",
                     "required": [
                       "id",
@@ -42,8 +41,24 @@
                       "diameter": {
                         "type": "number",
                         "format": "float"
+                      },
+                      "terraformState": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+                      },
+                      "forbidState": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+                      },
+                      "forbidReason": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
                       }
-                    }
+                    },
+                    "x-ref": "#/components/schemas/Planet"
                   }
                 }
               }
@@ -58,7 +73,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "x-ref": "#/components/schemas/Planet",
                 "type": "object",
                 "required": [
                   "id",
@@ -79,8 +93,24 @@
                   "diameter": {
                     "type": "number",
                     "format": "float"
+                  },
+                  "terraformState": {
+                    "type": "string",
+                    "readOnly": true,
+                    "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+                  },
+                  "forbidState": {
+                    "type": "string",
+                    "readOnly": true,
+                    "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+                  },
+                  "forbidReason": {
+                    "type": "string",
+                    "readOnly": true,
+                    "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
                   }
-                }
+                },
+                "x-ref": "#/components/schemas/Planet"
               }
             }
           }
@@ -91,7 +121,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "x-ref": "#/components/schemas/Planet",
                   "type": "object",
                   "required": [
                     "id",
@@ -112,8 +141,24 @@
                     "diameter": {
                       "type": "number",
                       "format": "float"
+                    },
+                    "terraformState": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+                    },
+                    "forbidState": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+                    },
+                    "forbidReason": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
                     }
-                  }
+                  },
+                  "x-ref": "#/components/schemas/Planet"
                 }
               }
             }
@@ -140,7 +185,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "x-ref": "#/components/schemas/Planet",
                   "type": "object",
                   "required": [
                     "id",
@@ -161,8 +205,24 @@
                     "diameter": {
                       "type": "number",
                       "format": "float"
+                    },
+                    "terraformState": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+                    },
+                    "forbidState": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+                    },
+                    "forbidReason": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
                     }
-                  }
+                  },
+                  "x-ref": "#/components/schemas/Planet"
                 }
               }
             }
@@ -186,7 +246,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "x-ref": "#/components/schemas/Planet",
                 "type": "object",
                 "required": [
                   "id",
@@ -207,8 +266,24 @@
                   "diameter": {
                     "type": "number",
                     "format": "float"
+                  },
+                  "terraformState": {
+                    "type": "string",
+                    "readOnly": true,
+                    "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+                  },
+                  "forbidState": {
+                    "type": "string",
+                    "readOnly": true,
+                    "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+                  },
+                  "forbidReason": {
+                    "type": "string",
+                    "readOnly": true,
+                    "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
                   }
-                }
+                },
+                "x-ref": "#/components/schemas/Planet"
               }
             }
           }
@@ -219,7 +294,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "x-ref": "#/components/schemas/Planet",
                   "type": "object",
                   "required": [
                     "id",
@@ -240,8 +314,24 @@
                     "diameter": {
                       "type": "number",
                       "format": "float"
+                    },
+                    "terraformState": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+                    },
+                    "forbidState": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+                    },
+                    "forbidReason": {
+                      "type": "string",
+                      "readOnly": true,
+                      "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
                     }
-                  }
+                  },
+                  "x-ref": "#/components/schemas/Planet"
                 }
               }
             }
@@ -394,7 +484,6 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "x-ref": "#/components/schemas/Moon",
                     "type": "object",
                     "required": [
                       "id",
@@ -420,7 +509,8 @@
                         "type": "number",
                         "format": "float"
                       }
-                    }
+                    },
+                    "x-ref": "#/components/schemas/Moon"
                   }
                 }
               }
@@ -445,7 +535,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "x-ref": "#/components/schemas/Moon",
                 "type": "object",
                 "required": [
                   "id",
@@ -471,7 +560,8 @@
                     "type": "number",
                     "format": "float"
                   }
-                }
+                },
+                "x-ref": "#/components/schemas/Moon"
               }
             }
           }
@@ -482,7 +572,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "x-ref": "#/components/schemas/Moon",
                   "type": "object",
                   "required": [
                     "id",
@@ -508,7 +597,8 @@
                       "type": "number",
                       "format": "float"
                     }
-                  }
+                  },
+                  "x-ref": "#/components/schemas/Moon"
                 }
               }
             }
@@ -543,7 +633,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "x-ref": "#/components/schemas/Moon",
                   "type": "object",
                   "required": [
                     "id",
@@ -569,7 +658,8 @@
                       "type": "number",
                       "format": "float"
                     }
-                  }
+                  },
+                  "x-ref": "#/components/schemas/Moon"
                 }
               }
             }
@@ -601,7 +691,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "x-ref": "#/components/schemas/Moon",
                 "type": "object",
                 "required": [
                   "id",
@@ -627,7 +716,8 @@
                     "type": "number",
                     "format": "float"
                   }
-                }
+                },
+                "x-ref": "#/components/schemas/Moon"
               }
             }
           }
@@ -638,7 +728,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "x-ref": "#/components/schemas/Moon",
                   "type": "object",
                   "required": [
                     "id",
@@ -664,7 +753,8 @@
                       "type": "number",
                       "format": "float"
                     }
-                  }
+                  },
+                  "x-ref": "#/components/schemas/Moon"
                 }
               }
             }
@@ -722,6 +812,21 @@
           "diameter": {
             "type": "number",
             "format": "float"
+          },
+          "terraformState": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete."
+          },
+          "forbidState": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Set by the forbid action, and absent until it first runs. One of allowed or forbidden."
+          },
+          "forbidReason": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed."
           }
         }
       },

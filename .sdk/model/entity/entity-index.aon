@@ -1,4 +1,4 @@
 # Entity Models
 
-@"moon.aon"
-@"planet.aon"
+@"./moon.aon"
+@"./planet.aon"
