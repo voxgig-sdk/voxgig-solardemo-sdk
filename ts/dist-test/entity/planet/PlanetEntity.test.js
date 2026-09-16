@@ -86,7 +86,7 @@ const utility_1 = require("../../utility");
         // UPDATE
         const planet_ref01_data_up0 = {};
         planet_ref01_data_up0.id = planet_ref01_data.id;
-        const planet_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-planet_ref01_' + setup.now };
+        const planet_ref01_markdef_up0 = { name: 'forbidReason', value: 'Mark01-planet_ref01_' + setup.now };
         planet_ref01_data_up0[planet_ref01_markdef_up0.name] = planet_ref01_markdef_up0.value;
         const planet_ref01_resdata_up0 = (await planet_ref01_ent.update(planet_ref01_data_up0)).data();
         (0, node_assert_1.default)(planet_ref01_resdata_up0.id === planet_ref01_data_up0.id);

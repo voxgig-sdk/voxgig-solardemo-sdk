@@ -301,6 +301,8 @@ API path: `/api/planet/{planet_id}/moon`
 | --- | --- |
 | `diameter` |  |
 | `forbid` |  |
+| `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
@@ -308,6 +310,7 @@ API path: `/api/planet/{planet_id}/moon`
 | `start` |  |
 | `state` |  |
 | `stop` |  |
+| `terraformState` | Set by the terraform action, and absent until it first runs. |
 | `why` |  |
 
 Operations: Create, List, Load, Remove, Update.
@@ -388,6 +391,8 @@ Create an instance: `auto planet = client->planet();`
 | --- | --- | --- |
 | `diameter` | `double` |  |
 | `forbid` | `bool` |  |
+| `forbidReason` | `std::string` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `std::string` | Set by the forbid action, and absent until it first runs. |
 | `id` | `std::string` |  |
 | `kind` | `std::string` |  |
 | `name` | `std::string` |  |
@@ -395,6 +400,7 @@ Create an instance: `auto planet = client->planet();`
 | `start` | `bool` |  |
 | `state` | `std::string` |  |
 | `stop` | `bool` |  |
+| `terraformState` | `std::string` | Set by the terraform action, and absent until it first runs. |
 | `why` | `std::string` |  |
 
 #### Example: Load

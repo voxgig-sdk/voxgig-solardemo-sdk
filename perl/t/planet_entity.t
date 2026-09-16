@@ -66,7 +66,7 @@ BASIC_FLOW: {
     'id' => $V{planet_ref01_data}{id},
   };
 
-  $V{planet_ref01_markdef_up0_name} = 'kind';
+  $V{planet_ref01_markdef_up0_name} = 'forbidReason';
   $V{planet_ref01_markdef_up0_value} = 'Mark01-planet_ref01_' . $setup->{now};
   $V{planet_ref01_data_up0_up}{ $V{planet_ref01_markdef_up0_name} } = $V{planet_ref01_markdef_up0_value};
 

@@ -245,8 +245,15 @@ declare class Config {
                 name: string;
                 req: boolean;
                 type: string;
+                short?: undefined;
             } | {
                 name: string;
+                type: string;
+                req?: undefined;
+                short?: undefined;
+            } | {
+                name: string;
+                short: string;
                 type: string;
                 req?: undefined;
             })[];

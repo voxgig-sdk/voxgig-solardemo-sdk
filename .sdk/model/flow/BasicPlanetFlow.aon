@@ -31,7 +31,7 @@ main: kit: flow: BasicPlanetFlow:
         ref: "planet_ref01",
         srcdatavar: "planet_ref01_data",
         suffix: "_up0",
-        textfield: "kind"
+        textfield: "forbidReason"
       }
 
       op: "update",

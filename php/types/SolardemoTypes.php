@@ -67,6 +67,8 @@ class Planet
 {
     public float $diameter;
     public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public string $id;
     public string $kind;
     public string $name;
@@ -74,6 +76,7 @@ class Planet
     public ?bool $start = null;
     public ?string $state = null;
     public ?bool $stop = null;
+    public ?string $terraformState = null;
     public ?string $why = null;
 }
 
@@ -88,6 +91,8 @@ class PlanetListMatch
 {
     public ?float $diameter = null;
     public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public ?string $id = null;
     public ?string $kind = null;
     public ?string $name = null;
@@ -95,6 +100,7 @@ class PlanetListMatch
     public ?bool $start = null;
     public ?string $state = null;
     public ?bool $stop = null;
+    public ?string $terraformState = null;
     public ?string $why = null;
 }
 
@@ -103,6 +109,8 @@ class PlanetCreateData
 {
     public float $diameter;
     public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public string $id;
     public string $kind;
     public string $name;
@@ -110,6 +118,7 @@ class PlanetCreateData
     public ?bool $start = null;
     public ?string $state = null;
     public ?bool $stop = null;
+    public ?string $terraformState = null;
     public ?string $why = null;
 }
 
@@ -119,12 +128,15 @@ class PlanetUpdateData
     public string $id;
     public ?float $diameter = null;
     public ?bool $forbid = null;
+    public ?string $forbidReason = null;
+    public ?string $forbidState = null;
     public ?string $kind = null;
     public ?string $name = null;
     public ?bool $ok = null;
     public ?bool $start = null;
     public ?string $state = null;
     public ?bool $stop = null;
+    public ?string $terraformState = null;
     public ?string $why = null;
 }
 

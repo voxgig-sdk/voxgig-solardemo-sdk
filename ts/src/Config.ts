@@ -458,6 +458,16 @@ class Config {
           "type": "`$BOOLEAN`"
         },
         {
+          "name": "forbidReason",
+          "short": "Why the planet is forbidden, carried from the forbid action's `why`.",
+          "type": "`$STRING`"
+        },
+        {
+          "name": "forbidState",
+          "short": "Set by the forbid action, and absent until it first runs.",
+          "type": "`$STRING`"
+        },
+        {
           "name": "id",
           "req": true,
           "type": "`$STRING`"
@@ -487,6 +497,11 @@ class Config {
         {
           "name": "stop",
           "type": "`$BOOLEAN`"
+        },
+        {
+          "name": "terraformState",
+          "short": "Set by the terraform action, and absent until it first runs.",
+          "type": "`$STRING`"
         },
         {
           "name": "why",

@@ -189,6 +189,8 @@ planet = Solardemo.planet(sdk)
 | --- | --- | --- | --- |
 | `diameter` | `float()` | Yes |  |
 | `forbid` | `boolean()` | No |  |
+| `forbidReason` | `String.t()` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String.t()` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `String.t()` | Yes |  |
 | `kind` | `String.t()` | Yes |  |
 | `name` | `String.t()` | Yes |  |
@@ -196,6 +198,7 @@ planet = Solardemo.planet(sdk)
 | `start` | `boolean()` | No |  |
 | `state` | `String.t()` | No |  |
 | `stop` | `boolean()` | No |  |
+| `terraformState` | `String.t()` | No | Set by the terraform action, and absent until it first runs. |
 | `why` | `String.t()` | No |  |
 
 ### Operations

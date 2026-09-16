@@ -33,6 +33,8 @@ export interface MoonRemoveMatch {
 export interface Planet {
     diameter: number;
     forbid?: boolean;
+    forbidReason?: string;
+    forbidState?: string;
     id: string;
     kind: string;
     name: string;
@@ -40,6 +42,7 @@ export interface Planet {
     start?: boolean;
     state?: string;
     stop?: boolean;
+    terraformState?: string;
     why?: string;
 }
 export interface PlanetLoadMatch {
@@ -48,6 +51,8 @@ export interface PlanetLoadMatch {
 export interface PlanetListMatch {
     diameter?: number;
     forbid?: boolean;
+    forbidReason?: string;
+    forbidState?: string;
     id?: string;
     kind?: string;
     name?: string;
@@ -55,11 +60,14 @@ export interface PlanetListMatch {
     start?: boolean;
     state?: string;
     stop?: boolean;
+    terraformState?: string;
     why?: string;
 }
 export interface PlanetCreateData {
     diameter: number;
     forbid?: boolean;
+    forbidReason?: string;
+    forbidState?: string;
     id: string;
     kind: string;
     name: string;
@@ -67,6 +75,7 @@ export interface PlanetCreateData {
     start?: boolean;
     state?: string;
     stop?: boolean;
+    terraformState?: string;
     why?: string;
     $action?: string;
     [action: string]: any;
@@ -75,12 +84,15 @@ export interface PlanetUpdateData {
     id: string;
     diameter?: number;
     forbid?: boolean;
+    forbidReason?: string;
+    forbidState?: string;
     kind?: string;
     name?: string;
     ok?: boolean;
     start?: boolean;
     state?: string;
     stop?: boolean;
+    terraformState?: string;
     why?: string;
 }
 export interface PlanetRemoveMatch {

@@ -194,6 +194,8 @@ local planet = client:Planet(nil)
 | --- | --- | --- | --- |
 | `diameter` | `number` | Yes |  |
 | `forbid` | `boolean` | No |  |
+| `forbidReason` | `string` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `string` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `string` | Yes |  |
 | `kind` | `string` | Yes |  |
 | `name` | `string` | Yes |  |
@@ -201,6 +203,7 @@ local planet = client:Planet(nil)
 | `start` | `boolean` | No |  |
 | `state` | `string` | No |  |
 | `stop` | `boolean` | No |  |
+| `terraformState` | `string` | No | Set by the terraform action, and absent until it first runs. |
 | `why` | `string` | No |  |
 
 ### Operations

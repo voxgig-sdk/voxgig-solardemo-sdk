@@ -316,6 +316,8 @@ API path: `/api/planet/{planet_id}/moon`
 | --- | --- |
 | `diameter` |  |
 | `forbid` |  |
+| `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
@@ -323,6 +325,7 @@ API path: `/api/planet/{planet_id}/moon`
 | `start` |  |
 | `state` |  |
 | `stop` |  |
+| `terraformState` | Set by the terraform action, and absent until it first runs. |
 | `why` |  |
 
 Operations: Create, List, Load, Remove, Update.
@@ -406,6 +409,8 @@ Create an instance: `Entity* planet = solardemo_planet(client, NULL);`
 | --- | --- | --- |
 | `diameter` | `double` |  |
 | `forbid` | `bool` |  |
+| `forbidReason` | `char*` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `char*` | Set by the forbid action, and absent until it first runs. |
 | `id` | `char*` |  |
 | `kind` | `char*` |  |
 | `name` | `char*` |  |
@@ -413,6 +418,7 @@ Create an instance: `Entity* planet = solardemo_planet(client, NULL);`
 | `start` | `bool` |  |
 | `state` | `char*` |  |
 | `stop` | `bool` |  |
+| `terraformState` | `char*` | Set by the terraform action, and absent until it first runs. |
 | `why` | `char*` |  |
 
 #### Example: Load

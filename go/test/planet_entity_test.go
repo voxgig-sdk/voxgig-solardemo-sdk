@@ -137,7 +137,7 @@ func TestPlanetEntity(t *testing.T) {
 			"id": planetRef01Data["id"],
 		}
 
-		planetRef01MarkdefUp0Name := "kind"
+		planetRef01MarkdefUp0Name := "forbidReason"
 		planetRef01MarkdefUp0Value := fmt.Sprintf("Mark01-planet_ref01_%d", setup.now)
 		planetRef01DataUp0Up[planetRef01MarkdefUp0Name] = planetRef01MarkdefUp0Value
 

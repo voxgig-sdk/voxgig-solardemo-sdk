@@ -429,6 +429,16 @@ public final class Config {
     b.append("     \"type\": \"`$BOOLEAN`\"");
     b.append("    },");
     b.append("    {");
+    b.append("     \"name\": \"forbidReason\",");
+    b.append("     \"short\": \"Why the planet is forbidden, carried from the forbid action's `why`.\",");
+    b.append("     \"type\": \"`$STRING`\"");
+    b.append("    },");
+    b.append("    {");
+    b.append("     \"name\": \"forbidState\",");
+    b.append("     \"short\": \"Set by the forbid action, and absent until it first runs.\",");
+    b.append("     \"type\": \"`$STRING`\"");
+    b.append("    },");
+    b.append("    {");
     b.append("     \"name\": \"id\",");
     b.append("     \"req\": true,");
     b.append("     \"type\": \"`$STRING`\"");
@@ -458,6 +468,11 @@ public final class Config {
     b.append("    {");
     b.append("     \"name\": \"stop\",");
     b.append("     \"type\": \"`$BOOLEAN`\"");
+    b.append("    },");
+    b.append("    {");
+    b.append("     \"name\": \"terraformState\",");
+    b.append("     \"short\": \"Set by the terraform action, and absent until it first runs.\",");
+    b.append("     \"type\": \"`$STRING`\"");
     b.append("    },");
     b.append("    {");
     b.append("     \"name\": \"why\",");

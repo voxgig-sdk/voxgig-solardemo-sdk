@@ -185,6 +185,8 @@ val planet = client.planet(null)
 | --- | --- | --- | --- |
 | `diameter` | `Double?` | Yes |  |
 | `forbid` | `Boolean?` | No |  |
+| `forbidReason` | `String?` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String?` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `String?` | Yes |  |
 | `kind` | `String?` | Yes |  |
 | `name` | `String?` | Yes |  |
@@ -192,6 +194,7 @@ val planet = client.planet(null)
 | `start` | `Boolean?` | No |  |
 | `state` | `String?` | No |  |
 | `stop` | `Boolean?` | No |  |
+| `terraformState` | `String?` | No | Set by the terraform action, and absent until it first runs. |
 | `why` | `String?` | No |  |
 
 ### Operations

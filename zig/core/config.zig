@@ -390,6 +390,16 @@ pub fn make_config() Value {
                         .{ "type", h.vstr("`$BOOLEAN`") },
                     }),
                     h.jo(&.{
+                        .{ "name", h.vstr("forbidReason") },
+                        .{ "short", h.vstr("Why the planet is forbidden, carried from the forbid action's `why`.") },
+                        .{ "type", h.vstr("`$STRING`") },
+                    }),
+                    h.jo(&.{
+                        .{ "name", h.vstr("forbidState") },
+                        .{ "short", h.vstr("Set by the forbid action, and absent until it first runs.") },
+                        .{ "type", h.vstr("`$STRING`") },
+                    }),
+                    h.jo(&.{
                         .{ "name", h.vstr("id") },
                         .{ "req", h.vbool(true) },
                         .{ "type", h.vstr("`$STRING`") },
@@ -419,6 +429,11 @@ pub fn make_config() Value {
                     h.jo(&.{
                         .{ "name", h.vstr("stop") },
                         .{ "type", h.vstr("`$BOOLEAN`") },
+                    }),
+                    h.jo(&.{
+                        .{ "name", h.vstr("terraformState") },
+                        .{ "short", h.vstr("Set by the terraform action, and absent until it first runs.") },
+                        .{ "type", h.vstr("`$STRING`") },
                     }),
                     h.jo(&.{
                         .{ "name", h.vstr("why") },

@@ -51,7 +51,7 @@ object PlanetEntityTest {
       // UPDATE
       val planetRef01DataUp0Up = new LinkedHashMap[String, Object]()
       planetRef01DataUp0Up.put("id", planetRef01Data.get("id"))
-      val planetRef01MarkdefUp0Name = "kind"
+      val planetRef01MarkdefUp0Name = "forbidReason"
       val planetRef01MarkdefUp0Value = "Mark01-planet_ref01_" + now
       planetRef01DataUp0Up.put(planetRef01MarkdefUp0Name, planetRef01MarkdefUp0Value)
       val planetRef01ResdataUp0Result = planetRef01Ent.update(planetRef01DataUp0Up, null)

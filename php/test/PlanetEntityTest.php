@@ -103,7 +103,7 @@ class PlanetEntityTest extends TestCase
             "id" => $planet_ref01_data["id"],
         ];
 
-        $planet_ref01_markdef_up0_name = "kind";
+        $planet_ref01_markdef_up0_name = "forbidReason";
         $planet_ref01_markdef_up0_value = "Mark01-planet_ref01_" . $setup["now"];
         $planet_ref01_data_up0_up[$planet_ref01_markdef_up0_name] = $planet_ref01_markdef_up0_value;
 

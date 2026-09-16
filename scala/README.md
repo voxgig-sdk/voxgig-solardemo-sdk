@@ -293,6 +293,8 @@ API path: `/api/planet/{planet_id}/moon`
 | --- | --- |
 | `diameter` |  |
 | `forbid` |  |
+| `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
@@ -300,6 +302,7 @@ API path: `/api/planet/{planet_id}/moon`
 | `start` |  |
 | `state` |  |
 | `stop` |  |
+| `terraformState` | Set by the terraform action, and absent until it first runs. |
 | `why` |  |
 
 Operations: create, list, load, remove, update.
@@ -380,6 +383,8 @@ Create an instance: `val planet = client.planet(null)`
 | --- | --- | --- |
 | `diameter` | `java.lang.Double` |  |
 | `forbid` | `java.lang.Boolean` |  |
+| `forbidReason` | `String` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String` | Set by the forbid action, and absent until it first runs. |
 | `id` | `String` |  |
 | `kind` | `String` |  |
 | `name` | `String` |  |
@@ -387,6 +392,7 @@ Create an instance: `val planet = client.planet(null)`
 | `start` | `java.lang.Boolean` |  |
 | `state` | `String` |  |
 | `stop` | `java.lang.Boolean` |  |
+| `terraformState` | `String` | Set by the terraform action, and absent until it first runs. |
 | `why` | `String` |  |
 
 #### Example: Load

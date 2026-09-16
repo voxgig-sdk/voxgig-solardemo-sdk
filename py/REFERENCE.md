@@ -192,6 +192,8 @@ planet = client.Planet()
 | --- | --- | --- | --- |
 | `diameter` | `float` | Yes |  |
 | `forbid` | `bool` | No |  |
+| `forbidReason` | `str` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `str` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `str` | Yes |  |
 | `kind` | `str` | Yes |  |
 | `name` | `str` | Yes |  |
@@ -199,6 +201,7 @@ planet = client.Planet()
 | `start` | `bool` | No |  |
 | `state` | `str` | No |  |
 | `stop` | `bool` | No |  |
+| `terraformState` | `str` | No | Set by the terraform action, and absent until it first runs. |
 | `why` | `str` | No |  |
 
 ### Operations

@@ -262,6 +262,14 @@
             "name" "forbid"
             "type" "`$BOOLEAN`")
           (vs/jm
+            "name" "forbidReason"
+            "short" "Why the planet is forbidden, carried from the forbid action's `why`."
+            "type" "`$STRING`")
+          (vs/jm
+            "name" "forbidState"
+            "short" "Set by the forbid action, and absent until it first runs."
+            "type" "`$STRING`")
+          (vs/jm
             "name" "id"
             "req" true
             "type" "`$STRING`")
@@ -285,6 +293,10 @@
           (vs/jm
             "name" "stop"
             "type" "`$BOOLEAN`")
+          (vs/jm
+            "name" "terraformState"
+            "short" "Set by the terraform action, and absent until it first runs."
+            "type" "`$STRING`")
           (vs/jm
             "name" "why"
             "type" "`$STRING`"))

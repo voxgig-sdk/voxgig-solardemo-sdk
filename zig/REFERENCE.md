@@ -203,6 +203,8 @@ const planet = client.planet(h.vnull());
 | --- | --- | --- | --- |
 | `diameter` | `f64` | Yes |  |
 | `forbid` | `bool` | No |  |
+| `forbidReason` | `[]const u8` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `[]const u8` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `[]const u8` | Yes |  |
 | `kind` | `[]const u8` | Yes |  |
 | `name` | `[]const u8` | Yes |  |
@@ -210,6 +212,7 @@ const planet = client.planet(h.vnull());
 | `start` | `bool` | No |  |
 | `state` | `[]const u8` | No |  |
 | `stop` | `bool` | No |  |
+| `terraformState` | `[]const u8` | No | Set by the terraform action, and absent until it first runs. |
 | `why` | `[]const u8` | No |  |
 
 ### Operations

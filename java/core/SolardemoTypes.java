@@ -32,15 +32,15 @@ public final class SolardemoTypes {
 
   public record MoonRemoveMatch(String id, String planet_id) {}
 
-  public record Planet(Double diameter, Boolean forbid, String id, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String why) {}
+  public record Planet(Double diameter, Boolean forbid, String forbidReason, String forbidState, String id, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String terraformState, String why) {}
 
   public record PlanetLoadMatch(String id) {}
 
-  public record PlanetListMatch(Double diameter, Boolean forbid, String id, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String why) {}
+  public record PlanetListMatch(Double diameter, Boolean forbid, String forbidReason, String forbidState, String id, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String terraformState, String why) {}
 
-  public record PlanetCreateData(Double diameter, Boolean forbid, String id, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String why) {}
+  public record PlanetCreateData(Double diameter, Boolean forbid, String forbidReason, String forbidState, String id, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String terraformState, String why) {}
 
-  public record PlanetUpdateData(String id, Double diameter, Boolean forbid, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String why) {}
+  public record PlanetUpdateData(String id, Double diameter, Boolean forbid, String forbidReason, String forbidState, String kind, String name, Boolean ok, Boolean start, String state, Boolean stop, String terraformState, String why) {}
 
   public record PlanetRemoveMatch(String id) {}
 

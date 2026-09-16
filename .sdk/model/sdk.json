@@ -1,15 +1,6 @@
 {
-  "NAME": "SOLARDEMO",
-  "Name": "Solardemo",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
-    "api": {
-      "entity": {},
-      "guide": {}
-    },
-    "custom": {
-      "plurals": {}
-    },
     "def": {
       "desc": ""
     },
@@ -393,6 +384,20 @@
             },
             {
               "active": true,
+              "name": "forbidReason",
+              "req": false,
+              "short": "Why the planet is forbidden, carried from the forbid action's `why`.",
+              "type": "`$STRING`"
+            },
+            {
+              "active": true,
+              "name": "forbidState",
+              "req": false,
+              "short": "Set by the forbid action, and absent until it first runs.",
+              "type": "`$STRING`"
+            },
+            {
+              "active": true,
               "name": "id",
               "req": true,
               "type": "`$STRING`"
@@ -432,6 +437,13 @@
               "name": "stop",
               "req": false,
               "type": "`$BOOLEAN`"
+            },
+            {
+              "active": true,
+              "name": "terraformState",
+              "req": false,
+              "short": "Set by the terraform action, and absent until it first runs.",
+              "type": "`$STRING`"
             },
             {
               "active": true,
@@ -1380,7 +1392,7 @@
                 "ref": "planet_ref01",
                 "srcdatavar": "planet_ref01_data",
                 "suffix": "_up0",
-                "textfield": "kind"
+                "textfield": "forbidReason"
               },
               "match": {},
               "op": "update",
@@ -3287,8 +3299,5 @@
     }
   },
   "name": "solardemo",
-  "name-": "solardemo",
-  "name_": "solardemo",
-  "name__orig": "solardemo",
   "origin": "voxgig-sdk"
 }

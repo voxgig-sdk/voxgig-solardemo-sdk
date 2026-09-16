@@ -412,6 +412,16 @@ func MakeConfig() map[string]any {
 						"type": "`$BOOLEAN`",
 					},
 					map[string]any{
+						"name": "forbidReason",
+						"short": "Why the planet is forbidden, carried from the forbid action's `why`.",
+						"type": "`$STRING`",
+					},
+					map[string]any{
+						"name": "forbidState",
+						"short": "Set by the forbid action, and absent until it first runs.",
+						"type": "`$STRING`",
+					},
+					map[string]any{
 						"name": "id",
 						"req": true,
 						"type": "`$STRING`",
@@ -441,6 +451,11 @@ func MakeConfig() map[string]any {
 					map[string]any{
 						"name": "stop",
 						"type": "`$BOOLEAN`",
+					},
+					map[string]any{
+						"name": "terraformState",
+						"short": "Set by the terraform action, and absent until it first runs.",
+						"type": "`$STRING`",
 					},
 					map[string]any{
 						"name": "why",

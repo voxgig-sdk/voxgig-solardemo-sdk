@@ -195,6 +195,8 @@ let planet = Sdk_client.planet client Noval
 | --- | --- | --- | --- |
 | `diameter` | `float` | Yes |  |
 | `forbid` | `bool` | No |  |
+| `forbidReason` | `string` | No | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `string` | No | Set by the forbid action, and absent until it first runs. |
 | `id` | `string` | Yes |  |
 | `kind` | `string` | Yes |  |
 | `name` | `string` | Yes |  |
@@ -202,6 +204,7 @@ let planet = Sdk_client.planet client Noval
 | `start` | `bool` | No |  |
 | `state` | `string` | No |  |
 | `stop` | `bool` | No |  |
+| `terraformState` | `string` | No | Set by the terraform action, and absent until it first runs. |
 | `why` | `string` | No |  |
 
 ### Operations

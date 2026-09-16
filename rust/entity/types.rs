@@ -66,6 +66,8 @@ pub struct MoonRemoveMatch {
 pub struct Planet {
     pub diameter: f64,
     pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub id: String,
     pub kind: String,
     pub name: String,
@@ -73,6 +75,7 @@ pub struct Planet {
     pub start: Option<bool>,
     pub state: Option<String>,
     pub stop: Option<bool>,
+    pub terraformstate: Option<String>,
     pub why: Option<String>,
 }
 
@@ -87,6 +90,8 @@ pub struct PlanetLoadMatch {
 pub struct PlanetListMatch {
     pub diameter: Option<f64>,
     pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub id: Option<String>,
     pub kind: Option<String>,
     pub name: Option<String>,
@@ -94,6 +99,7 @@ pub struct PlanetListMatch {
     pub start: Option<bool>,
     pub state: Option<String>,
     pub stop: Option<bool>,
+    pub terraformstate: Option<String>,
     pub why: Option<String>,
 }
 
@@ -102,6 +108,8 @@ pub struct PlanetListMatch {
 pub struct PlanetCreateData {
     pub diameter: f64,
     pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub id: String,
     pub kind: String,
     pub name: String,
@@ -109,6 +117,7 @@ pub struct PlanetCreateData {
     pub start: Option<bool>,
     pub state: Option<String>,
     pub stop: Option<bool>,
+    pub terraformstate: Option<String>,
     pub why: Option<String>,
 }
 
@@ -118,12 +127,15 @@ pub struct PlanetUpdateData {
     pub id: String,
     pub diameter: Option<f64>,
     pub forbid: Option<bool>,
+    pub forbidreason: Option<String>,
+    pub forbidstate: Option<String>,
     pub kind: Option<String>,
     pub name: Option<String>,
     pub ok: Option<bool>,
     pub start: Option<bool>,
     pub state: Option<String>,
     pub stop: Option<bool>,
+    pub terraformstate: Option<String>,
     pub why: Option<String>,
 }
 

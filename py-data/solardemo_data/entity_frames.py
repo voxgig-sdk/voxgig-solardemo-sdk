@@ -91,6 +91,8 @@ class EntityFrames:
         Columns:
           diameter (Float64, required)
           forbid (boolean)
+          forbidReason (string)
+          forbidState (string)
           id (string, required)
           kind (string, required)
           name (string, required)
@@ -98,6 +100,7 @@ class EntityFrames:
           start (boolean)
           state (string)
           stop (boolean)
+          terraformState (string)
           why (string)
 
         Every page is fetched by default. Pass limit= for a slice.
@@ -116,6 +119,8 @@ class EntityFrames:
             dtypes={
                 "diameter": "Float64",
                 "forbid": "boolean",
+                "forbidReason": "string",
+                "forbidState": "string",
                 "id": "string",
                 "kind": "string",
                 "name": "string",
@@ -123,11 +128,14 @@ class EntityFrames:
                 "start": "boolean",
                 "state": "string",
                 "stop": "boolean",
+                "terraformState": "string",
                 "why": "string",
             },
             order=[
                 "diameter",
                 "forbid",
+                "forbidReason",
+                "forbidState",
                 "id",
                 "kind",
                 "name",
@@ -135,6 +143,7 @@ class EntityFrames:
                 "start",
                 "state",
                 "stop",
+                "terraformState",
                 "why",
             ],
             flatten=flatten,
@@ -187,6 +196,8 @@ class EntityFrames:
         Columns:
           diameter (Float64, required)
           forbid (boolean)
+          forbidReason (string)
+          forbidState (string)
           id (string, required)
           kind (string, required)
           name (string, required)
@@ -194,6 +205,7 @@ class EntityFrames:
           start (boolean)
           state (string)
           stop (boolean)
+          terraformState (string)
           why (string)
         """
         rec = self.sdk.Planet().load({"id": id})
@@ -202,6 +214,8 @@ class EntityFrames:
             dtypes={
                 "diameter": "Float64",
                 "forbid": "boolean",
+                "forbidReason": "string",
+                "forbidState": "string",
                 "id": "string",
                 "kind": "string",
                 "name": "string",
@@ -209,6 +223,7 @@ class EntityFrames:
                 "start": "boolean",
                 "state": "string",
                 "stop": "boolean",
+                "terraformState": "string",
                 "why": "string",
             },
             flatten=flatten,

@@ -16,6 +16,18 @@ main: kit: entity: planet: {
       type: "`$BOOLEAN`"
     }
     {
+      name: "forbidReason"
+      req: false
+      short: "Why the planet is forbidden, carried from the forbid action's `why`."
+      type: "`$STRING`"
+    }
+    {
+      name: "forbidState"
+      req: false
+      short: "Set by the forbid action, and absent until it first runs."
+      type: "`$STRING`"
+    }
+    {
       name: "id"
       req: true
       type: "`$STRING`"
@@ -49,6 +61,12 @@ main: kit: entity: planet: {
       name: "stop"
       req: false
       type: "`$BOOLEAN`"
+    }
+    {
+      name: "terraformState"
+      req: false
+      short: "Set by the terraform action, and absent until it first runs."
+      type: "`$STRING`"
     }
     {
       name: "why"

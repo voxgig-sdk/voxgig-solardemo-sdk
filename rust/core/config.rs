@@ -390,6 +390,16 @@ pub fn make_config() -> Value {
                         ("type".to_string(), Value::str("`$BOOLEAN`")),
                     ]),
                     Value::map_of([
+                        ("name".to_string(), Value::str("forbidReason")),
+                        ("short".to_string(), Value::str("Why the planet is forbidden, carried from the forbid action's `why`.")),
+                        ("type".to_string(), Value::str("`$STRING`")),
+                    ]),
+                    Value::map_of([
+                        ("name".to_string(), Value::str("forbidState")),
+                        ("short".to_string(), Value::str("Set by the forbid action, and absent until it first runs.")),
+                        ("type".to_string(), Value::str("`$STRING`")),
+                    ]),
+                    Value::map_of([
                         ("name".to_string(), Value::str("id")),
                         ("req".to_string(), Value::Bool(true)),
                         ("type".to_string(), Value::str("`$STRING`")),
@@ -419,6 +429,11 @@ pub fn make_config() -> Value {
                     Value::map_of([
                         ("name".to_string(), Value::str("stop")),
                         ("type".to_string(), Value::str("`$BOOLEAN`")),
+                    ]),
+                    Value::map_of([
+                        ("name".to_string(), Value::str("terraformState")),
+                        ("short".to_string(), Value::str("Set by the terraform action, and absent until it first runs.")),
+                        ("type".to_string(), Value::str("`$STRING`")),
                     ]),
                     Value::map_of([
                         ("name".to_string(), Value::str("why")),

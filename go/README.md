@@ -310,6 +310,8 @@ API path: `/api/planet/{planet_id}/moon`
 | --- | --- |
 | `"diameter"` |  |
 | `"forbid"` |  |
+| `"forbidReason"` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `"forbidState"` | Set by the forbid action, and absent until it first runs. |
 | `"id"` |  |
 | `"kind"` |  |
 | `"name"` |  |
@@ -317,6 +319,7 @@ API path: `/api/planet/{planet_id}/moon`
 | `"start"` |  |
 | `"state"` |  |
 | `"stop"` |  |
+| `"terraformState"` | Set by the terraform action, and absent until it first runs. |
 | `"why"` |  |
 
 Operations: Create, List, Load, Remove, Update.
@@ -409,6 +412,8 @@ Create an instance: `planet := client.Planet(nil)`
 | --- | --- | --- |
 | `diameter` | `float64` |  |
 | `forbid` | `bool` |  |
+| `forbidReason` | `string` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `string` | Set by the forbid action, and absent until it first runs. |
 | `id` | `string` |  |
 | `kind` | `string` |  |
 | `name` | `string` |  |
@@ -416,6 +421,7 @@ Create an instance: `planet := client.Planet(nil)`
 | `start` | `bool` |  |
 | `state` | `string` |  |
 | `stop` | `bool` |  |
+| `terraformState` | `string` | Set by the terraform action, and absent until it first runs. |
 | `why` | `string` |  |
 
 #### Example: Load

@@ -128,7 +128,7 @@ fn planet_entity_basic() {
     let planet_ref01_data_up0_up = Value::empty_map();
     setp(&planet_ref01_data_up0_up, "id", getp(&planet_ref01_data, "id"));
 
-    let planet_ref01_markdef_up0_name = "kind";
+    let planet_ref01_markdef_up0_name = "forbidReason";
     let planet_ref01_markdef_up0_value = format!("Mark01-planet_ref01_{}", setup.now);
     setp(
         &planet_ref01_data_up0_up,

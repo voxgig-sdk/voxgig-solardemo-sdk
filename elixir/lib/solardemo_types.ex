@@ -83,6 +83,8 @@ defmodule Solardemo.Types do
   Members:
     * `"diameter"` — float() (required)
     * `"forbid"` — boolean() (optional)
+    * `"forbidReason"` — String.t() (optional)
+    * `"forbidState"` — String.t() (optional)
     * `"id"` — String.t() (required)
     * `"kind"` — String.t() (required)
     * `"name"` — String.t() (required)
@@ -90,6 +92,7 @@ defmodule Solardemo.Types do
     * `"start"` — boolean() (optional)
     * `"state"` — String.t() (optional)
     * `"stop"` — boolean() (optional)
+    * `"terraformState"` — String.t() (optional)
     * `"why"` — String.t() (optional)
   """
   @type planet :: %{optional(String.t()) => any()}
@@ -108,6 +111,8 @@ defmodule Solardemo.Types do
   Members:
     * `"diameter"` — float() (optional)
     * `"forbid"` — boolean() (optional)
+    * `"forbidReason"` — String.t() (optional)
+    * `"forbidState"` — String.t() (optional)
     * `"id"` — String.t() (optional)
     * `"kind"` — String.t() (optional)
     * `"name"` — String.t() (optional)
@@ -115,6 +120,7 @@ defmodule Solardemo.Types do
     * `"start"` — boolean() (optional)
     * `"state"` — String.t() (optional)
     * `"stop"` — boolean() (optional)
+    * `"terraformState"` — String.t() (optional)
     * `"why"` — String.t() (optional)
   """
   @type planet_list_match :: %{optional(String.t()) => any()}
@@ -125,6 +131,8 @@ defmodule Solardemo.Types do
   Members:
     * `"diameter"` — float() (required)
     * `"forbid"` — boolean() (optional)
+    * `"forbidReason"` — String.t() (optional)
+    * `"forbidState"` — String.t() (optional)
     * `"id"` — String.t() (required)
     * `"kind"` — String.t() (required)
     * `"name"` — String.t() (required)
@@ -132,6 +140,7 @@ defmodule Solardemo.Types do
     * `"start"` — boolean() (optional)
     * `"state"` — String.t() (optional)
     * `"stop"` — boolean() (optional)
+    * `"terraformState"` — String.t() (optional)
     * `"why"` — String.t() (optional)
   """
   @type planet_create_data :: %{optional(String.t()) => any()}
@@ -143,12 +152,15 @@ defmodule Solardemo.Types do
     * `"id"` — String.t() (required)
     * `"diameter"` — float() (optional)
     * `"forbid"` — boolean() (optional)
+    * `"forbidReason"` — String.t() (optional)
+    * `"forbidState"` — String.t() (optional)
     * `"kind"` — String.t() (optional)
     * `"name"` — String.t() (optional)
     * `"ok"` — boolean() (optional)
     * `"start"` — boolean() (optional)
     * `"state"` — String.t() (optional)
     * `"stop"` — boolean() (optional)
+    * `"terraformState"` — String.t() (optional)
     * `"why"` — String.t() (optional)
   """
   @type planet_update_data :: %{optional(String.t()) => any()}

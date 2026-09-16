@@ -62,6 +62,8 @@ typedef struct {
 typedef struct {
   double diameter;
   bool forbid;  // optional
+  char*forbidreason;  // optional
+  char*forbidstate;  // optional
   char*id;
   char*kind;
   char*name;
@@ -69,6 +71,7 @@ typedef struct {
   bool start;  // optional
   char*state;  // optional
   bool stop;  // optional
+  char*terraformstate;  // optional
   char*why;  // optional
 } Planet;
 
@@ -81,6 +84,8 @@ typedef struct {
 typedef struct {
   double diameter;  // optional
   bool forbid;  // optional
+  char*forbidreason;  // optional
+  char*forbidstate;  // optional
   char*id;  // optional
   char*kind;  // optional
   char*name;  // optional
@@ -88,6 +93,7 @@ typedef struct {
   bool start;  // optional
   char*state;  // optional
   bool stop;  // optional
+  char*terraformstate;  // optional
   char*why;  // optional
 } PlanetListMatch;
 
@@ -95,6 +101,8 @@ typedef struct {
 typedef struct {
   double diameter;
   bool forbid;  // optional
+  char*forbidreason;  // optional
+  char*forbidstate;  // optional
   char*id;
   char*kind;
   char*name;
@@ -102,6 +110,7 @@ typedef struct {
   bool start;  // optional
   char*state;  // optional
   bool stop;  // optional
+  char*terraformstate;  // optional
   char*why;  // optional
 } PlanetCreateData;
 
@@ -110,12 +119,15 @@ typedef struct {
   char*id;
   double diameter;  // optional
   bool forbid;  // optional
+  char*forbidreason;  // optional
+  char*forbidstate;  // optional
   char*kind;  // optional
   char*name;  // optional
   bool ok;  // optional
   bool start;  // optional
   char*state;  // optional
   bool stop;  // optional
+  char*terraformstate;  // optional
   char*why;  // optional
 } PlanetUpdateData;
 

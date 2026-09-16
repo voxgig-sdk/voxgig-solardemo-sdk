@@ -285,6 +285,14 @@ let make_config () : value =
             ("name", (Str "forbid"));
             ("type", (Str "`$BOOLEAN`")) ]);
           (jo [
+            ("name", (Str "forbidReason"));
+            ("short", (Str "Why the planet is forbidden, carried from the forbid action's `why`."));
+            ("type", (Str "`$STRING`")) ]);
+          (jo [
+            ("name", (Str "forbidState"));
+            ("short", (Str "Set by the forbid action, and absent until it first runs."));
+            ("type", (Str "`$STRING`")) ]);
+          (jo [
             ("name", (Str "id"));
             ("req", (Bool true));
             ("type", (Str "`$STRING`")) ]);
@@ -308,6 +316,10 @@ let make_config () : value =
           (jo [
             ("name", (Str "stop"));
             ("type", (Str "`$BOOLEAN`")) ]);
+          (jo [
+            ("name", (Str "terraformState"));
+            ("short", (Str "Set by the terraform action, and absent until it first runs."));
+            ("type", (Str "`$STRING`")) ]);
           (jo [
             ("name", (Str "why"));
             ("type", (Str "`$STRING`")) ]) ]));

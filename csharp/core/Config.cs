@@ -502,6 +502,18 @@ public static class SdkConfig
                         },
                         new Dictionary<string, object?>
                         {
+                            ["name"] = "forbidReason",
+                            ["short"] = "Why the planet is forbidden, carried from the forbid action's `why`.",
+                            ["type"] = "`$STRING`",
+                        },
+                        new Dictionary<string, object?>
+                        {
+                            ["name"] = "forbidState",
+                            ["short"] = "Set by the forbid action, and absent until it first runs.",
+                            ["type"] = "`$STRING`",
+                        },
+                        new Dictionary<string, object?>
+                        {
                             ["name"] = "id",
                             ["req"] = true,
                             ["type"] = "`$STRING`",
@@ -537,6 +549,12 @@ public static class SdkConfig
                         {
                             ["name"] = "stop",
                             ["type"] = "`$BOOLEAN`",
+                        },
+                        new Dictionary<string, object?>
+                        {
+                            ["name"] = "terraformState",
+                            ["short"] = "Set by the terraform action, and absent until it first runs.",
+                            ["type"] = "`$STRING`",
                         },
                         new Dictionary<string, object?>
                         {

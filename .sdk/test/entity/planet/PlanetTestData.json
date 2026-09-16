@@ -2,55 +2,67 @@
   "existing": {
     "planet": {
       "PLANET00": {
-        "diameter": 100,
+        "diameter": 130,
         "forbid": false,
+        "forbidReason": "s84",
+        "forbidState": "s85",
         "id": "PLANET00",
-        "kind": "s67",
-        "name": "s68",
+        "kind": "s87",
+        "name": "s88",
         "ok": false,
         "start": true,
-        "state": "s6b",
+        "state": "s8b",
         "stop": true,
-        "why": "s6d"
+        "terraformState": "s8d",
+        "why": "s8e"
       },
       "PLANET01": {
-        "diameter": 200,
+        "diameter": 260,
         "forbid": false,
+        "forbidReason": "s106",
+        "forbidState": "s107",
         "id": "PLANET01",
-        "kind": "scb",
-        "name": "scc",
+        "kind": "s109",
+        "name": "s10a",
         "ok": false,
         "start": true,
-        "state": "scf",
+        "state": "s10d",
         "stop": true,
-        "why": "sd1"
+        "terraformState": "s10f",
+        "why": "s110"
       },
       "PLANET02": {
-        "diameter": 300,
+        "diameter": 390,
         "forbid": false,
+        "forbidReason": "s188",
+        "forbidState": "s189",
         "id": "PLANET02",
-        "kind": "s12f",
-        "name": "s130",
+        "kind": "s18b",
+        "name": "s18c",
         "ok": false,
         "start": true,
-        "state": "s133",
+        "state": "s18f",
         "stop": true,
-        "why": "s135"
+        "terraformState": "s191",
+        "why": "s192"
       }
     }
   },
   "new": {
     "planet": {
       "planet_ref01": {
-        "diameter": 400,
+        "diameter": 520,
         "forbid": false,
-        "kind": "s193",
-        "name": "s194",
+        "forbidReason": "s20a",
+        "forbidState": "s20b",
+        "kind": "s20d",
+        "name": "s20e",
         "ok": false,
         "start": true,
-        "state": "s197",
+        "state": "s211",
         "stop": true,
-        "why": "s199"
+        "terraformState": "s213",
+        "why": "s214"
       }
     }
   }

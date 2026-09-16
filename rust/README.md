@@ -288,6 +288,8 @@ API path: `/api/planet/{planet_id}/moon`
 | --- | --- |
 | `diameter` |  |
 | `forbid` |  |
+| `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
@@ -295,6 +297,7 @@ API path: `/api/planet/{planet_id}/moon`
 | `start` |  |
 | `state` |  |
 | `stop` |  |
+| `terraformState` | Set by the terraform action, and absent until it first runs. |
 | `why` |  |
 
 Operations: Create, List, Load, Remove, Update.
@@ -375,6 +378,8 @@ Create an instance: `let planet = client.planet(Value::Noval);`
 | --- | --- | --- |
 | `diameter` | `f64` |  |
 | `forbid` | `bool` |  |
+| `forbidReason` | `String` | Why the planet is forbidden, carried from the forbid action's `why`. |
+| `forbidState` | `String` | Set by the forbid action, and absent until it first runs. |
 | `id` | `String` |  |
 | `kind` | `String` |  |
 | `name` | `String` |  |
@@ -382,6 +387,7 @@ Create an instance: `let planet = client.planet(Value::Noval);`
 | `start` | `bool` |  |
 | `state` | `String` |  |
 | `stop` | `bool` |  |
+| `terraformState` | `String` | Set by the terraform action, and absent until it first runs. |
 | `why` | `String` |  |
 
 #### Example: Load

@@ -61,6 +61,8 @@ public record Planet
 {
     public double diameter { get; init; }
     public bool? forbid { get; init; }
+    public string? forbidReason { get; init; }
+    public string? forbidState { get; init; }
     public string id { get; init; }
     public string kind { get; init; }
     public string name { get; init; }
@@ -68,6 +70,7 @@ public record Planet
     public bool? start { get; init; }
     public string? state { get; init; }
     public bool? stop { get; init; }
+    public string? terraformState { get; init; }
     public string? why { get; init; }
 }
 
@@ -80,6 +83,8 @@ public record PlanetListMatch
 {
     public double? diameter { get; init; }
     public bool? forbid { get; init; }
+    public string? forbidReason { get; init; }
+    public string? forbidState { get; init; }
     public string? id { get; init; }
     public string? kind { get; init; }
     public string? name { get; init; }
@@ -87,6 +92,7 @@ public record PlanetListMatch
     public bool? start { get; init; }
     public string? state { get; init; }
     public bool? stop { get; init; }
+    public string? terraformState { get; init; }
     public string? why { get; init; }
 }
 
@@ -94,6 +100,8 @@ public record PlanetCreateData
 {
     public double diameter { get; init; }
     public bool? forbid { get; init; }
+    public string? forbidReason { get; init; }
+    public string? forbidState { get; init; }
     public string id { get; init; }
     public string kind { get; init; }
     public string name { get; init; }
@@ -101,6 +109,7 @@ public record PlanetCreateData
     public bool? start { get; init; }
     public string? state { get; init; }
     public bool? stop { get; init; }
+    public string? terraformState { get; init; }
     public string? why { get; init; }
 }
 
@@ -109,12 +118,15 @@ public record PlanetUpdateData
     public string id { get; init; }
     public double? diameter { get; init; }
     public bool? forbid { get; init; }
+    public string? forbidReason { get; init; }
+    public string? forbidState { get; init; }
     public string? kind { get; init; }
     public string? name { get; init; }
     public bool? ok { get; init; }
     public bool? start { get; init; }
     public string? state { get; init; }
     public bool? stop { get; init; }
+    public string? terraformState { get; init; }
     public string? why { get; init; }
 }
 

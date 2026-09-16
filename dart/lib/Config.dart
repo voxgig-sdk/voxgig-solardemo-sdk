@@ -415,6 +415,16 @@ class Config {
           'type': '`\$BOOLEAN`',
         },
         <String, dynamic>{
+          'name': 'forbidReason',
+          'short': 'Why the planet is forbidden, carried from the forbid action\'s `why`.',
+          'type': '`\$STRING`',
+        },
+        <String, dynamic>{
+          'name': 'forbidState',
+          'short': 'Set by the forbid action, and absent until it first runs.',
+          'type': '`\$STRING`',
+        },
+        <String, dynamic>{
           'name': 'id',
           'req': true,
           'type': '`\$STRING`',
@@ -444,6 +454,11 @@ class Config {
         <String, dynamic>{
           'name': 'stop',
           'type': '`\$BOOLEAN`',
+        },
+        <String, dynamic>{
+          'name': 'terraformState',
+          'short': 'Set by the terraform action, and absent until it first runs.',
+          'type': '`\$STRING`',
         },
         <String, dynamic>{
           'name': 'why',

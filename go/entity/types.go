@@ -60,6 +60,8 @@ type MoonRemoveMatch struct {
 type Planet struct {
 	Diameter float64 `json:"diameter"`
 	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Id string `json:"id"`
 	Kind string `json:"kind"`
 	Name string `json:"name"`
@@ -67,6 +69,7 @@ type Planet struct {
 	Start *bool `json:"start,omitempty"`
 	State *string `json:"state,omitempty"`
 	Stop *bool `json:"stop,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 	Why *string `json:"why,omitempty"`
 }
 
@@ -79,6 +82,8 @@ type PlanetLoadMatch struct {
 type PlanetListMatch struct {
 	Diameter *float64 `json:"diameter,omitempty"`
 	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Id *string `json:"id,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	Name *string `json:"name,omitempty"`
@@ -86,6 +91,7 @@ type PlanetListMatch struct {
 	Start *bool `json:"start,omitempty"`
 	State *string `json:"state,omitempty"`
 	Stop *bool `json:"stop,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 	Why *string `json:"why,omitempty"`
 }
 
@@ -93,6 +99,8 @@ type PlanetListMatch struct {
 type PlanetCreateData struct {
 	Diameter float64 `json:"diameter"`
 	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Id string `json:"id"`
 	Kind string `json:"kind"`
 	Name string `json:"name"`
@@ -100,6 +108,7 @@ type PlanetCreateData struct {
 	Start *bool `json:"start,omitempty"`
 	State *string `json:"state,omitempty"`
 	Stop *bool `json:"stop,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 	Why *string `json:"why,omitempty"`
 }
 
@@ -108,12 +117,15 @@ type PlanetUpdateData struct {
 	Id string `json:"id"`
 	Diameter *float64 `json:"diameter,omitempty"`
 	Forbid *bool `json:"forbid,omitempty"`
+	ForbidReason *string `json:"forbidReason,omitempty"`
+	ForbidState *string `json:"forbidState,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	Name *string `json:"name,omitempty"`
 	Ok *bool `json:"ok,omitempty"`
 	Start *bool `json:"start,omitempty"`
 	State *string `json:"state,omitempty"`
 	Stop *bool `json:"stop,omitempty"`
+	TerraformState *string `json:"terraformState,omitempty"`
 	Why *string `json:"why,omitempty"`
 }
 

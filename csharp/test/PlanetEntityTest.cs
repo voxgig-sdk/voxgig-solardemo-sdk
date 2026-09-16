@@ -73,7 +73,7 @@ public class PlanetEntityTest
             ["id"] = planetRef01Data!["id"],
         };
 
-        var planetRef01MarkdefUp0Name = "kind";
+        var planetRef01MarkdefUp0Name = "forbidReason";
         var planetRef01MarkdefUp0Value = $"Mark01-planet_ref01_{setup.Now}";
         planetRef01DataUp0Up[planetRef01MarkdefUp0Name] = planetRef01MarkdefUp0Value;
 

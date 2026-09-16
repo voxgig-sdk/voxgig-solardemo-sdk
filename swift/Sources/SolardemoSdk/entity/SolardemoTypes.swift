@@ -58,6 +58,8 @@ public struct MoonRemoveMatch {
 public struct Planet {
   public var diameter: Double
   public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var id: String
   public var kind: String
   public var name: String
@@ -65,6 +67,7 @@ public struct Planet {
   public var start: Bool?
   public var state: String?
   public var stop: Bool?
+  public var terraformState: String?
   public var why: String?
 }
 
@@ -77,6 +80,8 @@ public struct PlanetLoadMatch {
 public struct PlanetListMatch {
   public var diameter: Double?
   public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var id: String?
   public var kind: String?
   public var name: String?
@@ -84,6 +89,7 @@ public struct PlanetListMatch {
   public var start: Bool?
   public var state: String?
   public var stop: Bool?
+  public var terraformState: String?
   public var why: String?
 }
 
@@ -91,6 +97,8 @@ public struct PlanetListMatch {
 public struct PlanetCreateData {
   public var diameter: Double
   public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var id: String
   public var kind: String
   public var name: String
@@ -98,6 +106,7 @@ public struct PlanetCreateData {
   public var start: Bool?
   public var state: String?
   public var stop: Bool?
+  public var terraformState: String?
   public var why: String?
 }
 
@@ -106,12 +115,15 @@ public struct PlanetUpdateData {
   public var id: String
   public var diameter: Double?
   public var forbid: Bool?
+  public var forbidReason: String?
+  public var forbidState: String?
   public var kind: String?
   public var name: String?
   public var ok: Bool?
   public var start: Bool?
   public var state: String?
   public var stop: Bool?
+  public var terraformState: String?
   public var why: String?
 }
 
