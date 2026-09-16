@@ -1,5 +1,12 @@
 # Critical review — Solardemo SDK workspace
 
+> **Superseded as the current register** by
+> [REPORT-codebase-review-2026-09-16.md](REPORT-codebase-review-2026-09-16.md)
+> (2026-09-16, sdkgen 4.8.1, 26 targets). Keep this file for the August
+> findings and the fix log in §0. Several generator-side “Fixed” rows
+> below did not survive the `.aon` / `project.aon` migration — notably
+> identity pins, live-strict, and Go 1.23.
+
 Reviewed: **2026-08-20**, against `main` at `591dbfc` (`@voxgig/sdkgen` **3.3.1**).
 
 This is a fresh review of the working tree, not a restatement of

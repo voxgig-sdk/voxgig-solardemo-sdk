@@ -7,13 +7,13 @@ generator.
 Everything else at the repo root is either generated (`README.md`, `AGENTS.md`)
 or a short operational note (`DEV.md`).
 
-Last verified against the working tree: **2026-08-20**, after the
-`@voxgig/sdkgen` 3.3.1 line (entity-returning ops, Seneca provider,
-publication pins).
+Last verified against the working tree: **2026-09-16**, `main` at `5ba7623`
+(`@voxgig/sdkgen` ≥4.8.1, 26 targets, secrets feature, PR #32 OpenAPI align).
 
 | Document | Kind | Status |
 | --- | --- | --- |
-| [REPORT-codebase-review-2026-08-20.md](REPORT-codebase-review-2026-08-20.md) | Review | **Current register** — contract splits, Agents identity, CI gaps |
+| [REPORT-codebase-review-2026-09-16.md](REPORT-codebase-review-2026-09-16.md) | Review | **Current register** — sdk-base orphaned, identity split, live tests/CI, fleet docs |
+| [REPORT-codebase-review-2026-08-20.md](REPORT-codebase-review-2026-08-20.md) | Review | Historical — August findings; most app-side items still hold, generator pins did not survive the `.aon` migration |
 | [REPORT-build-and-test-status.md](REPORT-build-and-test-status.md) | Status | Stale numbers (sdkgen 2.0.2, 2026-08-12) — see the 2026-08-20 review |
 | [REPORT-bugs-and-issues.md](REPORT-bugs-and-issues.md) | Issue register | Historical — superseded by the 2026-08-20 review; §6 of that review maps old IDs |
 | [PROMPT-sdkgen-model-driven-customisation.md](PROMPT-sdkgen-model-driven-customisation.md) | Upstream work item | Ready to hand to an agent in the sdkgen repo |
@@ -21,12 +21,15 @@ publication pins).
 | [REPORT-sdkgen-docs-comparison.md](REPORT-sdkgen-docs-comparison.md) | Report | Historical — the doc defects it tracked are now fixed |
 | [REPORT-agent-docs-generation.md](REPORT-agent-docs-generation.md) | Report | Historical — `AGENTS.md` generation, still working |
 | [DESIGN-entity-types.md](DESIGN-entity-types.md) | Proposal | Superseded — delivered upstream in sdkgen 2.0.2 |
+| [PUBLISHING.md](PUBLISHING.md) | Ops | Current process, **stale identity** — names `@voxgig-sdk/voxgig-solardemo` / `voxgig-solardemo-sdk`; generated manifests derive `solardemo` (R1) |
+| [REPORT-vendoring-prototype.md](REPORT-vendoring-prototype.md) | Report | Secrets feature landed; `ext/` retired. Struct/omni vendoring notes may still refer to unmerged work |
 
 ## Where the open items live
 
-`REPORT-codebase-review-2026-08-20.md` is the current register.
-`REPORT-bugs-and-issues.md` is kept for history; do not mark an item open in
-both places with two different answers.
+`REPORT-codebase-review-2026-09-16.md` is the current register.
+`REPORT-codebase-review-2026-08-20.md` is the August record (what was found
+and fixed then). `REPORT-bugs-and-issues.md` is older history. Do not mark
+an item open in two places with two different answers.
 
 ## Read this before running `voxgig-sdkgen target add`
 
@@ -65,8 +68,9 @@ local forks. Project-local files that a resync must not clobber:
   `voxgig-sdkgen doctor` reports the current fork/edit counts and is the
   fastest way to see where this list has gone stale.
 
-After any `target add`, diff those paths, restore pins in `model/sdk-base.aontu`
-(they live there *because* `target add` overwrites target files), then
+After any `target add`, diff those paths, restore pins in `model/project.aon`
+(the overlay `sdk.aon` actually includes — **not** `sdk-base.aontu`, which
+is currently unwired; see R0 in the 2026-09-16 review), then
 `npm run build && npm run generate` and check both SDKs still build.
 
 [PROMPT-sdkgen-model-driven-customisation.md](PROMPT-sdkgen-model-driven-customisation.md)
@@ -82,14 +86,14 @@ cd go   && go build ./... && go test ./...
 cd app  && npm test && npm audit
 ```
 
-`npm run generate` is portable — it no longer needs a sibling
-`../../seneca/solardemo-provider` checkout. The seneca-provider target is
-`active: false` in `model/sdk.aontu`; generating it is the separate, deliberate
-`npm run generate-provider`, which reads `model/provider.aontu` and DOES need
-that checkout (H3).
+`npm run generate` writes every active target **including in-tree
+`seneca-provider/`**. `model/provider.aontu` still documents a sibling-repo
+`generate-provider` flow; that npm script does not exist, and `sdk-base.aontu`
+is not included by `sdk.aon`. See R0 / H3 in the 2026-09-16 review.
 
-CI runs generate with a drift gate, the `app` suites, ts on two Node versions,
-go, and a live-SDK job against the companion server (H2).
+CI runs generate with a drift gate, the `app` suites, and a per-language
+matrix (blocking + advisory). It does **not** run live SDK tests against
+the companion server.
 
 ### `.sdk/src/DocStaticRoot.ts` is inert, and left that way (L8)
 
