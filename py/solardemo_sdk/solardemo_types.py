@@ -65,15 +65,9 @@ class PlanetRequired(TypedDict):
 
 
 class Planet(PlanetRequired, total=False):
-    forbid: bool
     forbidReason: str
     forbidState: str
-    ok: bool
-    start: bool
-    state: str
-    stop: bool
     terraformState: str
-    why: str
 
 
 class PlanetLoadMatch(TypedDict):
@@ -82,18 +76,12 @@ class PlanetLoadMatch(TypedDict):
 
 class PlanetListMatch(TypedDict, total=False):
     diameter: float
-    forbid: bool
     forbidReason: str
     forbidState: str
     id: str
     kind: str
     name: str
-    ok: bool
-    start: bool
-    state: str
-    stop: bool
     terraformState: str
-    why: str
 
 
 class PlanetCreateDataRequired(TypedDict):
@@ -104,15 +92,9 @@ class PlanetCreateDataRequired(TypedDict):
 
 
 class PlanetCreateData(PlanetCreateDataRequired, total=False):
-    forbid: bool
     forbidReason: str
     forbidState: str
-    ok: bool
-    start: bool
-    state: str
-    stop: bool
     terraformState: str
-    why: str
 
 
 class PlanetUpdateDataRequired(TypedDict):
@@ -121,17 +103,11 @@ class PlanetUpdateDataRequired(TypedDict):
 
 class PlanetUpdateData(PlanetUpdateDataRequired, total=False):
     diameter: float
-    forbid: bool
     forbidReason: str
     forbidState: str
     kind: str
     name: str
-    ok: bool
-    start: bool
-    state: str
-    stop: bool
     terraformState: str
-    why: str
 
 
 class PlanetRemoveMatch(TypedDict):

@@ -19,7 +19,7 @@ Do not construct the SDK client directly and do not read env vars yourself —
 ## Accessors
 
 - `ad.moons()` -> DataFrame of `moon`. Columns: diameter:Float64, id:string, kind:string, name:string, planet_id:string
-- `ad.planets()` -> DataFrame of `planet`. Columns: diameter:Float64, forbid:boolean, forbidReason:string, forbidState:string, id:string, kind:string, name:string, ok:boolean, start:boolean, state:string, stop:boolean, terraformState:string, …
+- `ad.planets()` -> DataFrame of `planet`. Columns: diameter:Float64, forbidReason:string, forbidState:string, id:string, kind:string, name:string, terraformState:string
 - `ad.moon(id)` -> Series for one `moon`
 - `ad.planet(id)` -> Series for one `planet`
 

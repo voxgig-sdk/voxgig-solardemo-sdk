@@ -28,15 +28,15 @@ object SolardemoTypes {
 
   data class MoonRemoveMatch(val id: String?, val planet_id: String?)
 
-  data class Planet(val diameter: Double?, val forbid: Boolean?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val ok: Boolean?, val start: Boolean?, val state: String?, val stop: Boolean?, val terraformState: String?, val why: String?)
+  data class Planet(val diameter: Double?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val terraformState: String?)
 
   data class PlanetLoadMatch(val id: String?)
 
-  data class PlanetListMatch(val diameter: Double?, val forbid: Boolean?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val ok: Boolean?, val start: Boolean?, val state: String?, val stop: Boolean?, val terraformState: String?, val why: String?)
+  data class PlanetListMatch(val diameter: Double?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val terraformState: String?)
 
-  data class PlanetCreateData(val diameter: Double?, val forbid: Boolean?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val ok: Boolean?, val start: Boolean?, val state: String?, val stop: Boolean?, val terraformState: String?, val why: String?)
+  data class PlanetCreateData(val diameter: Double?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val terraformState: String?)
 
-  data class PlanetUpdateData(val id: String?, val diameter: Double?, val forbid: Boolean?, val forbidReason: String?, val forbidState: String?, val kind: String?, val name: String?, val ok: Boolean?, val start: Boolean?, val state: String?, val stop: Boolean?, val terraformState: String?, val why: String?)
+  data class PlanetUpdateData(val id: String?, val diameter: Double?, val forbidReason: String?, val forbidState: String?, val kind: String?, val name: String?, val terraformState: String?)
 
   data class PlanetRemoveMatch(val id: String?)
 

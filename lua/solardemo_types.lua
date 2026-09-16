@@ -40,66 +40,42 @@
 
 ---@class Planet
 ---@field diameter number
----@field forbid? boolean
 ---@field forbidReason? string
 ---@field forbidState? string
 ---@field id string
 ---@field kind string
 ---@field name string
----@field ok? boolean
----@field start? boolean
----@field state? string
----@field stop? boolean
 ---@field terraformState? string
----@field why? string
 
 ---@class PlanetLoadMatch
 ---@field id string
 
 ---@class PlanetListMatch
 ---@field diameter? number
----@field forbid? boolean
 ---@field forbidReason? string
 ---@field forbidState? string
 ---@field id? string
 ---@field kind? string
 ---@field name? string
----@field ok? boolean
----@field start? boolean
----@field state? string
----@field stop? boolean
 ---@field terraformState? string
----@field why? string
 
 ---@class PlanetCreateData
 ---@field diameter number
----@field forbid? boolean
 ---@field forbidReason? string
 ---@field forbidState? string
 ---@field id string
 ---@field kind string
 ---@field name string
----@field ok? boolean
----@field start? boolean
----@field state? string
----@field stop? boolean
 ---@field terraformState? string
----@field why? string
 
 ---@class PlanetUpdateData
 ---@field id string
 ---@field diameter? number
----@field forbid? boolean
 ---@field forbidReason? string
 ---@field forbidState? string
 ---@field kind? string
 ---@field name? string
----@field ok? boolean
----@field start? boolean
----@field state? string
----@field stop? boolean
 ---@field terraformState? string
----@field why? string
 
 ---@class PlanetRemoveMatch
 ---@field id string

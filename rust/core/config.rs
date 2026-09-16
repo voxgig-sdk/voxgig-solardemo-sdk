@@ -36,6 +36,7 @@ pub fn make_config() -> Value {
             ("moon".to_string(), Value::map_of([
                 ("fields".to_string(), Value::list(vec![
                     Value::map_of([
+                        ("format".to_string(), Value::str("float")),
                         ("name".to_string(), Value::str("diameter")),
                         ("req".to_string(), Value::Bool(true)),
                         ("type".to_string(), Value::str("`$NUMBER`")),
@@ -78,6 +79,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("POST /api/planet/{planet_id}/moon")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
@@ -129,6 +136,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("GET /api/planet/{planet_id}/moon")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
@@ -187,6 +200,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("GET /api/planet/{planet_id}/moon/{moon_id}")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
@@ -256,6 +275,12 @@ pub fn make_config() -> Value {
                                         ]),
                                     ])),
                                 ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("DELETE /api/planet/{planet_id}/moon/{moon_id}")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
+                                ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("DELETE")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/moon/{moon_id}")),
@@ -323,6 +348,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("PUT /api/planet/{planet_id}/moon/{moon_id}")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("PUT")),
@@ -381,21 +412,20 @@ pub fn make_config() -> Value {
             ("planet".to_string(), Value::map_of([
                 ("fields".to_string(), Value::list(vec![
                     Value::map_of([
+                        ("format".to_string(), Value::str("float")),
                         ("name".to_string(), Value::str("diameter")),
                         ("req".to_string(), Value::Bool(true)),
                         ("type".to_string(), Value::str("`$NUMBER`")),
                     ]),
                     Value::map_of([
-                        ("name".to_string(), Value::str("forbid")),
-                        ("type".to_string(), Value::str("`$BOOLEAN`")),
-                    ]),
-                    Value::map_of([
                         ("name".to_string(), Value::str("forbidReason")),
+                        ("readOnly".to_string(), Value::Bool(true)),
                         ("short".to_string(), Value::str("Why the planet is forbidden, carried from the forbid action's `why`.")),
                         ("type".to_string(), Value::str("`$STRING`")),
                     ]),
                     Value::map_of([
                         ("name".to_string(), Value::str("forbidState")),
+                        ("readOnly".to_string(), Value::Bool(true)),
                         ("short".to_string(), Value::str("Set by the forbid action, and absent until it first runs.")),
                         ("type".to_string(), Value::str("`$STRING`")),
                     ]),
@@ -415,28 +445,9 @@ pub fn make_config() -> Value {
                         ("type".to_string(), Value::str("`$STRING`")),
                     ]),
                     Value::map_of([
-                        ("name".to_string(), Value::str("ok")),
-                        ("type".to_string(), Value::str("`$BOOLEAN`")),
-                    ]),
-                    Value::map_of([
-                        ("name".to_string(), Value::str("start")),
-                        ("type".to_string(), Value::str("`$BOOLEAN`")),
-                    ]),
-                    Value::map_of([
-                        ("name".to_string(), Value::str("state")),
-                        ("type".to_string(), Value::str("`$STRING`")),
-                    ]),
-                    Value::map_of([
-                        ("name".to_string(), Value::str("stop")),
-                        ("type".to_string(), Value::str("`$BOOLEAN`")),
-                    ]),
-                    Value::map_of([
                         ("name".to_string(), Value::str("terraformState")),
+                        ("readOnly".to_string(), Value::Bool(true)),
                         ("short".to_string(), Value::str("Set by the terraform action, and absent until it first runs.")),
-                        ("type".to_string(), Value::str("`$STRING`")),
-                    ]),
-                    Value::map_of([
-                        ("name".to_string(), Value::str("why")),
                         ("type".to_string(), Value::str("`$STRING`")),
                     ]),
                 ])),
@@ -457,6 +468,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("POST /api/planet/{planet_id}/forbid")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"forbid\":{\"type\":\"boolean\"},\"why\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
@@ -509,6 +526,12 @@ pub fn make_config() -> Value {
                                         ]),
                                     ])),
                                 ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("POST /api/planet/{planet_id}/terraform")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"start\":{\"type\":\"boolean\"},\"stop\":{\"type\":\"boolean\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
+                                ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}/terraform")),
@@ -550,6 +573,12 @@ pub fn make_config() -> Value {
                             ]),
                             Value::map_of([
                                 ("args".to_string(), Value::empty_map()),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("POST /api/planet")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
+                                ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("POST")),
                                 ("orig".to_string(), Value::str("/api/planet")),
@@ -579,6 +608,12 @@ pub fn make_config() -> Value {
                         ("points".to_string(), Value::list(vec![
                             Value::map_of([
                                 ("args".to_string(), Value::empty_map()),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("GET /api/planet")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
+                                ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
                                 ("orig".to_string(), Value::str("/api/planet")),
@@ -617,6 +652,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("GET /api/planet/{planet_id}")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("GET")),
@@ -670,6 +711,12 @@ pub fn make_config() -> Value {
                                         ]),
                                     ])),
                                 ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("DELETE /api/planet/{planet_id}")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
+                                ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("DELETE")),
                                 ("orig".to_string(), Value::str("/api/planet/{planet_id}")),
@@ -721,6 +768,12 @@ pub fn make_config() -> Value {
                                             ("type".to_string(), Value::str("`$STRING`")),
                                         ]),
                                     ])),
+                                ])),
+                                ("contract".to_string(), Value::map_of([
+                                    ("id".to_string(), Value::str("PUT /api/planet/{planet_id}")),
+                                    ("json".to_string(), Value::str("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}")),
+                                    ("source".to_string(), Value::str("openapi3")),
+                                    ("version".to_string(), Value::Num(1f64)),
                                 ])),
                                 ("kind".to_string(), Value::str("http")),
                                 ("method".to_string(), Value::str("PUT")),

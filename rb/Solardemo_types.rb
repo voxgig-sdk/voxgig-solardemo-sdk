@@ -123,9 +123,6 @@ MoonRemoveMatch = Struct.new(
 # @!attribute [rw] diameter
 #   @return [Float]
 #
-# @!attribute [rw] forbid
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] forbidReason
 #   @return [String, nil]
 #
@@ -141,37 +138,16 @@ MoonRemoveMatch = Struct.new(
 # @!attribute [rw] name
 #   @return [String]
 #
-# @!attribute [rw] ok
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] start
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] state
-#   @return [String, nil]
-#
-# @!attribute [rw] stop
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] terraformState
-#   @return [String, nil]
-#
-# @!attribute [rw] why
 #   @return [String, nil]
 Planet = Struct.new(
   :diameter,
-  :forbid,
   :forbidReason,
   :forbidState,
   :id,
   :kind,
   :name,
-  :ok,
-  :start,
-  :state,
-  :stop,
   :terraformState,
-  :why,
   keyword_init: true
 )
 
@@ -189,9 +165,6 @@ PlanetLoadMatch = Struct.new(
 # @!attribute [rw] diameter
 #   @return [Float, nil]
 #
-# @!attribute [rw] forbid
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] forbidReason
 #   @return [String, nil]
 #
@@ -207,37 +180,16 @@ PlanetLoadMatch = Struct.new(
 # @!attribute [rw] name
 #   @return [String, nil]
 #
-# @!attribute [rw] ok
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] start
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] state
-#   @return [String, nil]
-#
-# @!attribute [rw] stop
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] terraformState
-#   @return [String, nil]
-#
-# @!attribute [rw] why
 #   @return [String, nil]
 PlanetListMatch = Struct.new(
   :diameter,
-  :forbid,
   :forbidReason,
   :forbidState,
   :id,
   :kind,
   :name,
-  :ok,
-  :start,
-  :state,
-  :stop,
   :terraformState,
-  :why,
   keyword_init: true
 )
 
@@ -246,9 +198,6 @@ PlanetListMatch = Struct.new(
 # @!attribute [rw] diameter
 #   @return [Float]
 #
-# @!attribute [rw] forbid
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] forbidReason
 #   @return [String, nil]
 #
@@ -264,37 +213,16 @@ PlanetListMatch = Struct.new(
 # @!attribute [rw] name
 #   @return [String]
 #
-# @!attribute [rw] ok
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] start
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] state
-#   @return [String, nil]
-#
-# @!attribute [rw] stop
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] terraformState
-#   @return [String, nil]
-#
-# @!attribute [rw] why
 #   @return [String, nil]
 PlanetCreateData = Struct.new(
   :diameter,
-  :forbid,
   :forbidReason,
   :forbidState,
   :id,
   :kind,
   :name,
-  :ok,
-  :start,
-  :state,
-  :stop,
   :terraformState,
-  :why,
   keyword_init: true
 )
 
@@ -306,9 +234,6 @@ PlanetCreateData = Struct.new(
 # @!attribute [rw] diameter
 #   @return [Float, nil]
 #
-# @!attribute [rw] forbid
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] forbidReason
 #   @return [String, nil]
 #
@@ -321,37 +246,16 @@ PlanetCreateData = Struct.new(
 # @!attribute [rw] name
 #   @return [String, nil]
 #
-# @!attribute [rw] ok
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] start
-#   @return [Boolean, nil]
-#
-# @!attribute [rw] state
-#   @return [String, nil]
-#
-# @!attribute [rw] stop
-#   @return [Boolean, nil]
-#
 # @!attribute [rw] terraformState
-#   @return [String, nil]
-#
-# @!attribute [rw] why
 #   @return [String, nil]
 PlanetUpdateData = Struct.new(
   :id,
   :diameter,
-  :forbid,
   :forbidReason,
   :forbidState,
   :kind,
   :name,
-  :ok,
-  :start,
-  :state,
-  :stop,
   :terraformState,
-  :why,
   keyword_init: true
 )
 

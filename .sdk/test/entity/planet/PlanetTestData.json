@@ -2,67 +2,43 @@
   "existing": {
     "planet": {
       "PLANET00": {
-        "diameter": 130,
-        "forbid": false,
-        "forbidReason": "s84",
-        "forbidState": "s85",
+        "diameter": 70,
+        "forbidReason": "s47",
+        "forbidState": "s48",
         "id": "PLANET00",
-        "kind": "s87",
-        "name": "s88",
-        "ok": false,
-        "start": true,
-        "state": "s8b",
-        "stop": true,
-        "terraformState": "s8d",
-        "why": "s8e"
+        "kind": "s4a",
+        "name": "s4b",
+        "terraformState": "s4c"
       },
       "PLANET01": {
-        "diameter": 260,
-        "forbid": false,
-        "forbidReason": "s106",
-        "forbidState": "s107",
+        "diameter": 140,
+        "forbidReason": "s8d",
+        "forbidState": "s8e",
         "id": "PLANET01",
-        "kind": "s109",
-        "name": "s10a",
-        "ok": false,
-        "start": true,
-        "state": "s10d",
-        "stop": true,
-        "terraformState": "s10f",
-        "why": "s110"
+        "kind": "s90",
+        "name": "s91",
+        "terraformState": "s92"
       },
       "PLANET02": {
-        "diameter": 390,
-        "forbid": false,
-        "forbidReason": "s188",
-        "forbidState": "s189",
+        "diameter": 210,
+        "forbidReason": "sd3",
+        "forbidState": "sd4",
         "id": "PLANET02",
-        "kind": "s18b",
-        "name": "s18c",
-        "ok": false,
-        "start": true,
-        "state": "s18f",
-        "stop": true,
-        "terraformState": "s191",
-        "why": "s192"
+        "kind": "sd6",
+        "name": "sd7",
+        "terraformState": "sd8"
       }
     }
   },
   "new": {
     "planet": {
       "planet_ref01": {
-        "diameter": 520,
-        "forbid": false,
-        "forbidReason": "s20a",
-        "forbidState": "s20b",
-        "kind": "s20d",
-        "name": "s20e",
-        "ok": false,
-        "start": true,
-        "state": "s211",
-        "stop": true,
-        "terraformState": "s213",
-        "why": "s214"
+        "diameter": 280,
+        "forbidReason": "s119",
+        "forbidState": "s11a",
+        "kind": "s11c",
+        "name": "s11d",
+        "terraformState": "s11e"
       }
     }
   }

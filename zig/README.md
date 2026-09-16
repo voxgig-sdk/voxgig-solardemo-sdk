@@ -301,18 +301,12 @@ API path: `/api/planet/{planet_id}/moon`
 | Field | Description |
 | --- | --- |
 | `diameter` |  |
-| `forbid` |  |
 | `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
 | `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
-| `ok` |  |
-| `start` |  |
-| `state` |  |
-| `stop` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
-| `why` |  |
 
 Operations: Create, List, Load, Remove, Update.
 
@@ -406,18 +400,12 @@ carries the result `Value`, `.err => |e|` carries the branded error.
 | Field | Type | Description |
 | --- | --- | --- |
 | `diameter` | `f64` |  |
-| `forbid` | `bool` |  |
 | `forbidReason` | `[]const u8` | Why the planet is forbidden, carried from the forbid action's `why`. |
 | `forbidState` | `[]const u8` | Set by the forbid action, and absent until it first runs. |
 | `id` | `[]const u8` |  |
 | `kind` | `[]const u8` |  |
 | `name` | `[]const u8` |  |
-| `ok` | `bool` |  |
-| `start` | `bool` |  |
-| `state` | `[]const u8` |  |
-| `stop` | `bool` |  |
 | `terraformState` | `[]const u8` | Set by the terraform action, and absent until it first runs. |
-| `why` | `[]const u8` |  |
 
 #### Example: Load
 

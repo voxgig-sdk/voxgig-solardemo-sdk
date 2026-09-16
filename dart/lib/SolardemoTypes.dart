@@ -235,8 +235,6 @@ class MoonRemoveMatch {
 class Planet {
   /// NUMBER (required at the API)
   num? diameter;
-  /// BOOLEAN
-  bool? forbid;
   /// STRING
   String? forbidReason;
   /// STRING
@@ -247,58 +245,33 @@ class Planet {
   String? kind;
   /// STRING (required at the API)
   String? name;
-  /// BOOLEAN
-  bool? ok;
-  /// BOOLEAN
-  bool? start;
-  /// STRING
-  String? state;
-  /// BOOLEAN
-  bool? stop;
   /// STRING
   String? terraformState;
-  /// STRING
-  String? why;
 
   Planet({
     this.diameter,
-    this.forbid,
     this.forbidReason,
     this.forbidState,
     this.id,
     this.kind,
     this.name,
-    this.ok,
-    this.start,
-    this.state,
-    this.stop,
     this.terraformState,
-    this.why,
   });
 
   factory Planet.fromMap(Map<String, dynamic> m) => Planet(
         diameter: m['diameter'] is num ? m['diameter'] : null,
-        forbid: m['forbid'] is bool ? m['forbid'] : null,
         forbidReason: m['forbidReason'] is String ? m['forbidReason'] : null,
         forbidState: m['forbidState'] is String ? m['forbidState'] : null,
         id: m['id'] is String ? m['id'] : null,
         kind: m['kind'] is String ? m['kind'] : null,
         name: m['name'] is String ? m['name'] : null,
-        ok: m['ok'] is bool ? m['ok'] : null,
-        start: m['start'] is bool ? m['start'] : null,
-        state: m['state'] is String ? m['state'] : null,
-        stop: m['stop'] is bool ? m['stop'] : null,
         terraformState: m['terraformState'] is String ? m['terraformState'] : null,
-        why: m['why'] is String ? m['why'] : null,
       );
 
   Map<String, dynamic> toMap() {
     final m = <String, dynamic>{};
     if (null != diameter) {
       m['diameter'] = diameter;
-    }
-    if (null != forbid) {
-      m['forbid'] = forbid;
     }
     if (null != forbidReason) {
       m['forbidReason'] = forbidReason;
@@ -315,23 +288,8 @@ class Planet {
     if (null != name) {
       m['name'] = name;
     }
-    if (null != ok) {
-      m['ok'] = ok;
-    }
-    if (null != start) {
-      m['start'] = start;
-    }
-    if (null != state) {
-      m['state'] = state;
-    }
-    if (null != stop) {
-      m['stop'] = stop;
-    }
     if (null != terraformState) {
       m['terraformState'] = terraformState;
-    }
-    if (null != why) {
-      m['why'] = why;
     }
     return m;
   }
@@ -361,8 +319,6 @@ class PlanetLoadMatch {
 class PlanetListMatch {
   /// NUMBER
   num? diameter;
-  /// BOOLEAN
-  bool? forbid;
   /// STRING
   String? forbidReason;
   /// STRING
@@ -373,58 +329,33 @@ class PlanetListMatch {
   String? kind;
   /// STRING
   String? name;
-  /// BOOLEAN
-  bool? ok;
-  /// BOOLEAN
-  bool? start;
-  /// STRING
-  String? state;
-  /// BOOLEAN
-  bool? stop;
   /// STRING
   String? terraformState;
-  /// STRING
-  String? why;
 
   PlanetListMatch({
     this.diameter,
-    this.forbid,
     this.forbidReason,
     this.forbidState,
     this.id,
     this.kind,
     this.name,
-    this.ok,
-    this.start,
-    this.state,
-    this.stop,
     this.terraformState,
-    this.why,
   });
 
   factory PlanetListMatch.fromMap(Map<String, dynamic> m) => PlanetListMatch(
         diameter: m['diameter'] is num ? m['diameter'] : null,
-        forbid: m['forbid'] is bool ? m['forbid'] : null,
         forbidReason: m['forbidReason'] is String ? m['forbidReason'] : null,
         forbidState: m['forbidState'] is String ? m['forbidState'] : null,
         id: m['id'] is String ? m['id'] : null,
         kind: m['kind'] is String ? m['kind'] : null,
         name: m['name'] is String ? m['name'] : null,
-        ok: m['ok'] is bool ? m['ok'] : null,
-        start: m['start'] is bool ? m['start'] : null,
-        state: m['state'] is String ? m['state'] : null,
-        stop: m['stop'] is bool ? m['stop'] : null,
         terraformState: m['terraformState'] is String ? m['terraformState'] : null,
-        why: m['why'] is String ? m['why'] : null,
       );
 
   Map<String, dynamic> toMap() {
     final m = <String, dynamic>{};
     if (null != diameter) {
       m['diameter'] = diameter;
-    }
-    if (null != forbid) {
-      m['forbid'] = forbid;
     }
     if (null != forbidReason) {
       m['forbidReason'] = forbidReason;
@@ -441,23 +372,8 @@ class PlanetListMatch {
     if (null != name) {
       m['name'] = name;
     }
-    if (null != ok) {
-      m['ok'] = ok;
-    }
-    if (null != start) {
-      m['start'] = start;
-    }
-    if (null != state) {
-      m['state'] = state;
-    }
-    if (null != stop) {
-      m['stop'] = stop;
-    }
     if (null != terraformState) {
       m['terraformState'] = terraformState;
-    }
-    if (null != why) {
-      m['why'] = why;
     }
     return m;
   }
@@ -466,8 +382,6 @@ class PlanetListMatch {
 class PlanetCreateData {
   /// NUMBER (required at the API)
   num? diameter;
-  /// BOOLEAN
-  bool? forbid;
   /// STRING
   String? forbidReason;
   /// STRING
@@ -478,58 +392,33 @@ class PlanetCreateData {
   String? kind;
   /// STRING (required at the API)
   String? name;
-  /// BOOLEAN
-  bool? ok;
-  /// BOOLEAN
-  bool? start;
-  /// STRING
-  String? state;
-  /// BOOLEAN
-  bool? stop;
   /// STRING
   String? terraformState;
-  /// STRING
-  String? why;
 
   PlanetCreateData({
     this.diameter,
-    this.forbid,
     this.forbidReason,
     this.forbidState,
     this.id,
     this.kind,
     this.name,
-    this.ok,
-    this.start,
-    this.state,
-    this.stop,
     this.terraformState,
-    this.why,
   });
 
   factory PlanetCreateData.fromMap(Map<String, dynamic> m) => PlanetCreateData(
         diameter: m['diameter'] is num ? m['diameter'] : null,
-        forbid: m['forbid'] is bool ? m['forbid'] : null,
         forbidReason: m['forbidReason'] is String ? m['forbidReason'] : null,
         forbidState: m['forbidState'] is String ? m['forbidState'] : null,
         id: m['id'] is String ? m['id'] : null,
         kind: m['kind'] is String ? m['kind'] : null,
         name: m['name'] is String ? m['name'] : null,
-        ok: m['ok'] is bool ? m['ok'] : null,
-        start: m['start'] is bool ? m['start'] : null,
-        state: m['state'] is String ? m['state'] : null,
-        stop: m['stop'] is bool ? m['stop'] : null,
         terraformState: m['terraformState'] is String ? m['terraformState'] : null,
-        why: m['why'] is String ? m['why'] : null,
       );
 
   Map<String, dynamic> toMap() {
     final m = <String, dynamic>{};
     if (null != diameter) {
       m['diameter'] = diameter;
-    }
-    if (null != forbid) {
-      m['forbid'] = forbid;
     }
     if (null != forbidReason) {
       m['forbidReason'] = forbidReason;
@@ -546,23 +435,8 @@ class PlanetCreateData {
     if (null != name) {
       m['name'] = name;
     }
-    if (null != ok) {
-      m['ok'] = ok;
-    }
-    if (null != start) {
-      m['start'] = start;
-    }
-    if (null != state) {
-      m['state'] = state;
-    }
-    if (null != stop) {
-      m['stop'] = stop;
-    }
     if (null != terraformState) {
       m['terraformState'] = terraformState;
-    }
-    if (null != why) {
-      m['why'] = why;
     }
     return m;
   }
@@ -573,8 +447,6 @@ class PlanetUpdateData {
   String? id;
   /// NUMBER
   num? diameter;
-  /// BOOLEAN
-  bool? forbid;
   /// STRING
   String? forbidReason;
   /// STRING
@@ -583,49 +455,27 @@ class PlanetUpdateData {
   String? kind;
   /// STRING
   String? name;
-  /// BOOLEAN
-  bool? ok;
-  /// BOOLEAN
-  bool? start;
-  /// STRING
-  String? state;
-  /// BOOLEAN
-  bool? stop;
   /// STRING
   String? terraformState;
-  /// STRING
-  String? why;
 
   PlanetUpdateData({
     this.id,
     this.diameter,
-    this.forbid,
     this.forbidReason,
     this.forbidState,
     this.kind,
     this.name,
-    this.ok,
-    this.start,
-    this.state,
-    this.stop,
     this.terraformState,
-    this.why,
   });
 
   factory PlanetUpdateData.fromMap(Map<String, dynamic> m) => PlanetUpdateData(
         id: m['id'] is String ? m['id'] : null,
         diameter: m['diameter'] is num ? m['diameter'] : null,
-        forbid: m['forbid'] is bool ? m['forbid'] : null,
         forbidReason: m['forbidReason'] is String ? m['forbidReason'] : null,
         forbidState: m['forbidState'] is String ? m['forbidState'] : null,
         kind: m['kind'] is String ? m['kind'] : null,
         name: m['name'] is String ? m['name'] : null,
-        ok: m['ok'] is bool ? m['ok'] : null,
-        start: m['start'] is bool ? m['start'] : null,
-        state: m['state'] is String ? m['state'] : null,
-        stop: m['stop'] is bool ? m['stop'] : null,
         terraformState: m['terraformState'] is String ? m['terraformState'] : null,
-        why: m['why'] is String ? m['why'] : null,
       );
 
   Map<String, dynamic> toMap() {
@@ -635,9 +485,6 @@ class PlanetUpdateData {
     }
     if (null != diameter) {
       m['diameter'] = diameter;
-    }
-    if (null != forbid) {
-      m['forbid'] = forbid;
     }
     if (null != forbidReason) {
       m['forbidReason'] = forbidReason;
@@ -651,23 +498,8 @@ class PlanetUpdateData {
     if (null != name) {
       m['name'] = name;
     }
-    if (null != ok) {
-      m['ok'] = ok;
-    }
-    if (null != start) {
-      m['start'] = start;
-    }
-    if (null != state) {
-      m['state'] = state;
-    }
-    if (null != stop) {
-      m['stop'] = stop;
-    }
     if (null != terraformState) {
       m['terraformState'] = terraformState;
-    }
-    if (null != why) {
-      m['why'] = why;
     }
     return m;
   }

@@ -45,18 +45,12 @@ export interface MoonRemoveMatch {
 
 export interface Planet {
   diameter: number
-  forbid?: boolean
   forbidReason?: string
   forbidState?: string
   id: string
   kind: string
   name: string
-  ok?: boolean
-  start?: boolean
-  state?: string
-  stop?: boolean
   terraformState?: string
-  why?: string
 }
 
 export interface PlanetLoadMatch {
@@ -65,34 +59,22 @@ export interface PlanetLoadMatch {
 
 export interface PlanetListMatch {
   diameter?: number
-  forbid?: boolean
   forbidReason?: string
   forbidState?: string
   id?: string
   kind?: string
   name?: string
-  ok?: boolean
-  start?: boolean
-  state?: string
-  stop?: boolean
   terraformState?: string
-  why?: string
 }
 
 export interface PlanetCreateData {
   diameter: number
-  forbid?: boolean
   forbidReason?: string
   forbidState?: string
   id: string
   kind: string
   name: string
-  ok?: boolean
-  start?: boolean
-  state?: string
-  stop?: boolean
   terraformState?: string
-  why?: string
 
   // Selects a custom action instead of the plain create:
   //   'forbid' | 'terraform'
@@ -104,17 +86,11 @@ export interface PlanetCreateData {
 export interface PlanetUpdateData {
   id: string
   diameter?: number
-  forbid?: boolean
   forbidReason?: string
   forbidState?: string
   kind?: string
   name?: string
-  ok?: boolean
-  start?: boolean
-  state?: string
-  stop?: boolean
   terraformState?: string
-  why?: string
 }
 
 export interface PlanetRemoveMatch {

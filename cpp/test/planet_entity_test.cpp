@@ -124,13 +124,13 @@ static void planet_entity_basic() {
   Value planet_ref01_data_up0_up = vmap();
   setp(planet_ref01_data_up0_up, "id", getp(planet_ref01_data, "id"));
   std::string planet_ref01_data_up0_markval = std::string("Mark01-planet_ref01_") + std::to_string(setup.now);
-  setp(planet_ref01_data_up0_up, "forbidReason", Value(planet_ref01_data_up0_markval));
+  setp(planet_ref01_data_up0_up, "kind", Value(planet_ref01_data_up0_markval));
   Value planet_ref01_resdata_up0_result = planet_ref01_ent->update(Struct::clone(planet_ref01_data_up0_up), Value::undef())->data();
   Value planet_ref01_resdata_up0 = Helpers::toMapAny(planet_ref01_resdata_up0_result);
   if (!planet_ref01_resdata_up0.is_map()) planet_ref01_resdata_up0 = vmap();
   ASSERT_TRUE(planet_ref01_resdata_up0.is_map(), "expected update result to be a map");
   ASSERT_EQ_VAL(getp(planet_ref01_resdata_up0, "id"), getp(planet_ref01_data_up0_up, "id"), "expected update result id to match");
-  ASSERT_EQ_VAL(getp(planet_ref01_resdata_up0, "forbidReason"), Value(planet_ref01_data_up0_markval), "expected forbidReason to be updated");
+  ASSERT_EQ_VAL(getp(planet_ref01_resdata_up0, "kind"), Value(planet_ref01_data_up0_markval), "expected kind to be updated");
 
   // LOAD
   Value planet_ref01_match_dt0 = vmap({{"id", getp(planet_ref01_data, "id")}});

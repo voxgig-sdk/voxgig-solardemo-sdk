@@ -61,18 +61,12 @@ struct MoonRemoveMatch {
 
 struct Planet {
   double diameter;
-  bool forbid;  // optional
   std::string forbidReason;  // optional
   std::string forbidState;  // optional
   std::string id;
   std::string kind;
   std::string name;
-  bool ok;  // optional
-  bool start;  // optional
-  std::string state;  // optional
-  bool stop;  // optional
   std::string terraformState;  // optional
-  std::string why;  // optional
 };
 
 struct PlanetLoadMatch {
@@ -81,50 +75,32 @@ struct PlanetLoadMatch {
 
 struct PlanetListMatch {
   double diameter;  // optional
-  bool forbid;  // optional
   std::string forbidReason;  // optional
   std::string forbidState;  // optional
   std::string id;  // optional
   std::string kind;  // optional
   std::string name;  // optional
-  bool ok;  // optional
-  bool start;  // optional
-  std::string state;  // optional
-  bool stop;  // optional
   std::string terraformState;  // optional
-  std::string why;  // optional
 };
 
 struct PlanetCreateData {
   double diameter;
-  bool forbid;  // optional
   std::string forbidReason;  // optional
   std::string forbidState;  // optional
   std::string id;
   std::string kind;
   std::string name;
-  bool ok;  // optional
-  bool start;  // optional
-  std::string state;  // optional
-  bool stop;  // optional
   std::string terraformState;  // optional
-  std::string why;  // optional
 };
 
 struct PlanetUpdateData {
   std::string id;
   double diameter;  // optional
-  bool forbid;  // optional
   std::string forbidReason;  // optional
   std::string forbidState;  // optional
   std::string kind;  // optional
   std::string name;  // optional
-  bool ok;  // optional
-  bool start;  // optional
-  std::string state;  // optional
-  bool stop;  // optional
   std::string terraformState;  // optional
-  std::string why;  // optional
 };
 
 struct PlanetRemoveMatch {

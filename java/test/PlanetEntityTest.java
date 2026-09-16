@@ -77,7 +77,7 @@ public class PlanetEntityTest {
     Map<String, Object> planetRef01DataUp0Up = new LinkedHashMap<>();
     planetRef01DataUp0Up.put("id", planetRef01Data.get("id"));
 
-    String planetRef01MarkdefUp0Name = "forbidReason";
+    String planetRef01MarkdefUp0Name = "kind";
     String planetRef01MarkdefUp0Value = "Mark01-planet_ref01_" + setup.now;
     planetRef01DataUp0Up.put(planetRef01MarkdefUp0Name, planetRef01MarkdefUp0Value);
 

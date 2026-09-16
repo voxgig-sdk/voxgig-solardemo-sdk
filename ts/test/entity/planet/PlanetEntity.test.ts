@@ -85,7 +85,7 @@ describe('PlanetEntity', async () => {
     const planet_ref01_data_up0: any = {}
     planet_ref01_data_up0.id = planet_ref01_data.id
 
-    const planet_ref01_markdef_up0 = { name: 'forbidReason', value: 'Mark01-planet_ref01_' + setup.now }
+    const planet_ref01_markdef_up0 = { name: 'kind', value: 'Mark01-planet_ref01_' + setup.now }
     ;(planet_ref01_data_up0 as any)[planet_ref01_markdef_up0.name] = planet_ref01_markdef_up0.value
 
     const planet_ref01_resdata_up0 = (await planet_ref01_ent.update(planet_ref01_data_up0)).data()

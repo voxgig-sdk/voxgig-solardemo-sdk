@@ -28,15 +28,15 @@ object SolardemoTypes {
 
   final case class MoonRemoveMatch(id: String, planet_id: String)
 
-  final case class Planet(diameter: java.lang.Double, forbid: java.lang.Boolean, forbidReason: String, forbidState: String, id: String, kind: String, name: String, ok: java.lang.Boolean, start: java.lang.Boolean, state: String, stop: java.lang.Boolean, terraformState: String, why: String)
+  final case class Planet(diameter: java.lang.Double, forbidReason: String, forbidState: String, id: String, kind: String, name: String, terraformState: String)
 
   final case class PlanetLoadMatch(id: String)
 
-  final case class PlanetListMatch(diameter: java.lang.Double, forbid: java.lang.Boolean, forbidReason: String, forbidState: String, id: String, kind: String, name: String, ok: java.lang.Boolean, start: java.lang.Boolean, state: String, stop: java.lang.Boolean, terraformState: String, why: String)
+  final case class PlanetListMatch(diameter: java.lang.Double, forbidReason: String, forbidState: String, id: String, kind: String, name: String, terraformState: String)
 
-  final case class PlanetCreateData(diameter: java.lang.Double, forbid: java.lang.Boolean, forbidReason: String, forbidState: String, id: String, kind: String, name: String, ok: java.lang.Boolean, start: java.lang.Boolean, state: String, stop: java.lang.Boolean, terraformState: String, why: String)
+  final case class PlanetCreateData(diameter: java.lang.Double, forbidReason: String, forbidState: String, id: String, kind: String, name: String, terraformState: String)
 
-  final case class PlanetUpdateData(id: String, diameter: java.lang.Double, forbid: java.lang.Boolean, forbidReason: String, forbidState: String, kind: String, name: String, ok: java.lang.Boolean, start: java.lang.Boolean, state: String, stop: java.lang.Boolean, terraformState: String, why: String)
+  final case class PlanetUpdateData(id: String, diameter: java.lang.Double, forbidReason: String, forbidState: String, kind: String, name: String, terraformState: String)
 
   final case class PlanetRemoveMatch(id: String)
 

@@ -71,7 +71,7 @@ class PlanetEntityTest {
     val planetRef01DataUp0Up = linkedMapOf<String, Any?>()
     planetRef01DataUp0Up["id"] = planetRef01Data["id"]
 
-    val planetRef01MarkdefUp0Name = "forbidReason"
+    val planetRef01MarkdefUp0Name = "kind"
     val planetRef01MarkdefUp0Value = "Mark01-planet_ref01_" + setup.now
     planetRef01DataUp0Up[planetRef01MarkdefUp0Name] = planetRef01MarkdefUp0Value
 

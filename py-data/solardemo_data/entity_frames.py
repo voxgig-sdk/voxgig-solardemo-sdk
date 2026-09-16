@@ -90,18 +90,12 @@ class EntityFrames:
 
         Columns:
           diameter (Float64, required)
-          forbid (boolean)
           forbidReason (string)
           forbidState (string)
           id (string, required)
           kind (string, required)
           name (string, required)
-          ok (boolean)
-          start (boolean)
-          state (string)
-          stop (boolean)
           terraformState (string)
-          why (string)
 
         Every page is fetched by default. Pass limit= for a slice.
         Keyword arguments not named above are passed to the API as filters.
@@ -118,33 +112,21 @@ class EntityFrames:
             rows,
             dtypes={
                 "diameter": "Float64",
-                "forbid": "boolean",
                 "forbidReason": "string",
                 "forbidState": "string",
                 "id": "string",
                 "kind": "string",
                 "name": "string",
-                "ok": "boolean",
-                "start": "boolean",
-                "state": "string",
-                "stop": "boolean",
                 "terraformState": "string",
-                "why": "string",
             },
             order=[
                 "diameter",
-                "forbid",
                 "forbidReason",
                 "forbidState",
                 "id",
                 "kind",
                 "name",
-                "ok",
-                "start",
-                "state",
-                "stop",
                 "terraformState",
-                "why",
             ],
             flatten=flatten,
             dtype=dtype,
@@ -195,36 +177,24 @@ class EntityFrames:
 
         Columns:
           diameter (Float64, required)
-          forbid (boolean)
           forbidReason (string)
           forbidState (string)
           id (string, required)
           kind (string, required)
           name (string, required)
-          ok (boolean)
-          start (boolean)
-          state (string)
-          stop (boolean)
           terraformState (string)
-          why (string)
         """
         rec = self.sdk.Planet().load({"id": id})
         return to_series(
             rec,
             dtypes={
                 "diameter": "Float64",
-                "forbid": "boolean",
                 "forbidReason": "string",
                 "forbidState": "string",
                 "id": "string",
                 "kind": "string",
                 "name": "string",
-                "ok": "boolean",
-                "start": "boolean",
-                "state": "string",
-                "stop": "boolean",
                 "terraformState": "string",
-                "why": "string",
             },
             flatten=flatten,
             dtype=dtype,

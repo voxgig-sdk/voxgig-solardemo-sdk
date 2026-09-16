@@ -106,7 +106,7 @@ test('stream', (t) async {
       planet_ref01_data_up0['id'] = planet_ref01_data['id'];
 
       final planet_ref01_markdef_up0 = <String, dynamic>{
-        'name': 'forbidReason',
+        'name': 'kind',
         'value': 'Mark01-planet_ref01_' + setup['now'].toString(),
       };
       planet_ref01_data_up0[planet_ref01_markdef_up0['name']] = planet_ref01_markdef_up0['value'];

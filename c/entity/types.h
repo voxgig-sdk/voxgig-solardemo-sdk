@@ -61,18 +61,12 @@ typedef struct {
 // Planet is the typed data model for the planet entity.
 typedef struct {
   double diameter;
-  bool forbid;  // optional
   char*forbidreason;  // optional
   char*forbidstate;  // optional
   char*id;
   char*kind;
   char*name;
-  bool ok;  // optional
-  bool start;  // optional
-  char*state;  // optional
-  bool stop;  // optional
   char*terraformstate;  // optional
-  char*why;  // optional
 } Planet;
 
 // PlanetLoadMatch is the typed request payload for Planet.load.
@@ -83,52 +77,34 @@ typedef struct {
 // PlanetListMatch is the typed request payload for Planet.list.
 typedef struct {
   double diameter;  // optional
-  bool forbid;  // optional
   char*forbidreason;  // optional
   char*forbidstate;  // optional
   char*id;  // optional
   char*kind;  // optional
   char*name;  // optional
-  bool ok;  // optional
-  bool start;  // optional
-  char*state;  // optional
-  bool stop;  // optional
   char*terraformstate;  // optional
-  char*why;  // optional
 } PlanetListMatch;
 
 // PlanetCreateData is the typed request payload for Planet.create.
 typedef struct {
   double diameter;
-  bool forbid;  // optional
   char*forbidreason;  // optional
   char*forbidstate;  // optional
   char*id;
   char*kind;
   char*name;
-  bool ok;  // optional
-  bool start;  // optional
-  char*state;  // optional
-  bool stop;  // optional
   char*terraformstate;  // optional
-  char*why;  // optional
 } PlanetCreateData;
 
 // PlanetUpdateData is the typed request payload for Planet.update.
 typedef struct {
   char*id;
   double diameter;  // optional
-  bool forbid;  // optional
   char*forbidreason;  // optional
   char*forbidstate;  // optional
   char*kind;  // optional
   char*name;  // optional
-  bool ok;  // optional
-  bool start;  // optional
-  char*state;  // optional
-  bool stop;  // optional
   char*terraformstate;  // optional
-  char*why;  // optional
 } PlanetUpdateData;
 
 // PlanetRemoveMatch is the typed request payload for Planet.remove.

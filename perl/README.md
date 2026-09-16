@@ -304,18 +304,12 @@ API path: `/api/planet/{planet_id}/moon`
 | Field | Description |
 | --- | --- |
 | `diameter` |  |
-| `forbid` |  |
 | `forbidReason` | Why the planet is forbidden, carried from the forbid action's `why`. |
 | `forbidState` | Set by the forbid action, and absent until it first runs. |
 | `id` |  |
 | `kind` |  |
 | `name` |  |
-| `ok` |  |
-| `start` |  |
-| `state` |  |
-| `stop` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
-| `why` |  |
 
 Operations: Create, List, Load, Remove, Update.
 
@@ -394,18 +388,12 @@ Create an instance: `my $planet = $client->Planet;`
 | Field | Type | Description |
 | --- | --- | --- |
 | `diameter` | `number` |  |
-| `forbid` | `boolean` |  |
 | `forbidReason` | `string` | Why the planet is forbidden, carried from the forbid action's `why`. |
 | `forbidState` | `string` | Set by the forbid action, and absent until it first runs. |
 | `id` | `string` |  |
 | `kind` | `string` |  |
 | `name` | `string` |  |
-| `ok` | `boolean` |  |
-| `start` | `boolean` |  |
-| `state` | `string` |  |
-| `stop` | `boolean` |  |
 | `terraformState` | `string` | Set by the terraform action, and absent until it first runs. |
-| `why` | `string` |  |
 
 #### Example: Load
 

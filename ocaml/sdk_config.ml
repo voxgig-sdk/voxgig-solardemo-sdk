@@ -31,6 +31,7 @@ let make_config () : value =
       ("moon", (jo [
         ("fields", (ja [
           (jo [
+            ("format", (Str "float"));
             ("name", (Str "diameter"));
             ("req", (Bool true));
             ("type", (Str "`$NUMBER`")) ]);
@@ -65,6 +66,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "POST /api/planet/{planet_id}/moon"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet/{planet_id}/moon"));
@@ -101,6 +107,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "GET /api/planet/{planet_id}/moon"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet/{planet_id}/moon"));
@@ -143,6 +154,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "GET /api/planet/{planet_id}/moon/{moon_id}"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet/{planet_id}/moon/{moon_id}"));
@@ -192,6 +208,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "DELETE /api/planet/{planet_id}/moon/{moon_id}"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "DELETE"));
                 ("orig", (Str "/api/planet/{planet_id}/moon/{moon_id}"));
@@ -241,6 +262,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "PUT /api/planet/{planet_id}/moon/{moon_id}"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "PUT"));
                 ("orig", (Str "/api/planet/{planet_id}/moon/{moon_id}"));
@@ -278,18 +304,18 @@ let make_config () : value =
       ("planet", (jo [
         ("fields", (ja [
           (jo [
+            ("format", (Str "float"));
             ("name", (Str "diameter"));
             ("req", (Bool true));
             ("type", (Str "`$NUMBER`")) ]);
           (jo [
-            ("name", (Str "forbid"));
-            ("type", (Str "`$BOOLEAN`")) ]);
-          (jo [
             ("name", (Str "forbidReason"));
+            ("readOnly", (Bool true));
             ("short", (Str "Why the planet is forbidden, carried from the forbid action's `why`."));
             ("type", (Str "`$STRING`")) ]);
           (jo [
             ("name", (Str "forbidState"));
+            ("readOnly", (Bool true));
             ("short", (Str "Set by the forbid action, and absent until it first runs."));
             ("type", (Str "`$STRING`")) ]);
           (jo [
@@ -305,23 +331,9 @@ let make_config () : value =
             ("req", (Bool true));
             ("type", (Str "`$STRING`")) ]);
           (jo [
-            ("name", (Str "ok"));
-            ("type", (Str "`$BOOLEAN`")) ]);
-          (jo [
-            ("name", (Str "start"));
-            ("type", (Str "`$BOOLEAN`")) ]);
-          (jo [
-            ("name", (Str "state"));
-            ("type", (Str "`$STRING`")) ]);
-          (jo [
-            ("name", (Str "stop"));
-            ("type", (Str "`$BOOLEAN`")) ]);
-          (jo [
             ("name", (Str "terraformState"));
+            ("readOnly", (Bool true));
             ("short", (Str "Set by the terraform action, and absent until it first runs."));
-            ("type", (Str "`$STRING`")) ]);
-          (jo [
-            ("name", (Str "why"));
             ("type", (Str "`$STRING`")) ]) ]));
         ("name", (Str "planet"));
         ("op", (jo [
@@ -338,6 +350,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "POST /api/planet/{planet_id}/forbid"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"forbid\":{\"type\":\"boolean\"},\"why\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet/{planet_id}/forbid"));
@@ -374,6 +391,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "POST /api/planet/{planet_id}/terraform"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"start\":{\"type\":\"boolean\"},\"stop\":{\"type\":\"boolean\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet/{planet_id}/terraform"));
@@ -403,6 +425,11 @@ let make_config () : value =
                   (Str "terraform") ])) ]);
               (jo [
                 ("args", (empty_map ()));
+                ("contract", (jo [
+                  ("id", (Str "POST /api/planet"));
+                  ("json", (Str "{\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
                 ("orig", (Str "/api/planet"));
@@ -424,6 +451,11 @@ let make_config () : value =
             ("points", (ja [
               (jo [
                 ("args", (empty_map ()));
+                ("contract", (jo [
+                  ("id", (Str "GET /api/planet"));
+                  ("json", (Str "{\"parameters\":[],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet"));
@@ -452,6 +484,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "GET /api/planet/{planet_id}"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "GET"));
                 ("orig", (Str "/api/planet/{planet_id}"));
@@ -488,6 +525,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "DELETE /api/planet/{planet_id}"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "DELETE"));
                 ("orig", (Str "/api/planet/{planet_id}"));
@@ -524,6 +566,11 @@ let make_config () : value =
                       ("orig", (Str "planet_id"));
                       ("reqd", (Bool true));
                       ("type", (Str "`$STRING`")) ]) ])) ]));
+                ("contract", (jo [
+                  ("id", (Str "PUT /api/planet/{planet_id}"));
+                  ("json", (Str "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}"));
+                  ("source", (Str "openapi3"));
+                  ("version", (Num (1.))) ]));
                 ("kind", (Str "http"));
                 ("method", (Str "PUT"));
                 ("orig", (Str "/api/planet/{planet_id}"));

@@ -103,7 +103,7 @@ describe("PlanetEntity", function()
       id = planet_ref01_data["id"],
     }
 
-    local planet_ref01_markdef_up0_name = "forbidReason"
+    local planet_ref01_markdef_up0_name = "kind"
     local planet_ref01_markdef_up0_value = "Mark01-planet_ref01_" .. tostring(setup.now)
     planet_ref01_data_up0_up[planet_ref01_markdef_up0_name] = planet_ref01_markdef_up0_value
 

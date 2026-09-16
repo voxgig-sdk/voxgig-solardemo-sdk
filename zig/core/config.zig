@@ -36,6 +36,7 @@ pub fn make_config() Value {
             .{ "moon", h.jo(&.{
                 .{ "fields", h.ja(&.{
                     h.jo(&.{
+                        .{ "format", h.vstr("float") },
                         .{ "name", h.vstr("diameter") },
                         .{ "req", h.vbool(true) },
                         .{ "type", h.vstr("`$NUMBER`") },
@@ -78,6 +79,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("POST /api/planet/{planet_id}/moon") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
@@ -129,6 +136,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("GET /api/planet/{planet_id}/moon") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
@@ -187,6 +200,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("GET /api/planet/{planet_id}/moon/{moon_id}") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
@@ -256,6 +275,12 @@ pub fn make_config() Value {
                                         }),
                                     }) },
                                 }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("DELETE /api/planet/{planet_id}/moon/{moon_id}") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
+                                }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("DELETE") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/moon/{moon_id}") },
@@ -323,6 +348,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("PUT /api/planet/{planet_id}/moon/{moon_id}") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("PUT") },
@@ -381,21 +412,20 @@ pub fn make_config() Value {
             .{ "planet", h.jo(&.{
                 .{ "fields", h.ja(&.{
                     h.jo(&.{
+                        .{ "format", h.vstr("float") },
                         .{ "name", h.vstr("diameter") },
                         .{ "req", h.vbool(true) },
                         .{ "type", h.vstr("`$NUMBER`") },
                     }),
                     h.jo(&.{
-                        .{ "name", h.vstr("forbid") },
-                        .{ "type", h.vstr("`$BOOLEAN`") },
-                    }),
-                    h.jo(&.{
                         .{ "name", h.vstr("forbidReason") },
+                        .{ "readOnly", h.vbool(true) },
                         .{ "short", h.vstr("Why the planet is forbidden, carried from the forbid action's `why`.") },
                         .{ "type", h.vstr("`$STRING`") },
                     }),
                     h.jo(&.{
                         .{ "name", h.vstr("forbidState") },
+                        .{ "readOnly", h.vbool(true) },
                         .{ "short", h.vstr("Set by the forbid action, and absent until it first runs.") },
                         .{ "type", h.vstr("`$STRING`") },
                     }),
@@ -415,28 +445,9 @@ pub fn make_config() Value {
                         .{ "type", h.vstr("`$STRING`") },
                     }),
                     h.jo(&.{
-                        .{ "name", h.vstr("ok") },
-                        .{ "type", h.vstr("`$BOOLEAN`") },
-                    }),
-                    h.jo(&.{
-                        .{ "name", h.vstr("start") },
-                        .{ "type", h.vstr("`$BOOLEAN`") },
-                    }),
-                    h.jo(&.{
-                        .{ "name", h.vstr("state") },
-                        .{ "type", h.vstr("`$STRING`") },
-                    }),
-                    h.jo(&.{
-                        .{ "name", h.vstr("stop") },
-                        .{ "type", h.vstr("`$BOOLEAN`") },
-                    }),
-                    h.jo(&.{
                         .{ "name", h.vstr("terraformState") },
+                        .{ "readOnly", h.vbool(true) },
                         .{ "short", h.vstr("Set by the terraform action, and absent until it first runs.") },
-                        .{ "type", h.vstr("`$STRING`") },
-                    }),
-                    h.jo(&.{
-                        .{ "name", h.vstr("why") },
                         .{ "type", h.vstr("`$STRING`") },
                     }),
                 }) },
@@ -457,6 +468,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("POST /api/planet/{planet_id}/forbid") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"forbid\":{\"type\":\"boolean\"},\"why\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
@@ -509,6 +526,12 @@ pub fn make_config() Value {
                                         }),
                                     }) },
                                 }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("POST /api/planet/{planet_id}/terraform") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"start\":{\"type\":\"boolean\"},\"stop\":{\"type\":\"boolean\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
+                                }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}/terraform") },
@@ -550,6 +573,12 @@ pub fn make_config() Value {
                             }),
                             h.jo(&.{
                                 .{ "args", h.omap() },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("POST /api/planet") },
+                                    .{ "json", h.vstr("{\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
+                                }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("POST") },
                                 .{ "orig", h.vstr("/api/planet") },
@@ -579,6 +608,12 @@ pub fn make_config() Value {
                         .{ "points", h.ja(&.{
                             h.jo(&.{
                                 .{ "args", h.omap() },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("GET /api/planet") },
+                                    .{ "json", h.vstr("{\"parameters\":[],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
+                                }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
                                 .{ "orig", h.vstr("/api/planet") },
@@ -617,6 +652,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("GET /api/planet/{planet_id}") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("GET") },
@@ -670,6 +711,12 @@ pub fn make_config() Value {
                                         }),
                                     }) },
                                 }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("DELETE /api/planet/{planet_id}") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
+                                }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("DELETE") },
                                 .{ "orig", h.vstr("/api/planet/{planet_id}") },
@@ -721,6 +768,12 @@ pub fn make_config() Value {
                                             .{ "type", h.vstr("`$STRING`") },
                                         }),
                                     }) },
+                                }) },
+                                .{ "contract", h.jo(&.{
+                                    .{ "id", h.vstr("PUT /api/planet/{planet_id}") },
+                                    .{ "json", h.vstr("{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}") },
+                                    .{ "source", h.vstr("openapi3") },
+                                    .{ "version", h.vnum(1) },
                                 }) },
                                 .{ "kind", h.vstr("http") },
                                 .{ "method", h.vstr("PUT") },
