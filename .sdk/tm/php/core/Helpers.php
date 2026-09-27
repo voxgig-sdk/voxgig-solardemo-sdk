@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK helpers
+// VoxgigSolardemo SDK helpers
 
-class SolardemoHelpers
+class VoxgigSolardemoHelpers
 {
     public static function to_map(mixed $v): ?array
     {

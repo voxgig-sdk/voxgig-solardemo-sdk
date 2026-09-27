@@ -1,11 +1,11 @@
-// SolardemoSDK client (generated — mirrors the go Main fragment).
+// VoxgigSolardemoSDK client (generated — mirrors the go Main fragment).
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::config::{make_feature, shared_config};
 use crate::core::context::{Context, CtxSpec};
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{call_json, get_bool, get_str, getp, getpath, jo, setp, to_int, to_map};
 use crate::core::spec::Spec;
 use crate::core::types::FeatureRef;
@@ -13,7 +13,7 @@ use crate::core::utility_type::Utility;
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
 
-pub struct SolardemoSDK {
+pub struct VoxgigSolardemoSDK {
     pub mode: RefCell<String>,
     options: RefCell<Value>,
     utility: Rc<Utility>,
@@ -21,9 +21,9 @@ pub struct SolardemoSDK {
     rootctx: RefCell<Option<Rc<Context>>>,
 }
 
-impl SolardemoSDK {
-    pub fn new(options: Value) -> Rc<SolardemoSDK> {
-        let sdk = Rc::new(SolardemoSDK {
+impl VoxgigSolardemoSDK {
+    pub fn new(options: Value) -> Rc<VoxgigSolardemoSDK> {
+        let sdk = Rc::new(VoxgigSolardemoSDK {
             mode: RefCell::new("live".to_string()),
             options: RefCell::new(Value::Noval),
             utility: Utility::new(),
@@ -57,12 +57,6 @@ impl SolardemoSDK {
         *rootctx.options.borrow_mut() = opts.clone();
         *sdk.rootctx.borrow_mut() = Some(rootctx.clone());
 
-        // Add features in the resolved order (make_options puts an explicit
-        // List order first, else defaults to test-first). Ordering matters:
-        // the `test` feature installs the base mock transport and the
-        // transport features (retry/cache/netsim/proxy/ratelimit) wrap
-        // whatever is current, so `test` must be added before them to sit at
-        // the base of the transport wrapper chain.
         let feature_opts = to_map(&getp(&opts, "feature"));
         if let Value::List(order) = getpath(&["__derived__", "featureorder"], &opts) {
             let names: Vec<String> = order
@@ -113,7 +107,7 @@ impl SolardemoSDK {
             .expect("SDK root context not initialised")
     }
 
-    pub fn prepare(&self, fetchargs: Value) -> Result<Value, SolardemoError> {
+    pub fn prepare(&self, fetchargs: Value) -> Result<Value, VoxgigSolardemoError> {
         let utility = &self.utility;
 
         let fetchargs = match fetchargs {
@@ -184,7 +178,7 @@ impl SolardemoSDK {
     // Raw endpoint access is operator-controllable, like every entity op.
     // Blocking it means denying BOTH the 'direct' and 'graphql' tokens,
     // since either one reaches the same endpoint.
-    pub fn direct(&self, fetchargs: Value) -> Result<Value, SolardemoError> {
+    pub fn direct(&self, fetchargs: Value) -> Result<Value, VoxgigSolardemoError> {
         if !self.op_allowed("direct") {
             return Ok(self.op_denied("direct"));
         }
@@ -208,7 +202,7 @@ impl SolardemoSDK {
         jo(vec![
             ("ok", Value::Bool(false)),
             ("err", Value::str(format!(
-                "SolardemoSDK: {}: operation not allowed by SDK option \
+                "VoxgigSolardemoSDK: {}: operation not allowed by SDK option \
                  allow.op value: \"{}\"", op, allow))),
         ])
     }
@@ -217,7 +211,7 @@ impl SolardemoSDK {
     // its own allow.op token first. Private, rather than a flag on fetchargs:
     // a caller-supplied marker would let anyone opt straight back out of the
     // gate by passing it.
-    fn raw_request(&self, fetchargs: Value) -> Result<Value, SolardemoError> {
+    fn raw_request(&self, fetchargs: Value) -> Result<Value, VoxgigSolardemoError> {
         let utility = &self.utility;
 
         let fetchdef = match self.prepare(fetchargs.clone()) {
@@ -302,21 +296,9 @@ impl SolardemoSDK {
         ]))
     }
 
-    // Raw GraphQL access: the pressure valve that makes the generated
-    // surface's deliberate omissions (per-call selection sets, typed filter
-    // builders, batching, subscriptions) livable — the whole schema stays
-    // reachable.
-    //
-    // Thin wrapper over the same prepare/fetch path direct uses, with the one
-    // thing raw direct cannot do for GraphQL: a GraphQL failure rides HTTP
-    // 200 as a top-level `errors` array, so status alone would report a
-    // failed query as ok.
-    //
-    // NOTE: like direct, this bypasses the feature pipeline — no retry,
-    // ratelimit or paging features apply.
     pub fn graphql(
         &self, query: &str, variables: Value, ctrl: Value,
-    ) -> Result<Value, SolardemoError> {
+    ) -> Result<Value, VoxgigSolardemoError> {
         if !self.op_allowed("graphql") {
             return Ok(self.op_denied("graphql"));
         }
@@ -342,7 +324,6 @@ impl SolardemoSDK {
         // { errors: [...] } body, and the raw path represents a non-2xx as
         // ok:false with no err — so returning early on status would discard
         // the server's own diagnostics, which are the only useful part of
-        // that response.
         let errors = getpath(&["data", "errors"], &res);
 
         if let Value::List(items) = &errors {
@@ -353,7 +334,7 @@ impl SolardemoSDK {
                     .unwrap_or_else(|| "graphql error".to_string());
                 setp(&res, "ok", Value::Bool(false));
                 setp(&res, "err",
-                     Value::str(format!("SolardemoSDK: graphql: {}", msg)));
+                     Value::str(format!("VoxgigSolardemoSDK: graphql: {}", msg)));
                 setp(&res, "graphql", errors.clone());
             }
         }
@@ -374,7 +355,7 @@ impl SolardemoSDK {
 
 }
 
-pub fn test_sdk(testopts: Value, sdkopts: Value) -> Rc<SolardemoSDK> {
+pub fn test_sdk(testopts: Value, sdkopts: Value) -> Rc<VoxgigSolardemoSDK> {
     let sdkopts = match sdkopts {
         Value::Map(_) => vs::clone(&sdkopts),
         _ => Value::empty_map(),
@@ -387,7 +368,6 @@ pub fn test_sdk(testopts: Value, sdkopts: Value) -> Rc<SolardemoSDK> {
     setp(&testopts, "active", Value::Bool(true));
 
     // set_path mutates `sdkopts` in place and returns the inner parent node;
-    // discard the return so we pass the full options root (mirrors go's
     // vs.SetPath(sdkopts, ...) which does not rebind).
     vs::set_path(
         &sdkopts,
@@ -396,7 +376,7 @@ pub fn test_sdk(testopts: Value, sdkopts: Value) -> Rc<SolardemoSDK> {
         None,
     );
 
-    let sdk = SolardemoSDK::new(sdkopts);
+    let sdk = VoxgigSolardemoSDK::new(sdkopts);
     *sdk.mode.borrow_mut() = "test".to_string();
 
     sdk

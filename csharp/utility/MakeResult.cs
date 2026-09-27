@@ -1,7 +1,7 @@
-// Solardemo SDK utility: makeResult - final result shaping; list results
+// VoxgigSolardemo SDK utility: makeResult - final result shaping; list results
 // are wrapped into entity instances.
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

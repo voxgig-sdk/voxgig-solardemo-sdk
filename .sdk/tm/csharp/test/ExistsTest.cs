@@ -1,17 +1,17 @@
-// Solardemo SDK exists test.
+// VoxgigSolardemo SDK exists test.
 
 using Xunit;
 
-using SolardemoSdk;
+using VoxgigSolardemoSdk;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class ExistsTest
 {
     [Fact]
     public void TestMode()
     {
-        var testsdk = SolardemoSDK.TestSDK(null, null);
+        var testsdk = VoxgigSolardemoSDK.TestSDK(null, null);
         Assert.NotNull(testsdk);
     }
 }

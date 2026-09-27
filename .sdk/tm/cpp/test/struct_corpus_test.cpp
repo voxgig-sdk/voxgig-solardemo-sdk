@@ -64,7 +64,7 @@ const std::map<std::string, std::string>& category_to_file() {
 // One client + one corpus runner for the whole binary.
 res::Run& structRun() {
   static res::Run run =
-      res::makeRunner("../.sdk/test/test.json", sdk::ProjectNameSDK::testSDK())
+      res::makeRunner("../.sdk/test/test.json", sdk::VoxgigSolardemoSDK::testSDK())
           .runner("struct", Value::undef());
   return run;
 }

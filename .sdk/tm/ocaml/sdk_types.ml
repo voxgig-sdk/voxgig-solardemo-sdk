@@ -1,4 +1,4 @@
-(* Solardemo SDK core types.
+(* VoxgigSolardemo SDK core types.
  *
  * The SDK data model is the vendored voxgig struct `value` type
  * (utility/voxgig_struct.ml): a JSON-shaped, reference-stable node used for

@@ -7,8 +7,8 @@
 
 import 'harness.dart';
 
-import '../lib/SolardemoSDK.dart';
-import '../lib/SolardemoError.dart';
+import '../lib/VoxgigSolardemoSDK.dart';
+import '../lib/VoxgigSolardemoError.dart';
 import '../lib/Operation.dart';
 import '../lib/Response.dart';
 import '../lib/Result.dart';
@@ -312,7 +312,7 @@ void tests() {
     });
 
     test('an Error transport result is carried on the response', (t) async {
-      final boom = SolardemoError('boom', 'boom', null);
+      final boom = VoxgigSolardemoError('boom', 'boom', null);
       final ctx = base({
         'utility': utilWith((c, u, f) async => boom),
         'spec': {'step': 's', 'method': 'GET', 'headers': {}}
@@ -342,7 +342,7 @@ void tests() {
 
     test('a fetchdef error surfaces as a response error', (t) async {
       final u = Utility();
-      u.makeFetchDef = (dynamic c) => SolardemoError('fetchdef_boom', 'boom', null);
+      u.makeFetchDef = (dynamic c) => VoxgigSolardemoError('fetchdef_boom', 'boom', null);
       final ctx = base({
         'utility': u,
         'spec': {'step': 's', 'method': 'GET', 'headers': {}}

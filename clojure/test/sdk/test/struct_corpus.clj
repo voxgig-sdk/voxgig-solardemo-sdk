@@ -1,4 +1,4 @@
-;; Solardemo SDK - the shared struct corpus, driven by the VENDORED
+;; VoxgigSolardemo SDK - the shared struct corpus, driven by the VENDORED
 ;; @voxgig/omni engine.
 ;;
 ;; The corpus wiring (`run-all` and the walk subjects below) is unchanged: it

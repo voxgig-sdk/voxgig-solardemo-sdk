@@ -16,7 +16,7 @@ static int TESTS = 0;
     fn();                                                                      \
   } while (0)
 
-static SolardemoSDK* PL_CLIENT;
+static VoxgigSolardemoSDK* PL_CLIENT;
 static Utility* PL_UTIL;
 
 static void pl_client(voxgig_value* sdkopts) {
@@ -90,7 +90,7 @@ static Feature* named(const char* nm, voxgig_value* addopts) {
   f->addopts = addopts;
   return (Feature*)f;
 }
-static void names_join(SolardemoSDK* client, char* out, size_t n) {
+static void names_join(VoxgigSolardemoSDK* client, char* out, size_t n) {
   out[0] = '\0';
   for (size_t i = 0; i < client->features_len; i++) {
     if (i) strncat(out, ",", n - strlen(out) - 1);

@@ -1,4 +1,4 @@
--- Solardemo SDK utility: prepare_auth
+-- VoxgigSolardemo SDK utility: prepare_auth
 
 local vs = require("utility.struct.struct")
 

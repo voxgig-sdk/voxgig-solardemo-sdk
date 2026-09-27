@@ -1,4 +1,4 @@
-(* Solardemo SDK omni runner smoke test.
+(* VoxgigSolardemo SDK omni runner smoke test.
  *
  * Smoke tests for the VENDORED omni runner itself, and for the two
  * load-bearing decisions in Omni_resolver. A runner that cannot FAIL a bad

@@ -1,4 +1,4 @@
-;; Solardemo SDK pipeline unit tests — error/edge branches of the operation
+;; VoxgigSolardemo SDK pipeline unit tests — error/edge branches of the operation
 ;; utilities that a happy-path op never reaches (missing spec/response/result,
 ;; 4xx, transport failures, feature ordering, feature-supplied short-circuits,
 ;; auth header shaping). API-agnostic: reached through the client utility view.

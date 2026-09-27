@@ -1,11 +1,11 @@
-# Solardemo SDK exists test
+# VoxgigSolardemo SDK exists test
 
 import pytest
-from solardemo_sdk import SolardemoSDK
+from voxgigsolardemo_sdk import VoxgigSolardemoSDK
 
 
 class TestExists:
 
     def test_should_create_test_sdk(self):
-        testsdk = SolardemoSDK.test(None, None)
+        testsdk = VoxgigSolardemoSDK.test(None, None)
         assert testsdk is not None

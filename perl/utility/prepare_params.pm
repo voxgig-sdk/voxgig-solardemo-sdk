@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_params
+# VoxgigSolardemo SDK utility: prepare_params
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -21,17 +21,17 @@ $REGISTRY{prepare_params} = sub {
   my $point = $ctx->{point};
   my $params = [];
   if ($point) {
-    my $args = SolardemoHelpers::gp($point, 'args');
+    my $args = VoxgigSolardemoHelpers::gp($point, 'args');
     if (Voxgig::Struct::ismap($args)) {
-      my $p = SolardemoHelpers::gp($args, 'params');
+      my $p = VoxgigSolardemoHelpers::gp($args, 'params');
       $params = $p if Voxgig::Struct::islist($p);
     }
   }
   my $out = {};
   for my $pd (@$params) {
     my $val = $utility->{param}->($ctx, $pd);
-    if (SolardemoHelpers::rb_truthy($val) && Voxgig::Struct::ismap($pd)) {
-      my $name = SolardemoHelpers::gp($pd, 'name');
+    if (VoxgigSolardemoHelpers::rb_truthy($val) && Voxgig::Struct::ismap($pd)) {
+      my $name = VoxgigSolardemoHelpers::gp($pd, 'name');
       $out->{$name} = $val if defined $name && !ref $name && '' ne $name;
     }
   }

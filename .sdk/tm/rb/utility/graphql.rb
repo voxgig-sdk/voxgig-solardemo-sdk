@@ -1,4 +1,4 @@
-# Solardemo SDK utility: graphql
+# VoxgigSolardemo SDK utility: graphql
 #
 # GraphQL transport. API-INDEPENDENT: every GraphQL SDK this generator
 # produces uses this file unchanged. The API-specific part — which
@@ -17,7 +17,7 @@
 
 require_relative 'struct/voxgig_struct'
 
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   # Content type every GraphQL-over-HTTP request uses.
   GRAPHQL_CONTENT_TYPE = 'application/json'
 

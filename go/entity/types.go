@@ -1,7 +1,7 @@
-// Typed models for the Solardemo SDK.
+// Typed models for the VoxgigSolardemo SDK.
 //
-// GENERATED from the API model: main.kit.entity.<e>.fields[] and per-op
-// params (op.<name>.points[].args.params[]). Field/param types come from the
+// GENERATED from the API model: main.kit.entity.<e>.fields{} and per-op
+// params (op.<name>.points[].g.params[]). Field/param types come from the
 // canonical type sentinels via @voxgig/sdkgen canonToType (source of truth:
 // @voxgig/apidef VALID_CANON). Do not edit by hand.
 package entity
@@ -9,16 +9,11 @@ package entity
 import (
 	"encoding/json"
 
-	"github.com/voxgig-sdk/solardemo-sdk/go/core"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 // Moon is the typed data model for the moon entity.
 type Moon struct {
-	Diameter float64 `json:"diameter"`
-	Id string `json:"id"`
-	Kind string `json:"kind"`
-	Name string `json:"name"`
-	PlanetId string `json:"planet_id"`
 }
 
 // MoonLoadMatch is the typed request payload for Moon.LoadTyped.
@@ -58,13 +53,6 @@ type MoonRemoveMatch struct {
 
 // Planet is the typed data model for the planet entity.
 type Planet struct {
-	Diameter float64 `json:"diameter"`
-	ForbidReason *string `json:"forbidReason,omitempty"`
-	ForbidState *string `json:"forbidState,omitempty"`
-	Id string `json:"id"`
-	Kind string `json:"kind"`
-	Name string `json:"name"`
-	TerraformState *string `json:"terraformState,omitempty"`
 }
 
 // PlanetLoadMatch is the typed request payload for Planet.LoadTyped.

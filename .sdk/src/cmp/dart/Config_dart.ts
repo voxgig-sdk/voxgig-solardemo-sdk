@@ -38,9 +38,6 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  // Gated by the applicability tags, so this target never imports or
-  // registers a feature it has no source for. One rule, one place:
-  // helpers/applicability.
   const feature = targetFeatures(model, target)
 
   const ff = Path.normalize(__dirname + '/../../../src/cmp/dart/fragment/')
@@ -48,7 +45,6 @@ const Config = cmp(async function Config(props: any) {
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
   const authActive = isAuthActive(model)
-  // config.auth.prefix override -> spec-derived info.security.prefix -> 'Bearer'
   const authPrefix = resolveAuthPrefix(model)
   const authBlock = authActive
     ? `'auth': <String, dynamic>{
@@ -58,36 +54,16 @@ const Config = cmp(async function Config(props: any) {
     `
     : ''
 
-  // Read the base URL here rather than leaving it to a `$$...$$` stdrep
-  // placeholder in the fragment. stdrep can only substitute a path the model
-  // actually has: a model with no `info.servers` left the placeholder itself in
-  // the generated source, so `options.base` came out as the literal string
-  // '$main.kit.info.servers.0.url$'. Reading it explicitly yields '' in that
-  // case, which is what every other target already emits, and is identical to
-  // the old output whenever the model does define a server. Same defect, and
-  // same fix, as ts and js.
   let baseUrl = ''
   try {
     baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`)
   } catch (_e) { }
 
-  // The same config as an OBJECT, built by the shared helper so this target's
-  // literal and the data that replaces it above the threshold are the same
-  // config by construction. The JSON is what the threshold is measured on -
-  // emitted source size varies by language, the model does not. Passing
-  // target.name opts this target into the main slug/version/target identity
-  // fields (read by station's descriptor - see configDefinition).
   const { def: configDef, json: configJson } = configDefinition(model, target.name)
   const asData = isConfigData(configJson, configReprSetting(model))
 
   File({ name: 'Config.' + target.ext }, () => {
 
-    // ABOVE THE THRESHOLD: emit the model as DATA.
-    //
-    // `jsonDecode` yields exactly what the literal declared - Map<String,
-    // dynamic> for objects, List<dynamic> for arrays, and int for a whole
-    // number where Dart source would also have written an int - so the fields
-    // keep their types and callers cannot tell the representations apart.
     if (asData) {
       Fragment({
         from: ff + 'Config.data.fragment.dart',
@@ -102,6 +78,10 @@ const Config = cmp(async function Config(props: any) {
           '// #FeatureClasses': () => each(feature, (f: any) => {
             Line(`  '${f.name}': () => ${nom(f, 'Name')}Feature(),`)
           }),
+
+          '// #ImportPlugins': () => pluginImports(feature),
+
+          '// #FeaturePlugins': () => pluginDefs(feature),
 
           "'CONFIGJSON'": dartStringLiteral(configJson),
         }
@@ -130,10 +110,6 @@ const Config = cmp(async function Config(props: any) {
           Line(`    'target': ${dartValue(configDef.main.target)},`)
         },
 
-        // The whole options map from the canonical definition. Assembling it
-        // slot by slot lost `options.server` entirely, so a spec with a
-        // templated server URL described a different config either side of the
-        // threshold.
         "'OPTIONSMAP'": dartValue(configDef.options, 1),
 
         '// #ImportFeatures': () => each(feature, (f: any) => {
@@ -141,10 +117,12 @@ const Config = cmp(async function Config(props: any) {
         }),
 
         '// #FeatureClasses': () => each(feature, (f: any) => {
-          // Trailing comma: the map has one entry per feature, so entries
-          // must be comma-separated (a single feature hid this until now).
           Line(`  '${f.name}': () => ${nom(f, 'Name')}Feature(),`)
         }),
+
+        '// #ImportPlugins': () => pluginImports(feature),
+
+        '// #FeaturePlugins': () => pluginDefs(feature),
 
         // Rendered from configDefinition's def, not from f.config, so the
         // literal carries the feature's `transport` role (station design
@@ -158,17 +136,47 @@ const Config = cmp(async function Config(props: any) {
           Line(`      '${entity.name}': <String, dynamic>{},`)
         }),
 
-        // configDefinition's `def.entity` verbatim, NOT rebuilt here. This
-        // reduce was a second copy of that function's entityDefs loop, and
-        // when configDefinition started reconstructing a point's `parts`
-        // from apidef's segment vector (its ADR-003), only the data
-        // representation got it — the literal one emitted empty paths. The
-        // config-repr equivalence test caught it, which is what it is for.
         "'ENTITYMAP'": dartValue(configDef.entity, 1),
       }
     })
   })
 })
+
+
+function pluginImports(feature: any) {
+  each(feature, (f: any) => {
+    const bypath: Record<string, string[]> = {}
+
+    each(f.plugin, (plugin: any) => {
+      if (false === plugin.active || null == plugin.active) return
+
+      for (const [sym, one] of Object.entries(plugin.def?.dart || {})) {
+        const path = String(one)
+          ; (bypath[path] = bypath[path] || []).push(sym)
+      }
+    })
+
+    for (const path of Object.keys(bypath).sort()) {
+      const spec = path.replace(/^lib\//, '')
+      const syms = Array.from(new Set(bypath[path])).sort()
+      Line(`import '${spec}' show ${syms.join(', ')};`)
+    }
+  })
+}
+
+
+function pluginDefs(feature: any) {
+  each(feature, (f: any) => {
+    const syms: string[] = []
+    each(f.plugin, (plugin: any) => {
+      if (false === plugin.active || null == plugin.active) return
+      syms.push(...Object.keys(plugin.def?.dart || {}))
+    })
+    if (0 < syms.length) {
+      Line(`  '${f.name}': [${Array.from(new Set(syms)).sort().join(', ')}],`)
+    }
+  })
+}
 
 
 export {

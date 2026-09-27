@@ -1,14 +1,14 @@
-# Solardemo JavaScript SDK Reference
+# VoxgigSolardemo JavaScript SDK Reference
 
-Complete API reference for the Solardemo JavaScript SDK.
+Complete API reference for the VoxgigSolardemo JavaScript SDK.
 
 
-## SolardemoSDK
+## VoxgigSolardemoSDK
 
 ### Constructor
 
 ```ts
-new SolardemoSDK(options?: object)
+new VoxgigSolardemoSDK(options?: object)
 ```
 
 Create a new SDK client instance.
@@ -28,12 +28,12 @@ Create a new SDK client instance.
 
 ### Static Methods
 
-#### `SolardemoSDK.test(testopts?, sdkopts?)`
+#### `VoxgigSolardemoSDK.test(testopts?, sdkopts?)`
 
 Create a test client with mock features active.
 
 ```ts
-const client = SolardemoSDK.test()
+const client = VoxgigSolardemoSDK.test()
 ```
 
 **Parameters:**
@@ -43,7 +43,7 @@ const client = SolardemoSDK.test()
 | `testopts` | `object` | Test feature options. |
 | `sdkopts` | `object` | Additional SDK options merged with test defaults. |
 
-**Returns:** `SolardemoSDK` instance in test mode.
+**Returns:** `VoxgigSolardemoSDK` instance in test mode.
 
 
 ### Instance Methods
@@ -111,9 +111,9 @@ same parameters as `direct()`.
 
 #### `tester(testopts?, sdkopts?)`
 
-Alias for `SolardemoSDK.test()`.
+Alias for `VoxgigSolardemoSDK.test()`.
 
-**Returns:** `SolardemoSDK` instance in test mode.
+**Returns:** `VoxgigSolardemoSDK` instance in test mode.
 
 
 ---
@@ -205,7 +205,7 @@ options.
 
 #### `client()`
 
-Return the parent `SolardemoSDK` instance.
+Return the parent `VoxgigSolardemoSDK` instance.
 
 #### `entopts()`
 
@@ -301,7 +301,7 @@ options.
 
 #### `client()`
 
-Return the parent `SolardemoSDK` instance.
+Return the parent `VoxgigSolardemoSDK` instance.
 
 #### `entopts()`
 
@@ -314,17 +314,31 @@ Return a copy of the entity options.
 
 | Feature | Version | Description |
 | --- | --- | --- |
-| `secrets` | 0.1.0 | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
-| `test` | 0.0.1 | In-memory mock transport for testing without a live server |
+| `debug` | 0.0.1 | Debug capture |
+| `idempotency` | 0.0.1 | Idempotency |
+| `metrics` | 0.0.1 | Metrics |
+| `paging` | 0.0.1 | Paging |
+| `ratelimit` | 0.0.1 | Rate limiting |
+| `retry` | 0.0.1 | Retry |
+| `secrets` | 0.1.0 | Secrets |
+| `test` | 0.0.1 | Test transport |
+| `timeout` | 0.0.1 | Timeout |
 
 
 Features are activated via the `feature` option:
 
 ```ts
-const client = new SolardemoSDK({
+const client = new VoxgigSolardemoSDK({
   feature: {
+    debug: { active: true },
+    idempotency: { active: true },
+    metrics: { active: true },
+    paging: { active: true },
+    ratelimit: { active: true },
+    retry: { active: true },
     secrets: { active: true },
     test: { active: true },
+    timeout: { active: true },
   }
 })
 ```
@@ -339,9 +353,85 @@ unless you name it.
 The array form of \`feature\` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
-#### `test`
+#### Ordering
 
-In-memory mock transport for testing without a live server.
+`ratelimit`, `retry`, `secrets`, `timeout` wrap the transport. Each
+wraps whatever is already installed, so **activation order is nesting order**:
+a feature activated later sits OUTSIDE one activated earlier, and sees the call
+first.
+
+That decides behaviour, not just sequence: a feature that short-circuits the
+call, such as a cache serving a hit, stops every feature nested inside it from
+ever seeing that call.
+
+`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+rather than the transport, so their order does not affect what they observe.
+
+#### `debug`
+
+Debug capture.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+| Option | Type |
+|---|---|
+| `now` | function |
+| `onEntry` | function |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.debug.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Attaches to pipeline hooks, not the transport, so activation order does
+  not change what it observes.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `idempotency`
+
+Idempotency.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+| Option | Type |
+|---|---|
+| `keygen` | function |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.idempotency.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Attaches to pipeline hooks, not the transport, so activation order does
+  not change what it observes.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `metrics`
+
+Metrics.
 
 **Configuration**
 
@@ -349,10 +439,166 @@ In-memory mock transport for testing without a live server.
 |---|---|
 | `active` | `false` |
 
-Options above are those the model carries a default for. A feature may
-also accept callback options — a `sink` to receive each record, for
-instance — which have no default and are covered in the full feature
-reference.
+| Option | Type |
+|---|---|
+| `now` | function |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.metrics.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Attaches to pipeline hooks, not the transport, so activation order does
+  not change what it observes.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `paging`
+
+Paging.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+| Option | Type |
+|---|---|
+| `limit` | number |
+| `ops` | list |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.paging.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Attaches to pipeline hooks, not the transport, so activation order does
+  not change what it observes.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `ratelimit`
+
+Rate limiting.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+| Option | Type |
+|---|---|
+| `now` | function |
+| `sleep` | function |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.ratelimit.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `retry`
+
+Retry.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+| Option | Type |
+|---|---|
+| `jitter` | boolean |
+| `sleep` | function |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.retry.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `secrets`
+
+Secrets.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+**Usage**
+
+Set `feature.secrets.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `test`
+
+Test transport.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+| Option | Type |
+|---|---|
+| `entity` | map |
+| `net` | map |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
 
 **Usage**
 
@@ -365,5 +611,35 @@ its default unless you name it.
   not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Inactive by default: leaving it out costs nothing at runtime.
+
+#### `timeout`
+
+Timeout.
+
+**Configuration**
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+| Option | Type |
+|---|---|
+| `clearTimer` | function |
+| `setTimer` | function |
+
+These take no default: the feature behaves one way when you supply them and
+another when you do not.
+
+**Usage**
+
+Set `feature.timeout.active` to true in the client options, and override any option above in the same entry. Every option keeps
+its default unless you name it.
+
+**Considerations**
+
+- Wraps the transport: its place in the activation order decides what it
+  sees. See [Ordering](#ordering) above.
 - Inactive by default: leaving it out costs nothing at runtime.
 

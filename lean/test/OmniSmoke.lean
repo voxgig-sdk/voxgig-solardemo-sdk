@@ -1,4 +1,4 @@
-/- Solardemo SDK omni runner smoke test.
+/- VoxgigSolardemo SDK omni runner smoke test.
 
    Smoke tests for the VENDORED @voxgig/omni engine itself
    (test/vendor/omni/Omni.lean), and for the load-bearing decisions in

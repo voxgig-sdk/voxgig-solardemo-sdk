@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.function.IntConsumer
 import java.util.function.LongSupplier

@@ -1,4 +1,4 @@
--- Solardemo SDK utility: make_response
+-- VoxgigSolardemo SDK utility: make_response
 
 local function make_response_util(ctx)
   if ctx.out["response"] ~= nil then

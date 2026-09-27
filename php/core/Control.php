@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK control
+// VoxgigSolardemo SDK control
 
-class SolardemoControl
+class VoxgigSolardemoControl
 {
     public mixed $throw_err;
     public mixed $err;
@@ -21,11 +21,16 @@ class SolardemoControl
     // passed. The shared feature corpus caught it.
     public mixed $actor;
 
+    // Per-call paging record: read by the paging feature before the request
+    // and written back after it. Declared for the same reason as `$actor`.
+    public mixed $paging;
+
     public function __construct(array $opts = [])
     {
         $this->throw_err = $opts['throw_err'] ?? null;
         $this->err = null;
         $this->explain = $opts['explain'] ?? null;
         $this->actor = $opts['actor'] ?? null;
+        $this->paging = $opts['paging'] ?? null;
     }
 }

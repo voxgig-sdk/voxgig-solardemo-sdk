@@ -1,4 +1,4 @@
-# Solardemo SDK Moon entity
+# VoxgigSolardemo SDK Moon entity
 
 use strict;
 use warnings;
@@ -20,7 +20,7 @@ sub new {
   if (!defined $entopts->{active}) {
     $entopts->{active} = Voxgig::Struct::JTRUE();
   }
-  elsif (SolardemoHelpers::is_false($entopts->{active})) {
+  elsif (VoxgigSolardemoHelpers::is_false($entopts->{active})) {
     # keep false
   }
   else {
@@ -77,7 +77,7 @@ sub deleted {
 sub data_set {
   my ($self, $args) = @_;
   if ($args) {
-    $self->{_data} = SolardemoHelpers::to_map(Voxgig::Struct::clone($args)) || {};
+    $self->{_data} = VoxgigSolardemoHelpers::to_map(Voxgig::Struct::clone($args)) || {};
     $self->{_utility}{feature_hook}->($self->{_entctx}, 'SetData');
   }
   return;
@@ -93,7 +93,7 @@ sub data_get {
 sub match_set {
   my ($self, $args) = @_;
   if ($args) {
-    $self->{_match} = SolardemoHelpers::to_map(Voxgig::Struct::clone($args)) || {};
+    $self->{_match} = VoxgigSolardemoHelpers::to_map(Voxgig::Struct::clone($args)) || {};
     $self->{_utility}{feature_hook}->($self->{_entctx}, 'SetMatch');
   }
   return;
@@ -112,7 +112,7 @@ sub match_get {
 # reqmatch: match criteria hashref (id/query fields; MoonLoadMatch
 # shape); optional - an entity with no id-like key loads with no match
 # (undef is treated as an empty match). ctrl: optional per-call control.
-# Returns the loaded Moon data (hashref); dies with SolardemoError
+# Returns the loaded Moon data (hashref); dies with VoxgigSolardemoError
 # on failure.
 sub load {
   my ($self, $reqmatch, $ctrl) = @_;
@@ -130,7 +130,7 @@ sub load {
     if ($result) {
       $self->{_match} = $result->{resmatch} if $result->{resmatch};
       if ($result->{resdata}) {
-        $self->{_data} = SolardemoHelpers::to_map(
+        $self->{_data} = VoxgigSolardemoHelpers::to_map(
           Voxgig::Struct::clone($result->{resdata})) || {};
       }
     }
@@ -147,7 +147,7 @@ sub load {
 # MoonListMatch shape); defaults to undef, treated as an empty match
 # that lists all. ctrl: optional per-call control.
 # Returns the matching Moon items as an arrayref; dies with
-# SolardemoError on failure.
+# VoxgigSolardemoError on failure.
 sub list {
   my ($self, $reqmatch, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -188,7 +188,7 @@ sub list {
 #
 # reqdata: body data hashref (MoonCreateData shape). ctrl: optional
 # per-call control. Returns the created Moon data (hashref); dies
-# with SolardemoError on failure.
+# with VoxgigSolardemoError on failure.
 sub create {
   my ($self, $reqdata, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -204,7 +204,7 @@ sub create {
     my $result = $ctx->{result};
     if ($result) {
       if ($result->{resdata}) {
-        $self->{_data} = SolardemoHelpers::to_map(
+        $self->{_data} = VoxgigSolardemoHelpers::to_map(
           Voxgig::Struct::clone($result->{resdata})) || {};
       }
     }
@@ -219,7 +219,7 @@ sub create {
 #
 # reqdata: body data hashref (MoonUpdateData shape). ctrl: optional
 # per-call control. Returns the updated Moon data (hashref); dies
-# with SolardemoError on failure.
+# with VoxgigSolardemoError on failure.
 sub update {
   my ($self, $reqdata, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -236,7 +236,7 @@ sub update {
     if ($result) {
       $self->{_match} = $result->{resmatch} if $result->{resmatch};
       if ($result->{resdata}) {
-        $self->{_data} = SolardemoHelpers::to_map(
+        $self->{_data} = VoxgigSolardemoHelpers::to_map(
           Voxgig::Struct::clone($result->{resdata})) || {};
       }
     }
@@ -251,7 +251,7 @@ sub update {
 #
 # reqmatch: match criteria hashref (id/query fields; MoonRemoveMatch
 # shape). ctrl: optional per-call control. Returns the removed Moon
-# data (hashref); dies with SolardemoError on failure.
+# data (hashref); dies with VoxgigSolardemoError on failure.
 sub remove {
   my ($self, $reqmatch, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -268,7 +268,7 @@ sub remove {
     if ($result) {
       $self->{_match} = $result->{resmatch} if $result->{resmatch};
       if ($result->{resdata}) {
-        $self->{_data} = SolardemoHelpers::to_map(
+        $self->{_data} = VoxgigSolardemoHelpers::to_map(
           Voxgig::Struct::clone($result->{resdata})) || {};
       }
     }
@@ -296,10 +296,10 @@ sub remove {
 sub stream {
   my ($self, $action, $args, $callopts) = @_;
   my $utility = $self->{_utility};
-  $callopts = SolardemoHelpers::to_map($callopts) || {};
-  my $signal = SolardemoHelpers::gp($callopts, 'signal');
-  my $ctrl = SolardemoHelpers::to_map(
-    SolardemoHelpers::gp($callopts, 'ctrl')) || {};
+  $callopts = VoxgigSolardemoHelpers::to_map($callopts) || {};
+  my $signal = VoxgigSolardemoHelpers::gp($callopts, 'signal');
+  my $ctrl = VoxgigSolardemoHelpers::to_map(
+    VoxgigSolardemoHelpers::gp($callopts, 'ctrl')) || {};
   $ctrl->{stream} = $callopts;
 
   my $ctx = $utility->{make_context}->({
@@ -307,14 +307,14 @@ sub stream {
     'ctrl' => $ctrl,
     'match' => $self->{_match},
     'data' => $self->{_data},
-    %{ SolardemoHelpers::to_map($args) || {} },
+    %{ VoxgigSolardemoHelpers::to_map($args) || {} },
   }, $self->{_entctx});
 
   # Outbound: expose an async-iterable/list payload so the request builder /
   # transport can stream it as the request body.
-  my $body = SolardemoHelpers::gp($callopts, 'body');
+  my $body = VoxgigSolardemoHelpers::gp($callopts, 'body');
   if (defined $body) {
-    my $reqdata = SolardemoHelpers::to_map($ctx->{reqdata}) || {};
+    my $reqdata = VoxgigSolardemoHelpers::to_map($ctx->{reqdata}) || {};
     $reqdata->{'body$'} = $body;
     $ctx->{reqdata} = $reqdata;
     $ctx->{stream_out} = $body;

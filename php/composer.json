@@ -1,16 +1,16 @@
 {
-  "name": "voxgig-sdk/solardemo",
+  "name": "voxgig-sdk/voxgig-solardemo-sdk",
   "description": "Unofficial generated PHP SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
   "type": "library",
-  "keywords": ["voxgig", "sdk", "generated-sdk", "openapi", "api-client", "solardemo"],
-  "homepage": "https://github.com/voxgig-sdk/solardemo-sdk",
+  "keywords": ["voxgig", "sdk", "generated-sdk", "openapi", "api-client", "voxgig-solardemo"],
+  "homepage": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk",
   "license": "MIT",
   "authors": [
     { "name": "Voxgig", "homepage": "https://voxgig.com" }
   ],
   "support": {
-    "issues": "https://github.com/voxgig-sdk/solardemo-sdk/issues",
-    "source": "https://github.com/voxgig-sdk/solardemo-sdk"
+    "issues": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk/issues",
+    "source": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk"
   },
   "minimum-stability": "stable",
   "require": {
@@ -20,8 +20,8 @@
     "phpunit/phpunit": "^11.0"
   },
   "autoload": {
-    "files": ["solardemo_sdk.php"],
-    "classmap": ["core/", "entity/", "feature/", "types/", "utility/", "config.php", "features.php"]
+    "files": ["voxgigsolardemo_sdk.php"],
+    "classmap": ["core/", "entity/", "feature/", "types/", "utility/", "config.php", "schema.php", "features.php"]
   },
   "autoload-dev": {
     "classmap": ["test/"]

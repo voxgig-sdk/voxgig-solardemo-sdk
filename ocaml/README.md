@@ -1,8 +1,8 @@
-# Solardemo OCaml SDK
+# VoxgigSolardemo OCaml SDK
 
 
 
-The OCaml SDK for the Solardemo API — an entity-oriented client
+The OCaml SDK for the VoxgigSolardemo API — an entity-oriented client
 following idiomatic OCaml conventions (a dependency-free library that compiles
 with the stock `ocamlc`).
 
@@ -17,7 +17,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to the opam registry. Install it from the
-GitHub release tag (`ocaml/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases))
+GitHub release tag (`ocaml/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases))
 or from a source checkout. The SDK is dependency-free and compiles with the
 stock `ocamlc` — no opam packages, no dune:
 
@@ -179,7 +179,7 @@ ignore client
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -417,7 +417,7 @@ let planet_data = planet.e_data_get ()
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -426,17 +426,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -477,7 +609,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -499,6 +639,7 @@ Build request maps with the `jo` / `ja` helpers and read fields back with
 ocaml/
 ├── sdk_client.ml               -- Main SDK client (constructors + accessors)
 ├── sdk_config.ml               -- Embedded API config + feature factory
+├── sdk_schema.ml               -- Generated option + entity specs
 ├── sdk_error.ml                -- Branded error re-exports
 ├── sdk_entity_*.ml             -- Per-entity implementations (one each)
 ├── sdk_types.ml                -- Core pipeline types

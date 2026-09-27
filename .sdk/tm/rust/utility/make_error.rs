@@ -2,15 +2,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{jo, setp};
 use crate::core::result::SdkResult;
 use crate::utility::voxgigstruct::Value;
 
 pub fn make_error_util(
     ctx: &Rc<Context>,
-    err: Option<SolardemoError>,
-) -> Result<Value, SolardemoError> {
+    err: Option<VoxgigSolardemoError>,
+) -> Result<Value, VoxgigSolardemoError> {
     let op = ctx.op.borrow().clone();
     let mut opname = op.name.clone();
     if opname.is_empty() || opname == "_" {
@@ -36,7 +36,7 @@ pub fn make_error_util(
         .unwrap_or_else(|| ctx.make_error("unknown", "unknown error"));
 
     let errmsg = err.msg.clone();
-    let msg = format!("SolardemoSDK: {}: {}", opname, errmsg);
+    let msg = format!("VoxgigSolardemoSDK: {}: {}", opname, errmsg);
     let msg = crate::utility::clean::clean_str(ctx, &msg);
 
     result.borrow_mut().err = None;
@@ -58,13 +58,11 @@ pub fn make_error_util(
         }
     }
 
-    let mut sdk_err = SolardemoError::new("", &msg);
+    let mut sdk_err = VoxgigSolardemoError::new("", &msg);
     sdk_err.code = err.code.clone();
     sdk_err.result = crate::utility::clean::clean_util(ctx, &result.borrow().to_value());
     sdk_err.spec = crate::utility::clean::clean_util(ctx, &spec_val);
 
-    // Promote the HTTP status to the top level, so a consumer can branch on
-    // `err.status` / `err.not_found()` rather than reaching into `err.result`.
     sdk_err.status = result.borrow().status;
 
     ctrl.borrow_mut().err = Some(sdk_err.clone());

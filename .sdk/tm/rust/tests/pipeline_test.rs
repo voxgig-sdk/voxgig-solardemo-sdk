@@ -1,9 +1,3 @@
-// Direct unit tests for the operation-pipeline utilities (mirrors
-// tm/go/test/pipeline_test.go). The generated entity tests exercise the
-// happy path; these drive the error and edge branches (missing
-// spec/response/result, 4xx handling, transport failures, feature add
-// semantics, auth header shaping) that a normal success-path op never
-// reaches.
 
 mod common;
 
@@ -16,18 +10,18 @@ use RUSTCRATE::core::helpers::{getp, getpath, ja, jo};
 use RUSTCRATE::utility::voxgigstruct as vs;
 use RUSTCRATE::{
     test_sdk, BaseFeature, Context, CtxSpec, Entity, FeatureRef, FetcherFn, Operation,
-    SolardemoSDK, Response, SdkResult, Spec, Utility, Value,
+    VoxgigSolardemoSDK, Response, SdkResult, Spec, Utility, Value,
 };
 
 // plClient builds a client + isolated utility for pipeline utility tests.
-fn pl_client(sdkopts: Value) -> (Rc<SolardemoSDK>, Rc<Utility>) {
+fn pl_client(sdkopts: Value) -> (Rc<VoxgigSolardemoSDK>, Rc<Utility>) {
     let client = test_sdk(Value::Noval, sdkopts);
     let utility = client.get_utility();
     (client, utility)
 }
 
 fn pl_ctx(
-    client: &Rc<SolardemoSDK>,
+    client: &Rc<VoxgigSolardemoSDK>,
     utility: &Rc<Utility>,
     ctrl: Option<Value>,
 ) -> Rc<Context> {
@@ -289,7 +283,7 @@ fn req_spec() -> Rc<RefCell<Spec>> {
     ]))))
 }
 
-fn util_with(client: &Rc<SolardemoSDK>, fetcher: FetcherFn) -> Rc<Utility> {
+fn util_with(client: &Rc<VoxgigSolardemoSDK>, fetcher: FetcherFn) -> Rc<Utility> {
     let u = client.get_utility();
     *u.fetcher.borrow_mut() = fetcher;
     u
@@ -473,7 +467,7 @@ fn pipeline_feature_add_ordering_before_after_replace() {
     let ctx = pl_ctx(&client, &utility, None);
     client.features.borrow_mut().clear();
 
-    let names = |client: &Rc<SolardemoSDK>| -> String {
+    let names = |client: &Rc<VoxgigSolardemoSDK>| -> String {
         client
             .features
             .borrow()

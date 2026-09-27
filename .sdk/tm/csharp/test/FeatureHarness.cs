@@ -14,10 +14,10 @@ using System.Text.RegularExpressions;
 using Voxgig.Struct;
 using Xunit;
 
-using SolardemoSdk;
-using SolardemoSdk.Feature;
+using VoxgigSolardemoSdk;
+using VoxgigSolardemoSdk.Feature;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 // --- harness ----------------------------------------------------------------
 
@@ -101,7 +101,7 @@ internal class FhOpResult
 // operation pipeline.
 internal class FhHarness
 {
-    public SolardemoSDK Client = null!;
+    public VoxgigSolardemoSDK Client = null!;
     public Utility Utility = null!;
     public Context Rootctx = null!;
     public string Base = "http://api.test";
@@ -347,7 +347,7 @@ internal static class Fh
     public static FhHarness Make(FetcherFunc? server,
         params (BaseFeature f, Dictionary<string, object?>? options)[] features)
     {
-        var client = SolardemoSDK.TestSDK(null, null);
+        var client = VoxgigSolardemoSDK.TestSDK(null, null);
         client.Features = new List<BaseFeature>();
 
         var utility = client.GetUtility();
@@ -391,6 +391,6 @@ internal static class Fh
     // ErrCode extracts the SDK error code, "" otherwise.
     public static string ErrCode(Exception? err)
     {
-        return err is SolardemoError se ? se.Code : "";
+        return err is VoxgigSolardemoError se ? se.Code : "";
     }
 }

@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: transform_response
+// VoxgigSolardemo SDK utility: transform_response
 
 require_once __DIR__ . '/../core/Helpers.php';
 
-class SolardemoTransformResponse
+class VoxgigSolardemoTransformResponse
 {
-    public static function call(SolardemoContext $ctx): mixed
+    public static function call(VoxgigSolardemoContext $ctx): mixed
     {
         $spec = $ctx->spec;
         $result = $ctx->result;
@@ -18,7 +18,7 @@ class SolardemoTransformResponse
         if ($result === null || !$result->ok) {
             return null;
         }
-        $transform = SolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($point, 'transform'));
+        $transform = VoxgigSolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($point, 'transform'));
         if (!$transform) {
             return null;
         }

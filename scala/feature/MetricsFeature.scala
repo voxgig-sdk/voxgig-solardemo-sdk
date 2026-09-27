@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{LinkedHashMap, Map => JMap}
-import voxgig.solardemosdk.core.{Context, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, SdkClient}
 
 // Public per-bucket aggregate (mirrors the java static nested MetricsBucket).
 // Tests read `f.total.count`, `bucket.totalMs`, etc.

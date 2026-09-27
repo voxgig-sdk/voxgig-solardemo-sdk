@@ -1,5 +1,5 @@
 // Vendored from github.com/voxgig/struct java/src/Struct.java — do not edit here;
-// upstream is the voxgig struct java port. Package adjusted for the Solardemo SDK.
+// upstream is the voxgig struct java port. Package adjusted for the VoxgigSolardemo SDK.
 package SCALAPACKAGE.utility.struct;
 
 

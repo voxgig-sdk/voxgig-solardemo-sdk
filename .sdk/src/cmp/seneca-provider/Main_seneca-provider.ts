@@ -1,10 +1,12 @@
 import {
   cmp, each,
   File, Content, Copy, Folder,
-  entityCollection, entityOps, entityIdField, entityClassName,
+  entityCollection, entityOps, entityIdField, entityDataIdField, entityClassName,
+  entityActions,
   opRequestShape, opParams, ownPoint, entityPath,
   collectDeps, repoInfo, packageName, packageVersion, apiName, envName,
   authorInfo, contributorList, isAuthActive, isHttpBasicAuth, jsKey, jsProp,
+  resolveAuthIn, resolveAuthName, resolveAuthPrefix,
   SdkGenError,
   PUBLISHER, PUBLISHER_URL,
   pointSegments,
@@ -14,40 +16,18 @@ import {
   KIT,
 } from '@voxgig/apidef'
 
-import { Tests, Scripts, Workflow, Readme, Docs } from './Extras_seneca-provider'
+import {
+  Tests, Scripts, Workflow, Readme, Docs, SdkPin, SDK_SRC_DIR,
+} from './Extras_seneca-provider'
 import { Gitignore } from './Gitignore_seneca-provider'
+import { Makefile } from './Makefile_seneca-provider'
+import {
+  standaloneBuilder, sdkIdentity, checkSdkSource,
+} from './Standalone_seneca-provider'
 
 
-// The `seneca-provider` target: a Seneca plugin exposing this API's entities
-// as Seneca entities (`provider/<name>/<entity>`), layered on the sibling
-// `ts` SDK.
-//
-// A consumer target in the go-cli / py-data mould — every standard phase is
-// off in model/target/seneca-provider.aon and this component emits the
-// whole package. It differs from those in one way that shapes everything
-// here: it generates into ITS OWN REPO (`output: path`), depends on the SDK
-// as a PUBLISHED npm package rather than by path, and therefore carries a
-// repo's worth of furniture rather than a subfolder's.
-//
-// SHAPE OF THE MAPPING
-//
-// Seneca's store commands are list / load / save / remove. The SDK's are
-// list / load / create / update / remove. `save` is the one that is not
-// one-to-one: Seneca's convention is that an entity carrying an id is an
-// update and one without is a create, so `save` dispatches on `data.id`.
-//
-// Everything else follows from the model:
-//   - which cmds exist at all, from the entity's declared ops;
-//   - the required path params of each op, which become argument guards (a
-//     nested entity like `moon` under `/planet/{planet_id}/moon` cannot build
-//     its URL without the parent id, and an opaque 404 from a half-built URL
-//     is a bad error message);
-//   - the SDK accessor and entity class names, from the same helpers the ts
-//     target uses, so the two cannot drift.
 
 
-// Seneca store cmd -> the SDK ops it needs. `save` needs BOTH create and
-// update; it is emitted when either is present and dispatches on the id.
 const CMD_OPS: Record<string, string[]> = {
   list: ['list'],
   load: ['load'],
@@ -56,9 +36,63 @@ const CMD_OPS: Record<string, string[]> = {
 }
 
 
-// The required (non-optional) request keys of an op, id first. These are what
-// the SDK needs to build the path, so they are what the provider must have
-// before it calls.
+function cmdActions(ent: any, cmd: string): Record<string, string> {
+  const ops = CMD_OPS[cmd] || []
+
+  // ACTIVE ops only, for the same reason `parentKeys` uses `entityOps`: an op
+  // the model marks `active: false` generates no SDK method, so an action
+  // folded into it is not reachable and must not be advertised as if it were.
+  const live = entityOps(ent)
+  const out: Record<string, string> = {}
+
+  // `null == out[a.action]` on a plain object reads Object's PROTOTYPE for a
+  // name like `toString` or `constructor`, finds a function, and concludes
+  // the name is already claimed — dropping a modelled action that happens to
+  // carry one. Ask whether the map itself has the key.
+  const claimed = (name: string) =>
+    Object.prototype.hasOwnProperty.call(out, name)
+
+  for (const a of entityActions(ent)) {
+    if (ops.includes(a.op) && live.includes(a.op) && !claimed(a.action)) {
+      out[a.action] = a.op
+    }
+  }
+
+  return out
+}
+
+
+function canonicalOps(ent: any): string[] {
+  return entityOps(ent).filter((opname: string) => {
+    const op = (ent.op || {})[opname]
+    const points: any[] = (op && op.points) || []
+
+    return points.some((pt: any) =>
+      null == (pt && pt.q && pt.q['$action']))
+  })
+}
+
+
+// Every action the entity exposes, with the cmd that reaches it — for the
+// README and the generated tests, which describe the entity rather than one
+// call. `cmd` is what a Seneca user types; `op` is what the SDK is asked for.
+function entityActionList(ent: any):
+  { cmd: string, op: string, action: string, path: string }[] {
+  const out: { cmd: string, op: string, action: string, path: string }[] = []
+
+  for (const cmd of Object.keys(CMD_OPS).sort()) {
+    const map = cmdActions(ent, cmd)
+    for (const a of entityActions(ent)) {
+      if (map[a.action] === a.op) {
+        out.push({ cmd, op: a.op, action: a.action, path: a.path })
+      }
+    }
+  }
+
+  return out
+}
+
+
 function requiredKeys(ent: any, opname: string): string[] {
   const idf = entityIdField(ent)
   return opRequestShape(ent, opname).items
@@ -68,31 +102,84 @@ function requiredKeys(ent: any, opname: string): string[] {
 }
 
 
-// The key that addresses ONE record.
-//
-// `entityIdField` answers whenever the model declares one, which apidef does
-// for any entity carrying a field literally named `id` — and it renames an
-// `<entity>_id` path param to `id` besides, which is why most APIs never reach
-// the fallback.
-//
-// When it does NOT answer, the record key is the LAST path param of the
-// op's own point, in PATH order — a route addresses parents first and the
-// record last, by construction. Without this the key was simply unknown,
-// so a param named `code` failed the `!== idf` test in opParentKeys and
-// was classified as a PARENT — `load$('SAVE20')` threw "coupon load: code
-// is required" instead of loading anything, and the entity was treated as
-// nested throughout.
-//
-// opParams(op) is NOT the source here: it alphabetizes params for output
-// stability, which loses path order on a 3+-param route — Airtable's
-// record (base_id, table_id, record_id) alphabetizes with table_id last,
-// so the old `params[params.length - 1]` picked the wrong parent as the
-// record's own key. The point's own `parts` still has the true order.
+// The keys a single-record call actually sends: the op's required keys, plus
+// the record's own key when the match declares it at all. One definition,
+// because the handler emitter and the test emitter disagreeing about it is
+// how a test comes to assert something the generated code never does.
+function addressKeys(ent: any, opname: string): string[] {
+  const keys = requiredKeys(ent, opname)
+  const parts = idParts(ent)
+
+  if (0 < parts.length) {
+    const shape = opRequestShape(ent, opname).items
+    for (const part of parts) {
+      if (!keys.includes(part) &&
+        shape.some((it: any) => it.name === part)) {
+        keys.push(part)
+      }
+    }
+    return keys
+  }
+
+  const rk = recordKey(ent)
+  if (null != rk && '' !== rk && !keys.includes(rk) &&
+    opRequestShape(ent, opname).items.some((it: any) => it.name === rk)) {
+    keys.push(rk)
+  }
+
+  return keys
+}
+
+
+function idParts(ent: any): string[] {
+  const parts = ent?.id?.parts
+  return Array.isArray(parts) && 1 < parts.length ?
+    parts.map((p: any) => String(p)) : []
+}
+
+
+function idSep(ent: any): string {
+  const sep = ent?.id?.sep
+  return null != sep && '' !== String(sep) ? String(sep) : '/'
+}
+
+
+function idSpec(ent: any): { parts: string[], sep: string, from?: Record<string, string> } | null {
+  const parts = idParts(ent)
+  if (0 < parts.length) {
+    const from = ent?.id?.from
+    return {
+      parts,
+      sep: idSep(ent),
+      ...(null != from && 'object' === typeof from ? { from } : {}),
+    }
+  }
+
+  const rk = recordKey(ent)
+  if ('id' === rk) {
+    return null
+  }
+
+  const from = ent?.id?.from
+  const path = null != from && 'object' === typeof from ? from[rk] : null
+  return {
+    parts: [rk],
+    sep: idSep(ent),
+    ...(null != path && '' !== String(path) ? { from: { [rk]: String(path) } } : {}),
+  }
+}
+
+
+// The model's identifier when the load match carries it, else the terminal
+// path parameter, else a lone required query parameter: the rule the SDK's
+// offline transport keys its store by.
 function recordKey(ent: any): string {
   const idf = entityIdField(ent)
   if (null != idf && '' !== idf) {
     return String(idf)
   }
+
+  let fallback = ''
 
   for (const opname of ['load', 'remove', 'update']) {
     const op = (ent.op || {})[opname]
@@ -101,50 +188,66 @@ function recordKey(ent: any): string {
     }
 
     const canonical = op.points.filter((pt: any) =>
-      null == (pt && pt.select && pt.select['$action']))
+      null == (pt && pt.q && pt.q['$action']))
     const point = ownPoint(0 < canonical.length ? canonical : op.points)
-    // The LAST variable segment names the record's key. apidef states which
-    // segments are variables (its ADR-003), so this reads the name off the
-    // vector rather than finding a `{` and slicing the braces back off.
-    const vars = pointSegments(point)
-      .filter((seg: any) => null != seg.var)
+    const segs = pointSegments(point)
+    const last = segs[segs.length - 1]
 
-    if (0 < vars.length) {
-      return String(vars[vars.length - 1].var)
+    if (null != last && null != last.var) {
+      return String(last.var)
     }
 
-    // No path param at all (e.g. GET /scan/async/result?trace_id=...): the
-    // record's own key can still be a single required QUERY param.
-    const query = (point && point.args && point.args.query) || []
-    const reqdQuery = query.filter((q: any) => false !== q.reqd)
+    const query = (point && point.g && point.g.query) || []
+    const reqdQuery = query.filter((q: any) => false !== q.r)
     if (1 === reqdQuery.length) {
-      return String(reqdQuery[0].name)
+      return String(reqdQuery[0].n)
+    }
+
+    // A literal-terminal route names a facet of a record: a last resort.
+    if ('' === fallback) {
+      const vars = segs.filter((seg: any) => null != seg.var)
+      if (0 < vars.length) {
+        fallback = String(vars[vars.length - 1].var)
+      }
     }
   }
 
-  return 'id'
+  return '' !== fallback ? fallback : (entityDataIdField(ent) || 'id')
 }
 
 
-// The guard function's name. Spec-derived param names are not constrained to
-// identifiers — Evervault's `/payments/3ds-sessions/{3ds_session_id}` is the
-// standing example — and a name is a DECLARATION here, so it cannot be
-// bracket-quoted the way a property access can. Non-identifier characters are
-// replaced rather than dropped, so `a-b` and `a_b` cannot collide.
+// Does a create have to SEND the record key, or does the API assign it?
+function rkOnCreate(ent: any): boolean {
+  const rk = recordKey(ent)
+
+  if ('id' === rk || 0 < idParts(ent).length || null == (ent.op || {}).create) {
+    return false
+  }
+
+  return opRequestShape(ent, 'create').items
+    .some((it: any) => it.name === rk && !it.optional)
+}
+
+
+// Is `<provider>_id` free for this entity, or a name it already uses itself?
+function parkFree(ent: any, parked: string): boolean {
+  const taken = new Set<string>([
+    recordKey(ent),
+    ...idParts(ent),
+    ...parentKeys(ent),
+    ...Object.values(ent.fields || {}).map((f: any) => String(f.n)),
+  ])
+
+  return !taken.has(parked)
+}
+
+
 function guardName(e: any, key: string): string {
   return `need_${e.name}_${String(key).replace(/[^A-Za-z0-9_$]/g, '_')}`
     .replace(/^need_(\d)/, 'need__$1')
 }
 
 
-// The parent PATH params of ONE op: `moon`'s load under
-// `/planet/{planet_id}/moon/{id}` yields ['planet_id']. These are the keys a
-// caller can forget, so each gets a guard.
-//
-// From opParams — the op's declared path params — NOT from opRequestShape.
-// For create/update the latter also returns the request BODY fields, so
-// reading it here generated a "planet name is required" guard for every
-// writable field on every entity.
 function opParentKeys(ent: any, opname: string): string[] {
   const rk = recordKey(ent)
   const op = (ent.op || {})[opname]
@@ -156,8 +259,8 @@ function opParentKeys(ent: any, opname: string): string[] {
   const seen = new Set<string>()
 
   for (const p of opParams(op)) {
-    const name = String((p as any).name)
-    if (false !== (p as any).reqd && name !== rk && name !== 'id') {
+    const name = String((p as any).n)
+    if (false !== (p as any).r && name !== rk && name !== 'id') {
       seen.add(name)
     }
   }
@@ -166,13 +269,6 @@ function opParentKeys(ent: any, opname: string): string[] {
 }
 
 
-// Every parent key the entity has, across its ACTIVE ops — for the seed data
-// and the docs, which describe the entity rather than one call.
-//
-// `entityOps` and not `Object.keys(ent.op)`: an op the model marks
-// `active: false` generates no SDK method, so letting it contribute a key
-// here put a mandatory guard for a parameter of a call that does not exist
-// onto every cmd that does.
 function parentKeys(ent: any): string[] {
   const seen = new Set<string>()
 
@@ -186,23 +282,18 @@ function parentKeys(ent: any): string[] {
 }
 
 
-// A model field's broad shape, for generating seed data that reads as data.
-// The model carries canon strings (`\`$STRING\``), not JS types.
-//
-// ORDER MATTERS and the tests are substring tests, so the container kinds are
-// checked FIRST: a multi-type field's sentinel is the ARRAY
-// `['`$ONE`', [members...]]`, and String() flattens it to a comma-joined
-// string — so a `$ONE` of string|number matched `includes('NUMBER')` and was
-// seeded as a bare number. A union is not a number; it is whatever its first
-// member is, and falling back to a string is the safe answer.
-//
-// `$ARRAY` and `$OBJECT` are in the sentinel vocabulary (see
-// helpers/canonType.ts) and used to fall through to 'string', which put
-// `tags: 'quick-tags'` into test/quick.js — a type-incorrect body that a
-// validating server rejects.
+const sentinelKey = (type: any): string =>
+  String(type ?? '').replace(/[`$]/g, '').trim().toUpperCase()
+
+const unionMembers = (type: any): any[] =>
+  Array.isArray(type) && 'ONE' === sentinelKey(type[0]) && Array.isArray(type[1]) ?
+    type[1] : []
+
+
 function fieldKind(type: any): string {
   if (Array.isArray(type)) {
-    return 'string'
+    const member = unionMembers(type).find((m: any) => 'NULL' !== sentinelKey(m))
+    return null == member ? 'string' : fieldKind(member)
   }
 
   const t = String(type || '').toUpperCase()
@@ -216,29 +307,25 @@ function fieldKind(type: any): string {
 }
 
 
-// Which entity a parent path param refers to: `planet_id` -> `planet`, but
-// only when an entity of that name actually exists. A key that names no
-// entity gets no cross-reference, and the seed falls back to a plain string.
+function fieldNullable(type: any): boolean {
+  return unionMembers(type).some((m: any) => 'NULL' === sentinelKey(m))
+}
+
+
 function parentEntityOf(key: string, names: string[]): string {
   const stem = key.replace(/_id$/, '')
   return names.includes(stem) ? stem : ''
 }
 
 
-// The repo this provider is released from — NOT the SDK's. A provider is its
-// own package in its own repo, so its manifest's homepage/repository must
-// point there; deriving them from `main: kit: repo` sends every link in the
-// published package to the SDK instead.
-//
-// Order: the project's `output: repo`, else the Seneca convention.
 function providerRepo(model: any, lower: string, tname: string):
-  { url: string, path: string } {
+  { url: string, path: string, host: string } {
   const host = model?.main?.[KIT]?.repo?.host || 'github.com'
   const declared = model?.main?.[KIT]?.target?.[tname]?.output?.repo
   const path = null != declared && '' !== declared ?
     String(declared) : `senecajs/seneca-${lower}-provider`
 
-  return { url: `https://${host}/${path}`, path }
+  return { url: `https://${host}/${path}`, path, host }
 }
 
 
@@ -257,11 +344,10 @@ const Main = cmp(function Main(props: any) {
   const { target, ctx$ } = props
   const { model } = ctx$
 
-  // HARD REQUIREMENT: this plugin imports the TypeScript SDK. Generating it
-  // without `ts` produces a package whose every import fails, so fail at
-  // GENERATE time with an actionable message instead.
+  const standalone = standaloneBuilder(target)
+
   const targets = model.main[KIT].target || {}
-  if (null == targets.ts) {
+  if (!standalone && null == targets.ts) {
     throw new SdkGenError(
       'seneca-provider requires the `ts` target in the same SDK: it imports ' +
       'the TypeScript SDK that `ts` generates. Add it with:\n' +
@@ -269,60 +355,37 @@ const Main = cmp(function Main(props: any) {
       'then regenerate.')
   }
 
-  const Name = model.const.Name                 // Solardemo
-  const lower = String(model.const.name)        // solardemo
-  const ENV = envName(model)                    // SOLARDEMO
-  const sdkClass = `${Name}SDK`                 // SolardemoSDK
-  const pluginName = `${Name}Provider`          // SolardemoProvider
-  const fileBase = `${lower}-provider`          // solardemo-provider
+  const Name = model.const.Name
+  const lower = String(model.const.name)
+  const ENV = envName(model)
+  const sdkClass = `${Name}SDK`
+  const pluginName = `${Name}Provider`
+  const fileBase = `${lower}-provider`
 
   // The SDK is a PUBLISHED dependency, not a path: this package lives in its
   // own repo. Its name is whatever the ts target publishes under, pin
   // included, so the two can never disagree.
   // The TypeScript SDK this provider WRAPS — a different target, so it
   // keeps its own name and does not follow this provider's alias.
-  const sdkPkg = packageName(model, 'npm')
-  const sdkVersion = packageVersion(model, 'ts')
+  const { sdkPkg, sdkVersion } = sdkIdentity(model, target)
 
-  // UNFILTERED by design — see the AGENTS.md sharp edge: entityCollection is
-  // the resolver every component must use (getModelPath rebuilds its container
-  // per call, defeating the class-name memo), and it deliberately includes
-  // inactive entities because the typed-model emitters need them.
-  //
-  // Which makes filtering `active` the CALLER's job, and this component was
-  // the one consumer target that skipped it — go-cli, go-mcp and py-data all
-  // re-filter. The cost: MainEntity_ts emits an accessor only for an ACTIVE
-  // entity, so an inactive one produced `this.shared.sdk.Ghost()` in the
-  // provider and an `assert.equal(typeof sdk.Ghost, 'function')` in its tests,
-  // against a method the SDK does not have.
   const entityColl = entityCollection(model)
 
   const activeEntities = Object.keys(entityColl).sort()
     .map((key: string) => entityColl[key])
     .filter((ent: any) => false !== ent.active)
 
-  // Entities this provider can serve: those with at least one op that maps to
-  // a Seneca store cmd. An entity with no such op would produce an empty cmd
-  // map, which seneca-entity treats as a store that answers nothing.
   const entityNames = activeEntities.map((ent: any) => ent.name)
 
   const entities = activeEntities
     .map((ent: any) => {
       const parents = parentKeys(ent)
 
-      // The parent entity PER KEY. Deriving it from `parents[0]` alone left an
-      // entity nested two levels deep with no cross-reference for its outer
-      // parents, so their seed values came out as the literal '0'.
       const parentOf: Record<string, string> = {}
       for (const key of parents) {
         parentOf[key] = parentEntityOf(key, entityNames)
       }
 
-      // The parent keys of each op SEPARATELY. The guards used to be the union
-      // across all ops, applied to every cmd alike, while the argument handed
-      // to the SDK was computed per op — so an entity whose routes are not
-      // uniformly nested (a flat `load`, a nested `create`) demanded a
-      // parameter its own call would never use.
       const opParents: Record<string, string[]> = {}
       for (const opname of entityOps(ent)) {
         opParents[opname] = opParentKeys(ent, opname)
@@ -331,21 +394,41 @@ const Main = cmp(function Main(props: any) {
       return {
         ent,
         name: ent.name,
-        // The SDK ACCESSOR on the client (`client.Moon()`), which is the
-        // entity's PascalCase name — NOT entityClassName, which is the
-        // collision-safe CLASS name the accessor constructs (`MoonEntity`).
-        // Calling the class name reads plausibly and fails at runtime with
-        // "sdk.MoonEntity is not a function". MainEntity_ts is the authority
-        // for this: it declares the method as `${entity.Name}()`.
         acc: ent.Name,
-        // The entity's canonical route, used to probe the live server for
-        // liveness. Path params are left in place only if the route has
-        // them — a collection route (the `list` op's) has none, which is why
-        // entityPath prefers it.
         path: entityPath(ent),
         cls: entityClassName(ent, entityColl),
         ops: entityOps(ent),
         idf: entityIdField(ent),
+        rk: recordKey(ent),
+        rkoncreate: rkOnCreate(ent),
+        parkfree: parkFree(ent, lower + '_id'),
+        // The composite key, when this API addresses a record by several
+        // path params at once. The doc and test emitters in Extras need the
+        // same answer the handler emitters use: a test that addresses a
+        // composite entity the single-key way builds a query its own handler
+        // rejects.
+        idparts: idParts(ent),
+        idsep: idSep(ent),
+        idmisaddressed: ['remove', 'update'].reduce(
+          (acc: Record<string, boolean>, opname: string) => {
+            acc[opname] = null != (ent.op || {})[opname] &&
+              0 < addressKeys(ent, opname).length &&
+              !(0 < idParts(ent).length ?
+                idParts(ent).every((p: string) =>
+                  addressKeys(ent, opname).includes(p)) :
+                addressKeys(ent, opname).includes(recordKey(ent)))
+            return acc
+          }, {}),
+        idaddressed: ['load', 'remove', 'update'].reduce(
+          (acc: Record<string, boolean>, opname: string) => {
+            const keys = addressKeys(ent, opname)
+            const parts = idParts(ent)
+            acc[opname] = 0 < parts.length ?
+              parts.every((p: string) => keys.includes(p)) :
+              keys.includes(recordKey(ent))
+            return acc
+          }, {}),
+        idfrom: (ent?.id?.from) || {},
         parents,
         parentOf,
         opParents,
@@ -353,23 +436,25 @@ const Main = cmp(function Main(props: any) {
         // the scripts speak about "the parent" in the singular; anything that
         // must be right per key reads parentOf.
         parentEntity: 0 < parents.length ? parentOf[parents[0]] : '',
-        // Required fields only: a seed record has to satisfy the shape the
-        // SDK will hand back, and optional noise makes the assertions
-        // harder to read.
-        //
-        // A parent path param is then FORCED IN even when the entity's own
-        // schema omits it or marks it optional. A path param is a routing key,
-        // not necessarily a response field: when the child's schema left it
-        // out the seeded record had no link back to its parent, and the mock's
-        // match found nothing — which the nested `load` test reported as a
-        // TypeError and the nested `list` test reported as a pass.
+        // The custom actions this entity exposes, as cmd -> action -> SDK
+        // op. Emitted as a map in the plugin so a handler can route
+        // `action$` to the op that actually serves it, and so an unknown
+        // name can be refused with the valid ones named.
+        actions: Object.keys(CMD_OPS).sort().reduce(
+          (acc: Record<string, Record<string, string>>, cmd: string) => {
+            acc[cmd] = cmdActions(ent, cmd)
+            return acc
+          }, {}),
+        actionList: entityActionList(ent),
+        canonicalOps: canonicalOps(ent),
         fields: (() => {
-          const req = (ent.fields || [])
-            .filter((f: any) => false !== f.req)
+          const req = (Object.values(ent.fields || {}))
+            .filter((f: any) => false !== f.r)
             .map((f: any) => ({
-              name: f.name,
-              kind: fieldKind(f.type),
-              parentEntity: parentEntityOf(f.name, entityNames),
+              name: f.n,
+              kind: fieldKind(f.t),
+              nullable: fieldNullable(f.t),
+              parentEntity: parentEntityOf(f.n, entityNames),
             }))
 
           const have = new Set(req.map((f: any) => f.name))
@@ -379,6 +464,7 @@ const Main = cmp(function Main(props: any) {
               req.push({
                 name: key,
                 kind: 'string',
+                nullable: false,
                 parentEntity: parentOf[key],
               })
             }
@@ -410,22 +496,16 @@ const Main = cmp(function Main(props: any) {
   // once by the external pass — see cmp/ExternalTarget.
   const sdkrel = ctx$.sdkrelpath || '..'
 
-  // Where a live run points — and whether there is anything honest to point
-  // it at.
-  //
-  // NOT simply `servers[0].url`. For an OpenAPI-derived model that is the
-  // PRODUCTION host of a third-party API, and everything gated on it aims
-  // there: the `describe('live')` block, which `npm test` runs on every CI
-  // push on three operating systems; the `serverUp` probe in front of it; and
-  // test/quick.js, whose header says "start the companion server first" while
-  // BASE silently defaults to production and whose body is a create / update /
-  // remove cycle. A live suite that reaches a stranger's API from CI is not a
-  // live suite, it is traffic — and unauthenticated traffic at that.
-  //
-  // So a live base is taken only when it is unambiguously OURS: declared
-  // outright by the project, or a loopback address, which no third party can
-  // be behind. Anything else leaves live testing ungenerated, which is the
-  // honest answer for an API nobody here runs.
+  const sdkRepoUrl = String(repoInfo(model).repoUrl || '')
+  const sdkTag = 'v' + sdkVersion
+  const sdkRepoDir = sdkRepoUrl.replace(/[/]+$/, '').split('/').pop() || 'sdk'
+
+  // With NO repo url there is nothing to pin and nothing to clone, so the
+  // only path anyone can be told is still the relative one. Honest, and the
+  // case the pin cannot improve.
+  const sdkPinned = '' !== sdkRepoUrl
+  const sdkSrc = sdkPinned ? SDK_SRC_DIR + '/' + sdkRepoDir : sdkrel
+
   const live = model?.main?.[KIT]?.test?.live || {}
   const servers = (model?.main?.[KIT]?.info?.servers || [])
   const specBase = 0 < servers.length ? String(servers[0].url || '') : ''
@@ -443,44 +523,60 @@ const Main = cmp(function Main(props: any) {
   // into every generated provider's CI.
   const liveApp = true === live.app || (loopback(specBase) && '' === (live.base || ''))
 
+  const sdkDep = sdkDependency(model, target, {
+    sdkPkg, sdkVersion, sdkRepoUrl: repoInfo(model).repoUrl,
+  })
+
   const provider = {
     Name, lower, ENV, sdkClass, pluginName, fileBase,
     sdkPkg, sdkVersion, entities,
+    sdkDep,
+    standalone,
+    // Whether that dependency comes from outside a registry. The generated
+    // CI note says so, because "npm install is all you need" stops being
+    // true the moment git or a tarball URL is in the path.
+    sdkGit: !sdkDep.startsWith('^'),
+    // WHICH non-registry kind, because the CI note has to be true: a git
+    // dependency needs git on PATH and a release asset does not, and a note
+    // that says the wrong one is worse than no note.
+    sdkDepKind: sdkDep.startsWith('github:') ? 'git' :
+      (sdkDep.startsWith('http') ? 'release' : 'npm'),
+    sdkInstallFlag: sdkDep.startsWith('github:') ? ' --allow-git=all' :
+      (sdkDep.startsWith('http') ? ' --allow-remote=all' : ''),
     repoUrl: repo.url,
-    // The SDK's own repo, for pointing at the companion test server which is
-    // only distributed in source.
-    sdkRepoUrl: repoInfo(model).repoUrl,
+    repoPath: repo.path,
+    repoHost: repo.host,
+    sdkRepoUrl,
+    sdkTag,
+    sdkRepoDir,
+    sdkPinned,
+    sdkSrc,
     api: apiName(model),
     version: packageVersion(model, target.name),
-    sdkrel,
     liveBase,
     liveApp,
-    // The sponsor line. @seneca/maintain's `content_readme` check requires
-    // the publisher's name in the README, so this is load-bearing rather
-    // than decorative — the generated `maintain` test fails without it.
+    // The server the API definition declares, which is the SDK's own default.
+    specBase,
     publisher: PUBLISHER,
     publisherUrl: PUBLISHER_URL,
-    // A route with NO path params, so the probe is a plain GET. An entity
-    // whose every route is parameterised gives none, and then the probe
-    // falls back to the base URL itself.
     probePath: (entities.find((e: any) =>
       '' !== e.path && !e.path.includes('{')) || { path: '' }).path,
-    // The provider's OWN published name. Not derived from the SDK slug the
-    // way a language target's is — a provider is `@seneca/<name>-provider` —
-    // so read the project's pin directly and default to that shape.
     pkgName: providerPackage(model, lower, target.name),
     // Whether this API authenticates at all. Decides if the plugin plumbs a
     // credential: the SDK's auth stage emits nothing for an auth-inactive
     // model and strips the authorization header regardless of options, so
     // plumbing one anyway produces a credential path that cannot work.
     authActive: isAuthActive(model),
-    // Whether this API's scheme is genuine HTTP Basic Auth (two credentials,
-    // base64-joined), matching the SDK's own auth.basic signal. Decides
-    // whether the plugin also plumbs a `secret` alongside `apikey` — a
-    // Basic-Auth SDK's own auth stage deletes the header when either is
-    // missing, so a provider forwarding apikey alone could never
-    // authenticate, the same class of gap `apikey`-only forwarding was.
     authBasic: isAuthActive(model) && isHttpBasicAuth(model),
+    // Where the credential goes, resolved as the SDK's auth stage does.
+    authIn: resolveAuthIn(model),
+    authName: 'header' === resolveAuthIn(model) ?
+      resolveAuthName(model).toLowerCase() : resolveAuthName(model),
+    authPrefix: resolveAuthPrefix(model),
+  }
+
+  if (standalone) {
+    checkSdkSource(ctx$, provider, model)
   }
 
   // `.gitignore` is EMITTED rather than copied — npm strips that filename
@@ -489,13 +585,13 @@ const Main = cmp(function Main(props: any) {
   // target calls its own.
   Gitignore({})
 
-  // Static furniture: LICENSE, CODE_OF_CONDUCT, Makefile, tsfmt.json and
-  // both tsconfigs. Same for every provider.
   Copy({
     from: 'tm/' + target.name,
     replace: { ...ctx$.stdrep },
   })
 
+  Makefile({ provider })
+  SdkPin({ provider })
   PackageJson({ provider, target })
   ProviderSource({ provider })
   ProviderDoc({ provider })
@@ -507,7 +603,57 @@ const Main = cmp(function Main(props: any) {
 })
 
 
-// --- package.json -----------------------------------------------------------
+function sdkDependency(model: any, target: any, provider: any): string {
+  const dep = model?.main?.[KIT]?.target?.[target.name]?.sdk?.dep || {}
+
+  const spec = String(dep.spec || '').trim()
+  if ('' !== spec) {
+    return spec
+  }
+
+  const kind = String(dep.kind || 'npm')
+  if ('git' !== kind && 'release' !== kind) {
+    return `^${provider.sdkVersion}`
+  }
+
+  // `owner/repo`, from the SDK's own repository unless the project says
+  // otherwise. Accepts a full URL and reduces it, so a project can paste
+  // what its remote prints.
+  const repo = String(dep.repo || provider.sdkRepoUrl || '')
+    .replace(/^git\+/, '')
+    .replace(/^(https?:\/\/)?(www\.)?github\.com[/:]/, '')
+    .replace(/\.git$/, '')
+    .replace(/\/+$/, '')
+
+  if ('' === repo) {
+    throw new SdkGenError(
+      'seneca-provider: sdk.dep.kind is "git" but no repository is known. ' +
+      'Set `main.' + KIT + '.target.' + target.name +
+      '.sdk.dep.repo` to `owner/repo`, or state the whole dependency with ' +
+      '`sdk.dep.spec`.')
+  }
+
+  const ref = String(dep.ref || '').trim()
+  if ('' === ref) {
+    throw new SdkGenError(
+      'seneca-provider: sdk.dep.kind is "git" but no `ref` is set. A git ' +
+      'dependency with no ref follows the default branch, so an install ' +
+      'today and an install tomorrow can differ — name the TAG to depend ' +
+      'on, e.g. `sdk.dep.ref: "v' + provider.sdkVersion + '"`.')
+  }
+
+  if ('release' === kind) {
+    const asset = String(dep.asset || '').trim() || (
+      provider.sdkPkg.replace(/^@/, '').replace(/\//g, '-') +
+      '-' + provider.sdkVersion + '.tgz')
+
+    return `https://github.com/${repo}/releases/download/${ref}/${asset}`
+  }
+
+  return `github:${repo}#${ref}`
+}
+
+
 
 const PackageJson = cmp(function PackageJson(props: any) {
   const { provider, target } = props
@@ -515,19 +661,6 @@ const PackageJson = cmp(function PackageJson(props: any) {
 
   const deps = collectDeps(model, target.name, target.deps, props.ctx$.log)
 
-  // collectDeps returns { name, version, source, raw } — the DECLARED kind
-  // (prod/peer/dev) is on `raw`, not hoisted. Reading `d.kind` instead
-  // silently yields an empty manifest section, which is how the first cut of
-  // this component shipped a package.json with no seneca peers at all.
-  //
-  // `kind` is a COMMA-SEPARATED LIST, so one dependency can land in more than
-  // one manifest section. That is the Seneca plugin convention and not an
-  // embellishment: `seneca` is a PEER (the plugin must run inside the host's
-  // instance, never its own bundled copy) and also a DEV dependency (the test
-  // suite does `require('seneca')` directly, so a bare `npm install` in a
-  // clean checkout has to produce it). collectDeps deduplicates by package
-  // name and the model's dep map is keyed by name, so the same package cannot
-  // be declared twice — the kind has to carry the list instead.
   const dep = (kind: string) => {
     const out: Record<string, string> = {}
     const kinds = (d: any) => String((d.raw && d.raw.kind) || '')
@@ -559,9 +692,6 @@ const PackageJson = cmp(function PackageJson(props: any) {
     keywords: ['seneca', provider.lower, `${provider.lower}-provider`,
       provider.publisher.toLowerCase(), 'sdk'],
     author,
-    // Omitted entirely when the project names none, rather than emitted as an
-    // empty array — npm treats `"contributors": []` as a declaration that
-    // there are none, which is a different claim from not having said.
     ...(0 < contributors.length ? { contributors } : {}),
     license: 'MIT',
     repository: { type: 'git', url: `git+${provider.repoUrl}.git` },
@@ -593,13 +723,13 @@ const PackageJson = cmp(function PackageJson(props: any) {
         'npm run build && npm run test && npm run repo-tag && ' +
         'npm publish --access public --registry https://registry.npmjs.org',
     },
-    // What actually ships. Without `files`, `npm publish` packs the test
-    // suite and build output into the tarball.
-    files: ['dist', 'src/**/*.ts', 'LICENSE'],
+    files: ['dist', 'doc', 'src/**/*.ts', 'LICENSE', 'README.md'],
     engines: { node: '>=24' },
     dependencies: {
-      // The SDK this plugin wraps, by its PUBLISHED name and version.
-      [provider.sdkPkg]: `^${provider.sdkVersion}`,
+      // The SDK this plugin wraps. Published-and-pinned by default; a git
+      // tag when the project says so, because an unpublished SDK otherwise
+      // leaves this package unable to install at all. See sdkDependency.
+      [provider.sdkPkg]: provider.sdkDep,
       ...dep('prod'),
     },
     peerDependencies: dep('peer'),
@@ -612,10 +742,11 @@ const PackageJson = cmp(function PackageJson(props: any) {
 })
 
 
-// --- src/<name>-provider.ts -------------------------------------------------
 
 const ProviderSource = cmp(function ProviderSource(props: any) {
   const { provider } = props
+
+  const translated = provider.entities.filter((e: any) => null != idSpec(e.ent))
 
   Folder({ name: 'src' }, () => {
     File({ name: `${provider.fileBase}.ts` }, () => {
@@ -684,6 +815,66 @@ function ${provider.pluginName}(this: any, options: ${provider.pluginName}Option
   }
 
 
+  // \`action$\` — the directive that selects a custom API action instead of
+  // the plain cmd. READ BEFORE cleanq strips it, and still stripped from
+  // what reaches the SDK as match fields: it is an instruction to the store,
+  // like sort$ and limit$, not a value to filter on.
+  //
+  // THREE PLACES, because seneca-entity puts it in three places depending on
+  // how the caller spelled it, and dropping any one of them silently turns a
+  // named action into an ordinary call:
+  //
+  //   list$/load$/remove$({ action$ })         -> msg.q.action$
+  //   ent.directive$({ action$ }).save$()      -> msg.action$
+  //   const e = ent.make$({...}); e.action$=.. -> msg.ent.action$
+  //
+  // \`make$({ action$ })\` is NOT among them and cannot be: seneca-entity's
+  // make$ copies only keys without a \`$\`, plus the four directives it knows
+  // (id$, merge$, custom$, directive$), so an unknown trailing-\`$\` key is
+  // dropped before any store sees it. \`id$\` reads like the precedent for
+  // one, but it works only because make$ names it explicitly. The README
+  // says so; there is nothing this plugin can check, because nothing arrives.
+  function actionOf(msg: any) {
+    const q = msg && msg.q
+    const ent = msg && msg.ent
+
+    return null != (q && q.action$) ? q.action$ :
+      null != (msg && msg.action$) ? msg.action$ :
+        null != (ent && ent.action$) ? ent.action$ :
+          undefined
+  }
+
+
+  // The SDK argument for an ACTION on a read cmd: everything the caller sent
+  // minus Seneca's own directives, with the id translated into the API's own
+  // keys, plus the \`$action\` selector the SDK dispatches on.
+  //
+  // WIDER than the canonical argument on purpose. An action route has its own
+  // parameters — GitHub's merge takes commit_title and merge_method, which the
+  // canonical PATCH knows nothing about — so narrowing to the plain op's
+  // required keys would strip the action's whole payload. The SDK still
+  // validates: an action whose own point cannot be built is refused with
+  // \`point_action_invalid\` rather than sent somewhere else.
+  function actionq(q: any, ${0 === translated.length ? '' : 'name: string, '}action: string) {
+    const out = cleanq(q)
+${0 === translated.length ? '' : `
+    // An action addresses the SAME record the canonical route does, so the id
+    // is translated the same way a write translates it: split into the path
+    // parameters the API names, under the names it names them by. Sending the
+    // joined id as one terminal parameter asks for \`owner0/repo0\` as a repo.
+    const own = Object.prototype.hasOwnProperty
+    const spec = own.call(ID_SPEC, name) ? ID_SPEC[name] : null
+
+    if (null != spec && null != out.id) {
+      Object.assign(out, splitid(name, out.id, 'action'))
+      delete out.id
+    }
+`}
+    out.$action = action
+    return out
+  }
+
+
   // The SDK throws on any non-2xx. A 404 from a single-item read is an
   // ordinary "not found" answer rather than a failure, so return null and let
   // everything else propagate. SDK errors carry the HTTP status at the top
@@ -720,6 +911,15 @@ function ${provider.pluginName}(this: any, options: ${provider.pluginName}Option
         '${provider.pkgName}: ${e.name} ' + cmd + ': ${k} is required'
       )
     }
+
+    // A path parameter is one value. A loaded record can carry an object
+    // under the same name, and that must not be sent as a URL segment.
+    if ('object' === typeof value) {
+      throw new Error(
+        '${provider.pkgName}: ${e.name} ' + cmd + ': ${k} must be a single ' +
+        'value to build the request path, not an object'
+      )
+    }
     return value
   }
 
@@ -729,34 +929,215 @@ function ${provider.pluginName}(this: any, options: ${provider.pluginName}Option
         })
       }
 
-      // Seneca's own entity key is ALWAYS literally `id` — `load$('x')` sets
-      // `q = { id: 'x' }`, and the id of the entity it builds comes off
-      // `data.id`. An API that addresses a record by anything else therefore
-      // needs translating in both directions, or `load$` requests a record
-      // keyed `undefined` and every entity handed back has no id at all — one
-      // that cannot then be saved or removed.
-      const aliased = provider.entities.filter((e: any) => 'id' !== recordKey(e.ent))
-      each(aliased, (e: any) => {
-        const rk = recordKey(e.ent)
-        Content(`  // This API keys a ${e.name} by \`${rk}\`, Seneca by \`id\`. Carry the
-  // API's key across so the Seneca entity has one.
-  function id_${e.name}(data: any) {
-    if (null != data && null == data.id) {
-      data.id = ${jsProp('data', rk)}
+      if (0 < translated.length) {
+        const rows = translated.map((e: any) => {
+          const spec: any = idSpec(e.ent)
+          const from = null == spec.from ? '' :
+            `, from: { ${Object.keys(spec.from).sort()
+              .map((k: string) => `${jsKey(k)}: '${spec.from[k]}'`).join(', ')} }`
+          const park = false === e.parkfree ? ', park: false' : ''
+          return `    ${jsKey(e.name)}: { parts: [${
+            spec.parts.map((p: string) => `'${p}'`).join(', ')}], sep: '${spec.sep}'${from}${park} },`
+        }).join('\n')
+
+        Content(`  // HOW EACH ENTITY'S id MAPS TO THE API'S OWN KEYS, from the model.
+  //
+  // \`parts\`  the path parameters that address one record, in path order.
+  //          One part is the ordinary case: the API just calls its key
+  //          something other than \`id\`. Two or more is a compound key,
+  //          where no single parameter names the record.
+  // \`sep\`    joins the parts into the one id a Seneca entity carries. A
+  //          slash cannot occur inside a path segment, so the join is
+  //          unambiguous and the split cannot over-split.
+  // \`from\`   where each part's value lives in a RESPONSE, as a dotted
+  //          path. A path parameter's name is not generally a response
+  //          field's name: github returns a repo's owner as an OBJECT
+  //          (\`owner.login\`) and its name as \`name\`, never \`repo\`.
+  //          A part missing here cannot be read back off a response.
+  // \`park\`   false where \`${provider.lower}_id\` is a name this entity
+  //          already uses, so the API's own id is left where it is.
+  const ID_SPEC: Record<string, { parts: string[], sep: string, from?: Record<string, string>, park?: boolean }> = {
+${rows}
+  }
+
+
+  // Read a dotted path out of a record. \`from\` maps a path parameter to
+  // wherever the response actually carries it, and that is sometimes inside
+  // a nested object.
+  function idread(data: any, path: string) {
+    let node: any = data
+    for (const key of path.split('.')) {
+      if (null == node) {
+        return undefined
+      }
+      node = node[key]
     }
+    return node
+  }
+
+
+  // The Seneca id, split back into the parameters the API addresses a record
+  // with. Refuses a wrong part count rather than sending a URL built from
+  // whatever the id happened to contain — that would address a different
+  // record, or none, and the 404 would name nothing useful.
+  function splitid(name: string, id: any, what: string) {
+    const spec = ID_SPEC[name]
+    const text = null == id ? '' : String(id)
+    const got = 1 === spec.parts.length ? [text] : text.split(spec.sep)
+
+    if (spec.parts.length !== got.length || got.some((p: string) => '' === p)) {
+      throw new Error(
+        '${provider.pkgName}: ' + name + ' ' + what +
+        ": id must be '" + spec.parts.join(spec.sep) + "', got: " + JSON.stringify(id))
+    }
+
+    const out: Record<string, any> = {}
+    spec.parts.forEach((p: string, i: number) => { out[p] = got[i] })
+    return out
+  }
+
+
+  // The id for a record the API returned.
+  //
+  // \`vals\` are the parameters THIS request addressed it with, and they win:
+  // a response does not always repeat them. Otherwise the parts are read out
+  // of the response through \`from\`, which is what makes a created or listed
+  // record identifiable at all.
+  //
+  // THE ADDRESSING KEY WINS over an \`id\` the response already carries. A
+  // response often has both — github's pull has a global database \`id\` and
+  // a repo-scoped \`number\` — and the unrelated one is no use for addressing
+  // anything. It is kept as \`${provider.lower}_id\`, unless \`park\` forbids.
+  function joinid(name: string, data: any, vals?: any) {
+    const spec = ID_SPEC[name]
+    if (null == data) {
+      return data
+    }
+
+    let id = null
+
+    if (null != vals) {
+      const got = spec.parts.map((p: string) => vals[p])
+      if (got.every((v: any) => null != v && '' !== String(v))) {
+        id = got.join(spec.sep)
+      }
+    }
+
+    if (null == id) {
+      const got = spec.parts.map((p: string) =>
+        idread(data, (spec.from || {})[p] || p))
+      if (got.every((v: any) =>
+        null != v && 'object' !== typeof v && '' !== String(v))) {
+        id = got.join(spec.sep)
+      }
+    }
+
+    if (null != id) {
+      if (false !== spec.park && null != data.id && String(data.id) !== id &&
+        null == ${jsProp('data', provider.lower + '_id')}) {
+        ${jsProp('data', provider.lower + '_id')} = data.id
+      }
+      data.id = id
+    }
+
     return data
   }
 
 
 `)
-      })
+      }
 
-      // The cmd map, declared up front so every action is attached to a
-      // shape seneca-entity can read before the actions are defined.
+      Content(`  // The custom actions each cmd can reach, as action -> SDK op. An action
+  // is an alternative POINT of an ordinary op (\`select.$action\` in the API
+  // model), so \`save$\` routes by this map rather than assuming update: an
+  // action folded into \`create\` is reached through \`save$\` too.
+  const ACTIONS: Record<string, Record<string, Record<string, string>>> = {
+`)
+      each(provider.entities, (e: any) => {
+        Content(`    [${JSON.stringify(e.name)}]: {
+`)
+        each(e.cmds, (cmd: any) => {
+          const name = String(cmd.val$ ?? cmd)
+          const map = e.actions[name] || {}
+          const names = Object.keys(map).sort()
+          Content(`      ${name}: {${names.map((a: string) =>
+            ` [${JSON.stringify(a)}]: '${map[a]}'`).join(',')}${0 < names.length ? ' ' : ''}},
+`)
+        })
+        Content(`    },
+`)
+      })
+      Content(`  }
+
+
+  // Resolve an \`action$\` to the SDK op that serves it, or REFUSE it.
+  //
+  // Never falls through to the ordinary call. An action name the entity does
+  // not have is a caller mistake worth a message that names what is
+  // available; performing a plain save instead is the one outcome that must
+  // not happen, because it succeeds and does the wrong thing.
+  // AN OWN PROPERTY, never an inherited one. \`map[name]\` resolves
+  // \`toString\`, \`constructor\`, \`valueOf\` and the rest off Object's
+  // prototype, and each of those is non-null — so the refusal below never
+  // fired and the inherited function was handed to the SDK as an op name.
+  // That is the silent drop in another hat: the caller named something the
+  // entity does not have and was not told. An empty map inherits them all,
+  // so a cmd with no actions was the most exposed.
+  // THE CMD THAT WOULD WRITE TO THE WRONG RESOURCE.
+  //
+  // Some entities gather their ops from unrelated routes, and then a cmd's
+  // only route addresses something that is not this record: \`migration\`'s
+  // remove deletes a repository's migration ARCHIVE, \`user\`'s deletes a GPG
+  // KEY, \`pull\`'s deletes a review COMMENT. The id the caller passed is not
+  // in the request at all.
+  //
+  // Such a cmd is refused rather than sent. A caller asking to remove one
+  // record must not have a different resource deleted instead, and a
+  // successful-looking reply is the worst possible answer. Where the real
+  // operation exists it is reachable by name, through \`action$\`.
+  function misaddressed(
+    entname: string, cmd: string, key: string, addresses: string[]
+  ) {
+    const own = Object.prototype.hasOwnProperty
+    const ents: any = own.call(ACTIONS, entname) ? ACTIONS[entname] : {}
+    const acts = Object.keys(own.call(ents, cmd) ? ents[cmd] : {}).sort()
+
+    throw new Error(
+      '${provider.pkgName}: ' + entname + ' ' + cmd +
+      ': this API has no ' + cmd + ' route for one ' + entname +
+      '. Its only ' + cmd + ' route addresses ' + addresses.join(', ') +
+      ', not ' + key + ', so the id would be ignored and a different record ' +
+      'changed. ' +
+      (0 < acts.length ?
+        'Name the operation with action\$ instead: ' + acts.join(', ') :
+        'No action\$ of this cmd is available either'))
+  }
+
+
+  function actionop(name: string, entname: string, cmd: string) {
+    const own = Object.prototype.hasOwnProperty
+    const ents: any = own.call(ACTIONS, entname) ? ACTIONS[entname] : {}
+    const map: any = own.call(ents, cmd) ? ents[cmd] : {}
+    const op = own.call(map, name) ? map[name] : null
+
+    if (null == op) {
+      const valid = Object.keys(map).sort()
+      throw new Error(
+        '${provider.pkgName}: ' + entname + ' ' + cmd + ': action$ "' + name +
+        '" is not an action of this operation. Valid: ' +
+        (0 < valid.length ? valid.join(', ') : '(none)'))
+    }
+
+    return op
+  }
+
+
+`)
+
       Content(`  const entity: any = {
 `)
       each(provider.entities, (e: any) => {
-        Content(`    ${e.name}: {
+        Content(`    ${jsKey(e.name)}: {
       cmd: {
 `)
         each(e.cmds, (cmd: any) => {
@@ -773,48 +1154,86 @@ function ${provider.pluginName}(this: any, options: ${provider.pluginName}Option
 `)
 
       each(provider.entities, (e: any) => {
-        // The guard set is PER OP, not the union across the entity's ops. An
-        // entity whose routes are not uniformly nested — a flat `load`, a
-        // nested `create` — used to demand the parent id on the flat call too,
-        // an argument its own SDK request would then never use.
-        //
-        // `save` guards the union of create's and update's keys: one action
-        // serves both and dispatches at runtime, so it cannot know which set
-        // applies until it has the data.
-        const guard = (cmd: string, src: string) => {
-          const keys = 'save' === cmd ?
-            [...new Set([...(e.opParents.create || []), ...(e.opParents.update || [])])].sort() :
-            (e.opParents[cmd] || [])
+        const eparts = idParts(e.ent)
+        const espec = idSpec(e.ent)
+        // Guards of ONE op: save's create and update branches guard their own.
+        const guard = (opname: string, src: string, label = opname, ind = '      ') => {
+          const keys = e.opParents[opname] || []
 
           return keys
+            .filter((k: string) => !eparts.includes(k))
             .map((k: string) =>
-              `      ${guardName(e, k)}(${jsProp(src, k)}, '${cmd}')\n`)
+              `${ind}${guardName(e, k)}(${jsProp(src, k)}, '${label}')\n`)
             .join('')
         }
 
-        // Reading the record's own key off the Seneca query, which always
-        // spells it `id`, and every other required key off its own name.
+        const refuse = (cmd: string, ind = '      ') => {
+          if (true !== (e.idmisaddressed || {})[cmd]) {
+            return ''
+          }
+          const key = 0 < eparts.length ? eparts.join(String(e.idsep || '/')) :
+            recordKey(e.ent)
+          const addresses = addressKeys(e.ent, cmd)
+
+          return `${ind}misaddressed('${e.name}', '${cmd}', '${key}', ` +
+            `[${addresses.map((k: string) => `'${k}'`).join(', ')}])
+`
+        }
+
         const rk = recordKey(e.ent)
+
+        // Named only where there is a spec to translate the id through.
+        const aq = `actionq(msg.q, ${0 === translated.length ? '' :
+          `'${e.name}', `}action$)`
+
         const sdkArg = (opname: string) => {
-          const keys = requiredKeys(e.ent, opname)
+          const keys = addressKeys(e.ent, opname)
           if (0 === keys.length) {
             return '{}'
+          }
+          if (0 < eparts.length) {
+            return `{ ${keys.map((k: string) => eparts.includes(k) ?
+              `${jsKey(k)}: ${jsProp('key', k)}` :
+              `${jsKey(k)}: ${jsProp('q', k)}`).join(', ')} }`
           }
           return `{ ${keys.map((k: string) =>
             `${jsKey(k)}: ${jsProp('q', k === rk ? 'id' : k)}`).join(', ')} }`
         }
 
-        // The data hop, plus the id alias when the API keys the record by
-        // something other than `id`.
-        const out = (expr: string) =>
-          'id' === rk ? `plain(${expr})` : `id_${e.name}(plain(${expr}))`
+        // Seneca's `id` and the API's key differ: composite, or not called id.
+        const keyed = null != espec
+
+        // The entity-options argument carrying a write's addressing values.
+        const entArg = !keyed ? '' : `null == key ? undefined : { match: key }`
+
+        const splitLine = (cmd: string) => 0 === eparts.length ? '' :
+          `      const key = splitid('${e.name}', q.id, '${cmd}')\n`
+
+        // The data hop, plus the id from the values this request addressed the
+        // record with, which the response need not repeat.
+        const out = (expr: string, vals?: string) =>
+          !keyed ? `plain(${expr})` :
+            `joinid('${e.name}', plain(${expr})${null == vals ? '' : ', ' + vals})`
+
+        const loadVals = 0 < eparts.length ? 'key' :
+          !keyed ? undefined : `{ ${jsKey(rk)}: q.id }`
+
+        const actionBranch = (cmd: string, call: string) => `      const action$ = actionOf(msg)
+      if (null != action$) {
+        const op$ = actionop(action$, '${e.name}', '${cmd}')
+${call}      }
+
+`
 
         if (e.cmds.includes('list')) {
           Content(`
-  entity.${e.name}.cmd.list.action =
+  ${jsProp('entity', e.name)}.cmd.list.action =
     async function list_${e.name}(this: any, entize: any, msg: any) {
       const q = cleanq(msg.q)
-${guard('list', 'q')}      const list = await this.shared.sdk.${e.acc}().list(q)
+${actionBranch('list',
+            `        const found = await this.shared.sdk.${e.acc}()[op$](${aq})
+        return found.map((data: any) => entize(${out('data')}))
+`)}${guard('list', 'q')}      const list = await this.shared.sdk.${e.acc}().list(q)
       return list.map((data: any) => entize(${out('data')}))
     }
 
@@ -823,11 +1242,19 @@ ${guard('list', 'q')}      const list = await this.shared.sdk.${e.acc}().list(q)
 
         if (e.cmds.includes('load')) {
           Content(`
-  entity.${e.name}.cmd.load.action =
+  ${jsProp('entity', e.name)}.cmd.load.action =
     async function load_${e.name}(this: any, entize: any, msg: any) {
       const q = cleanq(msg.q)
-${guard('load', 'q')}      const res = await ornull(() => this.shared.sdk.${e.acc}().load(${sdkArg('load')}))
-      return null == res ? null : entize(${out('res')})
+${actionBranch('load',
+            `        const hit = await ornull(() => this.shared.sdk.${e.acc}()[op$](${aq}))
+        return null == hit ? null : entize(${out('hit')})
+`)}${guard('load', 'q')}${splitLine('load')}      const res = await ornull(() => this.shared.sdk.${e.acc}().load(${sdkArg('load')}))
+${0 < addressKeys(e.ent, 'load').length || 0 < eparts.length ? '' :
+            `      // The route names no record, so an id finds only the record carrying it.
+      if (null != res && null != q.id && String(${jsProp('plain(res)', rk)}) !== String(q.id)) {
+        return null
+      }
+`}      return null == res ? null : entize(${out('res', loadVals)})
     }
 
 `)
@@ -837,37 +1264,106 @@ ${guard('load', 'q')}      const res = await ornull(() => this.shared.sdk.${e.ac
           const hasCreate = e.ops.includes('create')
           const hasUpdate = e.ops.includes('update')
 
-          // Dispatch on the SENECA key. The record arriving here is a Seneca
-          // entity's data, so its id lives at `id` whatever the API calls it —
-          // dispatching on the API's key sent every save to `create`, leaving
-          // update unreachable.
-          const body = hasCreate && hasUpdate
-            ? `      const res = null == data.id
-        ? await sdk.${e.acc}().create(data)
-        : await sdk.${e.acc}().update(data)`
-            : hasCreate
-              ? `      const res = await sdk.${e.acc}().create(data)`
-              : `      const res = await sdk.${e.acc}().update(data)`
+          const refuseUpdate = true === (e.idmisaddressed || {}).update
 
-          // ... and hand the API back its own key, which Seneca does not know
-          // to send.
-          const alias = 'id' === rk ? '' :
-            `
-      // This API keys a ${e.name} by \`${rk}\`; Seneca carries it as \`id\`.
-      if (null == ${jsProp('data', rk)} && null != data.id) {
-        ${jsProp('data', rk)} = data.id
-      }
+          const isUpdate = keyed ? 'null != key' : 'null != data.id'
+
+          // Deleting a name the entity owns strips a value the caller supplied.
+          const dropPark = false === e.parkfree ? '' : `
+      // \`${provider.lower}_id\` is this provider's own bookkeeping — the
+      // API's unrelated \`id\`, parked by joinid(). It is not a field of the
+      // API's write schema, so it must not travel in the request body.
+      delete ${jsProp('data', provider.lower + '_id')}
 `
 
+          const keyBlock = 0 < eparts.length ? `
+      // Seneca carries this ${e.name}'s key as one \`id\`; the API addresses
+      // the record by ${eparts.map((p: string) => '`' + p + '`').join(' and ')}.
+      //
+      // THE PARTS GO IN THE ENTITY MATCH, NOT ONTO THE DATA. They are path
+      // parameters, and the data is the request body. Writing them onto the
+      // data is how the flat \`${eparts[0]}\` the URL needs came to displace
+      // whatever the response carries under that name — for github's repo an
+      // \`owner\` OBJECT, so a saved record lost the field that identifies
+      // it. The SDK resolves a path parameter from the match ahead of the
+      // body, so passing it here leaves the body exactly as the caller meant
+      // it.
+      //
+      // \`key\` STAYS NULL ON A CREATE: there is no id yet, the API assigns
+      // the record, and the id is rebuilt from the response instead.
+      let key = null
+      if (null != data.id) {
+        key = splitid('${e.name}', data.id, 'save')
+      }
+${dropPark}
+      // AND NEITHER DOES THE JOINED \`id\`. It is Seneca's key for this
+      // record, not the API's: a composite ${e.name} is addressed by
+      // \`${eparts.join('\` and \`')}\`, which travel as path parameters in
+      // the match above. Leaving it on the body sent \`owner0/repo0\` as a
+      // field the write schema has no place for — and the offline transport,
+      // which matches a request against a stored record, then looked for a
+      // record whose own \`id\` was that joined string and found none.
+      delete data.id
+` : !keyed ? '' : hasCreate && !hasUpdate && true !== e.rkoncreate ? `
+      // The API assigns a ${e.name}'s \`${rk}\`, and a create names no record, so
+      // Seneca's \`id\` is not sent: the id is read back from the response.
+      const key: any = null
+${dropPark}      delete data.id
+` : `
+      // This API keys a ${e.name} by \`${rk}\`; Seneca carries it as \`id\`.
+      // The key goes on the body under the API's own name, where the route
+      // reads it, and into the match, which the SDK consults first.
+      let key = null
+      if (null != data.id) {
+        key = { ${jsKey(rk)}: data.id }
+        if (null == ${jsProp('data', rk)}) {
+          ${jsProp('data', rk)} = data.id
+        }
+      }
+${dropPark}
+      // NOR DOES SENECA'S \`id\`. It holds the \`${rk}\` this API addresses
+      // the record by, under a name this API's ${e.name} does not have: sent
+      // on the body it is at best an unknown property, and to a store that
+      // matches a write against the record it names the wrong one.
+      delete data.id
+`
+
+          const saveVals = keyed ? 'key' : undefined
+
+          const call = (opname: string) =>
+            `await sdk.${e.acc}(${entArg}).${opname}(data)`
+
+          const body = hasCreate && hasUpdate
+            ? (!refuseUpdate ? `      let res
+      if (${isUpdate}) {
+${guard('update', 'data', 'save', '        ')}        res = ${call('update')}
+      }
+      else {
+${guard('create', 'data', 'save', '        ')}        res = ${call('create')}
+      }` : `      if (${isUpdate}) {
+${refuse('update', '        ')}      }
+
+${guard('create', 'data', 'save')}      const res = ${call('create')}`)
+            : hasCreate
+              ? `${guard('create', 'data', 'save')}      const res = ${call('create')}`
+              : `${refuse('update')}${guard('update', 'data', 'save')}      const res = ${call('update')}`
+
           Content(`
-  entity.${e.name}.cmd.save.action =
+  ${jsProp('entity', e.name)}.cmd.save.action =
     async function save_${e.name}(this: any, entize: any, msg: any) {
       const data = msg.ent.data$(false)
-${guard('save', 'data')}${alias}      const sdk = this.shared.sdk
+${keyBlock}      const sdk = this.shared.sdk
 
-${body}
+${actionBranch('save',
+            `        // The action's OWN payload is the entity's own fields — data$(false)
+        // has already dropped every trailing-\`$\` key, \`action$\` included,
+        // so \`$action\` is the only thing added here.
+        data.$action = action$
+        const done = await sdk.${e.acc}(${entArg})[op$](data)
+        return entize(${out('done', saveVals)})
+`)}${body}
 
-      return entize(${out('res')})
+      return entize(${out('res', saveVals)})
     }
 
 `)
@@ -875,11 +1371,15 @@ ${body}
 
         if (e.cmds.includes('remove')) {
           Content(`
-  entity.${e.name}.cmd.remove.action =
-    async function remove_${e.name}(this: any, _entize: any, msg: any) {
+  ${jsProp('entity', e.name)}.cmd.remove.action =
+    async function remove_${e.name}(this: any, entize: any, msg: any) {
       const q = cleanq(msg.q)
-${guard('remove', 'q')}      await ornull(() => this.shared.sdk.${e.acc}().remove(${sdkArg('remove')}))
-      return null
+${actionBranch('remove',
+            `        const gone = await ornull(() => this.shared.sdk.${e.acc}()[op$](${aq}))
+        return null == gone ? null : entize(${out('gone')})
+`)}${'' !== refuse('remove') ? refuse('remove') :
+            `${guard('remove', 'q')}${splitLine('remove')}      await ornull(() => this.shared.sdk.${e.acc}().remove(${sdkArg('remove')}))
+`}      return null
     }
 
 `)
@@ -899,9 +1399,21 @@ ${guard('remove', 'q')}      await ornull(() => this.shared.sdk.${e.acc}().remov
     const sdkopts: any = Object.assign({}, options.sdk)
 ${provider.authActive ? `
     // The provider convention carries credentials, so honour an \`apikey\`
-    // when one is configured and stay quiet when it is not.
+    // when one is configured.
     const res = await this.post('sys:provider,get:keymap,provider:${provider.lower}')
-    const apikey = res?.keymap?.apikey?.value
+
+    // ACCEPT \`api\` AS WELL AS \`apikey\`. The older provider convention
+    // named this key \`api\` and read it with
+    // \`sys:provider,get:key,...,key:api\`; the keymap message replaced that,
+    // and the rename was silent. An application still configured as
+    // \`keys: { api: { value: ... } }\` therefore resolved to undefined and
+    // the SDK was constructed with NO credential at all — the request went
+    // out unauthenticated and failed much later as a 401 or a 404 on
+    // anything private, with nothing at startup to point at the cause.
+    // \`apikey\` wins when both are set and it is not empty, so a config that
+    // has migrated is unaffected.
+    const apikey = [res?.keymap?.apikey?.value, res?.keymap?.api?.value]
+      .find((value: any) => null != value && '' !== value)
 
     // Hand the credential to the SDK as \`apikey\`, NOT as an authorization
     // HEADER. The SDK's own auth stage owns that header: it reads
@@ -913,6 +1425,23 @@ ${provider.authActive ? `
     // rather than assumed to be \`Bearer\`.
     if (null != apikey && '' !== apikey) {
       sdkopts.apikey = apikey
+    }
+
+    // AN UNRESOLVED CREDENTIAL IS SAID OUT LOUD. This API declares
+    // authentication, so reaching here with nothing configured means every
+    // call goes out unauthenticated. That is not always wrong — public
+    // read-only endpoints work, at a much lower rate limit — so this warns
+    // rather than throwing, and names both accepted key spellings so a
+    // misnamed key is obvious from one line of log. Silence here is what
+    // made the \`api\` -> \`apikey\` rename above cost a debugging session
+    // instead of a glance.
+    else {
+      this.log.warn({
+        fix: 'unauthenticated',
+        note: 'no ${provider.lower} credential resolved from the keymap ' +
+          '(looked for keys.apikey then keys.api); requests will be sent ' +
+          'unauthenticated and will fail on anything non-public',
+      })
     }
 ${provider.authBasic ? `
     // Genuine HTTP Basic Auth needs a SECOND credential (the SDK sends
@@ -965,7 +1494,6 @@ if ('undefined' !== typeof module) {
 })
 
 
-// --- src/<Name>Provider-doc.ts ----------------------------------------------
 
 const ProviderDoc = cmp(function ProviderDoc(props: any) {
   const { provider } = props
@@ -1008,4 +1536,7 @@ if ('undefined' !== typeof module) {
 export {
   Main,
   recordKey,
+  rkOnCreate,
+  cmdActions,
+  entityActionList,
 }

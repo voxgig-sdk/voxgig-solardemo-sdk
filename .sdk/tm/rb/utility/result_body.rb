@@ -1,5 +1,5 @@
-# Solardemo SDK utility: result_body
-module SolardemoUtilities
+# VoxgigSolardemo SDK utility: result_body
+module VoxgigSolardemoUtilities
   ResultBody = ->(ctx) {
     response = ctx.response
     result = ctx.result

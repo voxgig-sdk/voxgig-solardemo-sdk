@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
 // Network-behaviour simulation over the offline mock transport. The `test`
 // feature accepts an optional `net` config so unit tests can exercise slow,
@@ -11,19 +11,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static voxgig.solardemosdk.sdktest.FeatureHarness.fhMap;
+import static voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhMap;
 
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import voxgig.solardemosdk.core.SolardemoSDK;
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
 
 public class NetsimTest {
 
   @Test
   public void offlineSimulationFailsRequest() {
-    SolardemoSDK client = SolardemoSDK.testSDK(fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(fhMap(
         "net", fhMap("offline", true)), null);
     Map<String, Object> res = client.direct(fhMap("path", "/ping"));
     assertEquals(false, res.get("ok"), "offline network must fail the call: " + res);
@@ -31,7 +31,7 @@ public class NetsimTest {
 
   @Test
   public void failstatusSimulationSurfacesStatus() {
-    SolardemoSDK client = SolardemoSDK.testSDK(fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(fhMap(
         "net", fhMap("failTimes", 1, "failStatus", 503)), null);
     Map<String, Object> res = client.direct(fhMap("path", "/ping"));
     assertEquals(false, res.get("ok"), "expected failed call: " + res);
@@ -41,7 +41,7 @@ public class NetsimTest {
   @Test
   public void latencySimulationDelaysRequest() {
     int delay = 60;
-    SolardemoSDK client = SolardemoSDK.testSDK(fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(fhMap(
         "net", fhMap("latency", delay)), null);
     long start = System.currentTimeMillis();
     client.direct(fhMap("path", "/ping"));
@@ -53,7 +53,7 @@ public class NetsimTest {
 
   @Test
   public void plainTestSdkWorksWithoutNet() {
-    SolardemoSDK client = SolardemoSDK.testSDK();
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK();
     assertNotNull(client, "expected a client");
   }
 }

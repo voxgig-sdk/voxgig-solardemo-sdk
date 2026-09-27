@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_params
+# VoxgigSolardemo SDK utility: prepare_params
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs

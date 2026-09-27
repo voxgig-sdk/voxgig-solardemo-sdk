@@ -1,4 +1,4 @@
-# Solardemo SDK feature test
+# VoxgigSolardemo SDK feature test
 #
 # Behavioural tests for the enterprise features shipped with this SDK.
 # Each block runs only when its feature is present (see has_feature?),
@@ -10,12 +10,12 @@
 
 require "minitest/autorun"
 require "json"
-require_relative "../Solardemo_sdk"
+require_relative "../VoxgigSolardemo_sdk"
 
-module SolardemoFeatureHarness
+module VoxgigSolardemoFeatureHarness
   # True when this SDK was generated with the named feature.
   def self.has_feature?(name)
-    f = SolardemoConfig.shared_config["feature"]
+    f = VoxgigSolardemoConfig.shared_config["feature"]
     f.is_a?(Hash) && !f[name].nil?
   end
 
@@ -123,8 +123,8 @@ module SolardemoFeatureHarness
       @base = base
       @headers = headers
 
-      @utility = SolardemoUtility.new
-      @utility.fetcher = server || SolardemoFeatureHarness.default_server
+      @utility = VoxgigSolardemoUtility.new
+      @utility.fetcher = server || VoxgigSolardemoFeatureHarness.default_server
 
       @client = FakeClient.new({ "base" => base, "headers" => headers, "feature" => {} })
 
@@ -138,8 +138,8 @@ module SolardemoFeatureHarness
       # in this SDK). Features self-gate on options["active"].
       features.each do |fspec|
         name = fspec["name"]
-        next unless SolardemoFeatureHarness.has_feature?(name)
-        f = SolardemoFeatures.make_feature(name)
+        next unless VoxgigSolardemoFeatureHarness.has_feature?(name)
+        f = VoxgigSolardemoFeatures.make_feature(name)
         fopts = { "active" => true }.merge(fspec["options"] || {})
         @client.options["feature"][name] = fopts
         f.init(@rootctx, fopts)
@@ -167,7 +167,7 @@ module SolardemoFeatureHarness
     # entity op fragment: hook, short-circuit, make*, hook, ...).
     def op(opname: "load", entity: "widget", method: nil, path: nil, query: nil,
            headers: nil, body: nil, ctrl: nil)
-      method ||= SolardemoFeatureHarness.default_method(opname)
+      method ||= VoxgigSolardemoFeatureHarness.default_method(opname)
 
       ctx = @utility.make_context.call({
         "opname" => opname,
@@ -179,10 +179,10 @@ module SolardemoFeatureHarness
 
       begin
         fire(ctx, "PrePoint")
-        raise ctx.out["point"] if ctx.out["point"].is_a?(SolardemoError)
+        raise ctx.out["point"] if ctx.out["point"].is_a?(VoxgigSolardemoError)
 
         fire(ctx, "PreSpec")
-        ctx.spec = SolardemoSpec.new({
+        ctx.spec = VoxgigSolardemoSpec.new({
           "method" => method,
           "base" => @base,
           "path" => path || "/#{entity}",
@@ -205,7 +205,7 @@ module SolardemoFeatureHarness
         }
         fetched, fetch_err = @utility.fetcher.call(ctx, url, fetchdef)
 
-        ctx.response = fetched.is_a?(Hash) ? SolardemoResponse.new(fetched) : nil
+        ctx.response = fetched.is_a?(Hash) ? VoxgigSolardemoResponse.new(fetched) : nil
         fire(ctx, "PreResponse")
 
         populate_result(ctx, fetched, fetch_err)
@@ -217,7 +217,7 @@ module SolardemoFeatureHarness
         end
         err = (ctx.result && ctx.result.err) || ctx.make_error("op_failed", "operation failed")
         raise err
-      rescue SolardemoError => err
+      rescue VoxgigSolardemoError => err
         ctx.ctrl.err = err
         fire(ctx, "PreUnexpected")
         { "ok" => false, "error" => err, "result" => ctx.result, "ctx" => ctx }
@@ -240,7 +240,7 @@ module SolardemoFeatureHarness
     end
 
     def populate_result(ctx, fetched, fetch_err)
-      result = SolardemoResult.new({})
+      result = VoxgigSolardemoResult.new({})
       ctx.result = result
 
       if fetch_err
@@ -274,7 +274,7 @@ end
 
 
 class FeatureTest < Minitest::Test
-  H = SolardemoFeatureHarness
+  H = VoxgigSolardemoFeatureHarness
 
   def harness(features, server: nil, base: "http://api.test", headers: {})
     H::Harness.new(features, server: server, base: base, headers: headers)
@@ -412,7 +412,7 @@ class FeatureTest < Minitest::Test
     skip_unless_feature("retry")
     clock = H::Clock.new
     server, calls = H.recording_server { |n, _fd|
-      n < 3 ? [nil, SolardemoError.new("boom", "boom")] : [H.make_response(200, { "ok" => true }), nil]
+      n < 3 ? [nil, VoxgigSolardemoError.new("boom", "boom")] : [H.make_response(200, { "ok" => true }), nil]
     }
     h = harness([fspec("retry",
       "retries" => 2, "minDelay" => 1, "jitter" => false, "sleep" => clock.sleeper)],
@@ -425,7 +425,7 @@ class FeatureTest < Minitest::Test
   def test_retry_exhausted_transport_error_surfaces
     skip_unless_feature("retry")
     clock = H::Clock.new
-    server, calls = H.recording_server { |_n, _fd| [nil, SolardemoError.new("boom", "boom")] }
+    server, calls = H.recording_server { |_n, _fd| [nil, VoxgigSolardemoError.new("boom", "boom")] }
     h = harness([fspec("retry",
       "retries" => 2, "minDelay" => 1, "jitter" => false, "sleep" => clock.sleeper)],
       server: server)
@@ -909,6 +909,44 @@ class FeatureTest < Minitest::Test
     assert_match(/[?&]cursor=xyz(&|\z)/, calls[0]["url"])
     assert_equal "abc", res["result"].paging["cursor"]
     assert_equal true, res["result"].paging["hasMore"]
+  end
+
+  def test_paging_snake_case_signals_and_ctrl_write_back
+    skip_unless_feature("paging")
+    server, calls = H.recording_server { |n, _fd|
+      body = 1 == n ? { "has_more" => true, "next_cursor" => "c2" } : { "has_more" => false }
+      [H.make_response(200, body), nil]
+    }
+    h = harness([fspec("paging")], server: server)
+    pg = {}
+    ctrl = { "paging" => pg }
+    res = h.op(opname: "list", path: "/w", ctrl: ctrl)
+    assert_equal true, res["result"].paging["hasMore"]
+    assert_equal "c2", res["result"].paging["cursor"]
+    assert_equal "c2", pg["cursor"], "record written back into ctrl"
+    assert_equal true, pg["hasMore"]
+    h.op(opname: "list", path: "/w", ctrl: ctrl)
+    assert_match(/[?&]cursor=c2(&|\z)/, calls[1]["url"])
+    assert_equal false, pg["hasMore"]
+    assert_nil pg["cursor"]
+  end
+
+  def test_paging_continues_from_written_back_next_page
+    skip_unless_feature("paging")
+    server, calls = H.recording_server { |n, _fd|
+      body = 1 == n ? { "next_page" => 2 } : {}
+      [H.make_response(200, body, "x-page" => n.to_s), nil]
+    }
+    h = harness([fspec("paging")], server: server)
+    pg = {}
+    ctrl = { "paging" => pg }
+    h.op(opname: "list", path: "/w", ctrl: ctrl)
+    assert_equal 1, pg["page"]
+    assert_equal 2, pg["nextPage"]
+    assert_equal true, pg["hasMore"]
+    h.op(opname: "list", path: "/w", ctrl: ctrl)
+    assert_match(/[?&]page=2(&|\z)/, calls[1]["url"])
+    assert_equal false, pg["hasMore"]
   end
 
   def test_paging_non_list_op_is_not_paged

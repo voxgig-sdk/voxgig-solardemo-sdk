@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 import java.util.function.Supplier
-import voxgig.solardemosdk.core.{Context, FetcherFn, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, FetcherFn, SdkClient}
 
 // Response caching for safe (read) requests. Wraps the active transport and
 // serves a fresh cached snapshot instead of hitting the network when the

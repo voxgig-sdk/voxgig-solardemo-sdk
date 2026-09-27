@@ -5,6 +5,9 @@ import {
   cmp,
   each,
   isAuthActive,
+  isHttpBasicAuth,
+  resolveAuthIn,
+  resolveAuthName,
   resolveAuthPrefix,
   targetFeatures,
   configDefinition,
@@ -38,15 +41,40 @@ const Config = cmp(async function Config(props: any) {
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   const { def: configDef } = configDefinition(model, target.name)
-  // Gated by the applicability tags, so this target never imports or
-  // registers a feature it has no source for. One rule, one place:
-  // helpers/applicability.
   const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
+  const featurePlugins: Record<string, string[]> = {}
+  each(feature, (f: any) => {
+    const syms: string[] = []
+    each(f.plugin, (plugin: any) => {
+      // Filter on `active` HERE rather than trusting the feature object to
+      // arrive filtered (the trap Config_ts documents): naming a symbol the
+      // trim just deleted is a build break, not a warning.
+      if (false === plugin.active || null == plugin.active) return
+      for (const sym of Object.keys(plugin.def?.scala || {})) {
+        syms.push(sym)
+      }
+    })
+    if (0 < syms.length) {
+      featurePlugins[f.name] = syms.sort()
+    }
+  })
+
+  const featurePluginsBlock =
+    Object.keys(featurePlugins).sort().map((fname: string) =>
+      `    case "${fname}" => List(${featurePlugins[fname].join(', ')})\n`).join('')
+
   const authActive = isAuthActive(model)
   const authPrefix = resolveAuthPrefix(model)
+  const authBasic = isHttpBasicAuth(model)
+  // WHERE the credential goes and under what name, as apidef resolved them
+  // from the spec's security scheme. Emitted below only when they DIFFER
+  // from the defaults, so every header-based SDK's Config.scala stays
+  // byte-identical.
+  const authIn = resolveAuthIn(model)
+  const authName = resolveAuthName(model)
 
   let baseUrl = ''
   try { baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`) } catch (_e) { }
@@ -65,17 +93,15 @@ const Config = cmp(async function Config(props: any) {
     base: baseUrl,
   }
   if (authActive) {
-    options.auth = { prefix: authPrefix }
+    const auth: Record<string, any> = { prefix: authPrefix }
+    if (authBasic) auth.basic = true
+    if ('header' !== authIn) auth.in = authIn
+    if ('Authorization' !== authName) auth.name = authName
+    options.auth = auth
   }
   options.headers = headers
   options.entity = optionsEntity
 
-  // configDefinition's `def.entity` verbatim, NOT rebuilt here. This reduce
-  // was one of fourteen copies of that function's entityDefs loop, and when
-  // configDefinition started reconstructing a point's `parts` from apidef's
-  // segment vector (its ADR-003), only the copies that read `configDef` got
-  // it — this target's literal config emitted paths with no parts at all
-  // while its data config had them. One rule, one place.
   const entityConfig = configDef.entity
 
   const config = {
@@ -113,6 +139,13 @@ object Config {
   private lazy val sharedConfigVal: JMap[String, Object] = makeConfig()
 
   def sharedConfig(): JMap[String, Object] = sharedConfigVal
+
+  // The plugin definitions the model selected per feature, as List[Any] so a
+  // feature consumes them without core naming a vendored type. Empty when no
+  // active feature declares active plugin groups for this target.
+  def featurePlugins(name: String): List[Any] = name match {
+${featurePluginsBlock}    case _ => Nil
+  }
 
   def makeFeature(name: String): Feature = name match {
 `)

@@ -1,4 +1,4 @@
-# Solardemo SDK test feature
+# VoxgigSolardemo SDK test feature
 
 use strict;
 use warnings;
@@ -13,13 +13,13 @@ require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 require(Cwd::abs_path("$__dir/base_feature.pm"));
 
-package SolardemoTestFeature;
+package VoxgigSolardemoTestFeature;
 
-our @ISA = ('SolardemoBaseFeature');
+our @ISA = ('VoxgigSolardemoBaseFeature');
 
 sub new {
   my ($class) = @_;
-  my $self = SolardemoBaseFeature::new($class);
+  my $self = VoxgigSolardemoBaseFeature::new($class);
   $self->{version} = '0.0.1';
   $self->{name} = 'test';
   $self->{active} = 1;
@@ -34,7 +34,7 @@ sub init {
   $self->{client} = $ctx->{client};
   $self->{options} = $options;
 
-  my $entity = SolardemoHelpers::gp($options, 'entity');
+  my $entity = VoxgigSolardemoHelpers::gp($options, 'entity');
   $entity = {} unless Voxgig::Struct::ismap($entity);
 
   $self->{client}{mode} = 'test';
@@ -63,13 +63,15 @@ sub init {
     my ($fctx, $data) = @_;
     return $data unless defined $data;
     return $data unless defined $fctx && defined $fctx->{point};
-    my $tm = SolardemoHelpers::gp($fctx->{point}, 'transform');
-    my $spec = SolardemoHelpers::gp($tm, 'res');
+    my $tm = VoxgigSolardemoHelpers::gp($fctx->{point}, 'transform');
+    my $spec = VoxgigSolardemoHelpers::gp($tm, 'res');
     return $data unless defined $spec && !ref($spec);
-    # Exactly `body.<key>`; a deeper path is not an envelope this mock can
-    # synthesise, so it is left alone rather than guessed at.
-    return $data unless $spec =~ /^`body\.([^`.]+)`$/;
-    return { $1 => $data };
+    # Rebuild whatever nesting the transform unwraps. Multi-segment on purpose:
+    # GraphQL ops unwrap `body.data.<field>`, not just one envelope property.
+    return $data unless $spec =~ /^`body\.(.+)`$/;
+    my $out = $data;
+    $out = { $_ => $out } for reverse split /\./, $1, -1;
+    return $out;
   };
 
   my $respond = sub {
@@ -91,7 +93,7 @@ sub init {
     my ($fctx, $_fullurl, $_fetchdef) = @_;
 
     my $op = $fctx->{op};
-    my $entmap = SolardemoHelpers::gp($entity, $op->{entity});
+    my $entmap = VoxgigSolardemoHelpers::gp($entity, $op->{entity});
     $entmap = {} unless Voxgig::Struct::ismap($entmap);
 
     # For single-entity ops (load, remove) with an empty explicit match, fall
@@ -104,7 +106,7 @@ sub init {
         if Voxgig::Struct::ismap($explicit) && !Voxgig::Struct::isempty($explicit);
       for my $src ($fctx->{match}, $fctx->{data}) {
         next unless defined $src;
-        my $v = SolardemoHelpers::gp($src, 'id');
+        my $v = VoxgigSolardemoHelpers::gp($src, 'id');
         return { 'id' => $v } if defined $v && "$v" ne '__UNDEFINED__';
       }
       return {};
@@ -113,9 +115,9 @@ sub init {
     if ('load' eq $op->{name}) {
       my $args = $test_self->build_args($fctx, $op, $resolve_match->($fctx->{reqmatch}));
       my $found = Voxgig::Struct::select($entmap, $args);
-      my $ent = SolardemoHelpers::ge($found, 0);
+      my $ent = VoxgigSolardemoHelpers::ge($found, 0);
       return $respond->($fctx, 404, undef, { 'statusText' => 'Not found' })
-        unless SolardemoHelpers::rb_truthy($ent);
+        unless VoxgigSolardemoHelpers::rb_truthy($ent);
       Voxgig::Struct::delprop($ent, '$KEY');
       my $out = Voxgig::Struct::clone($ent);
       return $respond->($fctx, 200, $out, undef);
@@ -142,7 +144,7 @@ sub init {
       if (Voxgig::Struct::ismap($fctx->{reqdata})) {
         $update_match->{id} = $fctx->{reqdata}{id} if exists $fctx->{reqdata}{id};
         if ($op->{alias}) {
-          my $alias_id = SolardemoHelpers::gp($op->{alias}, 'id');
+          my $alias_id = VoxgigSolardemoHelpers::gp($op->{alias}, 'id');
           if (defined $alias_id && exists $fctx->{reqdata}{$alias_id}) {
             $update_match->{$alias_id} = $fctx->{reqdata}{$alias_id};
           }
@@ -151,19 +153,12 @@ sub init {
       $update_match = $resolve_match->({}) unless keys %$update_match;
       my $args = $test_self->build_args($fctx, $op, $update_match);
       my $found = Voxgig::Struct::select($entmap, $args);
-      my $ent = SolardemoHelpers::ge($found, 0);
-      if (!defined $ent && Voxgig::Struct::ismap($entmap) && keys %$entmap) {
-        for my $k (sort keys %$entmap) {
-          if (Voxgig::Struct::ismap($entmap->{$k})) {
-            $ent = $entmap->{$k};
-            last;
-          }
-        }
-      }
+      my $ent = VoxgigSolardemoHelpers::ge($found, 0);
+      # update miss: 404, never another record
       return $respond->($fctx, 404, undef, { 'statusText' => 'Not found' })
-        unless SolardemoHelpers::rb_truthy($ent);
-      if (Voxgig::Struct::ismap($ent) && $fctx->{reqdata}) {
-        $ent->{$_} = $fctx->{reqdata}{$_} for keys %{ $fctx->{reqdata} };
+        unless VoxgigSolardemoHelpers::rb_truthy($ent);
+      if (Voxgig::Struct::ismap($ent) && Voxgig::Struct::ismap($fctx->{reqdata})) {
+        Voxgig::Struct::merge([$ent, $fctx->{reqdata}]);
       }
       Voxgig::Struct::delprop($ent, '$KEY');
       my $out = Voxgig::Struct::clone($ent);
@@ -172,11 +167,11 @@ sub init {
     elsif ('remove' eq $op->{name}) {
       my $args = $test_self->build_args($fctx, $op, $resolve_match->($fctx->{reqmatch}));
       my $found = Voxgig::Struct::select($entmap, $args);
-      my $ent = SolardemoHelpers::ge($found, 0);
+      my $ent = VoxgigSolardemoHelpers::ge($found, 0);
       # Remove only the first matched entity. If nothing matches,
       # succeed as a no-op rather than erroring.
       if (Voxgig::Struct::ismap($ent)) {
-        my $id = SolardemoHelpers::gp($ent, 'id');
+        my $id = VoxgigSolardemoHelpers::gp($ent, 'id');
         Voxgig::Struct::delprop($entmap, $id);
       }
       return $respond->($fctx, 200, undef, undef);
@@ -207,7 +202,7 @@ sub init {
   # per test via `SDK->test({ net => { latency => ..., ... } })`. When
   # "net" is absent the mock behaves exactly as before (no wrapping), so
   # existing generated tests are unaffected.
-  my $net = SolardemoHelpers::gp($options, 'net');
+  my $net = VoxgigSolardemoHelpers::gp($options, 'net');
   $net = undef unless Voxgig::Struct::ismap($net);
   $ctx->{utility}{fetcher} = defined $net
     ? $self->make_netsim($net, $test_fetcher)
@@ -242,7 +237,7 @@ sub make_netsim {
       $net->{sleep}->($ms);
     }
     else {
-      SolardemoHelpers::sleep_ms($ms);
+      VoxgigSolardemoHelpers::sleep_ms($ms);
     }
   };
 
@@ -259,7 +254,7 @@ sub make_netsim {
     $test_self->{netcalls} += 1;
     my $call = $test_self->{netcalls};
 
-    if (SolardemoHelpers::is_true($net->{offline})) {
+    if (VoxgigSolardemoHelpers::is_true($net->{offline})) {
       $do_sleep->($pick_latency->());
       return (undef, $fctx->make_error('netsim_offline',
         "Simulated network offline (URL was: \"$fullurl\")"));
@@ -288,18 +283,55 @@ sub make_netsim {
   };
 }
 
+sub _point_terminal {
+  my ($p) = @_;
+  my $parts = VoxgigSolardemoHelpers::gp($p, 'parts');
+  return 0 unless Voxgig::Struct::islist($parts) && @$parts;
+  my $last = $parts->[-1];
+  return (defined $last && !ref $last && 0 == index($last, '{')) ? 1 : 0;
+}
+
+sub _point_depth {
+  my ($p) = @_;
+  my $parts = VoxgigSolardemoHelpers::gp($p, 'parts');
+  return Voxgig::Struct::islist($parts) ? scalar @$parts : 0;
+}
+
+# The entity's own endpoint: a terminal `{param}` marks a record route, and
+# among equals the shallower path wins (the same rule as make_point).
+sub _pick_point {
+  my ($points) = @_;
+  return undef unless Voxgig::Struct::islist($points) && @$points;
+  my $point = $points->[0];
+  for my $cand (@$points[1 .. $#$points]) {
+    if (_point_terminal($cand) != _point_terminal($point)) {
+      $point = $cand if _point_terminal($cand);
+    }
+    elsif (_point_depth($cand) < _point_depth($point)) {
+      $point = $cand;
+    }
+  }
+  return $point;
+}
+
 sub build_args {
   my ($self, $ctx, $op, $args) = @_;
   my $opname = $op->{name};
   my $entname = $ctx->{entity}->get_name;
-  my $points = SolardemoHelpers::gpath($ctx->{config},
+  my $points = VoxgigSolardemoHelpers::gpath($ctx->{config},
     "entity.$entname.op.$opname.points");
-  my $point = SolardemoHelpers::ge($points, -1);
+  my $point = _pick_point($points);
 
-  my $params_path = SolardemoHelpers::gpath($point, 'args.params');
-  my $reqd_params = Voxgig::Struct::select($params_path,
-    { 'reqd' => Voxgig::Struct::JTRUE() });
-  my $reqd = Voxgig::Struct::transform($reqd_params, ['`$EACH`', '', '`$KEY.name`']);
+  # Path AND query: a path-only read misses a query-addressed record
+  # (e.g. GET /result?trace_id=), which has no path param at all.
+  my $reqd = [];
+  for my $kind ('params', 'query') {
+    my $args_path = VoxgigSolardemoHelpers::gpath($point, "args.$kind");
+    my $reqd_args = Voxgig::Struct::select($args_path,
+      { 'reqd' => Voxgig::Struct::JTRUE() });
+    my $names = Voxgig::Struct::transform($reqd_args, ['`$EACH`', '', '`$KEY.name`']);
+    push @$reqd, @$names if Voxgig::Struct::islist($names);
+  }
 
   my $qand = [];
   my $q = { '`$AND`' => $qand };
@@ -314,7 +346,7 @@ sub build_args {
 
         if ($is_id || $is_reqd) {
           my $v = $ctx->{utility}{param}->($ctx, $key);
-          my $ka = $op->{alias} ? SolardemoHelpers::gp($op->{alias}, $key) : undef;
+          my $ka = $op->{alias} ? VoxgigSolardemoHelpers::gp($op->{alias}, $key) : undef;
 
           my $qor = [{ $key => $v }];
           push @$qor, { $ka => $v } if defined $ka && !ref $ka;

@@ -1,4 +1,4 @@
-# Solardemo SDK pipeline test
+# VoxgigSolardemo SDK pipeline test
 #
 # Direct unit tests for the operation-pipeline utilities. The generated entity
 # tests exercise the happy path; these drive the error and edge branches
@@ -9,7 +9,7 @@
 
 # A fake entity module for the make_result list-wrapping test: make/1 spawns a
 # record carrying the shared collector, data_set/2 pushes each entry onto it.
-defmodule Solardemo.PipelineFakeEntity do
+defmodule VoxgigSolardemo.PipelineFakeEntity do
   alias Voxgig.Struct, as: S
 
   def make(entity), do: S.jm(["_collector", S.getprop(entity, "_collector")])
@@ -21,17 +21,17 @@ defmodule Solardemo.PipelineFakeEntity do
   end
 end
 
-defmodule Solardemo.PipelineTest do
+defmodule VoxgigSolardemo.PipelineTest do
   use ExUnit.Case
 
   alias Voxgig.Struct, as: S
-  alias Solardemo.Helpers, as: H
-  alias Solardemo.{Utility, Context, Spec, Result, Response}
+  alias VoxgigSolardemo.Helpers, as: H
+  alias VoxgigSolardemo.{Utility, Context, Spec, Result, Response}
 
-  defp client, do: Solardemo.test()
+  defp client, do: VoxgigSolardemo.test()
 
   defp make_ctx(client, opname \\ "load") do
-    Context.new(S.jm(["opname", opname, "ctrl", S.jm([])]), Solardemo.get_root_ctx(client))
+    Context.new(S.jm(["opname", opname, "ctrl", S.jm([])]), VoxgigSolardemo.get_root_ctx(client))
   end
 
   # Transport-shaped response node with a re-readable body + lowercase headers.
@@ -61,7 +61,7 @@ defmodule Solardemo.PipelineTest do
 
   # Override the client utility's fetcher (or another member) in place.
   defp util_override(c, key, fun) do
-    S.setprop(Solardemo.get_utility(c), key, fun)
+    S.setprop(VoxgigSolardemo.get_utility(c), key, fun)
     c
   end
 
@@ -72,7 +72,7 @@ defmodule Solardemo.PipelineTest do
   # explicit array preserves the developer order, and a map without test is
   # deterministic (names sorted).
   defp resolve_order(feature) do
-    ctx = Context.new(S.jm(["opname", "load", "ctrl", S.jm([])]), Solardemo.get_root_ctx(client()))
+    ctx = Context.new(S.jm(["opname", "load", "ctrl", S.jm([])]), VoxgigSolardemo.get_root_ctx(client()))
     S.setprop(ctx, "options", S.jm(["feature", feature]))
     S.setprop(ctx, "config", S.jm(["options", S.jm([])]))
     Utility.make_options(ctx)
@@ -248,9 +248,9 @@ defmodule Solardemo.PipelineTest do
 
   defp list_ctx(c, collector) do
     entity =
-      S.jm(["_module", Solardemo.PipelineFakeEntity, "_name", "widget", "_collector", collector])
+      S.jm(["_module", VoxgigSolardemo.PipelineFakeEntity, "_name", "widget", "_collector", collector])
 
-    Context.new(S.jm(["opname", "list", "entity", entity, "ctrl", S.jm([])]), Solardemo.get_root_ctx(c))
+    Context.new(S.jm(["opname", "list", "entity", entity, "ctrl", S.jm([])]), VoxgigSolardemo.get_root_ctx(c))
   end
 
   test "make_result list op wraps resdata into entities" do
@@ -297,7 +297,7 @@ defmodule Solardemo.PipelineTest do
   end
 
   test "make_request a transport error tuple lands on the response" do
-    boom = Solardemo.Error.new("boom", "boom")
+    boom = VoxgigSolardemo.Error.new("boom", "boom")
     c = util_override(client(), "fetcher", fn _c, _u, _f -> {nil, boom} end)
     ctx = make_ctx(c)
     S.setprop(ctx, "spec", request_spec())
@@ -343,7 +343,7 @@ defmodule Solardemo.PipelineTest do
   end
 
   test "make_request a fetchdef error surfaces as a response error" do
-    c = util_override(client(), "make_fetch_def", fn _ctx -> {nil, Solardemo.Error.new("fetchdef_boom", "boom")} end)
+    c = util_override(client(), "make_fetch_def", fn _ctx -> {nil, VoxgigSolardemo.Error.new("fetchdef_boom", "boom")} end)
     ctx = make_ctx(c)
     S.setprop(ctx, "spec", request_spec())
     {response, err} = Utility.make_request(ctx)
@@ -393,7 +393,7 @@ defmodule Solardemo.PipelineTest do
   test "done raises the error when not ok" do
     ctx = make_ctx(client())
     S.setprop(ctx, "result", Result.new(H.deep(%{"ok" => false})))
-    assert_raise Solardemo.Error, fn -> Utility.done(ctx) end
+    assert_raise VoxgigSolardemo.Error, fn -> Utility.done(ctx) end
   end
 
   test "done cleans ctrl explain on success" do
@@ -423,7 +423,7 @@ defmodule Solardemo.PipelineTest do
     ctx = make_ctx(client())
 
     err =
-      assert_raise Solardemo.Error, fn ->
+      assert_raise VoxgigSolardemo.Error, fn ->
         Utility.make_error(ctx, Context.make_error(ctx, "rbac_denied", "denied"))
       end
 
@@ -436,15 +436,15 @@ defmodule Solardemo.PipelineTest do
     c = client()
     ctx = make_ctx(c)
     S.setprop(c, "features", [])
-    a = Solardemo.Feature.new()
-    b = Solardemo.Feature.new()
+    a = VoxgigSolardemo.Feature.new()
+    b = VoxgigSolardemo.Feature.new()
     Utility.feature_add(ctx, a)
     Utility.feature_add(ctx, b)
     assert S.getprop(c, "features") == [a, b]
   end
 
   defp named_feature(name) do
-    f = Solardemo.Feature.new()
+    f = VoxgigSolardemo.Feature.new()
     S.setprop(f, "name", name)
     f
   end
@@ -488,7 +488,7 @@ defmodule Solardemo.PipelineTest do
 
     ctx =
       Context.new(
-        S.jm(["opname", "load", "client", fakeclient, "utility", Solardemo.get_utility(c), "ctrl", S.jm([])]),
+        S.jm(["opname", "load", "client", fakeclient, "utility", VoxgigSolardemo.get_utility(c), "ctrl", S.jm([])]),
         nil
       )
 

@@ -1,14 +1,14 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Result;
-import voxgig.solardemosdk.core.Spec;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Result;
+import voxgig.voxgigsolardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 final class MakeUrl {
 

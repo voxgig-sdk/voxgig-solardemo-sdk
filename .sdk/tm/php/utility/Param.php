@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: param
+// VoxgigSolardemo SDK utility: param
 
 require_once __DIR__ . '/../core/Helpers.php';
 
-class SolardemoParam
+class VoxgigSolardemoParam
 {
-    public static function call(SolardemoContext $ctx, mixed $paramdef): mixed
+    public static function call(VoxgigSolardemoContext $ctx, mixed $paramdef): mixed
     {
         $point = $ctx->point;
         $spec = $ctx->spec;
@@ -26,7 +26,7 @@ class SolardemoParam
 
         $akey = '';
         if ($point) {
-            $alias_map = SolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($point, 'alias'));
+            $alias_map = VoxgigSolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($point, 'alias'));
             if ($alias_map) {
                 $ak = \Voxgig\Struct\Struct::getprop($alias_map, $key);
                 if (is_string($ak)) {

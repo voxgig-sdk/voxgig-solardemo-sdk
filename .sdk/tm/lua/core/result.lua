@@ -1,4 +1,4 @@
--- Solardemo SDK result
+-- VoxgigSolardemo SDK result
 
 local vs = require("utility.struct.struct")
 

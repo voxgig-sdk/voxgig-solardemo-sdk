@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{Map => JMap}
-import voxgig.solardemosdk.core.{Context, FetcherFn, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, FetcherFn, SdkClient}
 
 // Client-side rate limiting via a token bucket.
 class RatelimitFeature extends BaseFeature("ratelimit", "0.0.1", true) {

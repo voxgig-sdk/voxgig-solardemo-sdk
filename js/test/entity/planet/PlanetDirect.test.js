@@ -1,12 +1,12 @@
 
 const envlocal = __dirname + '/../../../.env.local'
-require('dotenv').config({ quiet: true, path: [envlocal] })
+require('../../utility').loadEnvLocal(envlocal)
 
 const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert')
 
 
-const { SolardemoSDK } = require('../../..')
+const { VoxgigSolardemoSDK } = require('../../..')
 
 const {
   envOverride,
@@ -18,11 +18,11 @@ const {
 describe('PlanetDirect', async () => {
 
   // Per-test live pacing. Delay is read from sdk-test-control.json's
-  // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
-  afterEach(liveDelay('SOLARDEMO_TEST_LIVE'))
+  // `test.live.delayMs`; only sleeps when VOXGIG_SOLARDEMO_TEST_LIVE=TRUE.
+  afterEach(liveDelay('VOXGIG_SOLARDEMO_TEST_LIVE'))
 
   test('direct-exists', async () => {
-    const sdk = new SolardemoSDK({
+    const sdk = new VoxgigSolardemoSDK({
       // Concrete base: a live construction must satisfy any server
       // variables a templated base URL declares; overriding base with a
       // literal (as the direct flow tests do) sidesteps the requirement.
@@ -34,7 +34,8 @@ describe('PlanetDirect', async () => {
   })
 
 
-  test('direct-load-planet', async () => {
+  test('direct-load-planet', async (t) => {
+    if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup({ id: 'direct01' })
     const { client, calls } = setup
 
@@ -50,7 +51,7 @@ describe('PlanetDirect', async () => {
       assert(listResult.ok === true)
       const listData = listResult.data
       if (!Array.isArray(listData) || listData.length === 0) {
-        return // skip: no entities to load in live mode
+        throw new Error('Live load blocked: discovery returned no usable entities')
       }
       params.id = listData[0].id
 
@@ -65,7 +66,7 @@ describe('PlanetDirect', async () => {
     })
 
     assert(result.ok === true)
-    assert(result.status === 200)
+    assert(setup.live ? result.status >= 200 && result.status < 300 : result.status === 200)
     assert(null != result.data)
 
     if (!setup.live) {
@@ -76,7 +77,8 @@ describe('PlanetDirect', async () => {
     }
   })
 
-  test('direct-list-planet', async () => {
+  test('direct-list-planet', async (t) => {
+    if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup([{ id: 'direct01' }, { id: 'direct02' }])
     const { client, calls } = setup
 
@@ -89,7 +91,7 @@ describe('PlanetDirect', async () => {
     })
 
     assert(result.ok === true)
-    assert(result.status === 200)
+    assert(setup.live ? result.status >= 200 && result.status < 300 : result.status === 200)
     assert(Array.isArray(result.data))
 
     if (!setup.live) {
@@ -103,24 +105,25 @@ describe('PlanetDirect', async () => {
 
 
 
+function liveScenariosActive() { return false && process.env.VOXGIG_SOLARDEMO_TEST_LIVE === 'TRUE' }
 function directSetup(mockres) {
   const calls = []
 
   const env = envOverride({
-    'SOLARDEMO_TEST_PLANET_ENTID': {},
-    'SOLARDEMO_TEST_LIVE': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_PLANET_ENTID': {},
+    'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
   })
 
-  const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE
+  const live = 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_LIVE
 
   if (live) {
     // Merged so the generated fields win: sdk-test-control.json's
     // test.client.options adds to the live client, it does not redirect it.
-    const client = new SolardemoSDK(
+    const client = new VoxgigSolardemoSDK(
       Object.assign({}, liveClientOptions(), {
       }))
 
-    let idmap = env['SOLARDEMO_TEST_PLANET_ENTID']
+    let idmap = env['VOXGIG_SOLARDEMO_TEST_PLANET_ENTID']
     if ('string' === typeof idmap && idmap.startsWith('{')) {
       idmap = JSON.parse(idmap)
     }
@@ -138,7 +141,7 @@ function directSetup(mockres) {
     }
   }
 
-  const client = new SolardemoSDK({
+  const client = new VoxgigSolardemoSDK({
     base: 'http://localhost:8080',
     system: { fetch: mockFetch },
   })

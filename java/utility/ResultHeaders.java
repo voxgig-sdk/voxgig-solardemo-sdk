@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.Response;
-import voxgig.solardemosdk.core.Result;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.Response;
+import voxgig.voxgigsolardemosdk.core.Result;
 
 final class ResultHeaders {
 

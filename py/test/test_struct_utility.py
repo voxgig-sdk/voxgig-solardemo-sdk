@@ -15,9 +15,9 @@ from test.omni import (
     UNDEFMARK,
 )
 
-from solardemo_sdk import SolardemoSDK
-from solardemo_sdk.utility.voxgig_struct import voxgig_struct as vs
-from solardemo_sdk.utility.voxgig_struct.voxgig_struct import (
+from voxgigsolardemo_sdk import VoxgigSolardemoSDK
+from voxgigsolardemo_sdk.utility.voxgig_struct import voxgig_struct as vs
+from voxgigsolardemo_sdk.utility.voxgig_struct.voxgig_struct import (
     T_noval, T_scalar, T_function, T_symbol, T_any, T_node, T_instance, T_null,
 )
 
@@ -26,7 +26,7 @@ STRUCT_TEST_JSON = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), '../../.sdk/test/test.json')
 
 # The struct corpus drives the LIVE SDK's struct utilities, as ts does.
-runner = makeRunner(STRUCT_TEST_JSON, SolardemoSDK.test(None, None))
+runner = makeRunner(STRUCT_TEST_JSON, VoxgigSolardemoSDK.test(None, None))
 runparts = runner('struct')
 
 spec = runparts["spec"]
@@ -352,7 +352,7 @@ class TestStructUtility(unittest.TestCase):
 
 
     def test_minor_joinurl(self):
-        from solardemo_sdk.utility.voxgig_struct.voxgig_struct import join as struct_join
+        from voxgigsolardemo_sdk.utility.voxgig_struct.voxgig_struct import join as struct_join
         runsetflags(minorSpec["join"], {"null": False},
             lambda vin: struct_join(vin.get("val"), vin.get("sep"), vin.get("url")))
 

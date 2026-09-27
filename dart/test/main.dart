@@ -1,4 +1,4 @@
-// Solardemo SDK test suite entry. GENERATED — do not edit.
+// VoxgigSolardemo SDK test suite entry. GENERATED — do not edit.
 
 import 'dart:io';
 
@@ -13,6 +13,7 @@ import 'feature_test.dart' as feature_test;
 import 'netsim_test.dart' as netsim_test;
 import 'custom_test.dart' as custom_test;
 import 'readme_examples_test.dart' as readme_examples_test;
+import 'feature/secrets/secrets_test.dart' as secrets_test;
 import 'entity/moon/MoonEntity_test.dart' as moon_entity_test;
 import 'entity/moon/MoonDirect_test.dart' as moon_direct_test;
 import 'entity/planet/PlanetEntity_test.dart' as planet_entity_test;
@@ -28,6 +29,7 @@ Future<void> main() async {
   netsim_test.tests();
   custom_test.tests();
   readme_examples_test.tests();
+  secrets_test.tests();
   moon_entity_test.tests();
   moon_direct_test.tests();
   planet_entity_test.tests();

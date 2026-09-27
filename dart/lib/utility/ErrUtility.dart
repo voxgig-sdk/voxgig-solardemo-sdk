@@ -1,4 +1,4 @@
-// Error helpers for the Solardemo SDK.
+// Error helpers for the VoxgigSolardemo SDK.
 //
 // The donor (ts) pipeline distinguishes error values from results with
 // `instanceof Error`; Dart splits throwables into Error and Exception, so

@@ -1,8 +1,8 @@
-// Solardemo SDK utility: makeRequest - build the fetch definition and
+// VoxgigSolardemo SDK utility: makeRequest - build the fetch definition and
 // call the transport. Transport failures are carried on the returned
 // Response (Err) rather than thrown, mirroring the go pipeline.
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

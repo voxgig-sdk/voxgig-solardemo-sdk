@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core._
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core._
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // GraphQL transport. API-INDEPENDENT: every GraphQL SDK this generator
 // produces uses this file unchanged. The API-specific part — which

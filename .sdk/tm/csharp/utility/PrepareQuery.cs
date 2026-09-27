@@ -1,9 +1,9 @@
-// Solardemo SDK utility: prepareQuery - reqmatch keys that are not path
+// VoxgigSolardemo SDK utility: prepareQuery - reqmatch keys that are not path
 // params become query parameters.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {
@@ -24,7 +24,7 @@ public static partial class SdkUtility
         {
             var key = item[0] as string ?? "";
             var val = item[1];
-            if (val != null && !ContainsStr(paramnames, key))
+            if (val != null && "$action" != key && !ContainsStr(paramnames, key))
             {
                 query[key] = val;
             }

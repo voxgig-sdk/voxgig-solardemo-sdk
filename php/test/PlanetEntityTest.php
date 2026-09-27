@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 // Planet entity test
 
-require_once __DIR__ . '/../solardemo_sdk.php';
+require_once __DIR__ . '/../voxgigsolardemo_sdk.php';
 require_once __DIR__ . '/Runner.php';
 
 use PHPUnit\Framework\TestCase;
@@ -13,7 +13,7 @@ class PlanetEntityTest extends TestCase
 {
     public function test_create_instance(): void
     {
-        $testsdk = SolardemoSDK::test(null, null);
+        $testsdk = VoxgigSolardemoSDK::test(null, null);
         $ent = $testsdk->Planet(null);
         $this->assertNotNull($ent);
     }
@@ -35,14 +35,14 @@ class PlanetEntityTest extends TestCase
         ];
 
         // Fallback: streaming inactive -> yields the materialised list items.
-        $base = SolardemoSDK::test($seed, null);
+        $base = VoxgigSolardemoSDK::test($seed, null);
         $seen = iterator_to_array($base->Planet(null)->stream("list", null, null), false);
         $this->assertCount(3, $seen);
 
         // Inbound: streaming active -> yields each item from the feature.
-        $cfg = SolardemoConfig::shared_config();
+        $cfg = VoxgigSolardemoConfig::shared_config();
         if (isset($cfg["feature"]) && is_array($cfg["feature"]) && isset($cfg["feature"]["streaming"])) {
-            $sdk = SolardemoSDK::test($seed, ["feature" => ["streaming" => ["active" => true]]]);
+            $sdk = VoxgigSolardemoSDK::test($seed, ["feature" => ["streaming" => ["active" => true]]]);
             $got = [];
             foreach ($sdk->Planet(null)->stream("list", null, null) as $item) {
                 if (is_array($item) && array_is_list($item)) {
@@ -72,7 +72,7 @@ class PlanetEntityTest extends TestCase
         // The basic flow consumes synthetic IDs from the fixture. In live mode
         // without an *_ENTID env override, those IDs hit the live API and 4xx.
         if (!empty($setup["synthetic_only"])) {
-            $this->markTestSkipped("live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_PLANET_ENTID JSON to run live");
+            $this->markTestSkipped("live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live");
             return;
         }
         $client = $setup["client"];
@@ -153,7 +153,7 @@ function planet_basic_setup($extra)
     $options = [];
     $options["entity"] = $entity_data["existing"];
 
-    $client = SolardemoSDK::test($options, $extra);
+    $client = VoxgigSolardemoSDK::test($options, $extra);
 
     // Generate idmap.
     $idmap = [];
@@ -164,22 +164,22 @@ function planet_basic_setup($extra)
     // Detect ENTID env override before envOverride consumes it. When live
     // mode is on without a real override, the basic test runs against synthetic
     // IDs from the fixture and 4xx's. Surface this so the test can skip.
-    $entid_env_raw = getenv("SOLARDEMO_TEST_PLANET_ENTID");
+    $entid_env_raw = getenv("VOXGIG_SOLARDEMO_TEST_PLANET_ENTID");
     $idmap_overridden = $entid_env_raw !== false && str_starts_with(trim($entid_env_raw), "{");
 
     $env = Runner::env_override([
-        "SOLARDEMO_TEST_PLANET_ENTID" => $idmap,
-        "SOLARDEMO_TEST_LIVE" => "FALSE",
-        "SOLARDEMO_TEST_EXPLAIN" => "FALSE",
+        "VOXGIG_SOLARDEMO_TEST_PLANET_ENTID" => $idmap,
+        "VOXGIG_SOLARDEMO_TEST_LIVE" => "FALSE",
+        "VOXGIG_SOLARDEMO_TEST_EXPLAIN" => "FALSE",
     ]);
 
     $idmap_resolved = Helpers::to_map(
-        $env["SOLARDEMO_TEST_PLANET_ENTID"]);
+        $env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"]);
     if ($idmap_resolved === null) {
         $idmap_resolved = Helpers::to_map($idmap);
     }
 
-    if ($env["SOLARDEMO_TEST_LIVE"] === "TRUE") {
+    if ($env["VOXGIG_SOLARDEMO_TEST_LIVE"] === "TRUE") {
         $merged_opts = Vs::merge([
             // FIRST, so the generated fields below win: sdk-test-control.json's
             // test.client.options adds to the live client, it does not redirect it.
@@ -192,16 +192,24 @@ function planet_basic_setup($extra)
             // and the apikey/server map above it.
             Vs::ismap($extra) ? $extra : new \stdClass(),
         ]);
-        $client = new SolardemoSDK(Helpers::to_map($merged_opts));
+        // "?? []" because merge legitimately answers with a stdClass when every
+        // contributing entry is an EMPTY map - an SDK with no apikey and no
+        // server variables generates an empty middle entry, so that is the
+        // common case, not the edge one. to_map returns null for a non-array by
+        // design, and the constructor takes a non-nullable array, so without the
+        // fallback every such SDK died on "must be of type array, null given"
+        // the moment live mode was switched on. Offline mode never reaches this
+        // branch, which is why the offline suite stayed green.
+        $client = new VoxgigSolardemoSDK(Helpers::to_map($merged_opts) ?? []);
     }
 
-    $live = $env["SOLARDEMO_TEST_LIVE"] === "TRUE";
+    $live = $env["VOXGIG_SOLARDEMO_TEST_LIVE"] === "TRUE";
     return [
         "client" => $client,
         "data" => $entity_data,
         "idmap" => $idmap_resolved,
         "env" => $env,
-        "explain" => $env["SOLARDEMO_TEST_EXPLAIN"] === "TRUE",
+        "explain" => $env["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] === "TRUE",
         "live" => $live,
         "synthetic_only" => $live && !$idmap_overridden,
         "now" => (int)(microtime(true) * 1000),

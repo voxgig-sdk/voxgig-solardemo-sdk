@@ -1,14 +1,9 @@
-// The Utility bundle (mirrors go core/utility_type.go). Go carries the
-// utilities as swappable function pointers; rust binds them statically and
-// keeps the two members that genuinely vary per client swappable: the
-// transport (`fetcher`, wrapped by features like retry/cache/netsim) and
-// the `custom` map of caller-supplied utility callables.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::{Context, CtxSpec};
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::response::Response;
 use crate::core::result::SdkResult;
 use crate::core::spec::Spec;
@@ -52,7 +47,7 @@ impl Utility {
         ctx: &Rc<Context>,
         url: &str,
         fetchdef: &Value,
-    ) -> Result<Value, SolardemoError> {
+    ) -> Result<Value, VoxgigSolardemoError> {
         let f = self.fetcher.borrow().clone();
         f(ctx, url, fetchdef)
     }
@@ -61,15 +56,15 @@ impl Utility {
         u::clean::clean_util(ctx, val)
     }
 
-    pub fn done(&self, ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
+    pub fn done(&self, ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
         u::done::done_util(ctx)
     }
 
     pub fn make_error(
         &self,
         ctx: &Rc<Context>,
-        err: Option<SolardemoError>,
-    ) -> Result<Value, SolardemoError> {
+        err: Option<VoxgigSolardemoError>,
+    ) -> Result<Value, VoxgigSolardemoError> {
         u::make_error::make_error_util(ctx, err)
     }
 
@@ -85,7 +80,7 @@ impl Utility {
         u::feature_init::feature_init_util(ctx, f)
     }
 
-    pub fn make_fetch_def(&self, ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
+    pub fn make_fetch_def(&self, ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
         u::make_fetch_def::make_fetch_def_util(ctx)
     }
 
@@ -100,33 +95,33 @@ impl Utility {
     pub fn make_request(
         &self,
         ctx: &Rc<Context>,
-    ) -> Result<Rc<RefCell<Response>>, SolardemoError> {
+    ) -> Result<Rc<RefCell<Response>>, VoxgigSolardemoError> {
         u::make_request::make_request_util(ctx)
     }
 
     pub fn make_response(
         &self,
         ctx: &Rc<Context>,
-    ) -> Result<Rc<RefCell<Response>>, SolardemoError> {
+    ) -> Result<Rc<RefCell<Response>>, VoxgigSolardemoError> {
         u::make_response::make_response_util(ctx)
     }
 
     pub fn make_result(
         &self,
         ctx: &Rc<Context>,
-    ) -> Result<Rc<RefCell<SdkResult>>, SolardemoError> {
+    ) -> Result<Rc<RefCell<SdkResult>>, VoxgigSolardemoError> {
         u::make_result::make_result_util(ctx)
     }
 
-    pub fn make_point(&self, ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
+    pub fn make_point(&self, ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
         u::make_point::make_point_util(ctx)
     }
 
-    pub fn make_spec(&self, ctx: &Rc<Context>) -> Result<Rc<RefCell<Spec>>, SolardemoError> {
+    pub fn make_spec(&self, ctx: &Rc<Context>) -> Result<Rc<RefCell<Spec>>, VoxgigSolardemoError> {
         u::make_spec::make_spec_util(ctx)
     }
 
-    pub fn make_url(&self, ctx: &Rc<Context>) -> Result<String, SolardemoError> {
+    pub fn make_url(&self, ctx: &Rc<Context>) -> Result<String, VoxgigSolardemoError> {
         u::make_url::make_url_util(ctx)
     }
 
@@ -134,7 +129,7 @@ impl Utility {
         u::param::param_util(ctx, paramdef)
     }
 
-    pub fn prepare_auth(&self, ctx: &Rc<Context>) -> Result<Rc<RefCell<Spec>>, SolardemoError> {
+    pub fn prepare_auth(&self, ctx: &Rc<Context>) -> Result<Rc<RefCell<Spec>>, VoxgigSolardemoError> {
         u::prepare_auth::prepare_auth_util(ctx)
     }
 

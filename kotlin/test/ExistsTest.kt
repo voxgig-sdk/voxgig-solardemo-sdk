@@ -1,15 +1,15 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 
-import voxgig.solardemosdk.core.SolardemoSDK
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
 
 class ExistsTest {
 
   @Test
   fun testMode() {
-    val testsdk = SolardemoSDK.testSDK()
+    val testsdk = VoxgigSolardemoSDK.testSDK()
     assertNotNull(testsdk, "expected non-nil SDK")
   }
 }

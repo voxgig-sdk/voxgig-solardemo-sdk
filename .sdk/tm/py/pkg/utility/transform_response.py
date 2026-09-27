@@ -1,4 +1,4 @@
-# Solardemo SDK utility: transform_response
+# VoxgigSolardemo SDK utility: transform_response
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs

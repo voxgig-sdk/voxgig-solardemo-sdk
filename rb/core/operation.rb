@@ -1,8 +1,8 @@
-# Solardemo SDK operation
+# VoxgigSolardemo SDK operation
 
 require_relative '../utility/struct/voxgig_struct'
 
-class SolardemoOperation
+class VoxgigSolardemoOperation
   attr_accessor :entity, :name, :input, :points, :alias_map
 
   def initialize(opmap = {})

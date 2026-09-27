@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 /** Per-call control state: throw behaviour, explain capture, actor, paging. */
 class Control {

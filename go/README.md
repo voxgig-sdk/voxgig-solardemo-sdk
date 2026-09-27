@@ -1,29 +1,29 @@
-# Solardemo Golang SDK
+# VoxgigSolardemo Golang SDK
 
 
 
-The Golang SDK for the Solardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
+The Golang SDK for the VoxgigSolardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
 
 It exposes the API as capitalised, semantic **Entities** — e.g. `client.Moon(nil)` — each with the same small set of operations (`List`, `Load`, `Create`, `Update`, `Remove`) instead of raw URL paths and query strings. You call meaning, not endpoints, which keeps the cognitive load low.
 
-> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go-cli`, `go-mcp`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `ts`, `zig` — see
+> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go-cli`, `go-mcp`, `haskell`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `ts`, `zig` — see
 > the [top-level README](../README.md).
 
 
 ## Install
 ```bash
-go get github.com/voxgig-sdk/solardemo-sdk/go@latest
+go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@latest
 ```
 
 The Go module proxy resolves the version from the `go/vX.Y.Z` GitHub
-release tag — see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases) for the available versions.
+release tag — see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases) for the available versions.
 
 To vendor from a local checkout instead, clone this repo alongside your
 project and add a `replace` directive pointing at the checked-out
 `go/` directory:
 
 ```bash
-go mod edit -replace github.com/voxgig-sdk/solardemo-sdk/go=../solardemo-sdk/go
+go mod edit -replace github.com/voxgig-sdk/voxgig-solardemo-sdk/go=../voxgig-solardemo-sdk/go
 ```
 
 
@@ -44,7 +44,7 @@ package main
 
 import (
     "fmt"
-    sdk "github.com/voxgig-sdk/solardemo-sdk/go"
+    sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
 )
 
 func main() {
@@ -190,7 +190,7 @@ mockFetch := func(url string, init map[string]any) (map[string]any, error) {
     }, nil
 }
 
-client := sdk.NewSolardemoSDK(map[string]any{
+client := sdk.NewVoxgigSolardemoSDK(map[string]any{
     "base": "http://localhost:8080",
     "system": map[string]any{
         "fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),
@@ -203,7 +203,7 @@ client := sdk.NewSolardemoSDK(map[string]any{
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -215,10 +215,10 @@ cd go && go test ./test/...
 
 ## Reference
 
-### NewSolardemoSDK
+### NewVoxgigSolardemoSDK
 
 ```go
-func NewSolardemoSDK(options map[string]any) *SolardemoSDK
+func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK
 ```
 
 Creates a new SDK client.
@@ -235,12 +235,12 @@ Creates a new SDK client.
 ### TestSDK
 
 ```go
-func TestSDK(testopts map[string]any, sdkopts map[string]any) *SolardemoSDK
+func TestSDK(testopts map[string]any, sdkopts map[string]any) *VoxgigSolardemoSDK
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `nil`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -248,12 +248,12 @@ Creates a test-mode client with mock transport. Both arguments may be `nil`.
 | `GetUtility` | `() *Utility` | Copy of the SDK utility object. |
 | `Prepare` | `(fetchargs map[string]any) (map[string]any, error)` | Build an HTTP request definition without sending. |
 | `Direct` | `(fetchargs map[string]any) (map[string]any, error)` | Build and send an HTTP request. |
-| `Moon` | `(data map[string]any) SolardemoEntity` | Create a Moon entity instance. |
-| `Planet` | `(data map[string]any) SolardemoEntity` | Create a Planet entity instance. |
+| `Moon` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Moon entity instance. |
+| `Planet` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Planet entity instance. |
 
-### Entity interface (SolardemoEntity)
+### Entity interface (VoxgigSolardemoEntity)
 
-All entities implement the `SolardemoEntity` interface.
+All entities implement the `VoxgigSolardemoEntity` interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -449,7 +449,7 @@ fmt.Println(result)
 
 ## Features
 
-This SDK ships 2 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -458,12 +458,110 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`secrets`](#secrets) | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### secrets
 
-Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens.
+Secrets.
 
 | Option | Default |
 |---|---|
@@ -481,13 +579,28 @@ activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -528,8 +641,15 @@ stage names.
 
 The SDK ships with built-in features:
 
-- **SecretsFeature**: Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -545,8 +665,8 @@ Use `core.ToMapAny()` to safely cast results and nested data.
 ### Package structure
 
 ```
-github.com/voxgig-sdk/solardemo-sdk/go/
-├── solardemo.go        # Root package — type aliases and constructors
+github.com/voxgig-sdk/voxgig-solardemo-sdk/go/
+├── voxgig-solardemo.go        # Root package — type aliases and constructors
 ├── core/               # SDK core — client, types, pipeline
 ├── entity/             # Entity implementations
 ├── feature/            # Built-in features (Base, Test, Log)
@@ -554,7 +674,7 @@ github.com/voxgig-sdk/solardemo-sdk/go/
 └── test/               # Test suites
 ```
 
-The root package (`github.com/voxgig-sdk/solardemo-sdk/go`) re-exports everything needed
+The root package (`github.com/voxgig-sdk/voxgig-solardemo-sdk/go`) re-exports everything needed
 for normal use. Import sub-packages only when you need specific types
 like `core.ToMapAny`.
 

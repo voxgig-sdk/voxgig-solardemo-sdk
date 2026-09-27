@@ -1,7 +1,7 @@
-// Solardemo SDK utility: resultBasic - status/statusText plus 4xx/5xx
+// VoxgigSolardemo SDK utility: resultBasic - status/statusText plus 4xx/5xx
 // error shaping.
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

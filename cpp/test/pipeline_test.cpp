@@ -1,4 +1,4 @@
-// Solardemo SDK — direct unit tests for the operation-pipeline utilities
+// VoxgigSolardemo SDK — direct unit tests for the operation-pipeline utilities
 // (mirrors java test/PipelineTest.java + tm/go/test/pipeline_test.go). The
 // generated entity tests exercise the happy path; these drive the error and
 // edge branches (missing spec/response/result, 4xx handling, transport
@@ -17,11 +17,11 @@ using namespace sdk;
 using namespace sdk::fh;
 
 // plClient builds a client + isolated utility for pipeline utility tests.
-static std::shared_ptr<SolardemoSDK> plClient(const Value& sdkopts) {
-  return SolardemoSDK::testSDK(Value::undef(), sdkopts);
+static std::shared_ptr<VoxgigSolardemoSDK> plClient(const Value& sdkopts) {
+  return VoxgigSolardemoSDK::testSDK(Value::undef(), sdkopts);
 }
 
-static CtxPtr plCtx(std::shared_ptr<SolardemoSDK> client, UtilityPtr utility, const Value& ctrl) {
+static CtxPtr plCtx(std::shared_ptr<VoxgigSolardemoSDK> client, UtilityPtr utility, const Value& ctrl) {
   CtxSpec cs;
   cs.setOpname("load");
   cs.client = client.get();
@@ -321,7 +321,7 @@ static std::shared_ptr<BaseFeature> named(const std::string& nm) {
   return f;
 }
 
-static std::string names(std::shared_ptr<SolardemoSDK> client) {
+static std::string names(std::shared_ptr<VoxgigSolardemoSDK> client) {
   std::string out;
   for (size_t i = 0; i < client->features.size(); i++) {
     if (i > 0) out += ",";

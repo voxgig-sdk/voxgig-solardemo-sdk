@@ -1,6 +1,6 @@
-# Solardemo SDK utility: prepare_params
+# VoxgigSolardemo SDK utility: prepare_params
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   PrepareParams = ->(ctx) {
     utility = ctx.utility
     point = ctx.point

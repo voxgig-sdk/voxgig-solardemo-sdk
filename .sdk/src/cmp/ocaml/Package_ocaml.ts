@@ -9,16 +9,27 @@ import {
 
 
 import { packageName } from './utility_ocaml'
+import { secretsBuild } from './Config_ocaml'
 
 
-// <name>.opam — opam package metadata (publish is declared pending in the
-// model; the build itself is stock ocamlc via the Makefile and needs no opam
-// packages). Twin of rust Cargo.toml, but the runtime is dependency-free so
-// there is no depends list beyond the OCaml compiler.
 const Package = cmp(async function Package(props: any) {
   const ctx$ = props.ctx$
   const target = props.target
   const model = ctx$.model
+
+  const secrets = secretsBuild(model, target)
+  const depexts = null != secrets && secrets.tls
+    ? `# The secrets feature's plugin groups (${secrets.tlsGroups.join(', ')}) bind
+# OpenSSL through the vendored plugins/tls_stubs.c (-lssl -lcrypto), the
+# one external dependency an ocaml SDK can have. Linked only because those
+# groups are active - see feature/secrets/feature.mk.
+depexts: [
+  ["libssl-dev"] {os-family = "debian"}
+  ["openssl-devel"] {os-family = "rhel"}
+  ["openssl"] {os = "macos" & os-distribution = "homebrew"}
+]
+`
+    : ''
 
   // WHO WROTE THIS PACKAGE. Per target, falling back to the model-wide value
   // and then to the publisher — so a manifest cannot go on naming Voxgig
@@ -46,7 +57,7 @@ depends: [
 build: [
   [make "build"]
 ]
-`)
+${depexts}`)
   })
 })
 

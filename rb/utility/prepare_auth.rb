@@ -1,6 +1,6 @@
-# Solardemo SDK utility: prepare_auth
+# VoxgigSolardemo SDK utility: prepare_auth
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   HEADER_AUTH = "authorization"
   OPTION_APIKEY = "apikey"
   NOT_FOUND = "__NOTFOUND__"

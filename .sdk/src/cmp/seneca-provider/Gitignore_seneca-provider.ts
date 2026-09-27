@@ -1,24 +1,5 @@
-// The provider repo's `.gitignore` — GENERATED, not templated, and it has
-// to be.
-//
-// npm NEVER publishes a file named `.gitignore`. It sits on npm's own
-// always-excluded list, and naming the parent directory in package.json
-// `files` does not override it: `npm pack --dry-run` on this package omits
-// `project/.sdk/tm/seneca-provider/.gitignore` while shipping every sibling
-// in that folder. So the template worked from a checkout and reached NOBODY
-// who installed @voxgig/sdkgen from the registry — their generated provider
-// had no ignore file, and the very first regeneration left the repo dirty
-// with the `.jostraca/` output duplicate this content exists to hide.
-//
-// Every one of the 23 language targets already emits its `.gitignore` from a
-// `Gitignore_<lang>.ts` for this same reason. seneca-provider was the only
-// target still doing it with a template, and the only one npm could break.
-//
-// `packaging.test.ts` asks npm directly whether every shipped file survives
-// packing, so the next dotfile added to the scaffold cannot repeat this.
-//
-// The content below is the template's, byte for byte. It carried no
-// placeholder, so nothing about `stdrep` substitution changes by moving it.
+
+import { SDK_SRC_DIR } from './Extras_seneca-provider'
 
 import {
   Content,
@@ -151,6 +132,13 @@ test/local-env.js
 # every regeneration leaves the provider repo dirty with hundreds of
 # untracked files.
 .jostraca/
+
+# The SDK source, fetched by \`make sdk-src\` at the repository and tag in
+# sdk-pin.json. DERIVED and disposable: the pin is the committed fact, and
+# the checkout can be refetched from it at any time. Committing it would
+# vendor the whole SDK into a repo that already depends on its published
+# package.
+${SDK_SRC_DIR}/
 `)
   })
 })

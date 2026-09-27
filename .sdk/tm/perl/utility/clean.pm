@@ -1,9 +1,9 @@
-# Solardemo SDK utility: clean
+# VoxgigSolardemo SDK utility: clean
 
 use strict;
 use warnings;
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 

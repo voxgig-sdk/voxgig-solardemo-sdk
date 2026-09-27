@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_point
+# VoxgigSolardemo SDK utility: make_point
 
 use strict;
 use warnings;
@@ -13,14 +13,14 @@ require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 require(Cwd::abs_path("$__dir/../core/error.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
 # How many path segments a point has.
 sub _parts_len {
   my ($point) = @_;
-  my $parts = SolardemoHelpers::gp($point, 'parts');
+  my $parts = VoxgigSolardemoHelpers::gp($point, 'parts');
   return Voxgig::Struct::islist($parts) ? scalar(@$parts) : 0;
 }
 
@@ -32,7 +32,7 @@ sub _parts_len {
 # helpers/opShape.ts — both sides must move together.
 sub _terminal_param {
   my ($point) = @_;
-  my $parts = SolardemoHelpers::gp($point, 'parts');
+  my $parts = VoxgigSolardemoHelpers::gp($point, 'parts');
   return 0 unless Voxgig::Struct::islist($parts) && 0 < scalar(@$parts);
   my $last = $parts->[-1];
   return (defined $last && !ref $last && $last =~ /^\{/) ? 1 : 0;
@@ -47,7 +47,7 @@ $REGISTRY{make_point} = sub {
     # in ctx.out.point (e.g. an rbac denial): surface it as the error
     # tuple slot so the operation fails before any network use.
     return (undef, $preset)
-      if Scalar::Util::blessed($preset) && $preset->isa('SolardemoError');
+      if Scalar::Util::blessed($preset) && $preset->isa('VoxgigSolardemoError');
     $ctx->{point} = $preset;
     return ($ctx->{point}, undef);
   }
@@ -55,7 +55,7 @@ $REGISTRY{make_point} = sub {
   my $op = $ctx->{op};
   my $options = $ctx->{options};
 
-  my $allow_op = SolardemoHelpers::gpath($options, 'allow.op');
+  my $allow_op = VoxgigSolardemoHelpers::gpath($options, 'allow.op');
   $allow_op = '' unless defined $allow_op && !ref $allow_op;
   if (index($allow_op, $op->{name}) < 0) {
     return (undef, $ctx->make_error('point_op_allow',
@@ -77,15 +77,15 @@ $REGISTRY{make_point} = sub {
     my $point;
     my $matched = 0;
     for my $p (@{ $op->{points} }) {
-      my $select_def = SolardemoHelpers::to_map(SolardemoHelpers::gp($p, 'select'));
+      my $select_def = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::gp($p, 'select'));
       my $found = 1;
 
       if ($selector && $select_def) {
-        my $exist = SolardemoHelpers::gp($select_def, 'exist');
+        my $exist = VoxgigSolardemoHelpers::gp($select_def, 'exist');
         if (Voxgig::Struct::islist($exist)) {
           for my $ek (@$exist) {
-            my $rv = SolardemoHelpers::gp($reqselector, "$ek");
-            my $sv = SolardemoHelpers::gp($selector, "$ek");
+            my $rv = VoxgigSolardemoHelpers::gp($reqselector, "$ek");
+            my $sv = VoxgigSolardemoHelpers::gp($selector, "$ek");
             if (!defined $rv && !defined $sv) {
               $found = 0;
               last;
@@ -95,9 +95,9 @@ $REGISTRY{make_point} = sub {
       }
 
       if ($found) {
-        my $req_action = SolardemoHelpers::gp($reqselector, '$action');
-        my $select_action = SolardemoHelpers::gp($select_def, '$action');
-        $found = 0 unless SolardemoHelpers::eqv($req_action, $select_action);
+        my $req_action = VoxgigSolardemoHelpers::gp($reqselector, '$action');
+        my $select_action = VoxgigSolardemoHelpers::gp($select_def, '$action');
+        $found = 0 unless VoxgigSolardemoHelpers::eqv($req_action, $select_action);
       }
 
       if ($found) {
@@ -117,7 +117,7 @@ $REGISTRY{make_point} = sub {
       # the chosen point's $action and would wave the request through
       # whenever the fallback lands on the action point itself.
       my $unmatched_action = $reqselector
-        ? SolardemoHelpers::gp($reqselector, '$action') : undef;
+        ? VoxgigSolardemoHelpers::gp($reqselector, '$action') : undef;
       if (defined $unmatched_action) {
         return (undef, $ctx->make_error('point_action_invalid',
           'Operation "' . $op->{name} . '" action "' .
@@ -136,11 +136,11 @@ $REGISTRY{make_point} = sub {
     }
 
     if ($reqselector) {
-      my $req_action = SolardemoHelpers::gp($reqselector, '$action');
+      my $req_action = VoxgigSolardemoHelpers::gp($reqselector, '$action');
       if (defined $req_action && $point) {
-        my $point_select = SolardemoHelpers::to_map(SolardemoHelpers::gp($point, 'select'));
-        my $point_action = SolardemoHelpers::gp($point_select, '$action');
-        unless (SolardemoHelpers::eqv($req_action, $point_action)) {
+        my $point_select = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::gp($point, 'select'));
+        my $point_action = VoxgigSolardemoHelpers::gp($point_select, '$action');
+        unless (VoxgigSolardemoHelpers::eqv($req_action, $point_action)) {
           return (undef, $ctx->make_error('point_action_invalid',
             "Operation \"$op->{name}\" action \""
             . Voxgig::Struct::stringify($req_action) . "\" is not valid."));

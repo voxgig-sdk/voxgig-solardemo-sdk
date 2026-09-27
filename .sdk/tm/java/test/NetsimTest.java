@@ -17,13 +17,13 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import JAVAPACKAGE.core.SolardemoSDK;
+import JAVAPACKAGE.core.VoxgigSolardemoSDK;
 
 public class NetsimTest {
 
   @Test
   public void offlineSimulationFailsRequest() {
-    SolardemoSDK client = SolardemoSDK.testSDK(fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(fhMap(
         "net", fhMap("offline", true)), null);
     Map<String, Object> res = client.direct(fhMap("path", "/ping"));
     assertEquals(false, res.get("ok"), "offline network must fail the call: " + res);
@@ -31,7 +31,7 @@ public class NetsimTest {
 
   @Test
   public void failstatusSimulationSurfacesStatus() {
-    SolardemoSDK client = SolardemoSDK.testSDK(fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(fhMap(
         "net", fhMap("failTimes", 1, "failStatus", 503)), null);
     Map<String, Object> res = client.direct(fhMap("path", "/ping"));
     assertEquals(false, res.get("ok"), "expected failed call: " + res);
@@ -41,7 +41,7 @@ public class NetsimTest {
   @Test
   public void latencySimulationDelaysRequest() {
     int delay = 60;
-    SolardemoSDK client = SolardemoSDK.testSDK(fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(fhMap(
         "net", fhMap("latency", delay)), null);
     long start = System.currentTimeMillis();
     client.direct(fhMap("path", "/ping"));
@@ -53,7 +53,7 @@ public class NetsimTest {
 
   @Test
   public void plainTestSdkWorksWithoutNet() {
-    SolardemoSDK client = SolardemoSDK.testSDK();
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK();
     assertNotNull(client, "expected a client");
   }
 }

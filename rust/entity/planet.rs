@@ -7,10 +7,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::{Context, CtxSpec};
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{get_bool, getp, setp, to_map};
-use crate::core::sdk::SolardemoSDK;
-use crate::core::types::{Entity, SolardemoEntity};
+use crate::core::sdk::VoxgigSolardemoSDK;
+use crate::core::types::{Entity, VoxgigSolardemoEntity};
 use crate::core::utility_type::Utility;
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
@@ -18,7 +18,7 @@ use crate::utility::voxgigstruct::Value;
 pub struct PlanetEntity {
     name: String,
     #[allow(dead_code)]
-    client: Rc<SolardemoSDK>,
+    client: Rc<VoxgigSolardemoSDK>,
     utility: Rc<Utility>,
     entopts: Value,
     data: RefCell<Value>,
@@ -29,7 +29,7 @@ pub struct PlanetEntity {
 }
 
 impl PlanetEntity {
-    pub fn new(client: &Rc<SolardemoSDK>, entopts: Value) -> Rc<PlanetEntity> {
+    pub fn new(client: &Rc<VoxgigSolardemoSDK>, entopts: Value) -> Rc<PlanetEntity> {
         let entopts = match entopts {
             Value::Map(m) => Value::Map(m),
             _ => Value::empty_map(),
@@ -82,7 +82,7 @@ impl PlanetEntity {
         &self,
         ctx: &Rc<Context>,
         post_done: &dyn Fn(&Rc<Context>),
-    ) -> Result<Value, SolardemoError> {
+    ) -> Result<Value, VoxgigSolardemoError> {
         let utility = &self.utility;
 
         self.utility.feature_hook(ctx, "PrePoint");
@@ -126,23 +126,12 @@ impl PlanetEntity {
         utility.done(ctx)
     }
 
-    /// Streaming operation. Runs `action` through the full pipeline and
-    /// returns an iterator over the result items, so the `streaming`
-    /// feature's incremental output is reachable from a generated entity (a
-    /// normal op call materialises the whole result). This runtime is
-    /// synchronous, so the returned iterator is a lazy cursor over items the
-    /// pipeline produced. `callopts` parameterises the call:
-    ///   - inbound (download): iterate items/chunks from the streaming
-    ///     feature when active, else the materialised items;
-    ///   - outbound (upload): a `body` in `callopts` is attached to the
-    ///     request (reqdata `body$`) so the transport can stream a payload;
-    ///   - `ctrl` (pipeline control) threads pipeline options.
     pub fn stream(
         &self,
         action: &str,
         args: Value,
         callopts: Value,
-    ) -> Result<std::vec::IntoIter<Value>, SolardemoError> {
+    ) -> Result<std::vec::IntoIter<Value>, VoxgigSolardemoError> {
         let stream_opts = match &callopts {
             Value::Map(_) => callopts.clone(),
             _ => Value::empty_map(),
@@ -233,9 +222,6 @@ impl Entity for PlanetEntity {
         self.name.clone()
     }
 
-    // `remove` resolves to the entity, marked. The instance KEEPS the data
-    // it held — a caller can still read what was deleted — but it is no
-    // longer a live record.
     fn mark_deleted(&self) {
         *self.deleted.borrow_mut() = true;
     }
@@ -287,9 +273,9 @@ impl Entity for PlanetEntity {
     }
 }
 
-impl SolardemoEntity for PlanetEntity {
+impl VoxgigSolardemoEntity for PlanetEntity {
 
-    fn load(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError> {
+    fn load(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError> {
         let ctx = self.utility.make_context(
             CtxSpec {
                 opname: Some("load".to_string()),
@@ -329,7 +315,7 @@ impl SolardemoEntity for PlanetEntity {
     
 
 
-    fn list(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, SolardemoError> {
+    fn list(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError> {
         let ctx = self.utility.make_context(
             CtxSpec {
                 opname: Some("list".to_string()),
@@ -371,7 +357,7 @@ impl SolardemoEntity for PlanetEntity {
     
 
 
-    fn create(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError> {
+    fn create(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError> {
         let ctx = self.utility.make_context(
             CtxSpec {
                 opname: Some("create".to_string()),
@@ -405,7 +391,7 @@ impl SolardemoEntity for PlanetEntity {
     
 
 
-    fn update(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError> {
+    fn update(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError> {
         let ctx = self.utility.make_context(
             CtxSpec {
                 opname: Some("update".to_string()),
@@ -445,7 +431,7 @@ impl SolardemoEntity for PlanetEntity {
     
 
 
-    fn remove(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError> {
+    fn remove(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError> {
         let ctx = self.utility.make_context(
             CtxSpec {
                 opname: Some("remove".to_string()),
@@ -476,10 +462,6 @@ impl SolardemoEntity for PlanetEntity {
             }
         })?;
     
-        // The operation resolves to THIS entity: `run_op` has just absorbed the
-        // result into it, and the caller reaches the record through `.data(None)`.
-        // See AGENTS.md "Entity operations return ENTITIES". A removed entity
-        // keeps its data but is no longer a live record.
         self.mark_deleted();
     
         Ok(self.clone())

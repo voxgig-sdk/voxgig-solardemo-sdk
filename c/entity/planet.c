@@ -8,7 +8,7 @@
 typedef struct planet_entity {
   Entity base;            // vtable pointer (first member)
   char* name;
-  SolardemoSDK* client;
+  VoxgigSolardemoSDK* client;
   Utility* utility;
   voxgig_value* entopts;
   voxgig_value* data;     // Map
@@ -39,7 +39,7 @@ static Context* planet_ent_ctx(planet_entity* self) {
   return self->entctx;
 }
 
-Entity* planet_entity_new(SolardemoSDK* client, voxgig_value* entopts) {
+Entity* planet_entity_new(VoxgigSolardemoSDK* client, voxgig_value* entopts) {
   entopts = voxgig_is_map(entopts) ? entopts : voxgig_new_map();
 
   bool act;

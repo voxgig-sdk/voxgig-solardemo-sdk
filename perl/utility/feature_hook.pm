@@ -1,11 +1,11 @@
-# Solardemo SDK utility: feature_hook
+# VoxgigSolardemo SDK utility: feature_hook
 
 use strict;
 use warnings;
 
 use Scalar::Util ();
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 

@@ -5,22 +5,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const node_assert_1 = __importDefault(require("node:assert"));
+const live_runner_1 = require("../../live-runner");
 const __1 = require("../../..");
 const utility_1 = require("../../utility");
-// AFTER the imports on purpose: TypeScript hoists `import` above any
-// statement in the emitted CommonJS, so a loader placed above them would
-// run only after every imported module had already been evaluated - and
-// anything reading process.env at module scope would miss these values.
 (0, utility_1.loadEnvLocal)(__dirname + '/../../../.env.local');
 (0, node_test_1.describe)('MoonDirect', async () => {
     // Per-test live pacing. Delay is read from sdk-test-control.json's
-    // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
-    (0, node_test_1.afterEach)((0, utility_1.liveDelay)('SOLARDEMO_TEST_LIVE'));
+    // `test.live.delayMs`; only sleeps when VOXGIG_SOLARDEMO_TEST_LIVE=TRUE.
+    (0, node_test_1.afterEach)((0, utility_1.liveDelay)('VOXGIG_SOLARDEMO_TEST_LIVE'));
     (0, node_test_1.test)('direct-exists', async () => {
-        const sdk = new __1.SolardemoSDK({
-            // Concrete base: a live construction must satisfy any server
-            // variables a templated base URL declares; overriding base with a
-            // literal (as the direct flow tests do) sidesteps the requirement.
+        const sdk = new __1.VoxgigSolardemoSDK({
             base: 'http://localhost:8080',
             system: { fetch: async () => ({}) }
         });
@@ -28,6 +22,10 @@ const utility_1 = require("../../utility");
         (0, node_assert_1.default)('function' === typeof sdk.prepare);
     });
     (0, node_test_1.test)('direct-load-moon', async (t) => {
+        if (liveScenariosActive()) {
+            t.skip('Covered by live operation scenarios');
+            return;
+        }
         const setup = directSetup({ id: 'direct01' });
         if ((0, utility_1.maybeSkipControl)(t, 'direct', 'direct-load-moon', setup.live))
             return;
@@ -44,16 +42,14 @@ const utility_1 = require("../../utility");
                     planet_id: setup.idmap['planet01'],
                 },
             });
-            if (!listResult.ok) {
-                return; // skip: list call failed (likely synthetic IDs against live API)
-            }
+            (0, node_assert_1.default)(listResult.ok && listResult.status >= 200 && listResult.status < 300, 'Live list discovery failed');
             const listArr = unwrapListData(listResult.data);
             if (null == listArr || listArr.length === 0) {
-                return; // skip: no entities to load in live mode
+                throw new Error('Live load blocked: discovery returned no entities');
             }
             const candidateId = listArr[0]?.id ?? listArr[0]?.id;
             if (null == candidateId) {
-                return; // skip: list response shape does not expose load identifier
+                throw new Error('Live load blocked: discovery returned no usable identity');
             }
             params.id = candidateId;
             params.planet_id = setup.idmap['planet01'];
@@ -69,12 +65,17 @@ const utility_1 = require("../../utility");
             query,
         });
         if (setup.live) {
-            // Live mode is lenient: synthetic IDs frequently 4xx. Skip rather
-            // than fail when the load endpoint isn't reachable with the IDs we
-            // can construct from setup.idmap.
-            if (!result.ok || result.status < 200 || result.status >= 300) {
-                return;
-            }
+            // STRICT live mode: a non-2xx is a real failure - this project owns
+            // the server it points at, so there is nothing to be lenient about.
+            //
+            // What is NOT asserted here is the MOCK's own fixtures. `direct01`
+            // is a scripted id and `calls` records the mock transport; neither
+            // exists on a live run, so asserting them made strict mode mean
+            // "compare the live server against the mock's script" - a suite that
+            // could not pass against any real API, including this project's own.
+            (0, node_assert_1.default)(result.ok === true, 'Live request failed: HTTP ' + result.status);
+            (0, node_assert_1.default)(result.status >= 200 && result.status < 300);
+            (0, node_assert_1.default)(null != result.data);
         }
         else {
             (0, node_assert_1.default)(result.ok === true);
@@ -88,6 +89,10 @@ const utility_1 = require("../../utility");
         }
     });
     (0, node_test_1.test)('direct-list-moon', async (t) => {
+        if (liveScenariosActive()) {
+            t.skip('Covered by live operation scenarios');
+            return;
+        }
         const setup = directSetup([{ id: 'direct01' }, { id: 'direct02' }]);
         if ((0, utility_1.maybeSkipControl)(t, 'direct', 'direct-list-moon', setup.live))
             return;
@@ -109,16 +114,17 @@ const utility_1 = require("../../utility");
             query,
         });
         if (setup.live) {
-            // Live mode is lenient: synthetic IDs frequently 4xx and the list-
-            // response shape varies wildly across public APIs. Skip rather than
-            // fail when the call doesn't return a usable list.
-            if (!result.ok || result.status < 200 || result.status >= 300) {
-                return;
-            }
-            const listArr = unwrapListData(result.data);
-            if (!Array.isArray(listArr)) {
-                return;
-            }
+            // STRICT live mode: a non-2xx is a real failure - this project owns
+            // the server it points at, so there is nothing to be lenient about.
+            //
+            // What is NOT asserted here is the MOCK's own fixtures. `direct01`
+            // is a scripted id and `calls` records the mock transport; neither
+            // exists on a live run, so asserting them made strict mode mean
+            // "compare the live server against the mock's script" - a suite that
+            // could not pass against any real API, including this project's own.
+            (0, node_assert_1.default)(result.ok === true, 'Live request failed: HTTP ' + result.status);
+            (0, node_assert_1.default)(result.status >= 200 && result.status < 300);
+            (0, node_assert_1.default)(Array.isArray(unwrapListData(result.data)), 'Expected live list response');
         }
         else {
             (0, node_assert_1.default)(result.ok === true);
@@ -133,22 +139,25 @@ const utility_1 = require("../../utility");
         }
     });
 });
+function liveScenariosActive() { return false && process.env.VOXGIG_SOLARDEMO_TEST_LIVE === 'TRUE'; }
 function directSetup(mockres) {
     const calls = [];
     const env = (0, utility_1.envOverride)({
-        'SOLARDEMO_TEST_MOON_ENTID': {},
-        'SOLARDEMO_TEST_LIVE': 'FALSE',
+        'VOXGIG_SOLARDEMO_TEST_MOON_ENTID': {},
+        'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
     });
-    const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE;
+    const live = 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_LIVE;
     if (live) {
+        const transport = (0, live_runner_1.createLiveTransport)();
         // Merged so the generated fields win: sdk-test-control.json's
         // test.client.options adds to the live client, it does not redirect it.
-        const client = new __1.SolardemoSDK(Object.assign({}, (0, utility_1.liveClientOptions)(), {}));
-        let idmap = env['SOLARDEMO_TEST_MOON_ENTID'];
+        const client = new __1.VoxgigSolardemoSDK(Object.assign({}, (0, utility_1.liveClientOptions)(), { system: { fetch: transport.fetch },
+        }));
+        let idmap = env['VOXGIG_SOLARDEMO_TEST_MOON_ENTID'];
         if ('string' === typeof idmap && idmap.startsWith('{')) {
             idmap = JSON.parse(idmap);
         }
-        return { client, calls, live, idmap };
+        return { client, calls, live, idmap, transport };
     }
     const mockFetch = async (url, init) => {
         calls.push({ url, init });
@@ -159,7 +168,7 @@ function directSetup(mockres) {
             json: async () => (null != mockres ? mockres : { id: 'direct01' }),
         };
     };
-    const client = new __1.SolardemoSDK({
+    const client = new __1.VoxgigSolardemoSDK({
         base: 'http://localhost:8080',
         system: { fetch: mockFetch },
     });

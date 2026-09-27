@@ -4,6 +4,8 @@ import * as Path from 'node:path'
 import {
   cmp, each,
   File, Copy, Folder, Fragment,
+  pluginExcludes,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -19,11 +21,13 @@ import {
 
 
 import { Package } from './Package_c'
-import { Config } from './Config_c'
+import { Config, FeaturePlugins } from './Config_c'
+import { Schema } from './Schema_c'
 import { Gitignore } from './Gitignore_c'
 import { MainEntity } from './MainEntity_c'
 import { EntityBase } from './EntityBase_c'
 import { EntityTypes } from './EntityTypes_c'
+import { PrepareAuth } from './PrepareAuth_c'
 
 
 const Main = cmp(async function Main(props: any) {
@@ -33,15 +37,31 @@ const Main = cmp(async function Main(props: any) {
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
 
+  const feature = targetFeatures(model, target)
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const allfeature = getModelPath(model, `main.${KIT}.feature`,
+    { required: false, only_active: false }) || {}
+  const inactivePluginExcludes: RegExp[] = []
+  for (const fname of Object.keys(allfeature)) {
+    if (null != (feature as any)[fname]) continue
+    const groups = getModelPath(model, `main.${KIT}.feature.${fname}.plugin`,
+      { required: false, only_active: false }) || {}
+    for (const gname of Object.keys(groups)) {
+      for (const one of (groups[gname].path || [])) {
+        const pat = esc(String(one))
+        inactivePluginExcludes.push(new RegExp('(^|/)' +
+          pat.replace(/\\\/$/, '') + (/\/$/.test(String(one)) ? '/' : '$')))
+      }
+    }
+  }
+
   Package({ target })
 
   Gitignore({})
 
-  // Copy tm/c files with replacements. The tm src/ subtree only stages the
-  // per-feature custom-source dirs (target add), so it is excluded here.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//],
+    exclude: [/src\//, ...pluginExcludes(model), ...inactivePluginExcludes],
     replace: {
       ...props.ctx$.stdrep,
     }
@@ -62,7 +82,6 @@ const Main = cmp(async function Main(props: any) {
           }
         },
 
-        // Entity accessors — injected at SLOT.
         () => {
           each(entity, (entity: ModelEntity) => {
             MainEntity({ target, entity })
@@ -71,7 +90,17 @@ const Main = cmp(async function Main(props: any) {
     })
 
     Config({ target })
+
+    Schema({ target })
   })
+
+  PrepareAuth({ target })
+
+  // feature/<name>/kinds.c — the plugin definitions an active plugin-bearing
+  // feature selected, and the Makefile's wiring gate for that feature's
+  // vendored payload (see Config_c). Nothing is emitted when no such
+  // feature is active.
+  FeaturePlugins({ target })
 
   // core/api.h — the per-API public header (entity constructors + accessors).
   EntityBase({ target })

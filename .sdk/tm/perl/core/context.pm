@@ -1,4 +1,4 @@
-# Solardemo SDK context
+# VoxgigSolardemo SDK context
 
 use strict;
 use warnings;
@@ -18,7 +18,7 @@ require(Cwd::abs_path("$__dir/result.pm"));
 require(Cwd::abs_path("$__dir/response.pm"));
 require(Cwd::abs_path("$__dir/error.pm"));
 
-package SolardemoContext;
+package VoxgigSolardemoContext;
 
 sub new {
   my ($class, $ctxmap, $basectx) = @_;
@@ -29,7 +29,7 @@ sub new {
   $self->{id} = 'C' . (10000000 + int(rand(90000000)));
   $self->{out} = {};
 
-  my $gcp = \&SolardemoHelpers::get_ctx_prop;
+  my $gcp = \&VoxgigSolardemoHelpers::get_ctx_prop;
 
   $self->{client} = $gcp->($ctxmap, 'client');
   $self->{client} = $basectx->{client} if !defined $self->{client} && $basectx;
@@ -37,7 +37,7 @@ sub new {
   $self->{utility} = $gcp->($ctxmap, 'utility');
   $self->{utility} = $basectx->{utility} if !defined $self->{utility} && $basectx;
 
-  $self->{ctrl} = SolardemoControl->new();
+  $self->{ctrl} = VoxgigSolardemoControl->new();
   my $ctrl_raw = $gcp->($ctxmap, 'ctrl');
   if (Voxgig::Struct::ismap($ctrl_raw)) {
     $self->{ctrl}{throw_err} = $ctrl_raw->{throw} if exists $ctrl_raw->{throw};
@@ -45,7 +45,8 @@ sub new {
     $self->{ctrl}{actor} = $ctrl_raw->{actor} if exists $ctrl_raw->{actor};
     $self->{ctrl}{paging} = $ctrl_raw->{paging} if Voxgig::Struct::ismap($ctrl_raw->{paging});
   }
-  elsif ($basectx && $basectx->{ctrl}) {
+  elsif ($basectx && $basectx->{ctrl}
+      && !defined VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'opname')) {
     $self->{ctrl} = $basectx->{ctrl};
   }
 
@@ -70,24 +71,24 @@ sub new {
   my $om = $gcp->($ctxmap, 'opmap');
   $self->{opmap} = Voxgig::Struct::ismap($om) ? $om : (($basectx && $basectx->{opmap}) || {});
 
-  $self->{data} = SolardemoHelpers::to_map($gcp->($ctxmap, 'data')) || {};
-  $self->{reqdata} = SolardemoHelpers::to_map($gcp->($ctxmap, 'reqdata')) || {};
-  $self->{match} = SolardemoHelpers::to_map($gcp->($ctxmap, 'match')) || {};
-  $self->{reqmatch} = SolardemoHelpers::to_map($gcp->($ctxmap, 'reqmatch')) || {};
+  $self->{data} = VoxgigSolardemoHelpers::to_map($gcp->($ctxmap, 'data')) || {};
+  $self->{reqdata} = VoxgigSolardemoHelpers::to_map($gcp->($ctxmap, 'reqdata')) || {};
+  $self->{match} = VoxgigSolardemoHelpers::to_map($gcp->($ctxmap, 'match')) || {};
+  $self->{reqmatch} = VoxgigSolardemoHelpers::to_map($gcp->($ctxmap, 'reqmatch')) || {};
 
   my $pt = $gcp->($ctxmap, 'point');
   $self->{point} = Voxgig::Struct::ismap($pt) ? $pt : ($basectx ? $basectx->{point} : undef);
 
   my $sp = $gcp->($ctxmap, 'spec');
-  $self->{spec} = (Scalar::Util::blessed($sp) && $sp->isa('SolardemoSpec'))
+  $self->{spec} = (Scalar::Util::blessed($sp) && $sp->isa('VoxgigSolardemoSpec'))
     ? $sp : ($basectx ? $basectx->{spec} : undef);
 
   my $r = $gcp->($ctxmap, 'result');
-  $self->{result} = (Scalar::Util::blessed($r) && $r->isa('SolardemoResult'))
+  $self->{result} = (Scalar::Util::blessed($r) && $r->isa('VoxgigSolardemoResult'))
     ? $r : ($basectx ? $basectx->{result} : undef);
 
   my $rp = $gcp->($ctxmap, 'response');
-  $self->{response} = (Scalar::Util::blessed($rp) && $rp->isa('SolardemoResponse'))
+  $self->{response} = (Scalar::Util::blessed($rp) && $rp->isa('VoxgigSolardemoResponse'))
     ? $rp : ($basectx ? $basectx->{response} : undef);
 
   my $opname = $gcp->($ctxmap, 'opname');
@@ -108,19 +109,19 @@ sub resolve_op {
   my $entname = (Scalar::Util::blessed($ent) && $ent->can('get_name')) ? $ent->get_name : '_';
   my $cache_key = "$entname:$opname";
   return $self->{opmap}{$cache_key} if $self->{opmap}{$cache_key};
-  return SolardemoOperation->new({}) if '' eq $opname;
+  return VoxgigSolardemoOperation->new({}) if '' eq $opname;
 
-  my $opcfg = SolardemoHelpers::gpath($self->{config}, "entity.$entname.op.$opname");
+  my $opcfg = VoxgigSolardemoHelpers::gpath($self->{config}, "entity.$entname.op.$opname");
 
   my $input = ($opname eq 'update' || $opname eq 'create') ? 'data' : 'match';
 
   my $points = [];
   if (Voxgig::Struct::ismap($opcfg)) {
-    my $t = SolardemoHelpers::gp($opcfg, 'points');
+    my $t = VoxgigSolardemoHelpers::gp($opcfg, 'points');
     $points = $t if Voxgig::Struct::islist($t);
   }
 
-  my $op = SolardemoOperation->new({
+  my $op = VoxgigSolardemoOperation->new({
     entity => $entname,
     name   => $opname,
     input  => $input,
@@ -132,7 +133,7 @@ sub resolve_op {
 
 sub make_error {
   my ($self, $code, $msg) = @_;
-  return SolardemoError->new($code, $msg, $self);
+  return VoxgigSolardemoError->new($code, $msg, $self);
 }
 
 1;

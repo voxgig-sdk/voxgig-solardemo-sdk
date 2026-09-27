@@ -1,14 +1,14 @@
-# Solardemo SDK utility: make_request
+# VoxgigSolardemo SDK utility: make_request
 require_relative '../core/response'
 require_relative '../core/result'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   MakeRequest = ->(ctx) {
     return ctx.out["request"], nil if ctx.out["request"]
 
     spec = ctx.spec
     utility = ctx.utility
-    response = SolardemoResponse.new({})
-    result = SolardemoResult.new({})
+    response = VoxgigSolardemoResponse.new({})
+    result = VoxgigSolardemoResult.new({})
     ctx.result = result
 
     return nil, ctx.make_error("request_no_spec", "Expected context spec property to be defined.") unless spec
@@ -30,9 +30,9 @@ module SolardemoUtilities
     if fetch_err
       response.err = fetch_err
     elsif fetched.nil?
-      response = SolardemoResponse.new({ "err" => ctx.make_error("request_no_response", "response: undefined") })
+      response = VoxgigSolardemoResponse.new({ "err" => ctx.make_error("request_no_response", "response: undefined") })
     elsif fetched.is_a?(Hash)
-      response = SolardemoResponse.new(fetched)
+      response = VoxgigSolardemoResponse.new(fetched)
     else
       response.err = ctx.make_error("request_invalid_response", "response: invalid type")
     end

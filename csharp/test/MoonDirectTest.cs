@@ -5,7 +5,7 @@ using System.Text.Json;
 using Voxgig.Struct;
 using Xunit;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class MoonDirectTest
 {
@@ -198,7 +198,7 @@ public class MoonDirectTest
 
     private class MoonDirectSetupResult
     {
-        public SolardemoSDK Client = null!;
+        public VoxgigSolardemoSDK Client = null!;
         public List<Dictionary<string, object?>> Calls = new();
         public bool Live;
         public Dictionary<string, object?> Idmap = new();
@@ -212,11 +212,11 @@ public class MoonDirectTest
 
         var env = TestRunner.EnvOverride(new Dictionary<string, object?>
         {
-            ["SOLARDEMO_TEST_MOON_ENTID"] = new Dictionary<string, object?>(),
-            ["SOLARDEMO_TEST_LIVE"] = "FALSE",
+            ["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"] = new Dictionary<string, object?>(),
+            ["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE",
         });
 
-        var live = Equals(env["SOLARDEMO_TEST_LIVE"], "TRUE");
+        var live = Equals(env["VOXGIG_SOLARDEMO_TEST_LIVE"], "TRUE");
 
         if (live)
         {
@@ -230,10 +230,10 @@ public class MoonDirectTest
             {
                 liveOpts[_kv.Key] = _kv.Value;
             }
-            var liveClient = new SolardemoSDK(liveOpts);
+            var liveClient = new VoxgigSolardemoSDK(liveOpts);
 
             var idmap = new Dictionary<string, object?>();
-            var entidRaw = env["SOLARDEMO_TEST_MOON_ENTID"];
+            var entidRaw = env["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"];
             if (entidRaw is string entidStr && entidStr.StartsWith("{"))
             {
                 try
@@ -278,7 +278,7 @@ public class MoonDirectTest
                 };
             };
 
-        var client = new SolardemoSDK(new Dictionary<string, object?>
+        var client = new VoxgigSolardemoSDK(new Dictionary<string, object?>
         {
             ["base"] = "http://localhost:8080",
             ["system"] = new Dictionary<string, object?>

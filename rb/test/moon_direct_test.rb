@@ -2,7 +2,7 @@
 
 require "minitest/autorun"
 require "json"
-require_relative "../Solardemo_sdk"
+require_relative "../VoxgigSolardemo_sdk"
 require_relative "runner"
 
 class MoonDirectTest < Minitest::Test
@@ -129,18 +129,18 @@ def moon_direct_setup(mockres)
   calls = []
 
   env = Runner.env_override({
-    "SOLARDEMO_TEST_MOON_ENTID" => {},
-    "SOLARDEMO_TEST_LIVE" => "FALSE",
+    "VOXGIG_SOLARDEMO_TEST_MOON_ENTID" => {},
+    "VOXGIG_SOLARDEMO_TEST_LIVE" => "FALSE",
   })
 
-  live = env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+  live = env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
 
   if live
     # Merged so the generated fields win: sdk-test-control.json's
     # test.client.options adds to the live client, it does not redirect it.
     merged_opts = Runner.live_client_options.merge({
     })
-    client = SolardemoSDK.new(merged_opts)
+    client = VoxgigSolardemoSDK.new(merged_opts)
     return {
       client: client,
       calls: calls,
@@ -165,7 +165,7 @@ def moon_direct_setup(mockres)
     }, nil
   }
 
-  client = SolardemoSDK.new({
+  client = VoxgigSolardemoSDK.new({
     "base" => "http://localhost:8080",
     "system" => {
       "fetch" => mock_fetch,

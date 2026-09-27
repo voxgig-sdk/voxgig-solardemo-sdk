@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: prepare_params
+// VoxgigSolardemo SDK utility: prepare_params
 
-class SolardemoPrepareParams
+class VoxgigSolardemoPrepareParams
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         $utility = $ctx->utility;
         $point = $ctx->point;

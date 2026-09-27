@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_options
+# VoxgigSolardemo SDK utility: make_options
 
 use strict;
 use warnings;
@@ -10,8 +10,9 @@ my $__dir;
 BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
+require(Cwd::abs_path("$__dir/../schema.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -36,7 +37,7 @@ $REGISTRY{make_options} = sub {
   # so a utility added later is overridable without touching this. The
   # registrar has already populated every member, so `exists` is the test for
   # "is this a real one" - once the key is known to be a PUBLIC name.
-  my $custom_utils = SolardemoHelpers::gp($options, 'utility');
+  my $custom_utils = VoxgigSolardemoHelpers::gp($options, 'utility');
   if (Voxgig::Struct::ismap($custom_utils) && $ctx->{utility}) {
     my $utility = $ctx->{utility};
     for my $k (keys %$custom_utils) {
@@ -67,7 +68,7 @@ $REGISTRY{make_options} = sub {
   # list is captured here and re-attached after validation - the
   # system.fetch idiom. Without this the seam is dead: the constructor
   # reads options.extend, but clone/validate dropped the instances.
-  my $extend_raw = SolardemoHelpers::gp($options, 'extend');
+  my $extend_raw = VoxgigSolardemoHelpers::gp($options, 'extend');
 
   # `auth => undef` is the documented way to disable auth outright, and
   # prepare_auth honours it before it ever reads the apikey. It cannot survive
@@ -95,12 +96,12 @@ $REGISTRY{make_options} = sub {
   # explicit order; a map defaults to test-first so the `test` mock transport
   # is installed as the base of the transport wrapper chain.
   my @featureorder;
-  my $feature_raw = SolardemoHelpers::gp($opts, 'feature');
+  my $feature_raw = VoxgigSolardemoHelpers::gp($opts, 'feature');
   if (Voxgig::Struct::islist($feature_raw)) {
     my %fmap;
     for my $entry (@$feature_raw) {
       next unless Voxgig::Struct::ismap($entry);
-      my $name = SolardemoHelpers::gp($entry, 'name');
+      my $name = VoxgigSolardemoHelpers::gp($entry, 'name');
       next unless defined $name && !ref $name;
       my %fopts = %$entry;
       delete $fopts{name};
@@ -110,48 +111,38 @@ $REGISTRY{make_options} = sub {
     $opts->{feature} = \%fmap;
   }
 
-  # Normalize plain-scalar booleans at the known boolean slots so
-  # validation sees proper JSON booleans.
-  SolardemoHelpers::coerce_bools($opts);
-
   my $config = $ctx->{config} || {};
   my $cfgopts = Voxgig::Struct::ismap($config->{options}) ? $config->{options} : {};
 
-  my $JT = Voxgig::Struct::JTRUE();
-  my $JF = Voxgig::Struct::JFALSE();
+  # THE OPTION SPEC IS GENERATED, NOT WRITTEN HERE.
+  #
+  # Built from the model: `main.kit.optspec` for the standard options, plus one
+  # entry per feature this target carries, from that feature's own
+  # `config.options` / `config.optspec`. Editing this file to add an option
+  # would put it back where it was - one of twenty hand-maintained copies of a
+  # schema nothing cross-checked - so add it to the model instead and every
+  # ported target validates it.
+  #
+  # It also carries perl's booleans correctly without anyone remembering to:
+  # schema.pm parses its JSON, so every boolean slot holds the JTRUE/JFALSE
+  # singleton `$BOOLEAN` matches, where the literal this replaces had to name
+  # them by hand.
+  #
+  # Parsed once and shared: validate reads the spec and writes into the
+  # options, never into the spec.
+  my $optspec = VoxgigSolardemoSchema::optspec();
 
-  my $optspec = {
-    'apikey' => '',
-    'base' => 'http://localhost:8000',
-    'secret' => '',
-    'prefix' => '',
-    'suffix' => '',
-    # `basic` and `secret`: HTTP Basic Auth needs a second credential and a
-    # flag to say the pair is Basic rather than a single bearer token.
-    'auth' => { 'prefix' => '', 'basic' => $JF },
-    'headers' => { '`$CHILD`' => '`$STRING`' },
-    'allow' => {
-      'method' => 'GET,PUT,POST,PATCH,DELETE,OPTIONS',
-      'op' => 'create,update,load,list,remove,command,direct,graphql',
-    },
-    'entity' => { '`$CHILD`' => { '`$OPEN`' => $JT, 'active' => $JF, 'alias' => {} } },
-    'feature' => { '`$CHILD`' => { '`$OPEN`' => $JT, 'active' => $JF } },
-    'utility' => {},
-    'system' => {},
-    'test' => { 'active' => $JF, 'entity' => { '`$OPEN`' => $JT } },
-    'clean' => { 'keys' => 'key,token,id' },
-    # Server-variable values for a templated base URL (OpenAPI server
-    # variables). The embedded config (configDefinition) carries the
-    # spec defaults; user values override them. This port does not yet
-    # substitute {name} placeholders into base - the entry keeps the
-    # config's server block valid under this optspec.
-    'server' => { '`$CHILD`' => '' },
-  };
+  # Normalize plain-scalar booleans at the slots the SPEC says are boolean, so
+  # validation sees proper JSON booleans. AFTER the spec is in hand, because
+  # this reads it: perl has no native boolean, and `$BOOLEAN` matches only the
+  # struct's own JTRUE/JFALSE singletons, so `cache => 0` - what a perl author
+  # writes - is otherwise a validation error rather than a false.
+  VoxgigSolardemoHelpers::coerce_bools($opts, $optspec);
 
-  my $sys_fetch = SolardemoHelpers::gpath($opts, 'system.fetch');
+  my $sys_fetch = VoxgigSolardemoHelpers::gpath($opts, 'system.fetch');
 
   # CLONE the config side: `config` is a process-wide singleton
-  # (SolardemoConfig::shared_config) and merge uses its nested hashes as merge
+  # (VoxgigSolardemoConfig::shared_config) and merge uses its nested hashes as merge
   # TARGETS, so without this one client's options (headers, server, ...) are
   # written into the shared config and inherited by every client after it.
   my $merged = Voxgig::Struct::merge([{}, Voxgig::Struct::clone($cfgopts), $opts]);
@@ -171,7 +162,7 @@ $REGISTRY{make_options} = sub {
     $opts->{extend} = $extend_raw;
   }
 
-  my $clean_keys = SolardemoHelpers::gpath($opts, 'clean.keys');
+  my $clean_keys = VoxgigSolardemoHelpers::gpath($opts, 'clean.keys');
   $clean_keys = 'key,token,id' unless defined $clean_keys && !ref $clean_keys;
   my @parts;
   for my $p (split /,/, $clean_keys) {
@@ -184,8 +175,8 @@ $REGISTRY{make_options} = sub {
   # otherwise order the map test-first, then the remaining names sorted, so
   # the outcome is deterministic and `test` is always the base transport.
   if (!@featureorder) {
-    my $fmap = SolardemoHelpers::to_map(
-      SolardemoHelpers::gp($opts, 'feature')) || {};
+    my $fmap = VoxgigSolardemoHelpers::to_map(
+      VoxgigSolardemoHelpers::gp($opts, 'feature')) || {};
     my @names = sort keys %$fmap;
     @featureorder = (grep { 'test' eq $_ } @names)
       ? ('test', grep { 'test' ne $_ } @names)

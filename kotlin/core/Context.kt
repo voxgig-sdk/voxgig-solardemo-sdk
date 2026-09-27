@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.concurrent.ThreadLocalRandom
 
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 /** Per-operation context threaded through the pipeline and feature hooks. */
 @Suppress("UNCHECKED_CAST")
@@ -76,7 +76,7 @@ class Context(ctxmap: MutableMap<String, Any?>?, basectx: Context?) {
       } else if (cv is Control) {
         this.ctrl = cv
       }
-    } else if (basectx != null) {
+    } else if (basectx != null && Helpers.getCtxProp(ctxmap, "opname") == null) {
       this.ctrl = basectx.ctrl
     }
 

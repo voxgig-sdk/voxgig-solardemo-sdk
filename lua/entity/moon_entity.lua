@@ -1,4 +1,4 @@
--- Solardemo SDK Moon entity
+-- VoxgigSolardemo SDK Moon entity
 
 local vs = require("utility.struct.struct")
 local helpers = require("core.helpers")

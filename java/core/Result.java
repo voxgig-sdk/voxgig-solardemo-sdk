@@ -1,11 +1,11 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 /** The processed outcome of one operation. */
 @SuppressWarnings({"unchecked"})

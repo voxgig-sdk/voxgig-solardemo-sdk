@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, Result, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, Result, SdkClient}
 
 // Streaming result support. For list-style operations it attaches a
 // `result.stream` supplier yielding an iterator so callers can consume

@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_request
+// VoxgigSolardemo SDK utility: make_request
 
 require_once __DIR__ . '/../core/Response.php';
 require_once __DIR__ . '/../core/Result.php';
 
-class SolardemoMakeRequest
+class VoxgigSolardemoMakeRequest
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         if (isset($ctx->out['request'])) {
             return [$ctx->out['request'], null];
@@ -16,8 +16,8 @@ class SolardemoMakeRequest
 
         $spec = $ctx->spec;
         $utility = $ctx->utility;
-        $response = new SolardemoResponse([]);
-        $result = new SolardemoResult([]);
+        $response = new VoxgigSolardemoResponse([]);
+        $result = new VoxgigSolardemoResult([]);
         $ctx->result = $result;
 
         if (!$spec) {
@@ -43,9 +43,9 @@ class SolardemoMakeRequest
         if ($fetch_err) {
             $response->err = $fetch_err;
         } elseif ($fetched === null) {
-            $response = new SolardemoResponse(['err' => $ctx->make_error('request_no_response', 'response: undefined')]);
+            $response = new VoxgigSolardemoResponse(['err' => $ctx->make_error('request_no_response', 'response: undefined')]);
         } elseif (is_array($fetched)) {
-            $response = new SolardemoResponse($fetched);
+            $response = new VoxgigSolardemoResponse($fetched);
         } else {
             $response->err = $ctx->make_error('request_invalid_response', 'response: invalid type');
         }

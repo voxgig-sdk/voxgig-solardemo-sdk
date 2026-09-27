@@ -1,4 +1,4 @@
-// Solardemo SDK — core runtime types.
+// VoxgigSolardemo SDK — core runtime types.
 //
 // The whole pipeline type graph (mirrors the java core/* classes): the
 // swappable Utility function bundle, the per-operation Context, the
@@ -77,7 +77,7 @@ SdkErrorPtr unsupportedOp(const std::string& opname, const std::string& entityna
 
 class SdkError : public std::runtime_error {
 public:
-  std::string sdk = "Solardemo";
+  std::string sdk = "VoxgigSolardemo";
   std::string code;
   std::string msg;
   Context* ctx = nullptr;
@@ -422,6 +422,10 @@ struct CtxOut {
   Value point = Value::undef();
   SdkErrorPtr pointError;
   SpecPtr spec;
+  // A PreSpec hook (e.g. validate) rejecting the operation. `spec` above is
+  // a Spec, so it cannot carry the error the way go's `out["spec"]` map slot
+  // does; this is the same seam as pointError, one stage later.
+  SdkErrorPtr specError;
   ResponsePtr request;
   ResponsePtr response;
   ResultPtr result;
@@ -686,7 +690,7 @@ inline Context::Context(const CtxSpec& cs, const CtxPtr& basectx) {
     if (a.is_string()) ctrl->actor = a.as_string();
     Value p = getp(cs.ctrlMap, "paging");
     if (p.is_map()) ctrl->paging = p;
-  } else if (basectx && basectx->ctrl) {
+  } else if (basectx && basectx->ctrl && cs.opname.empty()) {
     ctrl = basectx->ctrl;
   }
 
@@ -918,7 +922,7 @@ inline Value SdkClient::opDenied(const std::string& op) {
   Value out = vmap();
   map_put(out, "ok", Value(false));
   map_put(out, "err", vmap({{"message", Value(
-    "SolardemoSDK: " + op + ": operation not allowed by"
+    "VoxgigSolardemoSDK: " + op + ": operation not allowed by"
     " SDK option allow.op value: \"" + a + "\"")}}));
   return out;
 }
@@ -968,7 +972,7 @@ inline Value SdkClient::graphql(const std::string& query, const Value& variables
       ? m.as_string() : "graphql error";
     map_put(res, "ok", Value(false));
     map_put(res, "err", vmap({{"message",
-      Value("SolardemoSDK: graphql: " + msg)}}));
+      Value("VoxgigSolardemoSDK: graphql: " + msg)}}));
     map_put(res, "graphql", errors);
   }
 

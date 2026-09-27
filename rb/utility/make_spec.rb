@@ -1,8 +1,8 @@
-# Solardemo SDK utility: make_spec
+# VoxgigSolardemo SDK utility: make_spec
 require_relative 'struct/voxgig_struct'
 require_relative 'graphql'
 require_relative '../core/spec'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   MakeSpec = ->(ctx) {
     if ctx.out["spec"]
       ctx.spec = ctx.out["spec"]
@@ -21,7 +21,7 @@ module SolardemoUtilities
     parts = VoxgigStruct.getprop(point, "parts") if point
     parts = [] unless parts.is_a?(Array)
 
-    ctx.spec = SolardemoSpec.new({
+    ctx.spec = VoxgigSolardemoSpec.new({
       "base" => base, "prefix" => prefix, "parts" => parts,
       "suffix" => suffix, "step" => "start",
     })

@@ -1,6 +1,6 @@
-// Solardemo SDK utility: makeContext.
+// VoxgigSolardemo SDK utility: makeContext.
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

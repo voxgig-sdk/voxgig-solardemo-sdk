@@ -1,5 +1,5 @@
 
-const { SolardemoEntityBase } = require('./SolardemoEntityBase')
+const { VoxgigSolardemoEntityBase } = require('./VoxgigSolardemoEntityBase')
 
 const { Point } = require('./Point')
 const { Context } = require('./Context')
@@ -18,5 +18,5 @@ module.exports = {
   Response,
   Result,
   Spec,
-  SolardemoEntityBase,
+  VoxgigSolardemoEntityBase,
 }

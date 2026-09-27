@@ -9,6 +9,8 @@ import {
   each,
   isAuthActive,
   isConfigData,
+  resolveAuthIn,
+  resolveAuthName,
   resolveAuthPrefix,
   targetFeatures,
 } from '@voxgig/sdkgen'
@@ -35,15 +37,14 @@ const Config = cmp(async function Config(props: any) {
   const Name = model.const.Name
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  // Gated by the applicability tags, so this target never imports or
-  // registers a feature it has no source for. One rule, one place:
-  // helpers/applicability.
   const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
   const authActive = isAuthActive(model)
   const authPrefix = resolveAuthPrefix(model)
+  const authIn = resolveAuthIn(model)
+  const authName = resolveAuthName(model)
 
   let baseUrl = ''
   try { baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`) } catch (_e) { }
@@ -52,39 +53,61 @@ const Config = cmp(async function Config(props: any) {
     ? `        "auth" => %{"prefix" => ${elixirString(authPrefix)}},\n`
     : ''
 
+  const featurePlugins: Record<string, string[]> = {}
+
+  let declared = false
+
+  each(feature, (f: any) => {
+    const all = getModelPath(model, `main.${KIT}.feature.${f.name}.plugin`,
+      { required: false, only_active: false }) || {}
+    if (0 < Object.keys(all).length) {
+      declared = true
+    }
+
+    const syms: string[] = []
+    each(f.plugin, (plugin: any) => {
+      if (false === plugin.active || null == plugin.active) return
+      for (const sym of Object.keys(plugin.def?.elixir || {})) {
+        syms.push(sym)
+      }
+    })
+    if (0 < syms.length) {
+      featurePlugins[f.name] = syms.sort()
+    }
+  })
+
+  const featurePluginNames = Object.keys(featurePlugins).sort()
+
+  const featurePluginsBlock = !declared ? '' :
+    `
+  # The plugin definitions the model selected per feature. Empty when no
+  # active feature declares active plugin groups for this target.
+  def feature_plugins(name) do
+    case name do
+` +
+    featurePluginNames.map((fname: string) =>
+      `      ${elixirString(fname)} -> [${featurePlugins[fname]
+        .map((s: string) => s + '()').join(', ')}]\n`).join('') +
+    `      _ -> []
+    end
+  end
+`
+
   Folder({ name: 'lib' }, () => {
-    // The same config as an OBJECT, built by the shared helper so this
-    // target's literal and the data that replaces it above the threshold are
-    // the same config by construction. The JSON is what the threshold is
-    // measured on - emitted source size varies by language, the model does not.
-    // Passing target.name opts in to the main slug/version/target identity
-    // fields (station descriptor input, mirrors Config_ts) - both reps below
-    // render from this same def, so the data and literal branches pick the
-    // fields up together.
-    const { def: configDef, json: configJson } = configDefinition(model, target.name)
+    const { def: configDef } = configDefinition(model, target.name)
+
+    if (authActive && null != configDef.options && null != configDef.options.auth) {
+      if ('header' !== authIn) configDef.options.auth.in = authIn
+      if ('Authorization' !== authName) configDef.options.auth.name = authName
+    }
+
+    const configJson = JSON.stringify(configDef)
     const asData = isConfigData(configJson, configReprSetting(model))
 
-    // configDefinition's `def.entity` verbatim, NOT rebuilt here. The reduce
-    // this replaces was one of fourteen copies of that function's entityDefs
-    // loop, and when configDefinition started reconstructing a point's
-    // `parts` from apidef's segment vector (its ADR-003), only the copies
-    // that read `configDef` got it — this target's literal config emitted
-    // paths with no parts at all while its data config had them. One rule,
-    // one place.
     const entityClean = configDef.entity
 
     File({ name: 'config.ex' }, () => {
 
-      // ABOVE THE THRESHOLD: emit the model as DATA.
-      //
-      // The literal is one nested `%{}` the Elixir compiler expands and holds
-      // in the module's constant pool; a binary is one token. `Json.parse`
-      // builds the vendored struct's heap nodes DIRECTLY - the same nodes
-      // `Helpers.deep/1` produces from a plain map - so make_config returns
-      // exactly what it returned before.
-      //
-      // `ProjectName.Json` is already the SDK's response decoder (see
-      // `safe_json` in utility.ex), so this adds no dependency.
       if (asData) {
         Content(`# ${Name} SDK configuration
 #
@@ -156,7 +179,7 @@ defmodule ${Name}.Config do
   rescue
     ArgumentError -> false
   end
-end
+${featurePluginsBlock}end
 `)
         return
       }
@@ -222,7 +245,7 @@ defmodule ${Name}.Config do
   rescue
     ArgumentError -> false
   end
-end
+${featurePluginsBlock}end
 `)
     })
   })

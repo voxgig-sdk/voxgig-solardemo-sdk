@@ -1,5 +1,5 @@
 #!perl
-# Solardemo SDK pipeline test
+# VoxgigSolardemo SDK pipeline test
 #
 # Direct unit tests for the operation-pipeline utilities. The generated
 # entity tests exercise the happy path; these drive the error and edge
@@ -15,9 +15,9 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use Scalar::Util ();
 
-use SolardemoSDK;
+use VoxgigSolardemoSDK;
 
-my $client = SolardemoSDK->test(undef, undef);
+my $client = VoxgigSolardemoSDK->test(undef, undef);
 my $utility = $client->get_utility;
 
 # Fake client so the exact options shape is controlled (prepare_auth).
@@ -71,7 +71,7 @@ sub resp {
   for my $k (keys %{ $headers || {} }) {
     $h->{lc $k} = $headers->{$k};
   }
-  return SolardemoResponse->new({
+  return VoxgigSolardemoResponse->new({
     'status' => $status,
     'statusText' => ($status < 400 ? 'OK' : 'ERR'),
     'body' => 'body',
@@ -82,7 +82,7 @@ sub resp {
 
 sub spec_of {
   my (%map) = @_;
-  return SolardemoSpec->new({
+  return VoxgigSolardemoSpec->new({
     'step' => 's', 'method' => 'GET', 'headers' => {}, %map });
 }
 
@@ -96,7 +96,7 @@ sub util_with {
 
 sub is_sdk_error {
   my ($err) = @_;
-  return Scalar::Util::blessed($err) && $err->isa('SolardemoError');
+  return Scalar::Util::blessed($err) && $err->isa('VoxgigSolardemoError');
 }
 
 
@@ -163,14 +163,14 @@ sub is_sdk_error {
   my $ctx = make_ctx();
   $ctx->{spec} = undef;
   $ctx->{response} = resp(200);
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   my (undef, $err) = $utility->{make_response}->($ctx);
   is($err->{code}, 'response_no_spec', 'make_response guards missing spec');
 
   $ctx = make_ctx();
   $ctx->{spec} = spec_of();
   $ctx->{response} = undef;
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   (undef, $err) = $utility->{make_response}->($ctx);
   is($err->{code}, 'response_no_response', 'make_response guards missing response');
 
@@ -186,7 +186,7 @@ sub is_sdk_error {
   my $ctx = make_ctx();
   $ctx->{spec} = spec_of();
   $ctx->{response} = resp(404, undef, { 'x-a' => '1' });
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   my (undef, $err) = $utility->{make_response}->($ctx);
   ok(!defined $err, 'make_response 4xx: no tuple error');
   ok(defined $ctx->{result}{err}, 'make_response 4xx sets result err');
@@ -199,7 +199,7 @@ sub is_sdk_error {
   my $ctx = make_ctx();
   $ctx->{spec} = spec_of();
   $ctx->{response} = resp(200, { 'v' => 1 });
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   my (undef, $err) = $utility->{make_response}->($ctx);
   ok(!defined $err, 'make_response 2xx: no error');
   ok($ctx->{result}{ok}, 'make_response 2xx marks ok');
@@ -211,7 +211,7 @@ sub is_sdk_error {
   $ctx->{ctrl}{explain} = {};
   $ctx->{spec} = spec_of();
   $ctx->{response} = resp(200, { 'v' => 2 });
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   $utility->{make_response}->($ctx);
   ok(defined $ctx->{ctrl}{explain}{result}, 'make_response records to ctrl explain');
 }
@@ -222,7 +222,7 @@ sub is_sdk_error {
   $ctx->{out}{response} = $preset;
   $ctx->{spec} = spec_of();
   $ctx->{response} = resp(200);
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   my ($out, $err) = $utility->{make_response}->($ctx);
   ok(!defined $err, 'make_response preset: no error');
   is($out, $preset, 'make_response short-circuits a feature-supplied response');
@@ -234,7 +234,7 @@ sub is_sdk_error {
 {
   my $ctx = make_ctx();
   $ctx->{spec} = undef;
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   my (undef, $err) = $utility->{make_result}->($ctx);
   is($err->{code}, 'result_no_spec', 'make_result guards missing spec');
 
@@ -254,7 +254,7 @@ sub is_sdk_error {
     'entity' => PipelineFakeEntity->new($made),
   }, undef);
   $ctx->{spec} = spec_of();
-  $ctx->{result} = SolardemoResult->new({
+  $ctx->{result} = VoxgigSolardemoResult->new({
     'ok' => 1, 'resdata' => [{ 'a' => 1 }, { 'a' => 2 }],
   });
   my ($result, $err) = $utility->{make_result}->($ctx);
@@ -273,7 +273,7 @@ sub is_sdk_error {
     'entity' => PipelineFakeEntity->new($made),
   }, undef);
   $ctx->{spec} = spec_of();
-  $ctx->{result} = SolardemoResult->new({ 'ok' => 1, 'resdata' => [] });
+  $ctx->{result} = VoxgigSolardemoResult->new({ 'ok' => 1, 'resdata' => [] });
   my ($result, $err) = $utility->{make_result}->($ctx);
   ok(!defined $err, 'make_result empty list: no error');
   is_deeply($result->{resdata}, [], 'make_result empty list yields an empty resdata array');
@@ -281,7 +281,7 @@ sub is_sdk_error {
 
 {
   my $ctx = make_ctx();
-  my $preset = SolardemoResult->new({ 'ok' => 1 });
+  my $preset = VoxgigSolardemoResult->new({ 'ok' => 1 });
   $ctx->{out}{result} = $preset;
   my ($out, $err) = $utility->{make_result}->($ctx);
   ok(!defined $err, 'make_result preset: no error');
@@ -303,7 +303,7 @@ sub request_spec {
 }
 
 {
-  my $boom = SolardemoError->new('boom', 'boom');
+  my $boom = VoxgigSolardemoError->new('boom', 'boom');
   my $u = util_with(sub { return (undef, $boom) });
   my $ctx = make_ctx(utility => $u);
   $ctx->{spec} = request_spec();
@@ -348,7 +348,7 @@ sub request_spec {
 {
   my $u = $client->get_utility;
   $u->{make_fetch_def} = sub {
-    return (undef, SolardemoError->new('fetchdef_boom', 'boom'));
+    return (undef, VoxgigSolardemoError->new('fetchdef_boom', 'boom'));
   };
   my $ctx = make_ctx(utility => $u);
   $ctx->{spec} = request_spec();
@@ -397,13 +397,13 @@ sub request_spec {
 
 {
   my $ctx = make_ctx();
-  $ctx->{result} = SolardemoResult->new({ 'ok' => 1, 'resdata' => 42 });
+  $ctx->{result} = VoxgigSolardemoResult->new({ 'ok' => 1, 'resdata' => 42 });
   is($utility->{done}->($ctx), 42, 'done returns resdata on success');
 }
 
 {
   my $ctx = make_ctx();
-  $ctx->{result} = SolardemoResult->new({ 'ok' => 0 });
+  $ctx->{result} = VoxgigSolardemoResult->new({ 'ok' => 0 });
   my $out = eval { $utility->{done}->($ctx) };
   ok(is_sdk_error($@), 'done dies with the error when not ok');
 }
@@ -411,14 +411,14 @@ sub request_spec {
 {
   my $ctx = make_ctx();
   $ctx->{ctrl}{explain} = { 'result' => { 'err' => 'x' } };
-  $ctx->{result} = SolardemoResult->new({ 'ok' => 1, 'resdata' => 7 });
+  $ctx->{result} = VoxgigSolardemoResult->new({ 'ok' => 1, 'resdata' => 7 });
   is($utility->{done}->($ctx), 7, 'done cleans ctrl explain on success');
 }
 
 {
   my $ctx = make_ctx();
   $ctx->{ctrl}{throw_err} = 0;
-  $ctx->{result} = SolardemoResult->new({ 'ok' => 0, 'resdata' => 'fallback' });
+  $ctx->{result} = VoxgigSolardemoResult->new({ 'ok' => 0, 'resdata' => 'fallback' });
   is($utility->{make_error}->($ctx, undef), 'fallback',
     'make_error returns resdata when throw is disabled');
 }
@@ -427,7 +427,7 @@ sub request_spec {
   my $ctx = make_ctx();
   $ctx->{ctrl}{throw_err} = 0;
   $ctx->{ctrl}{explain} = {};
-  $ctx->{result} = SolardemoResult->new({ 'ok' => 0 });
+  $ctx->{result} = VoxgigSolardemoResult->new({ 'ok' => 0 });
   $utility->{make_error}->($ctx, undef);
   ok(defined $ctx->{ctrl}{explain}{err}, 'make_error records to ctrl explain');
 }
@@ -445,15 +445,15 @@ sub request_spec {
 # === feature ordering ===
 
 {
-  my $oclient = SolardemoSDK->test(undef, undef);
+  my $oclient = VoxgigSolardemoSDK->test(undef, undef);
   my $outil = $oclient->get_utility;
   my $ctx = $outil->{make_context}->({
     'opname' => 'load', 'client' => $oclient, 'utility' => $outil,
   }, undef);
 
   $oclient->{features} = [];
-  my $a = SolardemoBaseFeature->new;
-  my $b = SolardemoBaseFeature->new;
+  my $a = VoxgigSolardemoBaseFeature->new;
+  my $b = VoxgigSolardemoBaseFeature->new;
   $outil->{feature_add}->($ctx, $a);
   $outil->{feature_add}->($ctx, $b);
   is_deeply($oclient->{features}, [$a, $b], 'feature_add appends in call order');
@@ -461,7 +461,7 @@ sub request_spec {
 
 sub named_feature {
   my ($name) = @_;
-  my $f = SolardemoBaseFeature->new;
+  my $f = VoxgigSolardemoBaseFeature->new;
   $f->{name} = $name;
   return $f;
 }
@@ -469,7 +469,7 @@ sub named_feature {
 {
   # `_options` on an extend-feature instance positions it relative to an
   # already-added feature (mirrors the ts featureAdd).
-  my $oclient = SolardemoSDK->test(undef, undef);
+  my $oclient = VoxgigSolardemoSDK->test(undef, undef);
   my $outil = $oclient->get_utility;
   my $ctx = $outil->{make_context}->({
     'opname' => 'load', 'client' => $oclient, 'utility' => $outil,
@@ -535,9 +535,9 @@ sub named_feature {
   ]);
   is(join(',', @{ $o2->{__derived__}{featureorder} }), 'metrics,test',
     'feature order: array form preserves the explicit developer order');
-  ok(SolardemoHelpers::is_true($o2->{feature}{metrics}{active}),
+  ok(VoxgigSolardemoHelpers::is_true($o2->{feature}{metrics}{active}),
     'feature order: array normalized to a map (metrics opts preserved)');
-  ok(SolardemoHelpers::is_true($o2->{feature}{test}{active}),
+  ok(VoxgigSolardemoHelpers::is_true($o2->{feature}{test}{active}),
     'feature order: array normalized to a map (test opts preserved)');
 
   my $o3 = $resolve->({
@@ -551,60 +551,159 @@ sub named_feature {
 
 # === prepare_auth ===
 
+# A cookie credential as prepare_auth writes it: `<scheme>=K` for the probe
+# key, with no scheme prefix and nothing else in the bag.
+sub _is_cookie_pair {
+  my ($value) = @_;
+  return (defined $value && !ref $value && $value =~ m{^[^=;]+=K$}) ? 1 : 0;
+}
+
 sub auth_ctx {
-  my ($options, $headers) = @_;
-  my $ctx = SolardemoContext->new({
+  my ($options, $spec) = @_;
+  my $ctx = VoxgigSolardemoContext->new({
     'client' => PipelineOptClient->new($options),
     'utility' => $utility,
     'opname' => 'load',
   }, undef);
-  $ctx->{spec} = defined $headers
-    ? SolardemoSpec->new({ 'headers' => $headers, 'step' => 's' })
-    : undef;
+  $ctx->{spec} = $spec;
   return $ctx;
 }
 
+sub auth_bags {
+  return VoxgigSolardemoSpec->new({ 'headers' => {}, 'query' => {}, 'step' => 's' });
+}
+
+# A cookie credential rides the header bag, because a cookie IS a header.
+sub auth_bag {
+  my ($spec, $where) = @_;
+  return 'query' eq $where ? $spec->{query} : $spec->{headers};
+}
+
+# `basic: false` is explicit: an HTTP Basic API's generated config carries
+# `auth.basic: true`, and a client that merges it in takes a branch that needs
+# a secret as well. With none supplied that branch deliberately writes
+# nothing, which the probe would read as a public API.
+sub auth_block {
+  my ($prefix) = @_;
+  return { 'prefix' => $prefix, 'basic' => 0 };
+}
+
+# Run prepare_auth with both containers present and see which one the
+# generated utility writes to, and under what name. undef means this SDK
+# places no credential at all - a public API - which is a legitimate shape,
+# and the tests below assert exactly that instead. `pair` is the `<scheme>=`
+# lead-in of a COOKIE credential, which rides the header bag under the key
+# `cookie` instead of taking a header of its own.
+sub auth_probe {
+  my ($options) = @_;
+  my $ctx = auth_ctx($options, auth_bags());
+  $utility->{prepare_auth}->($ctx);
+  for my $where ('headers', 'query') {
+    my $bag = auth_bag($ctx->{spec}, $where);
+    for my $name (keys %{ $bag || {} }) {
+      my $value = $bag->{$name};
+      my $pair = '';
+      if ('headers' eq $where && 'cookie' eq $name && _is_cookie_pair($value)) {
+        $pair = substr($value, 0, -1);
+      }
+      return { 'where' => $where, 'name' => $name,
+        'value' => $value, 'pair' => $pair };
+    }
+  }
+  return undef;
+}
+
+sub auth_credential {
+  return auth_probe({ 'apikey' => 'K', 'auth' => auth_block('Bearer') });
+}
+
+# Every credential this SDK could possibly place: both credentials and Basic
+# switched on, so whichever branch the API has, something lands unless the API
+# is public.
+sub auth_any_credential {
+  return auth_probe({ 'apikey' => 'K', 'secret' => 'S',
+    'auth' => { 'prefix' => 'Bearer', 'basic' => 1 } });
+}
+
+# Returns the value left in the credential slot, and whether it is there.
+sub auth_placed {
+  my ($options, $seed) = @_;
+  my $cred = auth_credential();
+  my $spec = auth_bags();
+  if (defined $cred && defined $seed) {
+    # Seed what prepare_auth would have written: pair is the "<scheme>="
+    # lead-in for a cookie and '' for a header or query credential.
+    auth_bag($spec, $cred->{where})->{ $cred->{name} } = $cred->{pair} . $seed;
+  }
+  my $ctx = auth_ctx($options, $spec);
+  $utility->{prepare_auth}->($ctx);
+  return (undef, 0) if !defined $cred;
+  my $bag = auth_bag($ctx->{spec}, $cred->{where});
+  return ($bag->{ $cred->{name} }, exists $bag->{ $cred->{name} } ? 1 : 0);
+}
+
 {
-  my $ctx = auth_ctx({ 'auth' => { 'prefix' => '' }, 'apikey' => 'K' }, undef);
+  my $ctx = auth_ctx({ 'auth' => auth_block(''), 'apikey' => 'K' }, undef);
   my (undef, $err) = $utility->{prepare_auth}->($ctx);
   is($err->{code}, 'auth_no_spec', 'prepare_auth guards a missing spec');
 }
 
+# Without this the cases below cannot fail for an SDK whose credential the
+# probe misses: every one of them takes the public-API path instead.
 {
-  my $ctx = auth_ctx({ 'apikey' => 'K', 'auth' => { 'prefix' => 'Bearer' } }, {});
-  my (undef, $err) = $utility->{prepare_auth}->($ctx);
-  ok(!defined $err, 'prepare_auth prefix: no error');
-  is($ctx->{spec}{headers}{authorization}, 'Bearer K',
-    'prepare_auth an apikey with a prefix is space-joined');
+  is(defined auth_credential() ? 1 : 0, defined auth_any_credential() ? 1 : 0,
+    'prepare_auth probe finds the credential this SDK places');
 }
 
 {
-  my $ctx = auth_ctx({ 'apikey' => 'K', 'auth' => { 'prefix' => '' } }, {});
-  $utility->{prepare_auth}->($ctx);
-  is($ctx->{spec}{headers}{authorization}, 'K', 'prepare_auth a raw apikey goes in as-is');
+  my $cred = auth_credential();
+  if (!defined $cred) {
+    # A public API places nothing, and that is the whole assertion.
+    my (undef, $has) =
+      auth_placed({ 'apikey' => 'K', 'auth' => auth_block('Bearer') });
+    ok(!$has, 'prepare_auth places no credential for a public API');
+  }
+  elsif ('' ne $cred->{pair}) {
+    # A cookie credential is a `<scheme>=<key>` pair, and the scheme name
+    # leaves no room for the option's prefix.
+    ok(_is_cookie_pair($cred->{value}),
+      'prepare_auth places the apikey as a cookie pair');
+  }
+  else {
+    ok('headers' eq $cred->{where} || 'query' eq $cred->{where},
+      'prepare_auth places the credential in headers or query');
+    # A header credential is prefix-joined; a query credential is the raw
+    # key, because a query parameter has nowhere to put a scheme name.
+    is($cred->{value}, 'query' eq $cred->{where} ? 'K' : 'Bearer K',
+      'prepare_auth places the apikey where this API puts it');
+  }
 }
 
 {
-  my $ctx = auth_ctx({ 'apikey' => '', 'auth' => { 'prefix' => 'Bearer' } },
-    { 'authorization' => 'stale' });
-  $utility->{prepare_auth}->($ctx);
-  ok(!exists $ctx->{spec}{headers}{authorization},
-    'prepare_auth an empty apikey drops the header');
+  my ($value, $has) = auth_placed({ 'apikey' => 'K', 'auth' => auth_block('') });
+  my $cred = auth_credential();
+  if (defined $cred) {
+    is($value, $cred->{pair} . 'K', 'prepare_auth a raw apikey goes in as-is');
+  }
+  else {
+    ok(!$has, 'prepare_auth a raw apikey places nothing for a public API');
+  }
 }
 
 {
-  my $ctx = auth_ctx({ 'apikey' => 'K' }, { 'authorization' => 'stale' });
-  $utility->{prepare_auth}->($ctx);
-  ok(!exists $ctx->{spec}{headers}{authorization},
-    'prepare_auth a public api drops the header');
+  my (undef, $has) =
+    auth_placed({ 'apikey' => '', 'auth' => auth_block('Bearer') }, 'stale');
+  ok(!$has, 'prepare_auth an empty apikey drops the credential');
 }
 
 {
-  my $ctx = auth_ctx({ 'auth' => { 'prefix' => 'Bearer' } },
-    { 'authorization' => 'stale' });
-  $utility->{prepare_auth}->($ctx);
-  ok(!exists $ctx->{spec}{headers}{authorization},
-    'prepare_auth a missing apikey option drops the header');
+  my (undef, $has) = auth_placed({ 'apikey' => 'K' }, 'stale');
+  ok(!$has, 'prepare_auth a public api drops the credential');
+}
+
+{
+  my (undef, $has) = auth_placed({ 'auth' => auth_block('Bearer') }, 'stale');
+  ok(!$has, 'prepare_auth a missing apikey option drops the credential');
 }
 
 
@@ -612,8 +711,8 @@ sub auth_ctx {
 
 {
   my $ctx = make_ctx();
-  $ctx->{response} = SolardemoResponse->new({ 'status' => 200 });
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{response} = VoxgigSolardemoResponse->new({ 'status' => 200 });
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   $utility->{result_headers}->($ctx);
   is_deeply($ctx->{result}{headers}, {},
     'result_headers with non-hash headers yields an empty map');
@@ -621,10 +720,10 @@ sub auth_ctx {
 
 {
   my $ctx = make_ctx();
-  $ctx->{response} = SolardemoResponse->new({
+  $ctx->{response} = VoxgigSolardemoResponse->new({
     'status' => 200, 'json' => sub { { 'a' => 1 } }, 'body' => undef,
   });
-  $ctx->{result} = SolardemoResult->new({});
+  $ctx->{result} = VoxgigSolardemoResult->new({});
   $utility->{result_body}->($ctx);
   ok(!defined $ctx->{result}{body}, 'result_body skips parsing when the body is absent');
 }

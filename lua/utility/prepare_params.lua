@@ -1,4 +1,4 @@
--- Solardemo SDK utility: prepare_params
+-- VoxgigSolardemo SDK utility: prepare_params
 
 local vs = require("utility.struct.struct")
 

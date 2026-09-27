@@ -1,4 +1,4 @@
-import '../SolardemoError.dart';
+import '../VoxgigSolardemoError.dart';
 
 import 'voxgig_struct.dart' as vs;
 
@@ -158,7 +158,7 @@ dynamic makeOptions(dynamic ctx) {
           if (testmode) {
             return 'test-' + name;
           }
-          throw SolardemoError(
+          throw VoxgigSolardemoError(
             'server_var_required',
             "$sdkname: the server variable '$name' is required: the API base "
             "URL is '$baseVal' — pass { 'server': { '$name': '...' } } in the "

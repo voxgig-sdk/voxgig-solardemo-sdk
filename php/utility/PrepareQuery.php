@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: prepare_query
+// VoxgigSolardemo SDK utility: prepare_query
 
-class SolardemoPrepareQuery
+class VoxgigSolardemoPrepareQuery
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         $point = $ctx->point;
         $reqmatch = $ctx->reqmatch ?? [];
@@ -22,7 +22,7 @@ class SolardemoPrepareQuery
             foreach ($items as $item) {
                 $key = $item[0];
                 $val = $item[1];
-                if ($val !== null && is_string($key) && !in_array($key, $params, true)) {
+                if ($val !== null && is_string($key) && '$action' !== $key && !in_array($key, $params, true)) {
                     $out[$key] = $val;
                 }
             }

@@ -7,7 +7,7 @@ using namespace sdk;
 using namespace sdk::rs;
 
 struct MoonDirectSetup {
-  std::shared_ptr<SolardemoSDK> client;
+  std::shared_ptr<VoxgigSolardemoSDK> client;
   Value calls;
   bool live = false;
 };
@@ -33,7 +33,7 @@ static MoonDirectSetup moon_direct_setup(const Value& mockres) {
     {"base", Value("http://localhost:8080")},
     {"system", vmap({{"fetch", Value(mock_fetch)}})}
   });
-  auto client = std::make_shared<SolardemoSDK>(opts);
+  auto client = std::make_shared<VoxgigSolardemoSDK>(opts);
 
   MoonDirectSetup s;
   s.client = client;

@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -84,7 +84,7 @@ public class Utility {
   public Map<String, Object> custom = new LinkedHashMap<>();
 
   public Utility() {
-    voxgig.solardemosdk.utility.Register.registerAll(this);
+    voxgig.voxgigsolardemosdk.utility.Register.registerAll(this);
   }
 
   private Utility(boolean noregister) {}

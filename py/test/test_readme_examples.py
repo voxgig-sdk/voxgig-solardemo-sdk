@@ -1,4 +1,4 @@
-# Solardemo SDK — documentation python-examples COMPLETENESS gate.
+# VoxgigSolardemo SDK — documentation python-examples COMPLETENESS gate.
 #
 # GUARANTEE: every python example in the docs is unit-tested. This module is a
 # completeness gate over every python fenced code block in three documents:
@@ -17,10 +17,10 @@
 #
 #   2. EXECUTE (the primary safety net): every RUNNABLE block is run offline in
 #      a seeded TEST-mode subprocess. A block is RUNNABLE when it constructs the
-#      SDK (mentions SolardemoSDK) OR drives a client/sdk variable the narrative
+#      SDK (mentions VoxgigSolardemoSDK) OR drives a client/sdk variable the narrative
 #      built earlier ("client." / "sdk."). A constructing block is rewritten so
-#      both SolardemoSDK(...) and SolardemoSDK.test(...) become
-#      SolardemoSDK.test({"entity": {...}}) seeding one mock record (id "test01")
+#      both VoxgigSolardemoSDK(...) and VoxgigSolardemoSDK.test(...) become
+#      VoxgigSolardemoSDK.test({"entity": {...}}) seeding one mock record (id "test01")
 #      per referenced entity; a client-driving block gets that seeded test
 #      client injected first, then runs verbatim. Any PROGRAMMING error
 #      (NameError / AttributeError / TypeError / KeyError / IndexError /
@@ -65,8 +65,8 @@ _FENCE = chr(96) * 3   # the triple-backtick markdown code fence
 _NL = chr(10)          # newline
 _WS = (chr(32), chr(9), chr(13), chr(10))   # space, tab, CR, LF
 
-_SDK_MODULE = "solardemo_sdk"
-_SDK_CLASS = "SolardemoSDK"
+_SDK_MODULE = "voxgigsolardemo_sdk"
+_SDK_CLASS = "VoxgigSolardemoSDK"
 
 # The variable names the generated narrative examples bind the client to. A doc
 # reads as a sequence: an early snippet builds the client, later snippets drive

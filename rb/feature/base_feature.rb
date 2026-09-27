@@ -1,6 +1,6 @@
-# Solardemo SDK base feature
+# VoxgigSolardemo SDK base feature
 
-class SolardemoBaseFeature
+class VoxgigSolardemoBaseFeature
   attr_accessor :version, :name, :active
 
   # Positions this feature when added via the client `extend` option:

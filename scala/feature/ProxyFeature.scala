@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 import java.util.regex.{Matcher, Pattern}
-import voxgig.solardemosdk.core.{Context, FetcherFn, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, FetcherFn, SdkClient}
 
 // Outbound HTTP(S) proxy support. Wraps the active transport and annotates
 // each request's fetch definition with the proxy target (`fetchdef.proxy`).

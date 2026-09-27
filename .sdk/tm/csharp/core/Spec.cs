@@ -1,6 +1,6 @@
-// Solardemo SDK - HTTP request specification.
+// VoxgigSolardemo SDK - HTTP request specification.
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Spec
 {

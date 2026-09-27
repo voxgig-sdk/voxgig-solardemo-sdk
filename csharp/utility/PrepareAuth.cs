@@ -1,9 +1,9 @@
-// Solardemo SDK utility: prepareAuth - shape the authorization header
+// VoxgigSolardemo SDK utility: prepareAuth - shape the authorization header
 // from the client options.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

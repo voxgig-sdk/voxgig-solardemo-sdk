@@ -1,8 +1,8 @@
-# Solardemo Zig SDK
+# VoxgigSolardemo Zig SDK
 
 
 
-The Zig SDK for the Solardemo API — an entity-oriented client following idiomatic Zig conventions.
+The Zig SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Zig conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `client.moon(h.vnull())` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 Zig has no central package registry, so this package is distributed as a
-git tag (`zig/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)). Add it to
+git tag (`zig/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)). Add it to
 your `build.zig.zon` dependencies, or build from a source checkout:
 
 ```bash
@@ -47,7 +47,7 @@ const std = @import("std");
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = sdk.SolardemoSDK.new(h.vnull());
+const client = sdk.VoxgigSolardemoSDK.new(h.vnull());
 ```
 
 ### 2. List moon records
@@ -183,7 +183,7 @@ switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
 Override the base URL to reach a local or staging server:
 
 ```zig
-const client = sdk.SolardemoSDK.new(h.jo(&.{
+const client = sdk.VoxgigSolardemoSDK.new(h.jo(&.{
     .{ "base", h.vstr("http://localhost:8080") },
 }));
 ```
@@ -193,7 +193,7 @@ const client = sdk.SolardemoSDK.new(h.jo(&.{
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -205,13 +205,13 @@ cd zig && zig build test
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```zig
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = sdk.SolardemoSDK.new(options);
+const client = sdk.VoxgigSolardemoSDK.new(options);
 ```
 
 Creates a new SDK client. `options` is a `Value` map (`h.vnull()` for
@@ -234,7 +234,7 @@ const client = sdk.test_sdk(testopts, sdkopts);
 Creates a test-mode client with mock transport. Both arguments may be
 `h.vnull()`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -441,7 +441,7 @@ switch (client.planet(h.vnull()).create(h.jo(&.{
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -450,17 +450,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -501,7 +633,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.

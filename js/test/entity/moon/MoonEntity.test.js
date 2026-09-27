@@ -1,15 +1,17 @@
 
 const envlocal = __dirname + '/../../../.env.local'
-require('dotenv').config({ quiet: true, path: [envlocal] })
+require('../../utility').loadEnvLocal(envlocal)
 
 const Path = require('node:path')
 const Fs = require('node:fs')
 
 const { test, describe, afterEach } = require('node:test')
 const assert = require('node:assert')
+const { createLiveTransport } = require('../../live-runner')
+const { runLiveEntity } = require('../../live-entity')
 
 
-const { SolardemoSDK, BaseFeature, stdutil, config } = require('../../..')
+const { VoxgigSolardemoSDK, BaseFeature, stdutil, config } = require('../../..')
 
 const {
   envOverride,
@@ -26,19 +28,23 @@ const {
 describe('MoonEntity', async () => {
 
   // Per-test live pacing. Delay is read from sdk-test-control.json's
-  // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
-  afterEach(liveDelay('SOLARDEMO_TEST_LIVE'))
+  // `test.live.delayMs`; only sleeps when VOXGIG_SOLARDEMO_TEST_LIVE=TRUE.
+  afterEach(liveDelay('VOXGIG_SOLARDEMO_TEST_LIVE'))
 
   test('instance', async () => {
-    const testsdk = SolardemoSDK.test()
+    const testsdk = VoxgigSolardemoSDK.test()
     const ent = testsdk.Moon()
     assert(null != ent)
   })
 
 
-  test('basic', async () => {
+  test('basic', async (t) => {
 
+    
     const setup = basicSetup()
+    if (setup.live) {
+      return runLiveEntity(setup, {"active":true,"alias":{"field":{}},"fields":{"diameter":{"a":true,"fo":"float","h":"Diameter","n":"diameter","r":true,"t":"`$NUMBER`","key$":"diameter","index$":0},"id":{"a":true,"h":"Id","n":"id","r":true,"t":"`$STRING`","key$":"id","index$":1},"kind":{"a":true,"h":"Kind","n":"kind","r":true,"t":"`$STRING`","key$":"kind","index$":2},"name":{"a":true,"h":"Name","n":"name","r":true,"t":"`$STRING`","key$":"name","index$":3},"planet_id":{"a":true,"h":"Planet Id","n":"planet_id","r":true,"t":"`$STRING`","key$":"planet_id","index$":4}},"id":{"field":"id","name":"id"},"name":"moon","op":{"create":{"input":"data","name":"create","points":[{"a":true,"co":{"id":"POST /api/planet/{planet_id}/moon","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"planet_id","or":"planet_id","r":true,"t":"`$STRING`","index$":0}]},"k":"http","m":"POST","o":"/api/planet/{planet_id}/moon","q":{"exist":["planet_id"]},"r":{},"s":[{"lit":"api"},{"lit":"planet"},{"var":"planet_id"},{"lit":"moon"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"create"},"list":{"input":"data","name":"list","points":[{"a":true,"co":{"id":"GET /api/planet/{planet_id}/moon","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"planet_id","or":"planet_id","r":true,"t":"`$STRING`","index$":0}]},"k":"http","m":"GET","o":"/api/planet/{planet_id}/moon","q":{"exist":["planet_id"]},"r":{},"s":[{"lit":"api"},{"lit":"planet"},{"var":"planet_id"},{"lit":"moon"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"list"},"load":{"input":"data","name":"load","points":[{"a":true,"co":{"id":"GET /api/planet/{planet_id}/moon/{moon_id}","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"id","or":"moon_id","r":true,"t":"`$STRING`","index$":0},{"a":true,"k":"param","n":"planet_id","or":"planet_id","r":true,"t":"`$STRING`","index$":1}]},"k":"http","m":"GET","o":"/api/planet/{planet_id}/moon/{moon_id}","q":{"exist":["id","planet_id"]},"r":{"param":{"moon_id":"id"}},"s":[{"lit":"api"},{"lit":"planet"},{"var":"planet_id"},{"lit":"moon"},{"var":"id"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"load"},"remove":{"input":"data","name":"remove","points":[{"a":true,"co":{"id":"DELETE /api/planet/{planet_id}/moon/{moon_id}","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"id","or":"moon_id","r":true,"t":"`$STRING`","index$":0},{"a":true,"k":"param","n":"planet_id","or":"planet_id","r":true,"t":"`$STRING`","index$":1}]},"k":"http","m":"DELETE","o":"/api/planet/{planet_id}/moon/{moon_id}","q":{"exist":["id","planet_id"]},"r":{"param":{"moon_id":"id"}},"s":[{"lit":"api"},{"lit":"planet"},{"var":"planet_id"},{"lit":"moon"},{"var":"id"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"remove"},"update":{"input":"data","name":"update","points":[{"a":true,"co":{"id":"PUT /api/planet/{planet_id}/moon/{moon_id}","source":"openapi3","version":2},"g":{"params":[{"a":true,"k":"param","n":"id","or":"moon_id","r":true,"t":"`$STRING`","index$":0},{"a":true,"k":"param","n":"planet_id","or":"planet_id","r":true,"t":"`$STRING`","index$":1}]},"k":"http","m":"PUT","o":"/api/planet/{planet_id}/moon/{moon_id}","q":{"exist":["id","planet_id"]},"r":{"param":{"moon_id":"id"}},"s":[{"lit":"api"},{"lit":"planet"},{"var":"planet_id"},{"lit":"moon"},{"var":"id"}],"t":{"req":"`reqdata`","res":"`body`"},"index$":0}],"key$":"update"}},"relations":{"ancestors":[["$.main.kit.entity.planet"]]},"key$":"moon","name__orig":"moon","Name":"Moon","name_":"moon","name-":"moon","NAME":"MOON","index$":0}, {"active":true,"entity":"moon","key$":"BasicMoonFlow","kind":"basic","name":"BasicMoonFlow","param":{},"step":[{"a":true,"d":{},"i":{"ref":"moon_ref01"},"m":{"planet_id":"planet01"},"o":"create","s":[],"v":[],"index$":0},{"a":true,"d":{},"i":{},"m":{"planet_id":"planet01"},"o":"list","s":[],"v":[{"apply":"ItemExists","def":{"ref":"moon_ref01"}}],"index$":1},{"a":true,"d":{"planet_id":"planet01"},"i":{"ref":"moon_ref01","srcdatavar":"moon_ref01_data","suffix":"_up0","textfield":"kind"},"m":{},"o":"update","s":[{"apply":"TextFieldMark","def":{"mark":"Mark01-moon_ref01"}}],"v":[],"index$":2},{"a":true,"d":{},"i":{"ref":"moon_ref01","srcdatavar":"moon_ref01_data","suffix":"_dt0"},"m":{"id":"moon01","planet_id":"planet01"},"o":"load","s":[],"v":[{"apply":"TextFieldMark","def":{"mark":"Mark01-moon_ref01"}}],"index$":3},{"a":true,"d":{},"i":{"ref":"moon_ref01","suffix":"_rm0"},"m":{"id":"moon01","planet_id":"planet01"},"o":"remove","s":[],"v":[],"index$":4},{"a":true,"d":{},"i":{"suffix":"_rt0"},"m":{"planet_id":"planet01"},"o":"list","s":[],"v":[{"apply":"ItemNotExists","def":{"ref":"moon_ref01"}}],"index$":5}]}, 'Moon', {"POST /api/planet/{planet_id}/moon":{"protocol":"http","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","required":["id","name","planet_id","kind","diameter"],"properties":{"id":{"type":"string","key$":"id"},"name":{"type":"string","key$":"name"},"planet_id":{"type":"string","key$":"planet_id"},"kind":{"type":"string","key$":"kind"},"diameter":{"type":"number","format":"float","key$":"diameter"}},"x-ref":"#/components/schemas/Moon","index$":1}}}},"parameters":[{"name":"planet_id","in":"path","required":true,"schema":{"type":"string"},"index$":0}]},"GET /api/planet/{planet_id}/moon":{"protocol":"http","parameters":[{"name":"planet_id","in":"path","required":true,"schema":{"type":"string"},"index$":0}]},"GET /api/planet/{planet_id}/moon/{moon_id}":{"protocol":"http","parameters":[{"name":"planet_id","in":"path","required":true,"schema":{"type":"string"},"index$":0},{"name":"moon_id","in":"path","required":true,"schema":{"type":"string"},"index$":1}]},"DELETE /api/planet/{planet_id}/moon/{moon_id}":{"protocol":"http","parameters":[{"name":"planet_id","in":"path","required":true,"schema":{"type":"string"},"index$":0},{"name":"moon_id","in":"path","required":true,"schema":{"type":"string"},"index$":1}]},"PUT /api/planet/{planet_id}/moon/{moon_id}":{"protocol":"http","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","required":["id","name","planet_id","kind","diameter"],"properties":{"id":{"type":"string","key$":"id"},"name":{"type":"string","key$":"name"},"planet_id":{"type":"string","key$":"planet_id"},"kind":{"type":"string","key$":"kind"},"diameter":{"type":"number","format":"float","key$":"diameter"}},"x-ref":"#/components/schemas/Moon","index$":1}}}},"parameters":[{"name":"planet_id","in":"path","required":true,"schema":{"type":"string"},"index$":0},{"name":"moon_id","in":"path","required":true,"schema":{"type":"string"},"index$":1}]}})
+    }
     const client = setup.client
     const struct = setup.struct
 
@@ -122,7 +128,7 @@ function basicSetup(extra) {
 
   options.entity = entityData.existing
 
-  let client = SolardemoSDK.test(options, extra)
+  let client = VoxgigSolardemoSDK.test(options, extra)
   const struct = client.utility().struct
   const merge = struct.merge
   const transform = struct.transform
@@ -137,15 +143,22 @@ function basicSetup(extra) {
     })
 
   const env = envOverride({
-    'SOLARDEMO_TEST_MOON_ENTID': idmap,
-    'SOLARDEMO_TEST_LIVE': 'FALSE',
-    'SOLARDEMO_TEST_EXPLAIN': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_MOON_ENTID': idmap,
+    'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_EXPLAIN': 'FALSE',
   })
 
-  idmap = env['SOLARDEMO_TEST_MOON_ENTID']
+  idmap = env['VOXGIG_SOLARDEMO_TEST_MOON_ENTID']
 
-  if ('TRUE' === env.SOLARDEMO_TEST_LIVE) {
-    client = new SolardemoSDK(merge([
+  const live = 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_LIVE
+  const transport = createLiveTransport()
+  if (live) {
+    const rawIds = process.env['VOXGIG_SOLARDEMO_TEST_MOON_ENTID']
+    idmap = rawIds && rawIds.trim() ? JSON.parse(rawIds) : {}
+    if (!idmap || Array.isArray(idmap) || typeof idmap !== 'object') {
+      throw new Error('Live ENTID must be a JSON object')
+    }
+    client = new VoxgigSolardemoSDK(merge([
       // FIRST, so the generated fields below win: sdk-test-control.json's
       // test.client.options adds to the live client, it does not redirect it.
       liveClientOptions(),
@@ -155,7 +168,8 @@ function basicSetup(extra) {
       // the last entry is undefined, and basicSetup is normally called with no
       // argument at all - so a bare 'extra' silently discarded the apikey and
       // server values above and handed the SDK undefined.
-      extra || {}
+      extra || {},
+      { system: { fetch: transport.fetch } }
     ]))
   }
 
@@ -166,7 +180,9 @@ function basicSetup(extra) {
     client,
     struct,
     data: entityData,
-    explain: 'TRUE' === env.SOLARDEMO_TEST_EXPLAIN,
+    explain: 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_EXPLAIN,
+    live,
+    transport,
     now: Date.now(),
   }
 

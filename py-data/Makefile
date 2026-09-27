@@ -1,6 +1,6 @@
 .PHONY: test build clean publish dev notebook
 
-# Install the sibling Solardemo SDK from the same repo (../py) plus this
+# Install the sibling VoxgigSolardemo SDK from the same repo (../py) plus this
 # package, both editable, so a working copy tests against the SDK it was
 # generated alongside rather than whatever is on PyPI.
 dev:

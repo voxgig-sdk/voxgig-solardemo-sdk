@@ -1,8 +1,8 @@
-module github.com/voxgig-sdk/solardemo-sdk/go-mcp
+module github.com/voxgig-sdk/voxgig-solardemo-sdk/go-mcp
 
 go 1.25.0
 
-require github.com/voxgig-sdk/solardemo-sdk/go v0.0.0
+require github.com/voxgig-sdk/voxgig-solardemo-sdk/go v0.0.0
 require github.com/modelcontextprotocol/go-sdk v1.6.0
 
 require (
@@ -14,4 +14,4 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 )
 
-replace github.com/voxgig-sdk/solardemo-sdk/go => ../go
+replace github.com/voxgig-sdk/voxgig-solardemo-sdk/go => ../go

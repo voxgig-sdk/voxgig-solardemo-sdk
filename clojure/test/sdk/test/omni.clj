@@ -1,4 +1,4 @@
-;; Solardemo SDK corpus test runner: the vendored @voxgig/omni engine driven
+;; VoxgigSolardemo SDK corpus test runner: the vendored @voxgig/omni engine driven
 ;; through its NATIVE API (`voxgig.omni.runner/make-runner`), presented to the
 ;; corpus suites in the runner shape they already use (`:spec`, `:runset`,
 ;; `:runsetflags`, `:client`). No compatibility shim is vendored: the adapter

@@ -1,12 +1,12 @@
-// Moon entity client for the Solardemo SDK.
+// Moon entity client for the VoxgigSolardemo SDK.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Entity;
+namespace VoxgigSolardemoSdk.Entity;
 
-public class MoonEntity : SolardemoEntityBase
+public class MoonEntity : VoxgigSolardemoEntityBase
 {
-    public MoonEntity(SolardemoSDK client, Dictionary<string, object?>? entopts = null)
+    public MoonEntity(VoxgigSolardemoSDK client, Dictionary<string, object?>? entopts = null)
         : base(client, entopts, "moon")
     {
     }

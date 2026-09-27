@@ -1,4 +1,4 @@
-# Solardemo Data — frames engine tests.
+# VoxgigSolardemo Data — frames engine tests.
 #
 # These cover the runtime that is the same for every API, so they live in the
 # template rather than being generated. The generated per-entity accessor
@@ -11,7 +11,7 @@ import dataclasses
 import pandas as pd
 import pytest
 
-from solardemo_data.frames import (
+from voxgigsolardemo_data.frames import (
     build_frame,
     to_record,
     to_records,
@@ -31,7 +31,7 @@ class Sample:
 
 
 class FakeEntity:
-    """Stands in for a generated Solardemo<X>Entity.
+    """Stands in for a generated VoxgigSolardemo<X>Entity.
 
     The private attributes matter: an entity's record is NOT in its public
     __dict__, so anything relying on attribute scraping returns {} here.

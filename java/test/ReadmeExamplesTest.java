@@ -1,6 +1,6 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
-// Solardemo SDK — documentation java-examples PRESENCE + STRUCTURE gate.
+// VoxgigSolardemo SDK — documentation java-examples PRESENCE + STRUCTURE gate.
 //
 // GUARANTEE (see ReadmeExamplesTest_java.ts for why this is a structure gate
 // and not an execute gate): every java example in the docs is accounted for.

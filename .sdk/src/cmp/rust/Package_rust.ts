@@ -5,6 +5,7 @@ import {
   cmp,
   collectDeps,
   packageVersion,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -16,12 +17,6 @@ import type {
 import { crateIdent, crateName } from './utility_rust'
 
 
-// Cargo.toml (the rust manifest). Dependencies come from the target model
-// (`deps` block, kind prod|dev) plus any feature-declared rust deps, via
-// the shared collectDeps helper. The vendored voxgig struct port needs no
-// external crate. The lib path is the crate root `lib.rs` (the generated
-// SDK mirrors the go layout: core/, feature/, utility/, entity/ at the
-// repo root rather than under src/).
 const Package = cmp(async function Package(props: any) {
   const ctx$ = props.ctx$
   const target = props.target
@@ -49,17 +44,17 @@ path = "lib.rs"
       // deps require an explicit version.
       const version = d.source === 'target' ? (d.version || '*') : d.version
       if ('dev' === (d.raw as any)?.kind) {
-        dev[d.name] = version
+        dev[d.name] = depValue(version, d.raw)
       }
       else {
-        prod[d.name] = version
+        prod[d.name] = depValue(version, d.raw)
       }
     }
 
     Content(`[dependencies]
 `)
-    for (const [name, version] of Object.entries(prod)) {
-      Content(`${name} = "${version}"
+    for (const [name, value] of Object.entries(prod)) {
+      Content(`${name} = ${value}
 `)
     }
 
@@ -67,13 +62,54 @@ path = "lib.rs"
       Content(`
 [dev-dependencies]
 `)
-      for (const [name, version] of Object.entries(dev)) {
-        Content(`${name} = "${version}"
+      for (const [name, value] of Object.entries(dev)) {
+        Content(`${name} = ${value}
 `)
       }
     }
+
+    const suites = Object.keys(targetFeatures(model, target))
+      .filter((name: string) => null != FEATURE_TESTS[name])
+      .sort()
+
+    for (const name of suites) {
+      Content(`
+[[test]]
+name = "${name}_feature"
+path = "${FEATURE_TESTS[name]}"
+`)
+    }
   })
 })
+
+
+// Which features ship a rust integration-test suite, and where its crate
+// root is. A map rather than a convention because the file has to EXIST:
+// cargo fails the whole manifest on a `[[test]]` path it cannot find, so
+// this may only name suites the templates actually carry.
+const FEATURE_TESTS: Record<string, string> = {
+  secrets: 'tests/feature/secrets/main.rs',
+}
+
+
+function depValue(version: string, raw: any): string {
+  const features: string[] = Array.isArray(raw?.features) ? raw.features : []
+  const nodefault = false === raw?.default
+
+  if (0 === features.length && !nodefault) {
+    return `"${version}"`
+  }
+
+  const parts = [`version = "${version}"`]
+  if (nodefault) {
+    parts.push('default-features = false')
+  }
+  if (0 < features.length) {
+    parts.push('features = [' + features.map((f) => `"${f}"`).join(', ') + ']')
+  }
+
+  return '{ ' + parts.join(', ') + ' }'
+}
 
 
 export {

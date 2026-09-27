@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // A single endpoint definition (typed view over a point map).
 class Point(pointmap: JMap[String, Object]) {

@@ -1,4 +1,4 @@
--- Solardemo SDK test runner
+-- VoxgigSolardemo SDK test runner
 
 local json = require("dkjson")
 local vs = require("utility.struct.struct")
@@ -35,8 +35,8 @@ end
 
 
 function runner.env_override(m)
-  local live = runner.getenv("SOLARDEMO_TEST_LIVE")
-  local override = runner.getenv("SOLARDEMO_TEST_OVERRIDE")
+  local live = runner.getenv("VOXGIG_SOLARDEMO_TEST_LIVE")
+  local override = runner.getenv("VOXGIG_SOLARDEMO_TEST_OVERRIDE")
 
   if live == "TRUE" or override == "TRUE" then
     for key, _ in pairs(m) do
@@ -56,9 +56,9 @@ function runner.env_override(m)
     end
   end
 
-  local explain = runner.getenv("SOLARDEMO_TEST_EXPLAIN")
+  local explain = runner.getenv("VOXGIG_SOLARDEMO_TEST_EXPLAIN")
   if explain ~= nil and explain ~= "" then
-    m["SOLARDEMO_TEST_EXPLAIN"] = explain
+    m["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] = explain
   end
 
   return m

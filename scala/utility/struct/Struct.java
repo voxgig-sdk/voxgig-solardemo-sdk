@@ -1,6 +1,6 @@
 // Vendored from github.com/voxgig/struct java/src/Struct.java — do not edit here;
-// upstream is the voxgig struct java port. Package adjusted for the Solardemo SDK.
-package voxgig.solardemosdk.utility.struct;
+// upstream is the voxgig struct java port. Package adjusted for the VoxgigSolardemo SDK.
+package voxgig.voxgigsolardemosdk.utility.struct;
 
 
 import java.net.URLEncoder;

@@ -1,11 +1,10 @@
-// Per-call control state (mirrors go core/control.go).
 
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::utility::voxgigstruct::Value;
 
 pub struct Control {
     pub throw: Option<bool>,
-    pub err: Option<SolardemoError>,
+    pub err: Option<VoxgigSolardemoError>,
     // explain / paging are Value maps when supplied (Noval otherwise). They
     // are the caller's own maps (reference-shared), so recorded entries are
     // visible to the caller after the operation completes.

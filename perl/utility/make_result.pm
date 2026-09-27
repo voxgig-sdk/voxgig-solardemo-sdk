@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_result
+# VoxgigSolardemo SDK utility: make_result
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ my $__dir;
 BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 

@@ -1,4 +1,4 @@
-// Solardemo SDK — documentation dart-examples presence & completeness gate.
+// VoxgigSolardemo SDK — documentation dart-examples presence & completeness gate.
 // GENERATED — do not edit.
 //
 // A structural completeness gate over every dart fenced code block in three
@@ -22,7 +22,7 @@ import 'utility.dart';
 const String _fence = '\u0060\u0060\u0060';
 const String _nl = '\n';
 
-const String _sdkClass = 'SolardemoSDK';
+const String _sdkClass = 'VoxgigSolardemoSDK';
 
 // The API's capitalised semantic entities, used to spot a client.<Entity>()
 // factory call inside a block.

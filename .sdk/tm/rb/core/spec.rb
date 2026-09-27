@@ -1,6 +1,6 @@
-# Solardemo SDK spec
+# VoxgigSolardemo SDK spec
 
-class SolardemoSpec
+class VoxgigSolardemoSpec
   attr_accessor :parts, :headers, :alias_map, :base, :prefix, :suffix,
                 :params, :query, :step, :method, :body, :url, :path
 

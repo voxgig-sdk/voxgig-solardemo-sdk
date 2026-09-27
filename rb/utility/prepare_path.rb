@@ -1,6 +1,6 @@
-# Solardemo SDK utility: prepare_path
+# VoxgigSolardemo SDK utility: prepare_path
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   PreparePath = ->(ctx) {
     point = ctx.point
     parts = []

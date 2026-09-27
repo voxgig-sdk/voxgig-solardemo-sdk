@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * The full CRUD entity contract of the Solardemo SDK. Every generated
+ * The full CRUD entity contract of the VoxgigSolardemo SDK. Every generated
  * entity implements every operation; unsupported operations throw an
  * SdkError at runtime (see Helpers.unsupportedOp).
  */

@@ -1,4 +1,4 @@
-// Solardemo SDK — offline feature-test harness (mirrors java
+// VoxgigSolardemo SDK — offline feature-test harness (mirrors java
 // test/FeatureHarness.java). Drives features through a faithful miniature of
 // the real operation pipeline against a configurable mock transport.
 
@@ -176,7 +176,7 @@ inline std::string fhBuildUrl(const SpecPtr& spec) {
 }
 
 struct FhHarness {
-  std::shared_ptr<SolardemoSDK> client;
+  std::shared_ptr<VoxgigSolardemoSDK> client;
   UtilityPtr utility;
   CtxPtr rootctx;
   std::string base = "http://api.test";
@@ -303,7 +303,7 @@ struct FhHarness {
 // fhMake — construct the harness: a test-mode client, an isolated utility
 // whose fetcher is the mock server, and the requested features initialised.
 inline std::shared_ptr<FhHarness> fhMake(FetcherFn server, std::vector<FhFeature> features) {
-  auto client = SolardemoSDK::testSDK();
+  auto client = VoxgigSolardemoSDK::testSDK();
   client->features.clear();
 
   UtilityPtr utility = client->getUtility();

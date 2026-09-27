@@ -1,4 +1,4 @@
-// ProjectName SDK — shared test runner SUPPORT (mirrors java
+// VoxgigSolardemo SDK — shared test runner SUPPORT (mirrors java
 // test/RunnerSupport.java): env overrides, sdk-test-control.json skips, the
 // ../.sdk/test/test.json loader, and Context construction from a test-entry
 // ctx map.
@@ -165,7 +165,7 @@ inline Value get_spec(const Value& spec, std::initializer_list<std::string> keys
 // ---- Context construction from a JSON ctx map ------------------------
 
 struct EntityTestSetup {
-  std::shared_ptr<ProjectNameSDK> client;
+  std::shared_ptr<VoxgigSolardemoSDK> client;
   Value data = Value::undef();
   Value idmap = Value::undef();
   Value env = Value::undef();
@@ -209,7 +209,7 @@ inline Entity* named_entity(const std::string& name) {
 }
 
 // makeCtxFromMap — build a Context from a test-entry ctx/args map.
-inline CtxPtr make_ctx_from_map(const Value& ctxmap_, std::shared_ptr<ProjectNameSDK> client,
+inline CtxPtr make_ctx_from_map(const Value& ctxmap_, std::shared_ptr<VoxgigSolardemoSDK> client,
                                 UtilityPtr utility) {
   Value ctxmap = ctxmap_.is_map() ? ctxmap_ : vmap();
 
@@ -296,7 +296,7 @@ inline CtxPtr make_ctx_from_map(const Value& ctxmap_, std::shared_ptr<ProjectNam
   return ctx;
 }
 
-inline void fixctx(CtxPtr ctx, std::shared_ptr<ProjectNameSDK> client) {
+inline void fixctx(CtxPtr ctx, std::shared_ptr<VoxgigSolardemoSDK> client) {
   if (ctx && ctx->client && !ctx->options.is_map() && client) {
     ctx->options = client->optionsMap();
   }

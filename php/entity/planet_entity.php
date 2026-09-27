@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK Planet entity
+// VoxgigSolardemo SDK Planet entity
 
 require_once __DIR__ . '/../utility/struct/Struct.php';
 require_once __DIR__ . '/../core/Helpers.php';
@@ -83,7 +83,7 @@ class PlanetEntity
     public function data_set($args): void
     {
         if ($args) {
-            $this->_data = SolardemoHelpers::to_map(Struct::clone($args)) ?? [];
+            $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($args)) ?? [];
             ($this->_utility->feature_hook)($this->_entctx, "SetData");
         }
     }
@@ -103,7 +103,7 @@ class PlanetEntity
     public function match_set($args): void
     {
         if ($args) {
-            $this->_match = SolardemoHelpers::to_map(Struct::clone($args)) ?? [];
+            $this->_match = VoxgigSolardemoHelpers::to_map(Struct::clone($args)) ?? [];
             ($this->_utility->feature_hook)($this->_entctx, "SetMatch");
         }
     }
@@ -249,7 +249,7 @@ class PlanetEntity
      *   fields) as an assoc-array; a typed PlanetLoadMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Planet|array The loaded Planet as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function load(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -268,7 +268,7 @@ class PlanetEntity
                     $this->_match = $ctx->result->resmatch;
                 }
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });
@@ -284,7 +284,7 @@ class PlanetEntity
      *   of Planet fields) as an assoc-array; PlanetListMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Planet[]|array A list of Planet items as assoc-arrays at
-     *   the SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   the SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function list(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -316,7 +316,7 @@ class PlanetEntity
      *   a typed PlanetCreateData names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Planet|array The created Planet as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function create(?array $reqdata = null, $ctrl = null): mixed
     {
@@ -332,7 +332,7 @@ class PlanetEntity
         return $this->_run_op($ctx, function () use ($ctx) {
             if ($ctx->result) {
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });
@@ -348,7 +348,7 @@ class PlanetEntity
      *   a typed PlanetUpdateData names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Planet|array The updated Planet as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function update(?array $reqdata = null, $ctrl = null): mixed
     {
@@ -367,7 +367,7 @@ class PlanetEntity
                     $this->_match = $ctx->result->resmatch;
                 }
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });
@@ -383,7 +383,7 @@ class PlanetEntity
      *   fields) as an assoc-array; PlanetRemoveMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Planet|array The removed Planet as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function remove(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -402,7 +402,7 @@ class PlanetEntity
                     $this->_match = $ctx->result->resmatch;
                 }
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });

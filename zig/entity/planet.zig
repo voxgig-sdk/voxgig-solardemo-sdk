@@ -26,17 +26,17 @@ const Entity = types.Entity;
 // result unions and the CONTRACT lives in those signatures.
 pub const EntResult = union(enum) {
     ok: *PlanetEntity,
-    err: *errmod.SolardemoError,
+    err: *errmod.VoxgigSolardemoError,
 };
 
 pub const EntListResult = union(enum) {
     ok: []*PlanetEntity,
-    err: *errmod.SolardemoError,
+    err: *errmod.VoxgigSolardemoError,
 };
 
 pub const PlanetEntity = struct {
     name: []const u8 = "planet",
-    client: *sdk.SolardemoSDK,
+    client: *sdk.VoxgigSolardemoSDK,
     utility: *Utility,
     entopts: Value,
     data: Value,
@@ -45,7 +45,7 @@ pub const PlanetEntity = struct {
     // Set once a successful `remove` resolves on this instance.
     deleted: bool = false,
 
-    pub fn new(client: *sdk.SolardemoSDK, entopts_in: Value) *PlanetEntity {
+    pub fn new(client: *sdk.VoxgigSolardemoSDK, entopts_in: Value) *PlanetEntity {
         const entopts: Value = switch (entopts_in) {
             .object => entopts_in,
             else => h.omap(),
@@ -225,9 +225,9 @@ pub const PlanetEntity = struct {
         if (data == .array) {
             return data.array.data.items;
         } else if (!h.is_noval(data)) {
-            var out = std.ArrayList(Value).init(h.A());
-            out.append(data) catch {};
-            return out.toOwnedSlice() catch &.{};
+            var out: std.ArrayList(Value) = .empty;
+            out.append(h.A(), data) catch {};
+            return out.toOwnedSlice(h.A()) catch &.{};
         }
         return &.{};
     }
@@ -341,18 +341,18 @@ pub const PlanetEntity = struct {
         // `list` resolves to one ENTITY per record. make_result cannot build them
         // here — it works in Value, which has no slot for an entity — so the op
         // does, mirroring what the dynamic targets get from make_result.
-        var items = std.ArrayList(*PlanetEntity).init(h.A());
+        var items: std.ArrayList(*PlanetEntity) = .empty;
         if (out == .array) {
             for (out.array.data.items) |entry| {
                 const ent = PlanetEntity.new(self.client, h.clone(self.entopts));
                 if (entry == .object) {
                     _ = ent.data_impl(entry);
                 }
-                items.append(ent) catch {};
+                items.append(h.A(), ent) catch {};
             }
         }
     
-        return EntListResult{ .ok = items.toOwnedSlice() catch &[_]*PlanetEntity{} };
+        return EntListResult{ .ok = items.toOwnedSlice(h.A()) catch &[_]*PlanetEntity{} };
     }
     
     fn list_post_done(self: *PlanetEntity, ctx: *Context) void {

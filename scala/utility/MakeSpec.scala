@@ -1,12 +1,19 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.util.{LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core._
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core._
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 object MakeSpec {
   def makeSpec(ctx: Context): Spec = {
-    ctx.out.get("spec") match { case s: Spec => ctx.spec = s; return ctx.spec; case _ => }
+    // A PreSpec feature hook (e.g. validate) may short-circuit by storing an
+    // error here; surface it before the request is built, the same way
+    // makePoint surfaces out["point"].
+    ctx.out.get("spec") match {
+      case e: RuntimeException => throw e
+      case s: Spec => ctx.spec = s; return ctx.spec
+      case _ =>
+    }
 
     val point = ctx.point
     val options = ctx.options

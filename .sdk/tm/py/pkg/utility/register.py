@@ -1,6 +1,6 @@
-# Solardemo SDK utility registration
+# VoxgigSolardemo SDK utility registration
 
-from projectname_sdk.core.utility_type import SolardemoUtility
+from projectname_sdk.core.utility_type import VoxgigSolardemoUtility
 
 from projectname_sdk.utility.clean import clean_util
 from projectname_sdk.utility.done import done_util
@@ -68,4 +68,4 @@ def register_all(u):
     u.transform_response = transform_response_util
 
 
-SolardemoUtility._registrar = register_all
+VoxgigSolardemoUtility._registrar = register_all

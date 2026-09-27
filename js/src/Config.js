@@ -1,12 +1,44 @@
 
 const { BaseFeature } = require('./feature/base/BaseFeature')
+const { DebugFeature } = require('./feature/debug/DebugFeature')
+const { IdempotencyFeature } = require('./feature/idempotency/IdempotencyFeature')
+const { MetricsFeature } = require('./feature/metrics/MetricsFeature')
+const { PagingFeature } = require('./feature/paging/PagingFeature')
+const { RatelimitFeature } = require('./feature/ratelimit/RatelimitFeature')
+const { RetryFeature } = require('./feature/retry/RetryFeature')
+const { SecretsFeature } = require('./feature/secrets/SecretsFeature')
 const { TestFeature } = require('./feature/test/TestFeature')
+const { TimeoutFeature } = require('./feature/timeout/TimeoutFeature')
 
 
 
 const FEATURE_CLASS = {
-   test: TestFeature,
+   debug: DebugFeature,
+ idempotency: IdempotencyFeature,
+ metrics: MetricsFeature,
+ paging: PagingFeature,
+ ratelimit: RatelimitFeature,
+ retry: RetryFeature,
+ secrets: SecretsFeature,
+ test: TestFeature,
+ timeout: TimeoutFeature,
 
+}
+
+
+// Per-feature plugin DEFINITIONS (voxgig/plugin `Definition` values), from
+// the model's active plugin groups. A feature that takes a `plugins` option
+// (secrets over sekreto) reads its own entry; a feature with no plugins has
+// none. Named requires above make each definition statically reachable, so
+// an SDK carries exactly the plugin modules its model selects — the same
+// leanness the old side-effect registry imports bought, without a registry.
+//
+// Read by SecretsFeature through a DEFERRED require of this module: the
+// requires above make the pair circular, and this file replaces
+// module.exports at the end of its body, so anything reading the map at
+// module load would get undefined. See tm/js/src/feature/secrets.
+const FEATURE_PLUGINS = {
+  
 }
 
 
@@ -28,8 +60,8 @@ class Config {
 
 
   main = {
-    name: 'Solardemo',
-        slug: "solardemo",
+    name: 'VoxgigSolardemo',
+        slug: "voxgig-solardemo",
     version: "0.1.0",
     target: "js",
 
@@ -37,11 +69,158 @@ class Config {
 
 
   feature = {
-     test:     {
+     debug:     {
+      "options": {
+        "active": false,
+        "max": 100,
+        "redact": [
+          "authorization",
+          "cookie",
+          "set-cookie",
+          "api-key",
+          "apikey",
+          "x-api-key",
+          "idempotency-key"
+        ]
+      },
+      "optspec": {
+        "now": "`$FUNCTION`",
+        "onEntry": "`$FUNCTION`"
+      },
+      "strict": false,
+      "transport": "none"
+    },
+ idempotency:     {
+      "options": {
+        "active": false,
+        "header": "Idempotency-Key",
+        "methods": [
+          "POST",
+          "PUT",
+          "PATCH",
+          "DELETE"
+        ],
+        "ops": [
+          "create",
+          "update",
+          "remove"
+        ]
+      },
+      "optspec": {
+        "keygen": "`$FUNCTION`"
+      },
+      "strict": false,
+      "transport": "none"
+    },
+ metrics:     {
       "options": {
         "active": false
       },
+      "optspec": {
+        "now": "`$FUNCTION`"
+      },
+      "strict": false,
+      "transport": "none"
+    },
+ paging:     {
+      "options": {
+        "active": false,
+        "afterVar": "after",
+        "cursorParam": "cursor",
+        "firstVar": "first",
+        "limitParam": "limit",
+        "pageParam": "page",
+        "startPage": 1
+      },
+      "optspec": {
+        "limit": "`$NUMBER`",
+        "ops": "`$LIST`"
+      },
+      "strict": false,
+      "transport": "none"
+    },
+ ratelimit:     {
+      "options": {
+        "active": false,
+        "burst": 5,
+        "rate": 5
+      },
+      "optspec": {
+        "now": "`$FUNCTION`",
+        "sleep": "`$FUNCTION`"
+      },
+      "strict": false,
+      "transport": "wrap"
+    },
+ retry:     {
+      "options": {
+        "active": false,
+        "factor": 2,
+        "maxDelay": 2000,
+        "minDelay": 50,
+        "retries": 2,
+        "statuses": [
+          408,
+          425,
+          429,
+          500,
+          502,
+          503,
+          504
+        ]
+      },
+      "optspec": {
+        "jitter": "`$BOOLEAN`",
+        "sleep": "`$FUNCTION`"
+      },
+      "strict": false,
+      "transport": "wrap"
+    },
+ secrets:     {
+      "options": {
+        "active": false,
+        "cache": true,
+        "exchange": {
+          "active": false,
+          "method": "POST",
+          "path": "auth/token",
+          "refresh": "",
+          "request": "refresh_token",
+          "response": "access_token",
+          "retries": 1,
+          "statuses": [
+            401
+          ]
+        },
+        "name": "apikey",
+        "providers": []
+      },
+      "optspec": {},
+      "strict": false,
+      "transport": "wrap"
+    },
+ test:     {
+      "options": {
+        "active": false
+      },
+      "optspec": {
+        "entity": "`$MAP`",
+        "net": "`$MAP`"
+      },
+      "strict": false,
       "transport": "base"
+    },
+ timeout:     {
+      "options": {
+        "active": false,
+        "ms": 30000
+      },
+      "optspec": {
+        "clearTimer": "`$FUNCTION`",
+        "setTimer": "`$FUNCTION`"
+      },
+      "strict": false,
+      "transport": "wrap"
     },
 
   }
@@ -56,12 +235,12 @@ class Config {
 
     entity: {
       
-      moon: {
-      },
-
-      planet: {
-      },
-
+        moon: {
+        },
+  
+        planet: {
+        },
+  
     }
   }
 
@@ -70,32 +249,41 @@ class Config {
     "moon": {
       "fields": [
         {
-          "format": "float",
           "name": "diameter",
+          "title": "Diameter",
+          "type": "`$NUMBER`",
           "req": true,
-          "type": "`$NUMBER`"
+          "format": "float"
         },
         {
           "name": "id",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Id",
+          "type": "`$STRING`",
+          "req": true
         },
         {
           "name": "kind",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Kind",
+          "type": "`$STRING`",
+          "req": true
         },
         {
           "name": "name",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Name",
+          "type": "`$STRING`",
+          "req": true
         },
         {
           "name": "planet_id",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Planet Id",
+          "type": "`$STRING`",
+          "req": true
         }
       ],
+      "id": {
+        "field": "id",
+        "name": "id"
+      },
       "name": "moon",
       "op": {
         "create": {
@@ -103,23 +291,6 @@ class Config {
           "name": "create",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "planet_id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "POST /api/planet/{planet_id}/moon",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/moon",
@@ -137,21 +308,33 @@ class Config {
                   "lit": "moon"
                 }
               ],
-              "select": {
-                "exist": [
-                  "planet_id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{planet_id}",
                 "moon"
-              ]
+              ],
+              "rename": {},
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "planet_id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "planet_id"
+                ]
+              }
             }
           ]
         },
@@ -160,23 +343,6 @@ class Config {
           "name": "list",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "planet_id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "GET /api/planet/{planet_id}/moon",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}/moon",
@@ -194,21 +360,33 @@ class Config {
                   "lit": "moon"
                 }
               ],
-              "select": {
-                "exist": [
-                  "planet_id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{planet_id}",
                 "moon"
-              ]
+              ],
+              "rename": {},
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "planet_id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "planet_id"
+                ]
+              }
             }
           ]
         },
@@ -217,38 +395,9 @@ class Config {
           "name": "load",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "moon_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  },
-                  {
-                    "kind": "param",
-                    "name": "planet_id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "GET /api/planet/{planet_id}/moon/{moon_id}",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-              "rename": {
-                "param": {
-                  "moon_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -266,23 +415,46 @@ class Config {
                   "var": "id"
                 }
               ],
-              "select": {
-                "exist": [
-                  "id",
-                  "planet_id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{planet_id}",
                 "moon",
                 "{id}"
-              ]
+              ],
+              "rename": {
+                "param": {
+                  "moon_id": "id"
+                }
+              },
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "moon_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  },
+                  {
+                    "name": "planet_id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "id",
+                  "planet_id"
+                ]
+              }
             }
           ]
         },
@@ -291,38 +463,9 @@ class Config {
           "name": "remove",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "moon_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  },
-                  {
-                    "kind": "param",
-                    "name": "planet_id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "DELETE /api/planet/{planet_id}/moon/{moon_id}",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "DELETE",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-              "rename": {
-                "param": {
-                  "moon_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -340,23 +483,46 @@ class Config {
                   "var": "id"
                 }
               ],
-              "select": {
-                "exist": [
-                  "id",
-                  "planet_id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{planet_id}",
                 "moon",
                 "{id}"
-              ]
+              ],
+              "rename": {
+                "param": {
+                  "moon_id": "id"
+                }
+              },
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "moon_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  },
+                  {
+                    "name": "planet_id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "id",
+                  "planet_id"
+                ]
+              }
             }
           ]
         },
@@ -365,38 +531,9 @@ class Config {
           "name": "update",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "moon_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  },
-                  {
-                    "kind": "param",
-                    "name": "planet_id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "PUT /api/planet/{planet_id}/moon/{moon_id}",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "PUT",
               "orig": "/api/planet/{planet_id}/moon/{moon_id}",
-              "rename": {
-                "param": {
-                  "moon_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -414,23 +551,46 @@ class Config {
                   "var": "id"
                 }
               ],
-              "select": {
-                "exist": [
-                  "id",
-                  "planet_id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{planet_id}",
                 "moon",
                 "{id}"
-              ]
+              ],
+              "rename": {
+                "param": {
+                  "moon_id": "id"
+                }
+              },
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "moon_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  },
+                  {
+                    "name": "planet_id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "id",
+                  "planet_id"
+                ]
+              }
             }
           ]
         }
@@ -438,7 +598,7 @@ class Config {
       "relations": {
         "ancestors": [
           [
-            "planet"
+            "$.main.kit.entity.planet"
           ]
         ]
       }
@@ -446,45 +606,56 @@ class Config {
     "planet": {
       "fields": [
         {
-          "format": "float",
           "name": "diameter",
+          "title": "Diameter",
+          "type": "`$NUMBER`",
           "req": true,
-          "type": "`$NUMBER`"
+          "format": "float"
         },
         {
           "name": "forbidReason",
-          "readOnly": true,
+          "title": "Forbid Reason",
+          "type": "`$STRING`",
           "short": "Why the planet is forbidden, carried from the forbid action's `why`.",
-          "type": "`$STRING`"
+          "readOnly": true
         },
         {
           "name": "forbidState",
-          "readOnly": true,
+          "title": "Forbid State",
+          "type": "`$STRING`",
           "short": "Set by the forbid action, and absent until it first runs.",
-          "type": "`$STRING`"
+          "readOnly": true
         },
         {
           "name": "id",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Id",
+          "type": "`$STRING`",
+          "req": true
         },
         {
           "name": "kind",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Kind",
+          "type": "`$STRING`",
+          "req": true
         },
         {
           "name": "name",
-          "req": true,
-          "type": "`$STRING`"
+          "title": "Name",
+          "type": "`$STRING`",
+          "req": true
         },
         {
           "name": "terraformState",
-          "readOnly": true,
+          "title": "Terraform State",
+          "type": "`$STRING`",
           "short": "Set by the terraform action, and absent until it first runs.",
-          "type": "`$STRING`"
+          "readOnly": true
         }
       ],
+      "id": {
+        "field": "id",
+        "name": "id"
+      },
       "name": "planet",
       "op": {
         "create": {
@@ -492,31 +663,9 @@ class Config {
           "name": "create",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "POST /api/planet/{planet_id}/forbid",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"forbid\":{\"type\":\"boolean\"},\"why\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet/{planet_id}/forbid",
-              "rename": {
-                "param": {
-                  "planet_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -531,49 +680,43 @@ class Config {
                   "lit": "forbid"
                 }
               ],
-              "select": {
-                "$action": "forbid",
-                "exist": [
-                  "id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{id}",
                 "forbid"
-              ]
-            },
-            {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "POST /api/planet/{planet_id}/terraform",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"start\":{\"type\":\"boolean\"},\"stop\":{\"type\":\"boolean\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
-              "kind": "http",
-              "method": "POST",
-              "orig": "/api/planet/{planet_id}/terraform",
+              ],
               "rename": {
                 "param": {
                   "planet_id": "id"
                 }
               },
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "$action": "forbid",
+                "exist": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "kind": "http",
+              "method": "POST",
+              "orig": "/api/planet/{planet_id}/terraform",
               "segments": [
                 {
                   "lit": "api"
@@ -588,31 +731,40 @@ class Config {
                   "lit": "terraform"
                 }
               ],
-              "select": {
-                "$action": "terraform",
-                "exist": [
-                  "id"
-                ]
-              },
-              "transform": {
-                "req": "`reqdata`",
-                "res": "`body`"
-              },
               "parts": [
                 "api",
                 "planet",
                 "{id}",
                 "terraform"
-              ]
+              ],
+              "rename": {
+                "param": {
+                  "planet_id": "id"
+                }
+              },
+              "transform": {
+                "req": "`reqdata`",
+                "res": "`body`"
+              },
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "$action": "terraform",
+                "exist": [
+                  "id"
+                ]
+              }
             },
             {
-              "args": {},
-              "contract": {
-                "id": "POST /api/planet",
-                "json": "{\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "POST",
               "orig": "/api/planet",
@@ -624,15 +776,17 @@ class Config {
                   "lit": "planet"
                 }
               ],
-              "select": {},
+              "parts": [
+                "api",
+                "planet"
+              ],
+              "rename": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "api",
-                "planet"
-              ]
+              "args": {},
+              "select": {}
             }
           ]
         },
@@ -641,13 +795,6 @@ class Config {
           "name": "list",
           "points": [
             {
-              "args": {},
-              "contract": {
-                "id": "GET /api/planet",
-                "json": "{\"parameters\":[],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet",
@@ -659,15 +806,17 @@ class Config {
                   "lit": "planet"
                 }
               ],
-              "select": {},
+              "parts": [
+                "api",
+                "planet"
+              ],
+              "rename": {},
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "api",
-                "planet"
-              ]
+              "args": {},
+              "select": {}
             }
           ]
         },
@@ -676,31 +825,9 @@ class Config {
           "name": "load",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "GET /api/planet/{planet_id}",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "GET",
               "orig": "/api/planet/{planet_id}",
-              "rename": {
-                "param": {
-                  "planet_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -712,20 +839,36 @@ class Config {
                   "var": "id"
                 }
               ],
-              "select": {
-                "exist": [
-                  "id"
-                ]
+              "parts": [
+                "api",
+                "planet",
+                "{id}"
+              ],
+              "rename": {
+                "param": {
+                  "planet_id": "id"
+                }
               },
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "api",
-                "planet",
-                "{id}"
-              ]
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "id"
+                ]
+              }
             }
           ]
         },
@@ -734,31 +877,9 @@ class Config {
           "name": "remove",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "DELETE /api/planet/{planet_id}",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "DELETE",
               "orig": "/api/planet/{planet_id}",
-              "rename": {
-                "param": {
-                  "planet_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -770,20 +891,36 @@ class Config {
                   "var": "id"
                 }
               ],
-              "select": {
-                "exist": [
-                  "id"
-                ]
+              "parts": [
+                "api",
+                "planet",
+                "{id}"
+              ],
+              "rename": {
+                "param": {
+                  "planet_id": "id"
+                }
               },
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "api",
-                "planet",
-                "{id}"
-              ]
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "id"
+                ]
+              }
             }
           ]
         },
@@ -792,31 +929,9 @@ class Config {
           "name": "update",
           "points": [
             {
-              "args": {
-                "params": [
-                  {
-                    "kind": "param",
-                    "name": "id",
-                    "orig": "planet_id",
-                    "reqd": true,
-                    "type": "`$STRING`"
-                  }
-                ]
-              },
-              "contract": {
-                "id": "PUT /api/planet/{planet_id}",
-                "json": "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                "source": "openapi3",
-                "version": 1
-              },
               "kind": "http",
               "method": "PUT",
               "orig": "/api/planet/{planet_id}",
-              "rename": {
-                "param": {
-                  "planet_id": "id"
-                }
-              },
               "segments": [
                 {
                   "lit": "api"
@@ -828,20 +943,36 @@ class Config {
                   "var": "id"
                 }
               ],
-              "select": {
-                "exist": [
-                  "id"
-                ]
+              "parts": [
+                "api",
+                "planet",
+                "{id}"
+              ],
+              "rename": {
+                "param": {
+                  "planet_id": "id"
+                }
               },
               "transform": {
                 "req": "`reqdata`",
                 "res": "`body`"
               },
-              "parts": [
-                "api",
-                "planet",
-                "{id}"
-              ]
+              "args": {
+                "params": [
+                  {
+                    "name": "id",
+                    "orig": "planet_id",
+                    "type": "`$STRING`",
+                    "kind": "param",
+                    "reqd": true
+                  }
+                ]
+              },
+              "select": {
+                "exist": [
+                  "id"
+                ]
+              }
             }
           ]
         }
@@ -857,6 +988,7 @@ class Config {
 const config = new Config()
 
 module.exports = {
-  config
+  config,
+  FEATURE_PLUGINS,
 }
 

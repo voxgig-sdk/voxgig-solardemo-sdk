@@ -1,6 +1,6 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
-// Small shared conversions used across the Solardemo SDK runtime.
+// Small shared conversions used across the VoxgigSolardemo SDK runtime.
 
 import java.util.{LinkedHashMap, Map => JMap}
 

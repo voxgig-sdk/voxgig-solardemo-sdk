@@ -1,4 +1,4 @@
-# Solardemo SDK utility registration
+# VoxgigSolardemo SDK utility registration
 
 use strict;
 use warnings;
@@ -42,13 +42,13 @@ require(Cwd::abs_path("$__dir/result_headers.pm"));
 require(Cwd::abs_path("$__dir/transform_request.pm"));
 require(Cwd::abs_path("$__dir/transform_response.pm"));
 
-$SolardemoUtility::REGISTRAR = sub {
+$VoxgigSolardemoUtility::REGISTRAR = sub {
   my ($u) = @_;
-  for my $k (keys %SolardemoUtilities::REGISTRY) {
-    $u->{$k} = $SolardemoUtilities::REGISTRY{$k};
+  for my $k (keys %VoxgigSolardemoUtilities::REGISTRY) {
+    $u->{$k} = $VoxgigSolardemoUtilities::REGISTRY{$k};
   }
   # The vendored struct utility, reachable as $utility->{struct}{<fn>}.
-  $u->{struct} = SolardemoHelpers::struct_facade();
+  $u->{struct} = VoxgigSolardemoHelpers::struct_facade();
 };
 
 1;

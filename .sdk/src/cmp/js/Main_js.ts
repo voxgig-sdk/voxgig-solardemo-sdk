@@ -4,7 +4,8 @@ import * as Path from 'node:path'
 import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
-  entityClassName, entityCollection, srcFeatureExcludes, stationLibrary,
+  entityClassName, entityCollection, srcFeatureExcludes, pluginExcludes,
+  stationLibrary,
   targetFeatures,
   TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
@@ -23,9 +24,11 @@ import {
 
 import { Package } from './Package_js'
 import { Config } from './Config_js'
+import { Schema } from './Schema_js'
 import { Gitignore } from './Gitignore_js'
 import { MainEntity } from './MainEntity_js'
 import { SdkError } from './SdkError_js'
+import { PrepareAuth } from './PrepareAuth_js'
 import { EntityBase } from './EntityBase_js'
 import { EntityTypes } from './EntityTypes_js'
 
@@ -42,15 +45,21 @@ const Main = cmp(async function Main(props: any) {
   // helpers/applicability.
   const feature = targetFeatures(model, target)
 
+  // Does the secrets feature apply here and is it switched on? Both, since
+  // targetFeatures already dropped it for a target with no sekreto port.
+  const secrets = null != feature.secrets
+
   Package({ target })
 
   Gitignore({})
 
   Copy({
     from: 'tm/' + target.name,
-    // Root copies src/feature/<name>/ per ACTIVE feature; keep this blanket
-    // copy from restoring one that was switched off after `target add`.
-    exclude: [...srcFeatureExcludes(model), TEST_CONTROL_EXCLUDE],
+    exclude: [
+      ...srcFeatureExcludes(model),
+      ...pluginExcludes(model),
+      TEST_CONTROL_EXCLUDE,
+    ],
     replace: {
       ...props.ctx$.stdrep,
     }
@@ -74,6 +83,37 @@ const Main = cmp(async function Main(props: any) {
           from: Path.normalize(__dirname + '/../../../src/cmp/js/fragment/Main.fragment.js'),
           replace: {
             ...props.ctx$.stdrep,
+
+            '// #SecretsImport': () => secrets ?
+              Line(`const sekreto = require('./feature/secrets/sekreto')`) : undefined,
+
+            '// #SecretsField': ({ indent }: any) => secrets ?
+              Line({ indent }, '_secrets') : undefined,
+
+            // The LIVE instance, not a clone: sekreto holds provider and
+            // cache state, so a clone would resolve into a copy that
+            // prepareAuth never sees.
+            '// #SecretsAccessor': ({ indent }: any) => secrets ?
+              Content({ indent }, `
+secrets() {
+  return this._secrets && this._secrets.sekreto()
+}
+`) : undefined,
+
+            '// #SecretsResolve': ({ indent }: any) => secrets ?
+              Content({ indent }, `
+if (null != this._secrets) {
+  try {
+    await this._secrets.resolve()
+  }
+  catch (err) {
+    return err instanceof Error ? err : new Error(String(err))
+  }
+}
+`) : undefined,
+
+            '// #SecretsExport': ({ indent }: any) => secrets ?
+              Line({ indent }, 'sekreto,') : undefined,
 
             '#BuildFeatures': ({ indent }: any) => {
               List({ item: feature, line: false }, ({ item }: any) =>
@@ -108,13 +148,6 @@ if (fres instanceof Promise) { await fres }
           })
         })
 
-      // Station self-registration (station design §6.2 path 1;
-      // station-declarative-config §11 item 2): emitted ONLY when the model
-      // carries an ACTIVE station feature (installed via
-      // `package add @voxgig/sdkgen-station`). The library package name
-      // comes from the feature model's own `deps.js` block — the same entry
-      // collectDeps flows into package.json — so the manifest dependency
-      // and the emitted require cannot disagree.
       const stationPkg = stationLibrary(model, target.name)
       if (null != stationPkg) {
         Fragment({
@@ -129,6 +162,12 @@ if (fres instanceof Promise) { await fres }
     })
 
     Config({ target })
+
+    // GENERATED, NOT COPIED. Where the credential goes is a fact about the
+    // API, and tm/ can only hold one answer. See PrepareAuth_js.
+    PrepareAuth({ target })
+
+    Schema({ target })
 
     EntityBase({ target })
 

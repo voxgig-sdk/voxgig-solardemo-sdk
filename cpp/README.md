@@ -1,8 +1,8 @@
-# Solardemo C++ SDK
+# VoxgigSolardemo C++ SDK
 
 
 
-The C++ SDK for the Solardemo API — a header-only,
+The C++ SDK for the VoxgigSolardemo API — a header-only,
 entity-oriented client following idiomatic modern C++ (C++17) conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `client->moon()` — each
@@ -21,11 +21,11 @@ The C++ SDK is **header-only** — there is no package to install
 from a registry. Vendor the `cpp/` directory into your project (or add the
 repository as a git submodule) and put it on your compiler's include path.
 Releases are cut as the git tag `cpp/vX.Y.Z` (see
-[Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)).
+[Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)).
 
 ```bash
 # Add the SDK as a submodule (or copy the cpp/ directory into your tree).
-git submodule add <repo-url> third_party/solardemo-sdk
+git submodule add <repo-url> third_party/voxgigsolardemo-sdk
 ```
 
 Then include the umbrella header and compile with C++17:
@@ -35,7 +35,7 @@ Then include the umbrella header and compile with C++17:
 ```
 
 ```bash
-g++ -std=c++17 -Ithird_party/solardemo-sdk/cpp your_app.cpp -o your_app
+g++ -std=c++17 -Ithird_party/voxgigsolardemo-sdk/cpp your_app.cpp -o your_app
 ```
 
 
@@ -51,7 +51,7 @@ loading a specific record.
 
 using namespace sdk;
 
-auto client = SolardemoSDK::create();
+auto client = VoxgigSolardemoSDK::create();
 ```
 
 ### 2. List moon records
@@ -175,7 +175,7 @@ Create a mock client for unit testing — no server required. The test
 feature installs an in-memory mock transport:
 
 ```cpp
-auto client = SolardemoSDK::testSDK();
+auto client = VoxgigSolardemoSDK::testSDK();
 
 // Entity ops return the bare record and throw on error.
 Value moon = client->moon()->list(Value::undef(), Value::undef());
@@ -191,7 +191,7 @@ You can seed the mock store by passing test options — see the generated
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then build and run the test suite:
@@ -203,14 +203,14 @@ cd cpp && make test
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```cpp
 #include "core/sdk.hpp"
 
 using namespace sdk;
 
-auto client = std::make_shared<SolardemoSDK>(options);
+auto client = std::make_shared<VoxgigSolardemoSDK>(options);
 ```
 
 Creates a new SDK client. `options` is an `sdk::Value` map.
@@ -226,14 +226,14 @@ Creates a new SDK client. `options` is an `sdk::Value` map.
 ### testSDK
 
 ```cpp
-auto client = SolardemoSDK::testSDK(testopts, sdkopts);
+auto client = VoxgigSolardemoSDK::testSDK(testopts, sdkopts);
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be
-`Value::undef()`; a no-arg `SolardemoSDK::testSDK()` overload is
+`Value::undef()`; a no-arg `VoxgigSolardemoSDK::testSDK()` overload is
 also provided.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -416,7 +416,7 @@ Value planet = client->planet()->create(vmap({
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -425,17 +425,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -476,7 +608,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -508,7 +648,7 @@ cpp/
 
 Include the umbrella header `core/sdk.hpp` to pull in the whole SDK: the
 runtime types, the pipeline utilities, the vendored struct, the generated
-config, the per-entity clients and the generated `SolardemoSDK`
+config, the per-entity clients and the generated `VoxgigSolardemoSDK`
 client class. Everything lives in the `sdk` namespace.
 
 ### Entity state

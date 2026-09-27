@@ -1,5 +1,5 @@
 {
-  "name": "@voxgig-sdk/solardemo",
+  "name": "@voxgig-sdk/voxgig-solardemo-sdk",
   "version": "0.1.0",
   "description": "Unofficial generated TypeScript SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
   "keywords": [
@@ -8,22 +8,23 @@
     "generated-sdk",
     "openapi",
     "api-client",
-    "solardemo"
+    "voxgig-solardemo"
   ],
-  "homepage": "https://github.com/voxgig-sdk/solardemo-sdk#readme",
+  "homepage": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/voxgig-sdk/solardemo-sdk.git"
+    "url": "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git"
   },
   "bugs": {
-    "url": "https://github.com/voxgig-sdk/solardemo-sdk/issues"
+    "url": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk/issues"
   },
-  "main": "dist/SolardemoSDK.js",
+  "main": "dist/VoxgigSolardemoSDK.js",
   "type": "commonjs",
-  "types": "dist/SolardemoSDK.d.ts",
+  "types": "dist/VoxgigSolardemoSDK.d.ts",
   "files": [
     "dist",
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "pretest": "npm run build",

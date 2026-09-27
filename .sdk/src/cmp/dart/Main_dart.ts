@@ -3,8 +3,8 @@ import * as Path from 'node:path'
 
 import {
   cmp, each,
-  List, File, Copy, Folder, Fragment, Line,
-  entityClassName, entityCollection,
+  List, File, Content, Copy, Folder, Fragment, Line,
+  entityClassName, entityCollection, pluginExcludes, targetFeatures,
   TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
 
@@ -37,16 +37,22 @@ const Main = cmp(async function Main(props: any) {
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
 
+  // Gated by the applicability tags, so this target never emits a hook for
+  // a feature it has no source for. One rule, one place:
+  // helpers/applicability.
+  const feature = targetFeatures(model, target)
+
+  // Does the secrets feature apply here and is it switched on? Both, since
+  // targetFeatures already dropped it for a target with no sekreto port.
+  const secrets = null != feature.secrets
+
   Package({ target })
 
   Gitignore({})
 
-  // Copy tm/dart files with replacements. The src/feature/* dirs exist only
-  // for the feature-add copy mechanism (real feature sources live under
-  // lib/feature/), so they are excluded from the generated package.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    exclude: [/^src\//, TEST_CONTROL_EXCLUDE, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
     }
@@ -80,6 +86,27 @@ const Main = cmp(async function Main(props: any) {
           from: Path.normalize(__dirname + '/../../../src/cmp/dart/fragment/Main.fragment.dart'),
           replace: {
             ...props.ctx$.stdrep,
+
+            '// #SecretsAccessor': () => secrets ?
+              Content(`
+  // The live sekreto chain this SDK resolves its credential through, for
+  // callers who want arbitrary secrets or redaction:
+  //
+  //   await sdk.secrets().get('db.password')
+  //   sdk.secrets().redact(logline)
+  //
+  // Null before the secrets feature has initialised, and in an SDK where
+  // it is switched off.
+  dynamic secrets() {
+    for (final f in features) {
+      if ('secrets' == f.name) {
+        return f.sekreto();
+      }
+    }
+    return null;
+  }
+
+`) : undefined,
           }
         },
 

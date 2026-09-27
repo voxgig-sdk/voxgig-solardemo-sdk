@@ -1,4 +1,4 @@
-// Solardemo SDK — custom utility overrides supplied via options.utility
+// VoxgigSolardemo SDK — custom utility overrides supplied via options.utility
 // land on the utility object's custom map (mirrors java
 // test/CustomUtilityTest.java). This exercises value-semantics gotcha #8:
 // the struct clone in makeOptions must NOT drop the function (Injector)
@@ -34,7 +34,7 @@ static void basic() {
   Value customUtils = vmap();
   for (const auto& k : keys) map_put(customUtils, k, mkutil(upper(k)));
 
-  auto client = SolardemoSDK::testSDK(
+  auto client = VoxgigSolardemoSDK::testSDK(
       Value::undef(),
       fhMap({{"apikey", Value("APIKEY01")}, {"utility", customUtils}}));
 

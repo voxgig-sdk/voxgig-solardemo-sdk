@@ -1,9 +1,9 @@
-// Solardemo SDK utility: transformRequest - apply the point's request
+// VoxgigSolardemo SDK utility: transformRequest - apply the point's request
 // transform (when defined) to the request data.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {
@@ -20,13 +20,13 @@ public static partial class SdkUtility
         var transform = Helpers.ToMapAny(StructUtils.GetProp(point, "transform"));
         if (transform == null)
         {
-            return ctx.Reqdata;
+            return StripAction(ctx.Reqdata);
         }
 
         var reqform = StructUtils.GetProp(transform, "req");
         if (reqform == null)
         {
-            return ctx.Reqdata;
+            return StripAction(ctx.Reqdata);
         }
 
         var reqdata = StructUtils.Transform(new Dictionary<string, object?>
@@ -34,6 +34,26 @@ public static partial class SdkUtility
             ["reqdata"] = ctx.Reqdata,
         }, reqform);
 
-        return reqdata;
+        return StripAction(reqdata);
+    }
+
+    // `$action` selects the point (see MakePointUtil); it is never an API
+    // field, so the body is a copy without it. The caller's map is left
+    // untouched.
+    private static object? StripAction(object? reqdata)
+    {
+        if (reqdata is not IDictionary<string, object?> src || !src.ContainsKey("$action"))
+        {
+            return reqdata;
+        }
+        var body = new Dictionary<string, object?>();
+        foreach (var kv in src)
+        {
+            if ("$action" != kv.Key)
+            {
+                body[kv.Key] = kv.Value;
+            }
+        }
+        return body;
     }
 }

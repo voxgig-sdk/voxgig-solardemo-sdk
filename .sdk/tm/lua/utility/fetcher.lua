@@ -1,4 +1,4 @@
--- Solardemo SDK utility: fetcher
+-- VoxgigSolardemo SDK utility: fetcher
 
 local vs = require("utility.struct.struct")
 local json = require("dkjson")
@@ -35,7 +35,7 @@ local function default_http_fetch(fullurl, fetchdef)
     end
   end
   if not has_ua then
-    headers["User-Agent"] = "Mozilla/5.0 (compatible; SolardemoSDK/1.0)"
+    headers["User-Agent"] = "Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)"
   end
 
   local response_body = {}

@@ -1,4 +1,4 @@
-(* Solardemo SDK error (generated).
+(* VoxgigSolardemo SDK error (generated).
  *
  * The branded error type and its exception live in the runtime; this module
  * re-exports them so consumers have one import for error handling:

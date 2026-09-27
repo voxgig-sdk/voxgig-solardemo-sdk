@@ -1,6 +1,6 @@
-# Solardemo Lean — Agent Guide
+# VoxgigSolardemo Lean — Agent Guide
 
-The Lean client for the Solardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Lean client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `lean/` directory.
@@ -26,7 +26,7 @@ make test
 
 | Source | Path | Edit when… |
 | --- | --- | --- |
-| Target definition | `.sdk/model/target/lean.aon` | deps, module, extension, phases change |
+| Target definition | `.sdk/model/target/lean.aontu` | deps, module, extension, phases change |
 | Templates | `.sdk/tm/lean/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
 | Components | `.sdk/src/cmp/lean/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
 

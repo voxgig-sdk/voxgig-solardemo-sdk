@@ -2,13 +2,13 @@
 import { test, describe } from 'node:test'
 import { equal } from 'node:assert'
 
-import { SolardemoSDK } from '../..'
+import { VoxgigSolardemoSDK } from '../..'
 
 
 describe('Custom', () => {
 
   test('basic', async () => {
-    const client = SolardemoSDK.test({}, {
+    const client = VoxgigSolardemoSDK.test({}, {
       apikey: 'APIKEY01',
 
       // NOTE: original utility.options must remain in place.

@@ -24,11 +24,11 @@ static voxgig_value* moon_mock(void* ud, voxgig_value* args) {
     "json", json_thunk(data));
 }
 
-static SolardemoSDK* moon_direct_setup(voxgig_value* mockres) {
+static VoxgigSolardemoSDK* moon_direct_setup(voxgig_value* mockres) {
   voxgig_value* opts = cmap(2,
     "base", v_str("http://localhost:8080"),
     "system", cmap(1, "fetch", vfn(moon_mock, mockres)));
-  return solardemo_sdk_new(opts);
+  return voxgigsolardemo_sdk_new(opts);
 }
 
 int main(void) {
@@ -39,9 +39,9 @@ int main(void) {
     voxgig_value* mockres = clist(2,
       cmap(1, "id", v_str("direct01")),
       cmap(1, "id", v_str("direct02")));
-    SolardemoSDK* sdk = moon_direct_setup(mockres);
+    VoxgigSolardemoSDK* sdk = moon_direct_setup(mockres);
     voxgig_value* params = v_map();
-    setp(params, "planet_id", v_str("direct01"));
+    setp(params, "undefined", v_str("direct01"));
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
       "path", v_str("api/planet/{planet_id}/moon"),
@@ -62,10 +62,10 @@ int main(void) {
   {
     CALLS = 0;
     voxgig_value* mockres = cmap(1, "id", v_str("direct01"));
-    SolardemoSDK* sdk = moon_direct_setup(mockres);
+    VoxgigSolardemoSDK* sdk = moon_direct_setup(mockres);
     voxgig_value* params = v_map();
-    setp(params, "id", v_str("direct01"));
-    setp(params, "planet_id", v_str("direct02"));
+    setp(params, "undefined", v_str("direct01"));
+    setp(params, "undefined", v_str("direct02"));
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
       "path", v_str("api/planet/{planet_id}/moon/{id}"),
@@ -85,5 +85,5 @@ int main(void) {
     CHECK(strstr(LAST_URL, "direct02") != NULL, "load: url has direct02");
   }
 
-  TEST_SUMMARY("solardemo_moon_direct");
+  TEST_SUMMARY("voxgigsolardemo_moon_direct");
 }

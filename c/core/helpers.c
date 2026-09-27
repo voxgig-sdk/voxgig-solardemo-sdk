@@ -1,4 +1,4 @@
-// Shared Value helpers for the Solardemo SDK pipeline (mirrors
+// Shared Value helpers for the VoxgigSolardemo SDK pipeline (mirrors
 // core/helpers.rs). The data model is the vendored voxgig struct value.
 // Retain-heavy, never-free: results are owned but never released here.
 

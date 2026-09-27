@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Minimal zero-dependency JSON parser for the Solardemo SDK runtime.
+ * Minimal zero-dependency JSON parser for the VoxgigSolardemo SDK runtime.
  * Produces the same shapes the rest of the runtime consumes:
  * LinkedHashMap&lt;String,Object&gt;, ArrayList&lt;Object&gt;, String,
  * Long (integer-valued numbers), Double, Boolean and null.

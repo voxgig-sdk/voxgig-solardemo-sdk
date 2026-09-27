@@ -1,13 +1,13 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Spec;
-import voxgig.solardemosdk.core.Utility;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.core.Utility;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 @SuppressWarnings({"unchecked"})
 final class MakeSpec {
@@ -45,7 +45,9 @@ final class MakeSpec {
 
     Object allowMethodRaw = Struct.getpath(options, List.of("allow", "method"));
     String allowMethod = allowMethodRaw instanceof String ? (String) allowMethodRaw : "";
-    if (!allowMethod.contains(ctx.spec.method)) {
+    // null-safe: an op outside the convention resolves NO method (see
+    // PrepareMethod), which the allow list can never contain.
+    if (null == ctx.spec.method || !allowMethod.contains(ctx.spec.method)) {
       throw ctx.makeError("spec_method_allow",
           "Method \"" + ctx.spec.method
               + "\" not allowed by SDK option allow.method value: \"" + allowMethod + "\"");

@@ -9,9 +9,9 @@ use std::rc::Rc;
 
 use common::*;
 
-use solardemo_sdk::core::helpers::{getp, getpath, ja, jo, now_ms, setp, to_map};
-use solardemo_sdk::utility::voxgigstruct as vs;
-use solardemo_sdk::{test_sdk, Entity, SolardemoEntity, SolardemoSDK, Value};
+use voxgig_solardemo_sdk::core::helpers::{getp, getpath, ja, jo, now_ms, setp, to_map};
+use voxgig_solardemo_sdk::utility::voxgigstruct as vs;
+use voxgig_solardemo_sdk::{test_sdk, Entity, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Value};
 
 #[test]
 fn moon_entity_instance() {
@@ -81,7 +81,7 @@ fn moon_entity_basic() {
     // The basic flow consumes synthetic IDs from the fixture. In live mode
     // without an *_ENTID env override, those IDs hit the live API and 4xx.
     if setup.synthetic_only {
-        eprintln!("skip: live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_MOON_ENTID JSON to run live");
+        eprintln!("skip: live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live");
         return;
     }
     let client = setup.client.clone();
@@ -247,17 +247,17 @@ fn moon_basic_setup(extra: Value) -> EntityTestSetup {
     // Detect ENTID env override before env_override consumes it. When live
     // mode is on without a real override, the basic test runs against
     // synthetic IDs from the fixture and 4xx's.
-    let entid_env_raw = std::env::var("SOLARDEMO_TEST_MOON_ENTID").unwrap_or_default();
+    let entid_env_raw = std::env::var("VOXGIG_SOLARDEMO_TEST_MOON_ENTID").unwrap_or_default();
     let idmap_overridden =
         !entid_env_raw.trim().is_empty() && entid_env_raw.trim().starts_with('{');
 
     let env = env_override(jo(vec![
-        ("SOLARDEMO_TEST_MOON_ENTID", idmap.clone()),
-        ("SOLARDEMO_TEST_LIVE", Value::str("FALSE")),
-        ("SOLARDEMO_TEST_EXPLAIN", Value::str("FALSE")),
+        ("VOXGIG_SOLARDEMO_TEST_MOON_ENTID", idmap.clone()),
+        ("VOXGIG_SOLARDEMO_TEST_LIVE", Value::str("FALSE")),
+        ("VOXGIG_SOLARDEMO_TEST_EXPLAIN", Value::str("FALSE")),
     ]));
 
-    let idmap_resolved = match to_map(&getp(&env, "SOLARDEMO_TEST_MOON_ENTID")) {
+    let idmap_resolved = match to_map(&getp(&env, "VOXGIG_SOLARDEMO_TEST_MOON_ENTID")) {
         Value::Map(m) => Value::Map(m),
         _ => to_map(&idmap),
     };
@@ -268,7 +268,7 @@ fn moon_basic_setup(extra: Value) -> EntityTestSetup {
         setp(&idmap_resolved, "planet_id", aliased);
     }
 
-    let live = getp(&env, "SOLARDEMO_TEST_LIVE") == Value::str("TRUE");
+    let live = getp(&env, "VOXGIG_SOLARDEMO_TEST_LIVE") == Value::str("TRUE");
 
     let client = if live {
         let merged = vs::merge(
@@ -290,7 +290,7 @@ fn moon_basic_setup(extra: Value) -> EntityTestSetup {
             ]),
             None,
         );
-        SolardemoSDK::new(to_map(&merged))
+        VoxgigSolardemoSDK::new(to_map(&merged))
     } else {
         client
     };
@@ -300,7 +300,7 @@ fn moon_basic_setup(extra: Value) -> EntityTestSetup {
         data: entity_data,
         idmap: idmap_resolved,
         env: env.clone(),
-        explain: getp(&env, "SOLARDEMO_TEST_EXPLAIN") == Value::str("TRUE"),
+        explain: getp(&env, "VOXGIG_SOLARDEMO_TEST_EXPLAIN") == Value::str("TRUE"),
         live,
         synthetic_only: live && !idmap_overridden,
         now: now_ms(),

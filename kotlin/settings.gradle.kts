@@ -1,1 +1,1 @@
-rootProject.name = "solardemo-sdk"
+rootProject.name = "voxgig-solardemo-sdk"

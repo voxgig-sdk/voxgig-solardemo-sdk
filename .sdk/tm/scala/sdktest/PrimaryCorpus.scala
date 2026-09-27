@@ -97,7 +97,7 @@ object PrimaryCorpus {
 
   // ---- live context from a corpus map ------------------------------------
 
-  private def corpusCtx(client: ProjectNameSDK, ctxmap: Value): Context = {
+  private def corpusCtx(client: VoxgigSolardemoSDK, ctxmap: Value): Context = {
     val utility = client.getUtility()
     val cm = new LinkedHashMap[String, Object]()
     // Only when the corpus names one: defaulting to "load" made the SDK report
@@ -214,7 +214,7 @@ object PrimaryCorpus {
   // rather than `run.set`: the group carries its parent, so a `basic` that
   // has gone missing out of a section this corpus carries FAILS instead of
   // being skipped past (OmniResolver decision 7).
-  private def runset(name: String, client: ProjectNameSDK)(f: (Context, Seq[Value]) => Value): Unit = {
+  private def runset(name: String, client: VoxgigSolardemoSDK)(f: (Context, Seq[Value]) => Value): Unit = {
     val run = sectionRun(name)
     run.runsetargs(name, run.group("basic")) { args =>
       val ctxmap = argAt(args, 0)
@@ -231,9 +231,9 @@ object PrimaryCorpus {
     run.runsetargs(name, run.group("basic"))(f)
   }
 
-  private def clientFor(name: String, shared: ProjectNameSDK): ProjectNameSDK =
+  private def clientFor(name: String, shared: VoxgigSolardemoSDK): VoxgigSolardemoSDK =
     sectionSetup(sectionRun(name)) match {
-      case m @ VMap(_) => ProjectNameSDK.testSDK(null, jmap(m))
+      case m @ VMap(_) => VoxgigSolardemoSDK.testSDK(null, jmap(m))
       case _           => shared
     }
 
@@ -242,7 +242,7 @@ object PrimaryCorpus {
     PACK = OmniResolver.makeRunner(ALL)
     REPORT = new OmniReport("PRIMARY CORPUS: ")
 
-    val sdk = ProjectNameSDK.testSDK()
+    val sdk = VoxgigSolardemoSDK.testSDK()
     val u = sdk.getUtility()
 
     runset("done", sdk) { (c, _) => toValue(u.done(c)) }

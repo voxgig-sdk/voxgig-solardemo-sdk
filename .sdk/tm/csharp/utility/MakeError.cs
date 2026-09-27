@@ -1,9 +1,9 @@
-// Solardemo SDK utility: makeError - the single error surface of the
-// pipeline. Throws the wrapped SolardemoError unless the per-call ctrl
+// VoxgigSolardemo SDK utility: makeError - the single error surface of the
+// pipeline. Throws the wrapped VoxgigSolardemoError unless the per-call ctrl
 // disables throwing (ctrl.throw == false), in which case it returns the
 // (possibly nil) result data instead.
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {
@@ -25,7 +25,7 @@ public static partial class SdkUtility
         err ??= ctx.MakeError("unknown", "unknown error");
 
         var errmsg = err.Message;
-        var msg = "SolardemoSDK: " + opname + ": " + errmsg;
+        var msg = "VoxgigSolardemoSDK: " + opname + ": " + errmsg;
         msg = CleanUtil(ctx, msg) as string ?? msg;
 
         result.Err = null;
@@ -40,8 +40,8 @@ public static partial class SdkUtility
             };
         }
 
-        var sdkErr = new SolardemoError(
-            err is SolardemoError se ? se.Code : "", msg, ctx)
+        var sdkErr = new VoxgigSolardemoError(
+            err is VoxgigSolardemoError se ? se.Code : "", msg, ctx)
         {
             ResultVal = CleanUtil(ctx, result),
             SpecVal = CleanUtil(ctx, spec),

@@ -1,4 +1,4 @@
-// Minimal dependency-free test harness for the generated Solardemo SDK.
+// Minimal dependency-free test harness for the generated VoxgigSolardemo SDK.
 //
 // Mirrors the shape of the donor (ts) node:test usage: describe/test blocks
 // register cases which run sequentially (deterministic order), `t.skip()`

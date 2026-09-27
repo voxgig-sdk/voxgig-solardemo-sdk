@@ -3,10 +3,10 @@
 #include "ctest.h"
 
 int main(void) {
-  SolardemoSDK* sdk = test_sdk(NULL, NULL);
+  VoxgigSolardemoSDK* sdk = test_sdk(NULL, NULL);
   CHECK(sdk != NULL, "sdk constructed");
 
-  Entity* e = solardemo_moon(sdk, NULL);
+  Entity* e = voxgigsolardemo_moon(sdk, NULL);
   CHECK(e != NULL, "entity instance");
   CHECK_STR_EQ(e->vt->get_name(e), "moon", "entity get_name");
 
@@ -23,8 +23,8 @@ int main(void) {
     voxgig_value* sdkopts = cmap(1, "feature",
       cmap(1, "streaming", cmap(1, "active", v_bool(true))));
 
-    SolardemoSDK* strsdk = test_sdk(seed, sdkopts);
-    Entity* se = solardemo_moon(strsdk, NULL);
+    VoxgigSolardemoSDK* strsdk = test_sdk(seed, sdkopts);
+    Entity* se = voxgigsolardemo_moon(strsdk, NULL);
     PNError* serr = NULL;
     voxgig_value* items = moon_stream(se, "list", NULL, NULL, &serr);
     CHECK(serr == NULL, "stream: no error");
@@ -32,8 +32,8 @@ int main(void) {
     CHECK_INT_EQ((int64_t)voxgig_as_list(items)->len, 2, "stream: yields both items");
 
     // Fallback: streaming inactive still yields both materialised items.
-    SolardemoSDK* plainsdk = test_sdk(seed, NULL);
-    Entity* pe = solardemo_moon(plainsdk, NULL);
+    VoxgigSolardemoSDK* plainsdk = test_sdk(seed, NULL);
+    Entity* pe = voxgigsolardemo_moon(plainsdk, NULL);
     PNError* perr = NULL;
     voxgig_value* pitems = moon_stream(pe, "list", NULL, NULL, &perr);
     CHECK(perr == NULL, "stream fallback: no error");

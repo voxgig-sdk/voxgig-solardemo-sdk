@@ -2,7 +2,7 @@
 # target's is.
 #
 # py-data is the one target that CONSUMES a sibling: its package imports the
-# Solardemo SDK generated into ../py of the same repo. The Makefile's `dev`
+# VoxgigSolardemo SDK generated into ../py of the same repo. The Makefile's `dev`
 # target pip-installs both editable, but `test` does not depend on it, so
 # `make test` on a fresh clone died in collection with
 # "ModuleNotFoundError: No module named 'projectname_sdk'" — before a single

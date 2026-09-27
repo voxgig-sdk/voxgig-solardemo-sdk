@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: result_basic
+// VoxgigSolardemo SDK utility: result_basic
 
-class SolardemoResultBasic
+class VoxgigSolardemoResultBasic
 {
-    public static function call(SolardemoContext $ctx): ?SolardemoResult
+    public static function call(VoxgigSolardemoContext $ctx): ?VoxgigSolardemoResult
     {
         $response = $ctx->response;
         $result = $ctx->result;
@@ -15,7 +15,7 @@ class SolardemoResultBasic
             if ($result->status >= 400) {
                 $msg = "request: {$result->status}: {$result->status_text}";
                 if ($result->err) {
-                    $prev = ($result->err instanceof SolardemoError) ? $result->err->msg : (string)$result->err;
+                    $prev = ($result->err instanceof VoxgigSolardemoError) ? $result->err->msg : (string)$result->err;
                     $result->err = $ctx->make_error('request_status', "{$prev}: {$msg}");
                 } else {
                     $result->err = $ctx->make_error('request_status', $msg);

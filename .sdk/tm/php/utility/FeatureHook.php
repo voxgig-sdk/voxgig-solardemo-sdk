@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: feature_hook
+// VoxgigSolardemo SDK utility: feature_hook
 
-class SolardemoFeatureHook
+class VoxgigSolardemoFeatureHook
 {
-    public static function call(SolardemoContext $ctx, string $name): void
+    public static function call(VoxgigSolardemoContext $ctx, string $name): void
     {
         if (!$ctx->client) {
             return;

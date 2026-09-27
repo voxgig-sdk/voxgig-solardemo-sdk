@@ -1,4 +1,4 @@
-// Solardemo SDK — minimal test harness (green-bar style; no framework).
+// VoxgigSolardemo SDK — minimal test harness (green-bar style; no framework).
 // Each test/*.cpp includes this, defines test functions, RUN()s them from
 // main() and returns summary(). ASSERT_* record failures (they do not abort)
 // so all checks in a run are reported.

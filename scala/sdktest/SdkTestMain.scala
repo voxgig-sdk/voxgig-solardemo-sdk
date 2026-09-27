@@ -1,4 +1,4 @@
-// Runtime test suite for the Solardemo SDK — a dependency-free scala-cli
+// Runtime test suite for the VoxgigSolardemo SDK — a dependency-free scala-cli
 // main (no JUnit). Drives the operation pipeline, the enterprise features
 // (via an offline mock-transport harness mirroring the go/java feature
 // tests), feature-add ordering, and an end-to-end entity CRUD flow through
@@ -7,9 +7,9 @@
 import java.util.{ArrayList, Iterator => JIterator, LinkedHashMap, List => JList, Map => JMap}
 import java.util.function.{BiFunction, Consumer, Function => JFunction, IntConsumer, LongSupplier, Supplier}
 
-import voxgig.solardemosdk.core._
-import voxgig.solardemosdk.feature._
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core._
+import voxgig.voxgigsolardemosdk.feature._
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 object SdkTestMain {
 
@@ -152,7 +152,7 @@ object SdkTestMain {
   }
 
   final class FhHarness {
-    var client: SolardemoSDK = null
+    var client: VoxgigSolardemoSDK = null
     var utility: Utility = null
     var rootctx: Context = null
     var base = "http://api.test"
@@ -230,7 +230,7 @@ object SdkTestMain {
   }
 
   def fhMake(server: FetcherFn, features: FhFeature*): FhHarness = {
-    val client = SolardemoSDK.testSDK()
+    val client = VoxgigSolardemoSDK.testSDK()
     client.features = new ArrayList[Feature]()
 
     val utility = client.getUtility()
@@ -594,7 +594,7 @@ object SdkTestMain {
   // ---- pipeline / featureAdd ----------------------------------------------
 
   private def testFeatureAdd(): Unit = {
-    val client = SolardemoSDK.testSDK()
+    val client = VoxgigSolardemoSDK.testSDK()
     val utility = client.getUtility()
     val ctxmap = new LinkedHashMap[String, Object]()
     ctxmap.put("opname", "load"); ctxmap.put("client", client); ctxmap.put("utility", utility)
@@ -634,7 +634,7 @@ object SdkTestMain {
   // ---- feature order (PR #2) -----------------------------------------------
 
   private def testFeatureOrder(): Unit = {
-    val client = SolardemoSDK.testSDK()
+    val client = VoxgigSolardemoSDK.testSDK()
     val utility = client.getUtility()
 
     def resolve(feature: Object): JMap[String, Object] = {

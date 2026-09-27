@@ -1,10 +1,10 @@
-// Solardemo SDK - core contracts.
+// VoxgigSolardemo SDK - core contracts.
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 // The minimal entity contract the pipeline depends on (list-wrapping in
 // MakeResult, feature hooks). Concrete entity classes derive from
-// SolardemoEntityBase which implements this.
+// VoxgigSolardemoEntityBase which implements this.
 public interface IEntity
 {
     string GetName();
@@ -22,6 +22,6 @@ public interface IEntity
 // Transport function: performs the HTTP (or mock) request. Returns a
 // transport-shaped response map:
 //   { status, statusText, headers, json: Func<object?>, body }
-// Throws (typically SolardemoError) on transport-level failure - the C#
+// Throws (typically VoxgigSolardemoError) on transport-level failure - the C#
 // twin of go's (any, error) return.
 public delegate object? FetcherFunc(Context ctx, string fullurl, Dictionary<string, object?> fetchdef);

@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: clean
+// VoxgigSolardemo SDK utility: clean
 
-class SolardemoClean
+class VoxgigSolardemoClean
 {
-    public static function call(SolardemoContext $ctx, mixed $val): mixed
+    public static function call(VoxgigSolardemoContext $ctx, mixed $val): mixed
     {
         return $val;
     }

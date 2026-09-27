@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK response
+// VoxgigSolardemo SDK response
 
-class SolardemoResponse
+class VoxgigSolardemoResponse
 {
     public int $status;
     public string $status_text;

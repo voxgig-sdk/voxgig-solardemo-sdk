@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_method
+# VoxgigSolardemo SDK utility: prepare_method
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ my $__dir;
 BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -31,12 +31,17 @@ $REGISTRY{prepare_method} = sub {
   # Only fall back to the op-name convention when the point has no method.
   my $point = $ctx->{point};
   if ($point) {
-    my $pm = SolardemoHelpers::gp($point, 'method');
+    my $pm = VoxgigSolardemoHelpers::gp($point, 'method');
     return uc($pm) if defined $pm && !ref($pm) && '' ne $pm;
   }
 
-  my $m = $METHOD_MAP{ $ctx->{op}{name} };
-  return defined $m ? $m : 'GET';
+  # No default: an op name outside the convention resolves to no method,
+  # exactly as the ts reference (`methodMap[key]` is undefined there).
+  # The silent-pass inline runner hid a stray 'GET' fallback here; the
+  # shared corpus (prepareMethod, opname "bad" -> null) pins it now.
+  my $opname = $ctx->{op} ? $ctx->{op}{name} : undef;
+  return undef unless defined $opname && !ref $opname;
+  return $METHOD_MAP{$opname};
 };
 
 1;

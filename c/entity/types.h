@@ -1,7 +1,7 @@
-// Typed models for the Solardemo SDK.
+// Typed models for the VoxgigSolardemo SDK.
 //
-// GENERATED from the API model: main.kit.entity.<e>.fields[] and per-op
-// params (op.<name>.points[].args.params[]). Field/param types are mapped
+// GENERATED from the API model: main.kit.entity.<e>.fields{} and per-op
+// params (op.<name>.points[].g.params[]). Field/param types are mapped
 // from the canonical type sentinels. Do not edit by hand.
 //
 // These are DOCUMENTARY: the SDK runtime is dynamic (ops take/return
@@ -9,8 +9,8 @@
 // entity/op shapes for reference and IDE support. This header is standalone
 // and is not #included by any generated .c.
 
-#ifndef SOLARDEMO_ENTITY_TYPES_H
-#define SOLARDEMO_ENTITY_TYPES_H
+#ifndef VOXGIGSOLARDEMO_ENTITY_TYPES_H
+#define VOXGIGSOLARDEMO_ENTITY_TYPES_H
 
 #include "sdk.h"
 
@@ -112,4 +112,4 @@ typedef struct {
   char*id;
 } PlanetRemoveMatch;
 
-#endif // SOLARDEMO_ENTITY_TYPES_H
+#endif // VOXGIGSOLARDEMO_ENTITY_TYPES_H

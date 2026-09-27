@@ -1,4 +1,4 @@
-;; Solardemo SDK netsim tests — the test feature's optional "net" block
+;; VoxgigSolardemo SDK netsim tests — the test feature's optional "net" block
 ;; simulates slow/failing/offline conditions over the mock transport, driven
 ;; through direct() (needs no entity, so runs for every generated SDK).
 (ns sdk.test.netsim

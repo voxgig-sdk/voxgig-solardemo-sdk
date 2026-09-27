@@ -1,5 +1,5 @@
 #!perl
-# Solardemo SDK feature test
+# VoxgigSolardemo SDK feature test
 #
 # Behavioural tests for the enterprise features shipped with this SDK.
 # Each block runs only when its feature is present (see has_feature),
@@ -16,14 +16,14 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use Scalar::Util ();
 
-use SolardemoSDK;
+use VoxgigSolardemoSDK;
 
 # --- Harness ---------------------------------------------------------------
 
 # True when this SDK was generated with the named feature.
 sub has_feature {
   my ($name) = @_;
-  my $f = SolardemoConfig::make_config()->{feature};
+  my $f = VoxgigSolardemoConfig::make_config()->{feature};
   return (Voxgig::Struct::ismap($f) && defined $f->{$name}) ? 1 : 0;
 }
 
@@ -126,7 +126,7 @@ sub recording_server {
       booted => 0,
     }, $class;
 
-    $self->{utility} = SolardemoUtility->new;
+    $self->{utility} = VoxgigSolardemoUtility->new;
     $self->{utility}{fetcher} = $opt{server} || main::default_server();
 
     $self->{client} = HarnessFakeClient->new({
@@ -144,7 +144,7 @@ sub recording_server {
     for my $fspec (@$features) {
       my $name = $fspec->{name};
       next unless main::has_feature($name);
-      my $f = SolardemoFeatures::make_feature($name);
+      my $f = VoxgigSolardemoFeatures::make_feature($name);
       my $fopts = { 'active' => Voxgig::Struct::JTRUE(), %{ $fspec->{options} || {} } };
       $self->{client}{options}{feature}{$name} = $fopts;
       $f->init($self->{rootctx}, $fopts);
@@ -194,12 +194,12 @@ sub recording_server {
     my $out = eval {
       $self->fire($ctx, 'PrePoint');
       if (Scalar::Util::blessed($ctx->{out}{point})
-        && $ctx->{out}{point}->isa('SolardemoError')) {
+        && $ctx->{out}{point}->isa('VoxgigSolardemoError')) {
         die $ctx->{out}{point};
       }
 
       $self->fire($ctx, 'PreSpec');
-      $ctx->{spec} = SolardemoSpec->new({
+      $ctx->{spec} = VoxgigSolardemoSpec->new({
         'method' => $method,
         'base' => $self->{base},
         'path' => (defined $args{path} ? $args{path} : "/$entity"),
@@ -223,7 +223,7 @@ sub recording_server {
       my ($fetched, $fetch_err) = $self->{utility}{fetcher}->($ctx, $url, $fetchdef);
 
       $ctx->{response} = Voxgig::Struct::ismap($fetched)
-        ? SolardemoResponse->new($fetched) : undef;
+        ? VoxgigSolardemoResponse->new($fetched) : undef;
       $self->fire($ctx, 'PreResponse');
 
       $self->populate_result($ctx, $fetched, $fetch_err);
@@ -239,7 +239,7 @@ sub recording_server {
       die $err;
     };
     if (my $err = $@) {
-      if (Scalar::Util::blessed($err) && $err->isa('SolardemoError')) {
+      if (Scalar::Util::blessed($err) && $err->isa('VoxgigSolardemoError')) {
         $ctx->{ctrl}{err} = $err;
         $self->fire($ctx, 'PreUnexpected');
         return { 'ok' => 0, 'error' => $err, 'result' => $ctx->{result}, 'ctx' => $ctx };
@@ -267,7 +267,7 @@ sub recording_server {
 
   sub populate_result {
     my ($self, $ctx, $fetched, $fetch_err) = @_;
-    my $result = SolardemoResult->new({});
+    my $result = VoxgigSolardemoResult->new({});
     $ctx->{result} = $result;
 
     if ($fetch_err) {
@@ -435,7 +435,7 @@ if (has_feature('retry')) {
     my ($server, $calls) = recording_server(sub {
       my ($n) = @_;
       return $n < 3
-        ? (undef, SolardemoError->new('boom', 'boom'))
+        ? (undef, VoxgigSolardemoError->new('boom', 'boom'))
         : (make_response(200, { 'ok' => 1 }), undef);
     });
     my $h = harness([fspec('retry',
@@ -449,7 +449,7 @@ if (has_feature('retry')) {
   {
     my $clock = HarnessClock->new;
     my ($server, $calls) = recording_server(sub {
-      (undef, SolardemoError->new('boom', 'boom'));
+      (undef, VoxgigSolardemoError->new('boom', 'boom'));
     });
     my $h = harness([fspec('retry',
       'retries' => 2, 'minDelay' => 1, 'jitter' => 0, 'sleep' => $clock->sleeper)],

@@ -5,6 +5,7 @@ import {
   cmp,
   collectDeps,
   pkgDescription,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -26,6 +27,9 @@ const Package = cmp(async function Package(props: any) {
   // CPAN-style distribution name, namespaced to model.origin
   // (e.g. "Voxgig::SDK::Solar" -> dist voxgig-sdk-solar).
   const Name = model.const.Name
+
+  const secrets = null != (targetFeatures(model, target) as any).secrets
+  const minperl = secrets ? '5.036' : '5.018'
 
   const deps = collectDeps(model, target.name, target.deps, ctx$.log)
   const prereq = deps
@@ -51,7 +55,7 @@ WriteMakefile(
     ABSTRACT         => '${pkgDescription(model, target.name)}',
     AUTHOR           => 'Voxgig',
     LICENSE          => 'mit',
-    MIN_PERL_VERSION => '5.018',
+    MIN_PERL_VERSION => '${minperl}',
 ${prereq ? `    PREREQ_PM        => {\n${prereq}\n    },\n` : ''});
 `)
   })

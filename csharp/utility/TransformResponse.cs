@@ -1,9 +1,9 @@
-// Solardemo SDK utility: transformResponse - apply the point's response
+// VoxgigSolardemo SDK utility: transformResponse - apply the point's response
 // transform (when defined) to derive the result data.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

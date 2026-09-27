@@ -1,7 +1,7 @@
-// Solardemo SDK - feature base class. Features derive from this and
+// VoxgigSolardemo SDK - feature base class. Features derive from this and
 // override the hooks they need; unimplemented hooks are no-ops.
 
-namespace SolardemoSdk.Feature;
+namespace VoxgigSolardemoSdk.Feature;
 
 public class BaseFeature
 {

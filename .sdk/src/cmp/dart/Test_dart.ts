@@ -8,7 +8,7 @@ import type {
 } from '@voxgig/apidef'
 
 import { cmp, each, snakify, Folder, File, Content, entityCollection,
-  TestControl } from '@voxgig/sdkgen'
+  targetFeatures, TestControl } from '@voxgig/sdkgen'
 
 
 import { TestDirect } from './TestDirect_dart'
@@ -22,6 +22,9 @@ const Test = cmp(function Test(props: any) {
 
   const entity = each(entityCollection(model))
     .filter((e: any) => false !== e.active)
+
+  const feature = targetFeatures(model, target)
+  const secrets = null != feature.secrets
 
   Folder({ name: 'test' }, () => {
 
@@ -49,6 +52,11 @@ import 'custom_test.dart' as custom_test;
 import 'readme_examples_test.dart' as readme_examples_test;
 `)
 
+      if (secrets) {
+        Content(`import 'feature/secrets/secrets_test.dart' as secrets_test;
+`)
+      }
+
       each(entity, (ent: ModelEntity) => {
         const alias = snakify(ent.name)
         Content(`import 'entity/${ent.name}/${nom(ent, 'Name')}Entity_test.dart' as ${alias}_entity_test;
@@ -71,6 +79,11 @@ Future<void> main() async {
   custom_test.tests();
   readme_examples_test.tests();
 `)
+
+      if (secrets) {
+        Content(`  secrets_test.tests();
+`)
+      }
 
       each(entity, (ent: ModelEntity) => {
         const alias = snakify(ent.name)

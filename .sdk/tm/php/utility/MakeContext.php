@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_context
+// VoxgigSolardemo SDK utility: make_context
 
 require_once __DIR__ . '/../core/Context.php';
 
-class SolardemoMakeContext
+class VoxgigSolardemoMakeContext
 {
-    public static function call(array $ctxmap, ?SolardemoContext $basectx): SolardemoContext
+    public static function call(array $ctxmap, ?VoxgigSolardemoContext $basectx): VoxgigSolardemoContext
     {
-        return new SolardemoContext($ctxmap, $basectx);
+        return new VoxgigSolardemoContext($ctxmap, $basectx);
     }
 }

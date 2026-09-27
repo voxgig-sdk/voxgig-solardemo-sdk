@@ -2,7 +2,7 @@
 
 local json = require("dkjson")
 local vs = require("utility.struct.struct")
-local sdk = require("solardemo_sdk")
+local sdk = require("voxgig-solardemo_sdk")
 local helpers = require("core.helpers")
 local runner = require("test.runner")
 
@@ -115,11 +115,11 @@ function planet_direct_setup(mockres)
   local calls = {}
 
   local env = runner.env_override({
-    ["SOLARDEMO_TEST_PLANET_ENTID"] = {},
-    ["SOLARDEMO_TEST_LIVE"] = "FALSE",
+    ["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"] = {},
+    ["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE",
   })
 
-  local live = env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+  local live = env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
 
   if live then
     local merged_opts = {

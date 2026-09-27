@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -10,18 +10,18 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.core.SdkEntity
-import voxgig.solardemosdk.core.SolardemoSDK
-import voxgig.solardemosdk.utility.Json
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.core.SdkEntity
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.utility.Json
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE", "UNUSED_VALUE")
 class MoonEntityTest {
 
   @Test
   fun instance() {
-    val testsdk = SolardemoSDK.testSDK()
+    val testsdk = VoxgigSolardemoSDK.testSDK()
     val ent = testsdk.moon(null)
     assertNotNull(ent, "expected non-null moon entity")
   }
@@ -40,7 +40,7 @@ class MoonEntityTest {
     }
     Assumptions.assumeFalse(
       setup.syntheticOnly,
-      "live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_MOON_ENTID JSON to run live",
+      "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live",
     )
     val client = setup.client
 
@@ -165,7 +165,7 @@ class MoonEntityTest {
       val options = linkedMapOf<String, Any?>()
       options["entity"] = entityData["existing"]
 
-      var client = SolardemoSDK.testSDK(options, extra)
+      var client = VoxgigSolardemoSDK.testSDK(options, extra)
 
       // Generate idmap via transform, matching TS pattern.
       val idnames = mutableListOf<Any?>()
@@ -182,16 +182,16 @@ class MoonEntityTest {
           "}]}"))
 
       // Detect ENTID env override before envOverride consumes it.
-      val entidEnvRaw = RunnerSupport.getenv("SOLARDEMO_TEST_MOON_ENTID")
+      val entidEnvRaw = RunnerSupport.getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
       val idmapOverridden = entidEnvRaw != null && entidEnvRaw.trim().startsWith("{")
 
       val envm = linkedMapOf<String, Any?>()
-      envm["SOLARDEMO_TEST_MOON_ENTID"] = idmap
-      envm["SOLARDEMO_TEST_LIVE"] = "FALSE"
-      envm["SOLARDEMO_TEST_EXPLAIN"] = "FALSE"
+      envm["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"] = idmap
+      envm["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE"
+      envm["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] = "FALSE"
       val env = RunnerSupport.envOverride(envm)
 
-      var idmapResolved = Helpers.toMapAny(env["SOLARDEMO_TEST_MOON_ENTID"])
+      var idmapResolved = Helpers.toMapAny(env["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"])
       if (idmapResolved == null) {
         idmapResolved = Helpers.toMapAny(idmap) ?: linkedMapOf()
       }
@@ -200,11 +200,11 @@ class MoonEntityTest {
         idmapResolved["planet_id"] = idmapResolved["planet01"]
       }
 
-      val live = "TRUE" == env["SOLARDEMO_TEST_LIVE"]
+      val live = "TRUE" == env["VOXGIG_SOLARDEMO_TEST_LIVE"]
       if (live) {
         val liveOpts = linkedMapOf<String, Any?>()
         val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra))
-        client = SolardemoSDK(Helpers.toMapAny(mergedOpts))
+        client = VoxgigSolardemoSDK(Helpers.toMapAny(mergedOpts))
       }
 
       val setup = RunnerSupport.EntityTestSetup()
@@ -212,7 +212,7 @@ class MoonEntityTest {
       setup.data = entityData
       setup.idmap = idmapResolved
       setup.env = env
-      setup.explain = "TRUE" == env["SOLARDEMO_TEST_EXPLAIN"]
+      setup.explain = "TRUE" == env["VOXGIG_SOLARDEMO_TEST_EXPLAIN"]
       setup.live = live
       setup.syntheticOnly = live && !idmapOverridden
       setup.now = System.currentTimeMillis()

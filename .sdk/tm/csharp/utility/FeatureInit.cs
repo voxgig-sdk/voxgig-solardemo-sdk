@@ -1,10 +1,10 @@
-// Solardemo SDK utility: featureInit.
+// VoxgigSolardemo SDK utility: featureInit.
 
 using Voxgig.Struct;
 
-using SolardemoSdk.Feature;
+using VoxgigSolardemoSdk.Feature;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

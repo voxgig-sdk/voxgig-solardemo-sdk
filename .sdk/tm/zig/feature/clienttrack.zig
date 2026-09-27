@@ -38,7 +38,7 @@ pub const ClienttrackFeature = struct {
     }
 
     fn full_name(self: *ClienttrackFeature) []const u8 {
-        const name = sup.fopt_str(self.options, "clientName", "Solardemo-SDK");
+        const name = sup.fopt_str(self.options, "clientName", "VoxgigSolardemo-SDK");
         const version = sup.fopt_str(self.options, "clientVersion", "0.0.1");
         return std.fmt.allocPrint(h.A(), "{s}/{s}", .{ name, version }) catch name;
     }

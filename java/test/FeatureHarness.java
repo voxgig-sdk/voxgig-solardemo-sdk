@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
 // Offline feature-test harness: drives features through a faithful
 // miniature of the real operation pipeline against a configurable mock
@@ -15,17 +15,17 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 
-import voxgig.solardemosdk.core.Config;
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Feature;
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.Operation;
-import voxgig.solardemosdk.core.SolardemoSDK;
-import voxgig.solardemosdk.core.Response;
-import voxgig.solardemosdk.core.Result;
-import voxgig.solardemosdk.core.SdkError;
-import voxgig.solardemosdk.core.Spec;
-import voxgig.solardemosdk.core.Utility;
+import voxgig.voxgigsolardemosdk.core.Config;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Feature;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.Operation;
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.core.Response;
+import voxgig.voxgigsolardemosdk.core.Result;
+import voxgig.voxgigsolardemosdk.core.SdkError;
+import voxgig.voxgigsolardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.core.Utility;
 
 @SuppressWarnings({"unchecked"})
 public final class FeatureHarness {
@@ -238,7 +238,7 @@ public final class FeatureHarness {
   // FhHarness wires features (in init order) to a mock transport and a mini
   // operation pipeline.
   public static final class FhHarness {
-    public SolardemoSDK client;
+    public VoxgigSolardemoSDK client;
     public Utility utility;
     public Context rootctx;
     public String base = "http://api.test";
@@ -357,7 +357,7 @@ public final class FeatureHarness {
   // utility whose fetcher is the mock server, and the requested features
   // initialised against it. Fires PostConstruct once wiring is complete.
   public static FhHarness fhMake(Utility.FetcherFn server, FhFeature... features) {
-    SolardemoSDK client = SolardemoSDK.testSDK();
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK();
     client.features = new ArrayList<>();
 
     Utility utility = client.getUtility();

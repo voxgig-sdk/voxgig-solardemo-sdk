@@ -1,6 +1,6 @@
 // Generated existence test: the SDK constructs in test mode.
 
-use solardemo_sdk::{test_sdk, Value};
+use voxgig_solardemo_sdk::{test_sdk, Value};
 
 #[test]
 fn exists_test_mode() {

@@ -1,4 +1,4 @@
--- Solardemo SDK utility type
+-- VoxgigSolardemo SDK utility type
 
 local Utility = {}
 Utility.__index = Utility

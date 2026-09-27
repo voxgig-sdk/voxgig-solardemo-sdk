@@ -1,8 +1,7 @@
-// Operation result (mirrors go core/result.go).
 
 use std::rc::Rc;
 
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{get_bool, get_str, getp, setp, to_int};
 use crate::utility::voxgigstruct::Value;
 
@@ -16,7 +15,7 @@ pub struct SdkResult {
     pub status_text: String,
     pub headers: Value,
     pub body: Value,
-    pub err: Option<SolardemoError>,
+    pub err: Option<VoxgigSolardemoError>,
     pub resdata: Value,
     pub resmatch: Value,
 

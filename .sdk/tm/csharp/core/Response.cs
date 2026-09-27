@@ -1,8 +1,8 @@
-// Solardemo SDK - transport response wrapper.
+// VoxgigSolardemo SDK - transport response wrapper.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Response
 {

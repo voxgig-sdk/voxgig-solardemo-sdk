@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.util.{LinkedHashMap, Map => JMap}
-import voxgig.solardemosdk.core._
+import voxgig.voxgigsolardemosdk.core._
 
 object ResultBasic {
   def resultBasic(ctx: Context): Result = {

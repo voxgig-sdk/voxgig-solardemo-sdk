@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK Moon entity
+// VoxgigSolardemo SDK Moon entity
 
 require_once __DIR__ . '/../utility/struct/Struct.php';
 require_once __DIR__ . '/../core/Helpers.php';
@@ -83,7 +83,7 @@ class MoonEntity
     public function data_set($args): void
     {
         if ($args) {
-            $this->_data = SolardemoHelpers::to_map(Struct::clone($args)) ?? [];
+            $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($args)) ?? [];
             ($this->_utility->feature_hook)($this->_entctx, "SetData");
         }
     }
@@ -103,7 +103,7 @@ class MoonEntity
     public function match_set($args): void
     {
         if ($args) {
-            $this->_match = SolardemoHelpers::to_map(Struct::clone($args)) ?? [];
+            $this->_match = VoxgigSolardemoHelpers::to_map(Struct::clone($args)) ?? [];
             ($this->_utility->feature_hook)($this->_entctx, "SetMatch");
         }
     }
@@ -249,7 +249,7 @@ class MoonEntity
      *   fields) as an assoc-array; a typed MoonLoadMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Moon|array The loaded Moon as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function load(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -268,7 +268,7 @@ class MoonEntity
                     $this->_match = $ctx->result->resmatch;
                 }
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });
@@ -284,7 +284,7 @@ class MoonEntity
      *   of Moon fields) as an assoc-array; MoonListMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Moon[]|array A list of Moon items as assoc-arrays at
-     *   the SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   the SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function list(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -316,7 +316,7 @@ class MoonEntity
      *   a typed MoonCreateData names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Moon|array The created Moon as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function create(?array $reqdata = null, $ctrl = null): mixed
     {
@@ -332,7 +332,7 @@ class MoonEntity
         return $this->_run_op($ctx, function () use ($ctx) {
             if ($ctx->result) {
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });
@@ -348,7 +348,7 @@ class MoonEntity
      *   a typed MoonUpdateData names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Moon|array The updated Moon as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function update(?array $reqdata = null, $ctrl = null): mixed
     {
@@ -367,7 +367,7 @@ class MoonEntity
                     $this->_match = $ctx->result->resmatch;
                 }
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });
@@ -383,7 +383,7 @@ class MoonEntity
      *   fields) as an assoc-array; MoonRemoveMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return Moon|array The removed Moon as an assoc-array at the
-     *   SDK boundary; throws SolardemoError on failure (item-5 convention).
+     *   SDK boundary; throws VoxgigSolardemoError on failure (item-5 convention).
      */
     public function remove(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -402,7 +402,7 @@ class MoonEntity
                     $this->_match = $ctx->result->resmatch;
                 }
                 if ($ctx->result->resdata) {
-                    $this->_data = SolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
+                    $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($ctx->result->resdata)) ?? [];
                 }
             }
         });

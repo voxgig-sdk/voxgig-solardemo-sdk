@@ -3,7 +3,7 @@
 #include "ctest.h"
 
 int main(void) {
-  SolardemoSDK* testsdk = test_sdk(NULL, NULL);
+  VoxgigSolardemoSDK* testsdk = test_sdk(NULL, NULL);
   CHECK(testsdk != NULL, "test_sdk returns a client");
   CHECK_STR_EQ(testsdk->mode, "test", "test_sdk mode is test");
   TEST_SUMMARY("exists");

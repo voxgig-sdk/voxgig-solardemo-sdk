@@ -1,4 +1,4 @@
--- Solardemo SDK utility: clean
+-- VoxgigSolardemo SDK utility: clean
 
 local function clean_util(ctx, val)
   return val

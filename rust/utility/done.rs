@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{getp, to_map};
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
 
-pub fn done_util(ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
+pub fn done_util(ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
     {
         let ctrl = ctx.ctrl.borrow().clone();
         let mut c = ctrl.borrow_mut();

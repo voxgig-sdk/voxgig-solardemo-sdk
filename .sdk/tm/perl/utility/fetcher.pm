@@ -1,4 +1,4 @@
-# Solardemo SDK utility: fetcher
+# VoxgigSolardemo SDK utility: fetcher
 
 use strict;
 use warnings;
@@ -12,9 +12,19 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
+
+# One HTTP::Tiny per (proxy, redirect) setting: a client keeps its
+# connection alive between requests, so one per request reused nothing.
+my %HTTP_CLIENTS;
+
+sub _http_client {
+  my (%new_args) = @_;
+  my $key = join "\n", map { "$_=$new_args{$_}" } sort keys %new_args;
+  return $HTTP_CLIENTS{$key} //= HTTP::Tiny->new(%new_args);
+}
 
 our $DefaultHttpFetch = sub {
   my ($fullurl, $fetchdef) = @_;
@@ -34,7 +44,7 @@ our $DefaultHttpFetch = sub {
   }
   # Default User-Agent - some CDNs block library defaults. Use a
   # Mozilla-shaped UA unless the caller already set one.
-  $hdrs{'User-Agent'} = 'Mozilla/5.0 (compatible; SolardemoSDK/1.0)' unless $has_ua;
+  $hdrs{'User-Agent'} = 'Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)' unless $has_ua;
 
   my $opts = { headers => \%hdrs };
   $opts->{content} = "$body" if defined $body && !ref $body;
@@ -47,8 +57,12 @@ our $DefaultHttpFetch = sub {
   $new_args{max_redirect} = 0
     if defined $fetchdef->{redirect} && !ref $fetchdef->{redirect}
       && 'manual' eq $fetchdef->{redirect};
+  # Both keys: HTTP::Tiny lets the environment override its generic proxy.
+  $new_args{http_proxy} = $new_args{https_proxy} = "$fetchdef->{proxy}"
+    if defined $fetchdef->{proxy} && !ref $fetchdef->{proxy}
+      && length $fetchdef->{proxy};
 
-  my $res = eval { HTTP::Tiny->new(%new_args)->request($method, $fullurl, $opts) };
+  my $res = eval { _http_client(%new_args)->request($method, $fullurl, $opts) };
   if (!$res) {
     my $e = defined $@ ? "$@" : 'request failed';
     $e =~ s/\s+\z//;
@@ -105,12 +119,12 @@ $REGISTRY{fetcher} = sub {
   }
 
   my $options = $ctx->{client}->options_map;
-  if (SolardemoHelpers::is_true(SolardemoHelpers::gpath($options, 'feature.test.active'))) {
+  if (VoxgigSolardemoHelpers::is_true(VoxgigSolardemoHelpers::gpath($options, 'feature.test.active'))) {
     return (undef, $ctx->make_error('fetch_test_block',
       "Request blocked as test feature is active (URL was: \"$fullurl\")"));
   }
 
-  my $sys_fetch = SolardemoHelpers::gpath($options, 'system.fetch');
+  my $sys_fetch = VoxgigSolardemoHelpers::gpath($options, 'system.fetch');
 
   return $DefaultHttpFetch->($fullurl, $fetchdef) if !defined $sys_fetch;
   return $sys_fetch->($fullurl, $fetchdef) if ref $sys_fetch eq 'CODE';

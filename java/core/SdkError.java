@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 /**
- * Solardemo SDK error. Carries the SDK error code, the operation
+ * VoxgigSolardemo SDK error. Carries the SDK error code, the operation
  * context, and cleaned copies of the result and spec at failure time.
  */
 public class SdkError extends RuntimeException {
 
-  public final String sdk = "Solardemo";
+  public final String sdk = "VoxgigSolardemo";
   public String code;
   public String msg;
   public transient Context ctx;

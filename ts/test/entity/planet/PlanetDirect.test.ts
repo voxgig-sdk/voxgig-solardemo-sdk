@@ -2,9 +2,10 @@
 
 import { test, describe, afterEach } from 'node:test'
 import assert from 'node:assert'
+import { createLiveTransport } from '../../live-runner'
 
 
-import { SolardemoSDK } from '../../..'
+import { VoxgigSolardemoSDK } from '../../..'
 
 import {
   envOverride,
@@ -16,24 +17,17 @@ import {
 } from '../../utility'
 
 
-// AFTER the imports on purpose: TypeScript hoists `import` above any
-// statement in the emitted CommonJS, so a loader placed above them would
-// run only after every imported module had already been evaluated - and
-// anything reading process.env at module scope would miss these values.
 loadEnvLocal(__dirname + '/../../../.env.local')
 
 
 describe('PlanetDirect', async () => {
 
   // Per-test live pacing. Delay is read from sdk-test-control.json's
-  // `test.live.delayMs`; only sleeps when SOLARDEMO_TEST_LIVE=TRUE.
-  afterEach(liveDelay('SOLARDEMO_TEST_LIVE'))
+  // `test.live.delayMs`; only sleeps when VOXGIG_SOLARDEMO_TEST_LIVE=TRUE.
+  afterEach(liveDelay('VOXGIG_SOLARDEMO_TEST_LIVE'))
 
   test('direct-exists', async () => {
-    const sdk = new SolardemoSDK({
-      // Concrete base: a live construction must satisfy any server
-      // variables a templated base URL declares; overriding base with a
-      // literal (as the direct flow tests do) sidesteps the requirement.
+    const sdk = new VoxgigSolardemoSDK({
       base: 'http://localhost:8080',
       system: { fetch: async () => ({}) }
     })
@@ -43,6 +37,7 @@ describe('PlanetDirect', async () => {
 
 
   test('direct-load-planet', async (t: any) => {
+    if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup({ id: 'direct01' })
     if (maybeSkipControl(t, 'direct', 'direct-load-planet', setup.live)) return
     const { client, calls } = setup
@@ -57,16 +52,15 @@ describe('PlanetDirect', async () => {
 
         },
       })
-      if (!listResult.ok) {
-        return // skip: list call failed (likely synthetic IDs against live API)
-      }
+      assert(listResult.ok && listResult.status >= 200 && listResult.status < 300,
+        'Live list discovery failed')
       const listArr = unwrapListData(listResult.data)
       if (null == listArr || listArr.length === 0) {
-        return // skip: no entities to load in live mode
+        throw new Error('Live load blocked: discovery returned no entities')
       }
       const candidateId = listArr[0]?.id ?? listArr[0]?.id
       if (null == candidateId) {
-        return // skip: list response shape does not expose load identifier
+        throw new Error('Live load blocked: discovery returned no usable identity')
       }
       params.id = candidateId
 
@@ -82,12 +76,18 @@ describe('PlanetDirect', async () => {
     })
 
     if (setup.live) {
-      // Live mode is lenient: synthetic IDs frequently 4xx. Skip rather
-      // than fail when the load endpoint isn't reachable with the IDs we
-      // can construct from setup.idmap.
-      if (!result.ok || result.status < 200 || result.status >= 300) {
-        return
-      }
+      // STRICT live mode: a non-2xx is a real failure - this project owns
+      // the server it points at, so there is nothing to be lenient about.
+      //
+      // What is NOT asserted here is the MOCK's own fixtures. `direct01`
+      // is a scripted id and `calls` records the mock transport; neither
+      // exists on a live run, so asserting them made strict mode mean
+      // "compare the live server against the mock's script" - a suite that
+      // could not pass against any real API, including this project's own.
+      assert(result.ok === true,
+        'Live request failed: HTTP ' + result.status)
+      assert(result.status >= 200 && result.status < 300)
+      assert(null != result.data)
     } else {
       assert(result.ok === true)
       assert(result.status === 200)
@@ -100,6 +100,7 @@ describe('PlanetDirect', async () => {
   })
 
   test('direct-list-planet', async (t: any) => {
+    if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup([{ id: 'direct01' }, { id: 'direct02' }])
     if (maybeSkipControl(t, 'direct', 'direct-list-planet', setup.live)) return
     const { client, calls } = setup
@@ -115,16 +116,18 @@ describe('PlanetDirect', async () => {
     })
 
     if (setup.live) {
-      // Live mode is lenient: synthetic IDs frequently 4xx and the list-
-      // response shape varies wildly across public APIs. Skip rather than
-      // fail when the call doesn't return a usable list.
-      if (!result.ok || result.status < 200 || result.status >= 300) {
-        return
-      }
-      const listArr = unwrapListData(result.data)
-      if (!Array.isArray(listArr)) {
-        return
-      }
+      // STRICT live mode: a non-2xx is a real failure - this project owns
+      // the server it points at, so there is nothing to be lenient about.
+      //
+      // What is NOT asserted here is the MOCK's own fixtures. `direct01`
+      // is a scripted id and `calls` records the mock transport; neither
+      // exists on a live run, so asserting them made strict mode mean
+      // "compare the live server against the mock's script" - a suite that
+      // could not pass against any real API, including this project's own.
+      assert(result.ok === true,
+        'Live request failed: HTTP ' + result.status)
+      assert(result.status >= 200 && result.status < 300)
+      assert(Array.isArray(unwrapListData(result.data)), 'Expected live list response')
     } else {
       assert(result.ok === true)
       assert(result.status === 200)
@@ -141,29 +144,31 @@ describe('PlanetDirect', async () => {
 
 
 
+function liveScenariosActive() { return false && process.env.VOXGIG_SOLARDEMO_TEST_LIVE === 'TRUE' }
 function directSetup(mockres?: any) {
   const calls: any[] = []
 
   const env = envOverride({
-    'SOLARDEMO_TEST_PLANET_ENTID': {},
-    'SOLARDEMO_TEST_LIVE': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_PLANET_ENTID': {},
+    'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
   })
 
-  const live = 'TRUE' === env.SOLARDEMO_TEST_LIVE
+  const live = 'TRUE' === env.VOXGIG_SOLARDEMO_TEST_LIVE
 
   if (live) {
+    const transport = createLiveTransport()
     // Merged so the generated fields win: sdk-test-control.json's
     // test.client.options adds to the live client, it does not redirect it.
-    const client = new SolardemoSDK(
-      Object.assign({}, liveClientOptions(), {
+    const client = new VoxgigSolardemoSDK(
+      Object.assign({}, liveClientOptions(), { system: { fetch: transport.fetch },
       }))
 
-    let idmap: any = env['SOLARDEMO_TEST_PLANET_ENTID']
+    let idmap: any = env['VOXGIG_SOLARDEMO_TEST_PLANET_ENTID']
     if ('string' === typeof idmap && idmap.startsWith('{')) {
       idmap = JSON.parse(idmap)
     }
 
-    return { client, calls, live, idmap }
+    return { client, calls, live, idmap, transport }
   }
 
   const mockFetch = async (url: string, init: any) => {
@@ -176,7 +181,7 @@ function directSetup(mockres?: any) {
     }
   }
 
-  const client = new SolardemoSDK({
+  const client = new VoxgigSolardemoSDK({
     base: 'http://localhost:8080',
     system: { fetch: mockFetch },
   })

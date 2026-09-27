@@ -1,11 +1,11 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 /** A single endpoint definition (typed view over a point map). */
 @SuppressWarnings({"unchecked"})

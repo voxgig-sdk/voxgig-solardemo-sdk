@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,18 +16,18 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.SdkEntity;
-import voxgig.solardemosdk.core.SolardemoSDK;
-import voxgig.solardemosdk.utility.Json;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.SdkEntity;
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.utility.Json;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 @SuppressWarnings({"unchecked", "unused"})
 public class MoonEntityTest {
 
   @Test
   public void instance() {
-    SolardemoSDK testsdk = SolardemoSDK.testSDK();
+    VoxgigSolardemoSDK testsdk = VoxgigSolardemoSDK.testSDK();
     SdkEntity ent = testsdk.moon(null);
     assertNotNull(ent, "expected non-null moon entity");
   }
@@ -47,8 +47,8 @@ public class MoonEntityTest {
     // The basic flow consumes synthetic IDs from the fixture. In live mode
     // without an *_ENTID env override, those IDs hit the live API and 4xx.
     Assumptions.assumeFalse(setup.syntheticOnly,
-        "live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_MOON_ENTID JSON to run live");
-    SolardemoSDK client = setup.client;
+        "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live");
+    VoxgigSolardemoSDK client = setup.client;
 
     // CREATE
     SdkEntity moonRef01Ent = client.moon(null);
@@ -176,7 +176,7 @@ public class MoonEntityTest {
     Map<String, Object> options = new LinkedHashMap<>();
     options.put("entity", entityData.get("existing"));
 
-    SolardemoSDK client = SolardemoSDK.testSDK(options, extra);
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(options, extra);
 
     // Generate idmap via transform, matching TS pattern.
     List<Object> idnames = new ArrayList<>();
@@ -196,17 +196,17 @@ public class MoonEntityTest {
     // mode is on without a real override, the basic test runs against
     // synthetic IDs from the fixture and 4xx's. Surface this so the test
     // can skip.
-    String entidEnvRaw = RunnerSupport.getenv("SOLARDEMO_TEST_MOON_ENTID");
+    String entidEnvRaw = RunnerSupport.getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
     boolean idmapOverridden = entidEnvRaw != null
         && entidEnvRaw.trim().startsWith("{");
 
     Map<String, Object> envm = new LinkedHashMap<>();
-    envm.put("SOLARDEMO_TEST_MOON_ENTID", idmap);
-    envm.put("SOLARDEMO_TEST_LIVE", "FALSE");
-    envm.put("SOLARDEMO_TEST_EXPLAIN", "FALSE");
+    envm.put("VOXGIG_SOLARDEMO_TEST_MOON_ENTID", idmap);
+    envm.put("VOXGIG_SOLARDEMO_TEST_LIVE", "FALSE");
+    envm.put("VOXGIG_SOLARDEMO_TEST_EXPLAIN", "FALSE");
     Map<String, Object> env = RunnerSupport.envOverride(envm);
 
-    Map<String, Object> idmapResolved = Helpers.toMapAny(env.get("SOLARDEMO_TEST_MOON_ENTID"));
+    Map<String, Object> idmapResolved = Helpers.toMapAny(env.get("VOXGIG_SOLARDEMO_TEST_MOON_ENTID"));
     if (idmapResolved == null) {
       idmapResolved = Helpers.toMapAny(idmap);
     }
@@ -215,7 +215,7 @@ public class MoonEntityTest {
       idmapResolved.put("planet_id", idmapResolved.get("planet01"));
     }
 
-    boolean live = "TRUE".equals(env.get("SOLARDEMO_TEST_LIVE"));
+    boolean live = "TRUE".equals(env.get("VOXGIG_SOLARDEMO_TEST_LIVE"));
     if (live) {
       // sdk-test-control.json's test.client.options seeds the live
       // client; the generated fields below overwrite anything they name.
@@ -228,7 +228,7 @@ public class MoonEntityTest {
       Map<String, Object> extraOpts =
           extra == null ? new LinkedHashMap<>() : extra;
       Object mergedOpts = Struct.merge(Struct.jt(liveOpts, extraOpts));
-      client = new SolardemoSDK(Helpers.toMapAny(mergedOpts));
+      client = new VoxgigSolardemoSDK(Helpers.toMapAny(mergedOpts));
     }
 
     RunnerSupport.EntityTestSetup setup = new RunnerSupport.EntityTestSetup();
@@ -236,7 +236,7 @@ public class MoonEntityTest {
     setup.data = entityData;
     setup.idmap = idmapResolved;
     setup.env = env;
-    setup.explain = "TRUE".equals(env.get("SOLARDEMO_TEST_EXPLAIN"));
+    setup.explain = "TRUE".equals(env.get("VOXGIG_SOLARDEMO_TEST_EXPLAIN"));
     setup.live = live;
     setup.syntheticOnly = live && !idmapOverridden;
     setup.now = System.currentTimeMillis();

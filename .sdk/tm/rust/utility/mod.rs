@@ -1,4 +1,4 @@
-// Solardemo SDK utilities: the operation pipeline building blocks
+// VoxgigSolardemo SDK utilities: the operation pipeline building blocks
 // (mirrors tm/go/utility). The voxgig struct port is vendored as the
 // `voxgigstruct` submodule — it is the SDK's uniform data model.
 

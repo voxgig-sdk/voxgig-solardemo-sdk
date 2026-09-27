@@ -24,14 +24,14 @@ const SdkResult = result_mod.SdkResult;
 const Entity = types.Entity;
 const OutVal = types.OutVal;
 const Utility = utility_mod.Utility;
-const SdkError = err.SolardemoError;
+const SdkError = err.VoxgigSolardemoError;
 
 pub const OpMap = std.StringHashMap(*Operation);
 
 // Construction spec for a Context.
 pub const CtxSpec = struct {
     opname: ?[]const u8 = null,
-    client: ?*sdk.SolardemoSDK = null,
+    client: ?*sdk.VoxgigSolardemoSDK = null,
     utility: ?*Utility = null,
     ctrl: ?Value = null,
     ctrl_obj: ?*Control = null,
@@ -57,7 +57,7 @@ pub const Context = struct {
     out: std.StringHashMap(OutVal),
     ctrl: *Control,
     meta: Value,
-    client: ?*sdk.SolardemoSDK,
+    client: ?*sdk.VoxgigSolardemoSDK,
     utility: ?*Utility,
     op: *Operation,
     point: Value,
@@ -100,7 +100,7 @@ pub const Context = struct {
             ctrl = c;
         } else if (ctxspec.ctrl_obj) |co| {
             ctrl = co;
-        } else if (basectx) |b| {
+        } else if (if (ctxspec.opname == null) basectx else null) |b| {
             ctrl = b.ctrl;
         } else {
             ctrl = Control.make();

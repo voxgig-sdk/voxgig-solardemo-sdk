@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 /**
- * Minimal zero-dependency JSON parser for the Solardemo SDK runtime.
+ * Minimal zero-dependency JSON parser for the VoxgigSolardemo SDK runtime.
  * Produces the same shapes the rest of the runtime consumes:
  * LinkedHashMap<String, Any?>, ArrayList<Any?>, String, Long (integer-valued
  * numbers), Double, Boolean and null.

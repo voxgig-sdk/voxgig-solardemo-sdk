@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'SolardemoError.dart';
+import 'VoxgigSolardemoError.dart';
 
 import 'utility/voxgig_struct.dart' as vs;
 
@@ -131,8 +131,8 @@ class Context {
     return op;
   }
 
-  SolardemoError error(String code, String msg) {
-    return SolardemoError(code, msg, this);
+  VoxgigSolardemoError error(String code, String msg) {
+    return VoxgigSolardemoError(code, msg, this);
   }
 
   Map<String, dynamic> toJSON() => {

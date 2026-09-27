@@ -1,5 +1,5 @@
 #!perl
-# Solardemo SDK - documentation example COMPLETENESS gate.
+# VoxgigSolardemo SDK - documentation example COMPLETENESS gate.
 #
 # Guarantees every fenced perl code example across ALL THREE package docs is
 # unit-tested. Reads the root ../README.md, the Perl ../README.md, and
@@ -9,7 +9,7 @@
 #   1. SYNTAX - 'perl -c' on every block (SDK lib on @INC).
 #   2. RUN    - every RUNNABLE block (constructs the SDK, drives $client, or
 #      performs an entity op) is EXECUTED offline in seeded test mode
-#      (SolardemoSDK->test) against the real SDK. Captured output is scanned for
+#      (VoxgigSolardemoSDK->test) against the real SDK. Captured output is scanned for
 #      a real perl-level error (undefined subroutine, no such method, ...)
 #      REGARDLESS of exit code, so a bug an example's own eval swallows and
 #      prints cannot slip through. Expected not-found domain errors are
@@ -41,7 +41,7 @@ my %DOCS = (
   'perl REFERENCE' => File::Spec->catfile($PKG_ROOT, 'REFERENCE.md'),
 );
 
-my $SDK_CLASS = 'SolardemoSDK';
+my $SDK_CLASS = 'VoxgigSolardemoSDK';
 
 # Entity accessor ($client->Name) => fixture storage key (lowercase name).
 my %ENTITIES = (
@@ -181,7 +181,7 @@ sub fixtures_literal {
 
 # Rewrite a runnable block into an executable offline test-mode program: the
 # SDK lib is put on @INC by absolute path; any real ->new/->test constructor
-# becomes SolardemoSDK->test(<fixtures>); a block that only uses $client gets
+# becomes VoxgigSolardemoSDK->test(<fixtures>); a block that only uses $client gets
 # such a constructor prepended. The constructor arg match is deliberately
 # shallow (no nested parens) - runnable op blocks never build a client inline
 # with a paren-bearing argument.

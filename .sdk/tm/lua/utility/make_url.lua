@@ -1,4 +1,4 @@
--- Solardemo SDK utility: make_url
+-- VoxgigSolardemo SDK utility: make_url
 
 local vs = require("utility.struct.struct")
 

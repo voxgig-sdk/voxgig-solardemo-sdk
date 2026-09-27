@@ -1,17 +1,17 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.List;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Spec;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 final class PrepareAuth {
 
   private PrepareAuth() {}
 
-  static final String HEADER_AUTH = "authorization";
+  static final String CRED_NAME = "authorization";
   static final String OPTION_APIKEY = "apikey";
   static final String NOT_FOUND = "__NOTFOUND__";
 
@@ -27,7 +27,7 @@ final class PrepareAuth {
 
     // Public APIs that need no auth omit the options.auth block entirely.
     if (options.get("auth") == null) {
-      headers.remove(HEADER_AUTH);
+      headers.remove(CRED_NAME);
       return spec;
     }
 
@@ -43,7 +43,7 @@ final class PrepareAuth {
     }
 
     if (skip) {
-      headers.remove(HEADER_AUTH);
+      headers.remove(CRED_NAME);
     }
     else {
       String authPrefix = "";
@@ -54,10 +54,10 @@ final class PrepareAuth {
       String apikeyVal = apikey instanceof String ? (String) apikey : "";
       // Empty prefix (raw apiKey credential) must not add a leading space.
       if ("".equals(authPrefix)) {
-        headers.put(HEADER_AUTH, apikeyVal);
+        headers.put(CRED_NAME, apikeyVal);
       }
       else {
-        headers.put(HEADER_AUTH, authPrefix + " " + apikeyVal);
+        headers.put(CRED_NAME, authPrefix + " " + apikeyVal);
       }
     }
 

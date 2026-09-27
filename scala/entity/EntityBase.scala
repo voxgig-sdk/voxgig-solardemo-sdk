@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.entity
+package voxgig.voxgigsolardemosdk.entity
 
 import java.util.{ArrayList, LinkedHashMap, Iterator => JIterator, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, Helpers, SdkClient, SdkEntity, Utility}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.{Context, Helpers, SdkClient, SdkEntity, Utility}
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
-// Shared entity runtime for the Solardemo SDK: accreting data/match state,
+// Shared entity runtime for the VoxgigSolardemo SDK: accreting data/match state,
 // the entity context, and the operation pipeline (runOp) with its feature
 // hooks. Generated entity classes extend this.
 abstract class EntityBase(name0: String, client0: SdkClient, entopts0: JMap[String, Object]) extends SdkEntity {

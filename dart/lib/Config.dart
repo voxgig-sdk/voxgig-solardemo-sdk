@@ -1,11 +1,46 @@
 import 'feature/base/BaseFeature.dart';
+import 'feature/debug/DebugFeature.dart';
+import 'feature/idempotency/IdempotencyFeature.dart';
+import 'feature/metrics/MetricsFeature.dart';
+import 'feature/paging/PagingFeature.dart';
+import 'feature/ratelimit/RatelimitFeature.dart';
+import 'feature/retry/RetryFeature.dart';
+import 'feature/secrets/SecretsFeature.dart';
 import 'feature/test/TestFeature.dart';
+import 'feature/timeout/TimeoutFeature.dart';
+
 
 
 // ignore: non_constant_identifier_names
 final Map<String, BaseFeature Function()> FEATURE_CLASS = {
-    'test': () => TestFeature(),
+    'debug': () => DebugFeature(),
+  'idempotency': () => IdempotencyFeature(),
+  'metrics': () => MetricsFeature(),
+  'paging': () => PagingFeature(),
+  'ratelimit': () => RatelimitFeature(),
+  'retry': () => RetryFeature(),
+  'secrets': () => SecretsFeature(),
+  'test': () => TestFeature(),
+  'timeout': () => TimeoutFeature(),
 
+};
+
+// Per-feature plugin DEFINITIONS (voxgig/plugin `Definition` values), from
+// the model's active plugin groups. A feature that takes a `plugins` option
+// (secrets over sekreto) reads its own entry; a feature with no plugins has
+// none. The named `show` imports above make each definition statically
+// reachable, so an SDK carries exactly the plugin libraries its model
+// selects - the same leanness the old side-effect registry bought, without
+// a registry.
+//
+// Emitted UNCONDITIONALLY, empty when no group is active: SecretsFeature
+// imports this name, and the feature source can be present in a tree whose
+// model selects no plugin group at all. An emission conditional on the map
+// having entries would make that tree fail `dart analyze`.
+//
+// ignore: non_constant_identifier_names
+final Map<String, List<dynamic>> FEATURE_PLUGINS = <String, List<dynamic>>{
+  
 };
 
 class Config {
@@ -24,19 +59,166 @@ class Config {
   bool hasFeature(String fn) => null != FEATURE_CLASS[fn];
 
   final Map<String, dynamic> main = <String, dynamic>{
-    'name': 'Solardemo',
-        'slug': 'solardemo',
+    'name': 'VoxgigSolardemo',
+        'slug': 'voxgig-solardemo',
     'version': '0.1.0',
     'target': 'dart',
 
   };
 
   final Map<String, dynamic> feature = <String, dynamic>{
-        'test': <String, dynamic>{
+        'debug': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'max': 100,
+        'redact': <dynamic>[
+          'authorization',
+          'cookie',
+          'set-cookie',
+          'api-key',
+          'apikey',
+          'x-api-key',
+          'idempotency-key',
+        ],
+      },
+      'optspec': <String, dynamic>{
+        'now': '`\$FUNCTION`',
+        'onEntry': '`\$FUNCTION`',
+      },
+      'strict': false,
+      'transport': 'none',
+    },
+    'idempotency': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'header': 'Idempotency-Key',
+        'methods': <dynamic>[
+          'POST',
+          'PUT',
+          'PATCH',
+          'DELETE',
+        ],
+        'ops': <dynamic>[
+          'create',
+          'update',
+          'remove',
+        ],
+      },
+      'optspec': <String, dynamic>{
+        'keygen': '`\$FUNCTION`',
+      },
+      'strict': false,
+      'transport': 'none',
+    },
+    'metrics': <String, dynamic>{
       'options': <String, dynamic>{
         'active': false,
       },
+      'optspec': <String, dynamic>{
+        'now': '`\$FUNCTION`',
+      },
+      'strict': false,
+      'transport': 'none',
+    },
+    'paging': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'afterVar': 'after',
+        'cursorParam': 'cursor',
+        'firstVar': 'first',
+        'limitParam': 'limit',
+        'pageParam': 'page',
+        'startPage': 1,
+      },
+      'optspec': <String, dynamic>{
+        'limit': '`\$NUMBER`',
+        'ops': '`\$LIST`',
+      },
+      'strict': false,
+      'transport': 'none',
+    },
+    'ratelimit': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'burst': 5,
+        'rate': 5,
+      },
+      'optspec': <String, dynamic>{
+        'now': '`\$FUNCTION`',
+        'sleep': '`\$FUNCTION`',
+      },
+      'strict': false,
+      'transport': 'wrap',
+    },
+    'retry': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'factor': 2,
+        'maxDelay': 2000,
+        'minDelay': 50,
+        'retries': 2,
+        'statuses': <dynamic>[
+          408,
+          425,
+          429,
+          500,
+          502,
+          503,
+          504,
+        ],
+      },
+      'optspec': <String, dynamic>{
+        'jitter': '`\$BOOLEAN`',
+        'sleep': '`\$FUNCTION`',
+      },
+      'strict': false,
+      'transport': 'wrap',
+    },
+    'secrets': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'cache': true,
+        'exchange': <String, dynamic>{
+          'active': false,
+          'method': 'POST',
+          'path': 'auth/token',
+          'refresh': '',
+          'request': 'refresh_token',
+          'response': 'access_token',
+          'retries': 1,
+          'statuses': <dynamic>[
+            401,
+          ],
+        },
+        'name': 'apikey',
+        'providers': <dynamic>[],
+      },
+      'optspec': <String, dynamic>{},
+      'strict': false,
+      'transport': 'wrap',
+    },
+    'test': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+      },
+      'optspec': <String, dynamic>{
+        'entity': '`\$MAP`',
+        'net': '`\$MAP`',
+      },
+      'strict': false,
       'transport': 'base',
+    },
+    'timeout': <String, dynamic>{
+      'options': <String, dynamic>{
+        'active': false,
+        'ms': 30000,
+      },
+      'optspec': <String, dynamic>{
+        'clearTimer': '`\$FUNCTION`',
+        'setTimer': '`\$FUNCTION`',
+      },
+      'strict': false,
+      'transport': 'wrap',
     },
 
   };
@@ -61,32 +243,41 @@ class Config {
     'moon': <String, dynamic>{
       'fields': <dynamic>[
         <String, dynamic>{
-          'format': 'float',
           'name': 'diameter',
-          'req': true,
+          'title': 'Diameter',
           'type': '`\$NUMBER`',
+          'req': true,
+          'format': 'float',
         },
         <String, dynamic>{
           'name': 'id',
-          'req': true,
+          'title': 'Id',
           'type': '`\$STRING`',
+          'req': true,
         },
         <String, dynamic>{
           'name': 'kind',
-          'req': true,
+          'title': 'Kind',
           'type': '`\$STRING`',
+          'req': true,
         },
         <String, dynamic>{
           'name': 'name',
-          'req': true,
+          'title': 'Name',
           'type': '`\$STRING`',
+          'req': true,
         },
         <String, dynamic>{
           'name': 'planet_id',
-          'req': true,
+          'title': 'Planet Id',
           'type': '`\$STRING`',
+          'req': true,
         },
       ],
+      'id': <String, dynamic>{
+        'field': 'id',
+        'name': 'id',
+      },
       'name': 'moon',
       'op': <String, dynamic>{
         'create': <String, dynamic>{
@@ -94,23 +285,6 @@ class Config {
           'name': 'create',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'planet_id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'POST /api/planet/{planet_id}/moon',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","requestBody":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"planet_id":{"type":"string"}},"required":["id","name","planet_id","kind","diameter"],"type":"object"}}},"required":true},"responses":{"201":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"planet_id":{"type":"string"}},"required":["id","name","planet_id","kind","diameter"],"type":"object"}}},"description":"Created"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet/{planet_id}/moon',
@@ -128,21 +302,33 @@ class Config {
                   'lit': 'moon',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'planet_id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{planet_id}',
                 'moon',
               ],
+              'rename': <String, dynamic>{},
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'planet_id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'planet_id',
+                ],
+              },
             },
           ],
         },
@@ -151,23 +337,6 @@ class Config {
           'name': 'list',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'planet_id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'GET /api/planet/{planet_id}/moon',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","responses":{"200":{"content":{"application/json":{"schema":{"items":{"properties":{"diameter":{"format":"float","type":"number"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"planet_id":{"type":"string"}},"required":["id","name","planet_id","kind","diameter"],"type":"object"},"type":"array"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet/{planet_id}/moon',
@@ -185,21 +354,33 @@ class Config {
                   'lit': 'moon',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'planet_id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{planet_id}',
                 'moon',
               ],
+              'rename': <String, dynamic>{},
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'planet_id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'planet_id',
+                ],
+              },
             },
           ],
         },
@@ -208,38 +389,9 @@ class Config {
           'name': 'load',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'moon_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'planet_id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'GET /api/planet/{planet_id}/moon/{moon_id}',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}},{"in":"path","name":"moon_id","required":true,"schema":{"type":"string"}}],"protocol":"http","responses":{"200":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"planet_id":{"type":"string"}},"required":["id","name","planet_id","kind","diameter"],"type":"object"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet/{planet_id}/moon/{moon_id}',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'moon_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -257,16 +409,6 @@ class Config {
                   'var': 'id',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'id',
-                  'planet_id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
@@ -274,6 +416,39 @@ class Config {
                 'moon',
                 '{id}',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'moon_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'moon_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                  <String, dynamic>{
+                    'name': 'planet_id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'id',
+                  'planet_id',
+                ],
+              },
             },
           ],
         },
@@ -282,38 +457,9 @@ class Config {
           'name': 'remove',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'moon_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'planet_id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'DELETE /api/planet/{planet_id}/moon/{moon_id}',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}},{"in":"path","name":"moon_id","required":true,"schema":{"type":"string"}}],"protocol":"http","responses":{"204":{"description":"No Content"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'DELETE',
               'orig': '/api/planet/{planet_id}/moon/{moon_id}',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'moon_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -331,16 +477,6 @@ class Config {
                   'var': 'id',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'id',
-                  'planet_id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
@@ -348,6 +484,39 @@ class Config {
                 'moon',
                 '{id}',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'moon_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'moon_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                  <String, dynamic>{
+                    'name': 'planet_id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'id',
+                  'planet_id',
+                ],
+              },
             },
           ],
         },
@@ -356,38 +525,9 @@ class Config {
           'name': 'update',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'moon_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'planet_id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'PUT /api/planet/{planet_id}/moon/{moon_id}',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}},{"in":"path","name":"moon_id","required":true,"schema":{"type":"string"}}],"protocol":"http","requestBody":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"planet_id":{"type":"string"}},"required":["id","name","planet_id","kind","diameter"],"type":"object"}}},"required":true},"responses":{"200":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"planet_id":{"type":"string"}},"required":["id","name","planet_id","kind","diameter"],"type":"object"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'PUT',
               'orig': '/api/planet/{planet_id}/moon/{moon_id}',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'moon_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -405,16 +545,6 @@ class Config {
                   'var': 'id',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'id',
-                  'planet_id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
@@ -422,6 +552,39 @@ class Config {
                 'moon',
                 '{id}',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'moon_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'moon_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                  <String, dynamic>{
+                    'name': 'planet_id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'id',
+                  'planet_id',
+                ],
+              },
             },
           ],
         },
@@ -429,7 +592,7 @@ class Config {
       'relations': <String, dynamic>{
         'ancestors': <dynamic>[
           <dynamic>[
-            'planet',
+            '\$.main.kit.entity.planet',
           ],
         ],
       },
@@ -437,45 +600,56 @@ class Config {
     'planet': <String, dynamic>{
       'fields': <dynamic>[
         <String, dynamic>{
-          'format': 'float',
           'name': 'diameter',
-          'req': true,
+          'title': 'Diameter',
           'type': '`\$NUMBER`',
+          'req': true,
+          'format': 'float',
         },
         <String, dynamic>{
           'name': 'forbidReason',
-          'readOnly': true,
-          'short': 'Why the planet is forbidden, carried from the forbid action\'s `why`.',
+          'title': 'Forbid Reason',
           'type': '`\$STRING`',
+          'short': 'Why the planet is forbidden, carried from the forbid action\'s `why`.',
+          'readOnly': true,
         },
         <String, dynamic>{
           'name': 'forbidState',
-          'readOnly': true,
-          'short': 'Set by the forbid action, and absent until it first runs.',
+          'title': 'Forbid State',
           'type': '`\$STRING`',
+          'short': 'Set by the forbid action, and absent until it first runs.',
+          'readOnly': true,
         },
         <String, dynamic>{
           'name': 'id',
-          'req': true,
+          'title': 'Id',
           'type': '`\$STRING`',
+          'req': true,
         },
         <String, dynamic>{
           'name': 'kind',
-          'req': true,
+          'title': 'Kind',
           'type': '`\$STRING`',
+          'req': true,
         },
         <String, dynamic>{
           'name': 'name',
-          'req': true,
+          'title': 'Name',
           'type': '`\$STRING`',
+          'req': true,
         },
         <String, dynamic>{
           'name': 'terraformState',
-          'readOnly': true,
-          'short': 'Set by the terraform action, and absent until it first runs.',
+          'title': 'Terraform State',
           'type': '`\$STRING`',
+          'short': 'Set by the terraform action, and absent until it first runs.',
+          'readOnly': true,
         },
       ],
+      'id': <String, dynamic>{
+        'field': 'id',
+        'name': 'id',
+      },
       'name': 'planet',
       'op': <String, dynamic>{
         'create': <String, dynamic>{
@@ -483,31 +657,9 @@ class Config {
           'name': 'create',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'POST /api/planet/{planet_id}/forbid',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","requestBody":{"content":{"application/json":{"schema":{"properties":{"forbid":{"type":"boolean"},"why":{"type":"string"}},"type":"object"}}},"required":true},"responses":{"200":{"content":{"application/json":{"schema":{"properties":{"ok":{"type":"boolean"},"state":{"type":"string"}},"type":"object"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet/{planet_id}/forbid',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'planet_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -522,49 +674,43 @@ class Config {
                   'lit': 'forbid',
                 },
               ],
-              'select': <String, dynamic>{
-                '\$action': 'forbid',
-                'exist': <dynamic>[
-                  'id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{id}',
                 'forbid',
               ],
-            },
-            <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'POST /api/planet/{planet_id}/terraform',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","requestBody":{"content":{"application/json":{"schema":{"properties":{"start":{"type":"boolean"},"stop":{"type":"boolean"}},"type":"object"}}},"required":true},"responses":{"200":{"content":{"application/json":{"schema":{"properties":{"ok":{"type":"boolean"},"state":{"type":"string"}},"type":"object"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
-              'kind': 'http',
-              'method': 'POST',
-              'orig': '/api/planet/{planet_id}/terraform',
               'rename': <String, dynamic>{
                 'param': <String, dynamic>{
                   'planet_id': 'id',
                 },
               },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                '\$action': 'forbid',
+                'exist': <dynamic>[
+                  'id',
+                ],
+              },
+            },
+            <String, dynamic>{
+              'kind': 'http',
+              'method': 'POST',
+              'orig': '/api/planet/{planet_id}/terraform',
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -579,31 +725,40 @@ class Config {
                   'lit': 'terraform',
                 },
               ],
-              'select': <String, dynamic>{
-                '\$action': 'terraform',
-                'exist': <dynamic>[
-                  'id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{id}',
                 'terraform',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'planet_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                '\$action': 'terraform',
+                'exist': <dynamic>[
+                  'id',
+                ],
+              },
             },
             <String, dynamic>{
-              'args': <String, dynamic>{},
-              'contract': <String, dynamic>{
-                'id': 'POST /api/planet',
-                'json': '{"parameters":[],"protocol":"http","requestBody":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"forbidReason":{"description":"Why the planet is forbidden, carried from the forbid action\'s `why`. Absent while the planet is allowed.","readOnly":true,"type":"string"},"forbidState":{"description":"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.","readOnly":true,"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"terraformState":{"description":"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.","readOnly":true,"type":"string"}},"required":["id","name","kind","diameter"],"type":"object"}}},"required":true},"responses":{"201":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"forbidReason":{"description":"Why the planet is forbidden, carried from the forbid action\'s `why`. Absent while the planet is allowed.","readOnly":true,"type":"string"},"forbidState":{"description":"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.","readOnly":true,"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"terraformState":{"description":"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.","readOnly":true,"type":"string"}},"required":["id","name","kind","diameter"],"type":"object"}}},"description":"Created"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'POST',
               'orig': '/api/planet',
@@ -615,15 +770,17 @@ class Config {
                   'lit': 'planet',
                 },
               ],
-              'select': <String, dynamic>{},
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
               ],
+              'rename': <String, dynamic>{},
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{},
+              'select': <String, dynamic>{},
             },
           ],
         },
@@ -632,13 +789,6 @@ class Config {
           'name': 'list',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{},
-              'contract': <String, dynamic>{
-                'id': 'GET /api/planet',
-                'json': '{"parameters":[],"protocol":"http","responses":{"200":{"content":{"application/json":{"schema":{"items":{"properties":{"diameter":{"format":"float","type":"number"},"forbidReason":{"description":"Why the planet is forbidden, carried from the forbid action\'s `why`. Absent while the planet is allowed.","readOnly":true,"type":"string"},"forbidState":{"description":"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.","readOnly":true,"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"terraformState":{"description":"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.","readOnly":true,"type":"string"}},"required":["id","name","kind","diameter"],"type":"object"},"type":"array"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet',
@@ -650,15 +800,17 @@ class Config {
                   'lit': 'planet',
                 },
               ],
-              'select': <String, dynamic>{},
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
               ],
+              'rename': <String, dynamic>{},
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{},
+              'select': <String, dynamic>{},
             },
           ],
         },
@@ -667,31 +819,9 @@ class Config {
           'name': 'load',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'GET /api/planet/{planet_id}',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","responses":{"200":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"forbidReason":{"description":"Why the planet is forbidden, carried from the forbid action\'s `why`. Absent while the planet is allowed.","readOnly":true,"type":"string"},"forbidState":{"description":"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.","readOnly":true,"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"terraformState":{"description":"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.","readOnly":true,"type":"string"}},"required":["id","name","kind","diameter"],"type":"object"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'GET',
               'orig': '/api/planet/{planet_id}',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'planet_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -703,20 +833,36 @@ class Config {
                   'var': 'id',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{id}',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'planet_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'id',
+                ],
+              },
             },
           ],
         },
@@ -725,31 +871,9 @@ class Config {
           'name': 'remove',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'DELETE /api/planet/{planet_id}',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","responses":{"204":{"description":"No Content"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'DELETE',
               'orig': '/api/planet/{planet_id}',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'planet_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -761,20 +885,36 @@ class Config {
                   'var': 'id',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{id}',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'planet_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'id',
+                ],
+              },
             },
           ],
         },
@@ -783,31 +923,9 @@ class Config {
           'name': 'update',
           'points': <dynamic>[
             <String, dynamic>{
-              'args': <String, dynamic>{
-                'params': <dynamic>[
-                  <String, dynamic>{
-                    'kind': 'param',
-                    'name': 'id',
-                    'orig': 'planet_id',
-                    'reqd': true,
-                    'type': '`\$STRING`',
-                  },
-                ],
-              },
-              'contract': <String, dynamic>{
-                'id': 'PUT /api/planet/{planet_id}',
-                'json': '{"parameters":[{"in":"path","name":"planet_id","required":true,"schema":{"type":"string"}}],"protocol":"http","requestBody":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"forbidReason":{"description":"Why the planet is forbidden, carried from the forbid action\'s `why`. Absent while the planet is allowed.","readOnly":true,"type":"string"},"forbidState":{"description":"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.","readOnly":true,"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"terraformState":{"description":"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.","readOnly":true,"type":"string"}},"required":["id","name","kind","diameter"],"type":"object"}}},"required":true},"responses":{"200":{"content":{"application/json":{"schema":{"properties":{"diameter":{"format":"float","type":"number"},"forbidReason":{"description":"Why the planet is forbidden, carried from the forbid action\'s `why`. Absent while the planet is allowed.","readOnly":true,"type":"string"},"forbidState":{"description":"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.","readOnly":true,"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"name":{"type":"string"},"terraformState":{"description":"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.","readOnly":true,"type":"string"}},"required":["id","name","kind","diameter"],"type":"object"}}},"description":"OK"}},"securitySource":"unspecified"}',
-                'source': 'openapi3',
-                'version': 1,
-              },
               'kind': 'http',
               'method': 'PUT',
               'orig': '/api/planet/{planet_id}',
-              'rename': <String, dynamic>{
-                'param': <String, dynamic>{
-                  'planet_id': 'id',
-                },
-              },
               'segments': <dynamic>[
                 <String, dynamic>{
                   'lit': 'api',
@@ -819,20 +937,36 @@ class Config {
                   'var': 'id',
                 },
               ],
-              'select': <String, dynamic>{
-                'exist': <dynamic>[
-                  'id',
-                ],
-              },
-              'transform': <String, dynamic>{
-                'req': '`reqdata`',
-                'res': '`body`',
-              },
               'parts': <dynamic>[
                 'api',
                 'planet',
                 '{id}',
               ],
+              'rename': <String, dynamic>{
+                'param': <String, dynamic>{
+                  'planet_id': 'id',
+                },
+              },
+              'transform': <String, dynamic>{
+                'req': '`reqdata`',
+                'res': '`body`',
+              },
+              'args': <String, dynamic>{
+                'params': <dynamic>[
+                  <String, dynamic>{
+                    'name': 'id',
+                    'orig': 'planet_id',
+                    'type': '`\$STRING`',
+                    'kind': 'param',
+                    'reqd': true,
+                  },
+                ],
+              },
+              'select': <String, dynamic>{
+                'exist': <dynamic>[
+                  'id',
+                ],
+              },
             },
           ],
         },

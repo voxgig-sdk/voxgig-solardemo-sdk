@@ -1,4 +1,4 @@
-;; Solardemo SDK generated API tests.
+;; VoxgigSolardemo SDK generated API tests.
 (ns sdk.gentest
   (:require [sdk.api :as api]
             [sdk.config :as config]

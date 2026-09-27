@@ -38,9 +38,9 @@ voxgig_value* utility_fetch(Utility* u, Context* ctx, const char* url,
   return u->fetcher->fn(u->fetcher, ctx, url, fetchdef, err);
 }
 
-// ---- SDK client-base generic helpers (Main.fragment SolardemoSDK) -------
+// ---- SDK client-base generic helpers (Main.fragment VoxgigSolardemoSDK) -------
 
-void sdk_features_push(SolardemoSDK* sdk, Feature* f) {
+void sdk_features_push(VoxgigSolardemoSDK* sdk, Feature* f) {
   if (sdk->features_len + 1 > sdk->features_cap) {
     size_t nc = sdk->features_cap == 0 ? 8 : sdk->features_cap * 2;
     sdk->features = (Feature**)realloc(sdk->features, nc * sizeof(Feature*));
@@ -49,7 +49,7 @@ void sdk_features_push(SolardemoSDK* sdk, Feature* f) {
   sdk->features[sdk->features_len++] = f;
 }
 
-void sdk_features_insert(SolardemoSDK* sdk, size_t i, Feature* f) {
+void sdk_features_insert(VoxgigSolardemoSDK* sdk, size_t i, Feature* f) {
   if (i >= sdk->features_len) { sdk_features_push(sdk, f); return; }
   if (sdk->features_len + 1 > sdk->features_cap) {
     size_t nc = sdk->features_cap == 0 ? 8 : sdk->features_cap * 2;
@@ -63,12 +63,12 @@ void sdk_features_insert(SolardemoSDK* sdk, size_t i, Feature* f) {
   sdk->features_len++;
 }
 
-void sdk_features_replace(SolardemoSDK* sdk, size_t i, Feature* f) {
+void sdk_features_replace(VoxgigSolardemoSDK* sdk, size_t i, Feature* f) {
   if (i < sdk->features_len) sdk->features[i] = f;
 }
 
-voxgig_value* sdk_options_map(SolardemoSDK* sdk) { return voxgig_clone(sdk->options); }
+voxgig_value* sdk_options_map(VoxgigSolardemoSDK* sdk) { return voxgig_clone(sdk->options); }
 
-Utility* sdk_get_utility(SolardemoSDK* sdk) { return utility_copy(sdk->utility); }
+Utility* sdk_get_utility(VoxgigSolardemoSDK* sdk) { return utility_copy(sdk->utility); }
 
-Context* sdk_get_root_ctx(SolardemoSDK* sdk) { return sdk->rootctx; }
+Context* sdk_get_root_ctx(VoxgigSolardemoSDK* sdk) { return sdk->rootctx; }

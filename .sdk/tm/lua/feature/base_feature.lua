@@ -1,4 +1,4 @@
--- Solardemo SDK base feature
+-- VoxgigSolardemo SDK base feature
 
 local BaseFeature = {}
 BaseFeature.__index = BaseFeature

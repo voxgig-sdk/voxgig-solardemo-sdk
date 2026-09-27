@@ -1,4 +1,4 @@
-// Behavioural feature-test harness for the Solardemo SDK (C port of the
+// Behavioural feature-test harness for the VoxgigSolardemo SDK (C port of the
 // rust tests/common/mod.rs fh* helpers). Drives each enterprise feature
 // through a faithful miniature of the real operation pipeline (same hook
 // order + short-circuit rules as the generated entity op code) against a
@@ -9,8 +9,8 @@
 // Header-only; every helper is `static` + unused-safe so a test binary may
 // include it and use only part of it.
 
-#ifndef SOLARDEMO_FEATURE_HARNESS_H
-#define SOLARDEMO_FEATURE_HARNESS_H
+#ifndef VOXGIGSOLARDEMO_FEATURE_HARNESS_H
+#define VOXGIGSOLARDEMO_FEATURE_HARNESS_H
 
 #include "ctest.h" // -> api.h -> sdk.h, plus voxgig_struct.h
 
@@ -158,7 +158,7 @@ typedef struct {
 } FhFeat;
 
 typedef struct {
-  SolardemoSDK* client;
+  VoxgigSolardemoSDK* client;
   Utility* utility;
   Context* rootctx;
   const char* base;
@@ -168,7 +168,7 @@ typedef struct {
 // mock server, and the requested features initialised (in order) against it.
 // Fires PostConstruct once wiring is complete.
 FH FhHarness fh_make(Fetcher* server, FhFeat* feats, size_t nfeats) {
-  SolardemoSDK* client = test_sdk(NULL, NULL);
+  VoxgigSolardemoSDK* client = test_sdk(NULL, NULL);
   client->features_len = 0; // clear the config-driven features
 
   Utility* utility = sdk_get_utility(client);
@@ -439,4 +439,4 @@ FH int64_t fh_track_int(Feature* f, const char* key) {
   return to_int(getp(t, key));
 }
 
-#endif // SOLARDEMO_FEATURE_HARNESS_H
+#endif // VOXGIGSOLARDEMO_FEATURE_HARNESS_H

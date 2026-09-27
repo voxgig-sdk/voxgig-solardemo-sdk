@@ -1,4 +1,4 @@
-;; Solardemo SDK feature behaviour tests.
+;; VoxgigSolardemo SDK feature behaviour tests.
 ;;
 ;; Drives each shipped feature through an offline miniature of the operation
 ;; pipeline (same hook order + short-circuit rules as the generated entity

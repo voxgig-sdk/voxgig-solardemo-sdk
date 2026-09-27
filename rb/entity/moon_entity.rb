@@ -1,4 +1,4 @@
-# Solardemo SDK Moon entity
+# VoxgigSolardemo SDK Moon entity
 
 require_relative '../utility/struct/voxgig_struct'
 require_relative '../core/helpers'
@@ -53,7 +53,7 @@ class MoonEntity
 
   def data_set(args)
     if args
-      @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
+      @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
       @_utility.feature_hook.call(@_entctx, "SetData")
     end
   end
@@ -66,7 +66,7 @@ class MoonEntity
 
   def match_set(args)
     if args
-      @_match = SolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
+      @_match = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
       @_utility.feature_hook.call(@_entctx, "SetMatch")
     end
   end
@@ -177,7 +177,7 @@ class MoonEntity
   #   optional — an entity with no id-like key loads with no match (nil is treated
   #   as an empty match, so client.Moon.load works with no args).
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Moon, Hash] the loaded Moon; raises SolardemoError on failure
+  # @return [Moon, Hash] the loaded Moon; raises VoxgigSolardemoError on failure
   def load(reqmatch = nil, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -192,7 +192,7 @@ class MoonEntity
       if ctx.result
         @_match = ctx.result.resmatch if ctx.result.resmatch
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end
@@ -206,7 +206,7 @@ class MoonEntity
   # @param reqmatch [MoonListMatch, Hash, nil] match filter (any subset of
   #   Moon fields); defaults to nil, treated as an empty match that lists all.
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Array<Moon>, Array] the matching Moon items; raises SolardemoError on failure
+  # @return [Array<Moon>, Array] the matching Moon items; raises VoxgigSolardemoError on failure
   def list(reqmatch = nil, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -243,7 +243,7 @@ class MoonEntity
   #
   # @param reqdata [MoonCreateData, Hash, nil] body data
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Moon, Hash] the created Moon; raises SolardemoError on failure
+  # @return [Moon, Hash] the created Moon; raises VoxgigSolardemoError on failure
   def create(reqdata, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -257,7 +257,7 @@ class MoonEntity
     _run_op(ctx) do
       if ctx.result
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end
@@ -270,7 +270,7 @@ class MoonEntity
   #
   # @param reqdata [MoonUpdateData, Hash, nil] body data
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Moon, Hash] the updated Moon; raises SolardemoError on failure
+  # @return [Moon, Hash] the updated Moon; raises VoxgigSolardemoError on failure
   def update(reqdata, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -285,7 +285,7 @@ class MoonEntity
       if ctx.result
         @_match = ctx.result.resmatch if ctx.result.resmatch
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end
@@ -298,7 +298,7 @@ class MoonEntity
   #
   # @param reqmatch [MoonRemoveMatch, Hash, nil] match criteria (id/query fields)
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Moon, Hash] the removed Moon; raises SolardemoError on failure
+  # @return [Moon, Hash] the removed Moon; raises VoxgigSolardemoError on failure
   def remove(reqmatch = nil, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -313,7 +313,7 @@ class MoonEntity
       if ctx.result
         @_match = ctx.result.resmatch if ctx.result.resmatch
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end

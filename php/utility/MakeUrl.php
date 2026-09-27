@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_url
+// VoxgigSolardemo SDK utility: make_url
 
-class SolardemoMakeUrl
+class VoxgigSolardemoMakeUrl
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         $spec = $ctx->spec;
         $result = $ctx->result;

@@ -4,6 +4,7 @@ import * as Path from 'node:path'
 import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
+  pluginExcludes,
   targetFeatures,
   TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
@@ -22,6 +23,8 @@ import {
 
 import { Package } from './Package_rb'
 import { Config } from './Config_rb'
+import { Schema } from './Schema_rb'
+import { PrepareAuth } from './PrepareAuth_rb'
 import { Gitignore } from './Gitignore_rb'
 import { MainEntity } from './MainEntity_rb'
 import { EntityTypes } from './EntityTypes_rb'
@@ -45,13 +48,17 @@ const Main = cmp(async function Main(props: any) {
   // Copy tm/rb files with replacements
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    // pluginExcludes: the generate-time plugin trim (an INACTIVE plugin
+    // group's declared files stay out of the tree - the model's `path`
+    // entries are target-root-relative, which is this Copy's root). The
+    // FEATURE-level trim for rb stays an add-time concern (vendor-tag
+    // rollout, Decision 5).
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
     }
   })
 
-  // Generate main SDK file
   File({ name: model.const.Name + '_sdk.' + target.ext }, () => {
 
     Fragment(
@@ -75,7 +82,6 @@ utility.feature_hook.call(@_rootctx, "${name}")
         }
       },
 
-      // Entities - injected at SLOT
       () => {
         each(entity, (entity: ModelEntity) => {
           const entitySDK = getModelPath(model, `main.${KIT}.entity.${entity.name}`)
@@ -85,10 +91,12 @@ utility.feature_hook.call(@_rootctx, "${name}")
       })
   })
 
-  // Generate config module
   Folder({ name: '.' }, () => {
     Config({ target })
+    Schema({ target })
   })
+
+  PrepareAuth({ target })
 
   // Generate typed models (<Sdk>_types.rb) — required by the main SDK file.
   EntityTypes({ target })

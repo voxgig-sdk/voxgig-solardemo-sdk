@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{Map => JMap}
-import voxgig.solardemosdk.core.{Context, Feature}
+import voxgig.voxgigsolardemosdk.core.{Context, Feature}
 
 // No-op base feature; concrete features override the hooks they need.
 class BaseFeature(var name: String, var version: String, var active: Boolean) extends Feature {

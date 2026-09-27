@@ -4,12 +4,12 @@
 
 import 'harness.dart';
 
-import '../lib/SolardemoSDK.dart';
+import '../lib/VoxgigSolardemoSDK.dart';
 
 void tests() {
   describe('Custom', () {
     test('basic', (t) async {
-      final client = SolardemoSDK.test({}, {
+      final client = VoxgigSolardemoSDK.test({}, {
         'apikey': 'APIKEY01',
 
         // NOTE: original utility members must remain in place.

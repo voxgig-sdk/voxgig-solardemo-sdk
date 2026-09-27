@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Context;
 
 final class MakeContext {
 

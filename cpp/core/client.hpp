@@ -1,4 +1,4 @@
-// Solardemo SDK client. All transport and pipeline behaviour lives in the
+// VoxgigSolardemo SDK client. All transport and pipeline behaviour lives in the
 // SdkClient base (core/types.hpp); this class binds the API-specific entity
 // accessors and the test-mode constructor.
 
@@ -12,9 +12,9 @@
 
 namespace sdk {
 
-class SolardemoSDK : public SdkClient {
+class VoxgigSolardemoSDK : public SdkClient {
 public:
-  explicit SolardemoSDK(Value options = Value::undef()) : SdkClient(options) {}
+  explicit VoxgigSolardemoSDK(Value options = Value::undef()) : SdkClient(options) {}
 
 
   // Moon entity bound to this client.
@@ -30,23 +30,23 @@ public:
 
   // testSDK builds a client in test mode: the test feature is activated,
   // installing the in-memory mock transport (no network activity).
-  static std::shared_ptr<SolardemoSDK> testSDK() {
+  static std::shared_ptr<VoxgigSolardemoSDK> testSDK() {
     return testSDK(Value::undef(), Value::undef());
   }
 
-  static std::shared_ptr<SolardemoSDK> testSDK(Value testopts, Value sdkopts) {
-    auto sdk = std::make_shared<SolardemoSDK>(SdkClient::testOptions(testopts, sdkopts));
+  static std::shared_ptr<VoxgigSolardemoSDK> testSDK(Value testopts, Value sdkopts) {
+    auto sdk = std::make_shared<VoxgigSolardemoSDK>(SdkClient::testOptions(testopts, sdkopts));
     sdk->mode = "test";
     return sdk;
   }
 
   // Convenience no-arg constructor.
-  static std::shared_ptr<SolardemoSDK> create() {
-    return std::make_shared<SolardemoSDK>(Value::undef());
+  static std::shared_ptr<VoxgigSolardemoSDK> create() {
+    return std::make_shared<VoxgigSolardemoSDK>(Value::undef());
   }
 };
 
-using SolardemoSDKPtr = std::shared_ptr<SolardemoSDK>;
+using VoxgigSolardemoSDKPtr = std::shared_ptr<VoxgigSolardemoSDK>;
 
 } // namespace sdk
 

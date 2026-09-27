@@ -1,17 +1,4 @@
 "use strict";
-// Behavioural tests for the secrets feature (vendored @voxgig/sekreto).
-//
-// The contract under test: the `apikey` OPTION keeps its exact old meaning
-// and always wins, because SecretsFeature places it FIRST in the provider
-// chain (a `memory` store named `options`) — explicit-beats-lookup falls
-// out of sekreto's first-hit rule rather than from special-case logic.
-// With the feature inactive nothing changes at all. With it active and the
-// option unset, the chain (env, dotenv, a custom provider, a vault)
-// supplies the credential instead.
-//
-// This file lives in the `feature/` container on purpose: `target add`
-// trims it, along with the feature source and the vendored library, for a
-// project whose model does not select `secrets`.
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -19,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const node_assert_1 = __importDefault(require("node:assert"));
 const index_1 = require("../../utility/index");
-const ENVPREFIX = 'SOLARDEMO_TEST_SECRETS_';
+const ENVPREFIX = 'VOXGIG_SOLARDEMO_TEST_SECRETS_';
 // prepare() returns the fetchdef the transport would receive — the closest
 // observable point to the wire for header assertions — and it awaits
 // secrets resolution itself, because it bypasses the feature hook pipeline.
@@ -29,12 +16,6 @@ async function prepared(sdkopts) {
     node_assert_1.default.ok(!(fetchdef instanceof Error), String(fetchdef));
     return { sdk, fetchdef };
 }
-// The Authorization header carries the SPEC's credential prefix, which a
-// TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives
-// `Bearer <token>`, an apiKey scheme the raw token. So assert on the
-// CREDENTIAL and let the prefix be whatever this SDK's API declares —
-// pinning the whole header value passes only for a prefix-less API, and
-// this file ships to every project that selects the feature.
 function credentialIs(header, token) {
     const got = String(null == header ? '' : header);
     node_assert_1.default.ok(got === token || got.endsWith(' ' + token), 'expected the Authorization header to carry ' + token + ', got: ' + got);
@@ -72,12 +53,6 @@ function envchain(extra) {
         // read names it like any other.
         node_assert_1.default.equal(await sdk.secrets().getfrom('options', 'apikey'), 'OPTKEY01');
     });
-    // The three ways an apikey can be "not given", pinned together because
-    // they are easy to conflate and only one of them is a suppression.
-    //
-    // makeOptions normalises an omitted apikey to '' before features
-    // initialise, so by init time omitted and explicit-empty are
-    // indistinguishable — both defer to the chain, deliberately.
     (0, node_test_1.test)('active: an OMITTED apikey defers to the chain', async () => {
         process.env[ENVPREFIX + 'APIKEY'] = 'ENVKEY01';
         const { fetchdef } = await prepared(envchain());
@@ -88,21 +63,6 @@ function envchain(extra) {
         const { fetchdef } = await prepared(Object.assign({ apikey: '' }, envchain()));
         credentialIs(fetchdef.headers['authorization'], 'ENVKEY01');
     });
-    // `auth: null` — the documented way to disable auth outright, which
-    // prepareAuth honours before it ever reads the apikey.
-    //
-    // This needs an explicit guard because struct 0.3.2 nearly removed it in
-    // silence. Under 0.0.10, getprop returned a stored null as null, so
-    // validate saw `auth: null` as a non-map and REJECTED it for any SDK
-    // whose optspec supplies an `auth` default. Under 0.3.2 getprop treats a
-    // stored null as "no value", so the default fires instead and the
-    // suppression became "use default auth" — transmitting a credential the
-    // caller explicitly asked not to send. makeOptions now captures
-    // suppliedness BEFORE validate and restores the null after it.
-    //
-    // No corpus entry could catch this: corpus nulls travel as the
-    // '__NULL__' string, so real-JSON-null semantics are invisible to every
-    // port's shared fixtures.
     (0, node_test_1.test)('active: auth null suppresses the credential, chain or no chain', async () => {
         process.env[ENVPREFIX + 'APIKEY'] = 'ENVKEY01';
         const { sdk, fetchdef } = await prepared(Object.assign({ auth: null }, envchain()));
@@ -137,13 +97,6 @@ function envchain(extra) {
         node_assert_1.default.equal(fetchdef.headers['authorization'], undefined);
         node_assert_1.default.equal(sdk.options().apikey, '');
     });
-    // sekreto's miss-vs-error invariant: a MISS falls through to the next
-    // provider, an ERROR does not. A broken vault must never degrade into an
-    // unauthenticated request.
-    //
-    // On the DIRECT path the error is RETURNED, not thrown: _rawRequest
-    // awaits prepare() outside its try, and direct()/graphql() are documented
-    // to return a value or an Error and never reject.
     (0, node_test_1.test)('active: a provider ERROR is returned by prepare, not thrown', async () => {
         const sdk = index_1.SDK.test({}, {
             feature: {
@@ -208,6 +161,49 @@ function envchain(extra) {
         await sdk.prepare({ path: '/' });
         node_assert_1.default.ok(1 < calls, 'the chain was asked once and cached, despite cache: false');
     });
+    (0, node_test_1.test)('active: a MISS is re-asked, so a late secret is picked up', async () => {
+        let calls = 0;
+        const sdk = index_1.SDK.test({}, {
+            feature: {
+                secrets: {
+                    active: true,
+                    providers: [{
+                            lookup(_name) {
+                                calls++;
+                                // Absent on the first ask, present on the second.
+                                return 1 < calls ? 'LATEKEY' : undefined;
+                            },
+                            describe() { return 'late:test'; },
+                        }],
+                },
+            },
+        });
+        const first = await sdk.prepare({ path: '/' });
+        node_assert_1.default.equal(first.headers['authorization'], undefined, 'the first resolve missed, so no credential should go out');
+        const second = await sdk.prepare({ path: '/' });
+        credentialIs(second.headers['authorization'], 'LATEKEY');
+        node_assert_1.default.ok(1 < calls, 'the chain was asked once and the MISS cached: a secret that ' +
+            'appears later can never be picked up');
+    });
+    // The other half of the same rule: a HIT is still cached by default, so
+    // the fix above must not turn every request into a chain walk.
+    (0, node_test_1.test)('active: a HIT is still cached by default', async () => {
+        let calls = 0;
+        const sdk = index_1.SDK.test({}, {
+            feature: {
+                secrets: {
+                    active: true,
+                    providers: [{
+                            lookup(_name) { calls++; return 'KEY' + calls; },
+                            describe() { return 'counting:test'; },
+                        }],
+                },
+            },
+        });
+        await sdk.prepare({ path: '/' });
+        await sdk.prepare({ path: '/' });
+        node_assert_1.default.equal(calls, 1, 'a hit must be cached under the default cache: true');
+    });
     (0, node_test_1.test)('active: secret name is configurable', async () => {
         process.env[ENVPREFIX + 'API_TOKEN'] = 'TOKKEY01';
         try {
@@ -231,14 +227,6 @@ function envchain(extra) {
         node_assert_1.default.equal(await secrets.get('db.password'), 'dbpass01');
         node_assert_1.default.equal(secrets.redact('the password is dbpass01, keep it safe'), 'the password is [redacted], keep it safe');
     });
-    // The bridge that makes the whole design work: resolution is async, the
-    // auth header is built synchronously, and entity ops await
-    // featureHook('PreSpec') before makeSpec — so that is where the lookup
-    // happens and still lands in time.
-    //
-    // The entity is discovered from the SDK's own config rather than named,
-    // because this file is a TEMPLATE: it ships to every project, and no
-    // project's entity names are known here.
     (0, node_test_1.test)('active: entity ops resolve via the PreSpec hook', async () => {
         process.env[ENVPREFIX + 'APIKEY'] = 'ENVKEY02';
         const sdk = index_1.SDK.test({}, envchain());
@@ -249,29 +237,35 @@ function envchain(extra) {
         }
         // Before any op, nothing has been resolved.
         node_assert_1.default.equal(sdk.options().apikey, '');
-        const name = names[0];
-        const accessor = name.charAt(0).toUpperCase() + name.slice(1);
-        // The op itself may fail (no seeded data, no live API) — irrelevant
-        // here. What matters is that the awaited PreSpec hook ran and the
-        // credential reached the live options before the spec was built.
-        try {
-            await sdk[accessor]().list();
+        let ran = false;
+        for (const one of names) {
+            const acc = one.charAt(0).toUpperCase() + one.slice(1);
+            const ent = sdk[acc]?.();
+            if (null == ent) {
+                continue;
+            }
+            const opname = ['list', 'load', 'create']
+                .find((o) => 'function' === typeof ent[o]);
+            if (null == opname) {
+                continue;
+            }
+            // The op itself may fail (no seeded data, no live API) — irrelevant
+            // here. What matters is that the awaited PreSpec hook ran and the
+            // credential reached the live options before the spec was built.
+            try {
+                await ent[opname]({});
+            }
+            catch (_err) { }
+            ran = true;
+            break;
         }
-        catch (_err) { }
+        if (!ran) {
+            // Entities, but not one callable op between them: no PreSpec path.
+            return;
+        }
         node_assert_1.default.equal(sdk.options().apikey, 'ENVKEY02', 'the entity op did not resolve the secret through PreSpec');
     });
 });
-// ACCESS-TOKEN EXCHANGE.
-//
-// The shape these tests pin: what the chain resolves is a REFRESH token,
-// which is POSTed to a token endpoint for a short-lived ACCESS token; the
-// access token is what the Authorization header carries; and when the API
-// answers 401 the client buys another and tries the same request again,
-// once.
-//
-// A LIVE client throughout, with `system.fetch` stubbed. Test mode is
-// deliberately excluded here — it buys nothing (see SecretsFeature._buy),
-// which is the subject of its own test at the end.
 (0, node_test_1.describe)('secrets exchange', () => {
     const BASE = 'http://exchange.test/api';
     const REFRESH = 'REFRESH01';
@@ -378,7 +372,6 @@ function envchain(extra) {
         node_assert_1.default.equal(stub.token().length, 2, 'expected a second token purchase');
         node_assert_1.default.equal(stub.api().length, 2, 'expected the request to be retried');
         authIs(stub.api()[0], 'ACCESS01');
-        // The retry must carry the NEW token, not the spent one.
         authIs(stub.api()[1], 'ACCESS02');
         node_assert_1.default.equal(res.ok, true, 'the caller sees the successful retry');
     });
@@ -493,10 +486,6 @@ function envchain(extra) {
     });
     (0, node_test_1.test)('auth: null suppresses the credential, refusal or not', async () => {
         process.env[ENVPREFIX + 'REFRESH_TOKEN'] = REFRESH;
-        // `auth: null` is the documented way to send no credential at all.
-        // A refusal of a deliberately unauthenticated request is not an
-        // expired token: buying one and retrying would transmit exactly the
-        // credential the caller suppressed.
         const stub = stubfetch({ apiStatus: [401] });
         const sdk = new index_1.SDK({
             base: BASE,
@@ -514,19 +503,11 @@ function envchain(extra) {
         await sdk.direct({ path: '/thing' });
         node_assert_1.default.equal(stub.api().length, 1, 'a suppressed request must not be retried');
         node_assert_1.default.equal(stub.api()[0].auth, undefined, 'no credential may be sent when auth is suppressed');
+        node_assert_1.default.equal(stub.token().length, 0, 'auth: null suppressed the credential but the refresh token was ' +
+            'still POSTed to the exchange endpoint');
     });
     (0, node_test_1.test)('a token another request already bought is spent, not re-bought', async () => {
         process.env[ENVPREFIX + 'REFRESH_TOKEN'] = REFRESH;
-        // STAGGERED 401s: the case the shared in-flight purchase does NOT
-        // cover. Two requests go out on the same token; the first is refused,
-        // buys a new one and clears the shared promise; only then is the
-        // second refused. Buying again there is a wasted exchange, and on a
-        // provider that invalidates the previous credential on issuance it
-        // breaks the first request's own retry.
-        //
-        // Driven through the transport wrapper directly, because the race is
-        // in WHEN the refusal arrives relative to another request's refresh,
-        // and that is not something two ordinary calls can be made to stage.
         const stub = stubfetch();
         const sdk = exchangeSdk(stub);
         await sdk.direct({ path: '/warmup' });

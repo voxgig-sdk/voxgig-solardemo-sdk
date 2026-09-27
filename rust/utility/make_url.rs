@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::setp;
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
 
-pub fn make_url_util(ctx: &Rc<Context>) -> Result<String, SolardemoError> {
+pub fn make_url_util(ctx: &Rc<Context>) -> Result<String, VoxgigSolardemoError> {
     let spec = ctx.spec.borrow().clone().ok_or_else(|| {
         ctx.make_error("url_no_spec", "Expected context spec property to be defined.")
     })?;

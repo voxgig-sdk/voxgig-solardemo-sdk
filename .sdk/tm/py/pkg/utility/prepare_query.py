@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_query
+# VoxgigSolardemo SDK utility: prepare_query
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
@@ -27,7 +27,8 @@ def prepare_query_util(ctx):
         for item in reqmatch_items:
             key = item[0]
             val = item[1]
-            if val is not None and isinstance(key, str) and not _contains_param(params, key):
+            if val is not None and isinstance(key, str) and key != "$action" \
+                    and not _contains_param(params, key):
                 out[key] = val
 
     return out

@@ -2,12 +2,12 @@
 
 require "minitest/autorun"
 require "json"
-require_relative "../Solardemo_sdk"
+require_relative "../VoxgigSolardemo_sdk"
 require_relative "runner"
 
 class PlanetEntityTest < Minitest::Test
   def test_create_instance
-    testsdk = SolardemoSDK.test(nil, nil)
+    testsdk = VoxgigSolardemoSDK.test(nil, nil)
     ent = testsdk.Planet(nil)
     assert !ent.nil?
   end
@@ -28,14 +28,14 @@ class PlanetEntityTest < Minitest::Test
     }
 
     # Fallback: streaming inactive -> yields the materialised list items.
-    base = SolardemoSDK.test(seed, nil)
+    base = VoxgigSolardemoSDK.test(seed, nil)
     seen = base.Planet(nil).stream("list", nil, nil).to_a
     assert_equal 3, seen.length
 
     # Inbound: streaming active -> yields each item from the feature.
-    cfg = SolardemoConfig.shared_config
+    cfg = VoxgigSolardemoConfig.shared_config
     if cfg["feature"].is_a?(Hash) && cfg["feature"].key?("streaming")
-      sdk = SolardemoSDK.test(seed, { "feature" => { "streaming" => { "active" => true } } })
+      sdk = VoxgigSolardemoSDK.test(seed, { "feature" => { "streaming" => { "active" => true } } })
       got = []
       sdk.Planet(nil).stream("list", nil, nil).each do |item|
         if item.is_a?(Array)
@@ -62,7 +62,7 @@ class PlanetEntityTest < Minitest::Test
     # The basic flow consumes synthetic IDs from the fixture. In live mode
     # without an *_ENTID env override, those IDs hit the live API and 4xx.
     if setup[:synthetic_only]
-      skip "live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_PLANET_ENTID JSON to run live"
+      skip "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live"
       return
     end
     client = setup[:client]
@@ -142,7 +142,7 @@ def planet_basic_setup(extra)
   options = {}
   options["entity"] = entity_data["existing"]
 
-  client = SolardemoSDK.test(options, extra)
+  client = VoxgigSolardemoSDK.test(options, extra)
 
   # Generate idmap via transform.
   idmap = Vs.transform(
@@ -158,22 +158,22 @@ def planet_basic_setup(extra)
   # Detect ENTID env override before envOverride consumes it. When live
   # mode is on without a real override, the basic test runs against synthetic
   # IDs from the fixture and 4xx's. Surface this so the test can skip.
-  entid_env_raw = ENV["SOLARDEMO_TEST_PLANET_ENTID"]
+  entid_env_raw = ENV["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"]
   idmap_overridden = !entid_env_raw.nil? && entid_env_raw.strip.start_with?("{")
 
   env = Runner.env_override({
-    "SOLARDEMO_TEST_PLANET_ENTID" => idmap,
-    "SOLARDEMO_TEST_LIVE" => "FALSE",
-    "SOLARDEMO_TEST_EXPLAIN" => "FALSE",
+    "VOXGIG_SOLARDEMO_TEST_PLANET_ENTID" => idmap,
+    "VOXGIG_SOLARDEMO_TEST_LIVE" => "FALSE",
+    "VOXGIG_SOLARDEMO_TEST_EXPLAIN" => "FALSE",
   })
 
   idmap_resolved = Helpers.to_map(
-    env["SOLARDEMO_TEST_PLANET_ENTID"])
+    env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"])
   if idmap_resolved.nil?
     idmap_resolved = Helpers.to_map(idmap)
   end
 
-  if env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+  if env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
     merged_opts = Vs.merge([
       # FIRST, so the generated fields below win: sdk-test-control.json's
       # test.client.options adds to the live client, it does not redirect it.
@@ -182,16 +182,16 @@ def planet_basic_setup(extra)
       },
       extra || {},
     ])
-    client = SolardemoSDK.new(Helpers.to_map(merged_opts))
+    client = VoxgigSolardemoSDK.new(Helpers.to_map(merged_opts))
   end
 
-  live = env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+  live = env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
   {
     client: client,
     data: entity_data,
     idmap: idmap_resolved,
     env: env,
-    explain: env["SOLARDEMO_TEST_EXPLAIN"] == "TRUE",
+    explain: env["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] == "TRUE",
     live: live,
     synthetic_only: live && !idmap_overridden,
     now: (Time.now.to_f * 1000).to_i,

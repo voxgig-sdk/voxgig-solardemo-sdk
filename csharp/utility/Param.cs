@@ -1,10 +1,10 @@
-// Solardemo SDK utility: param - resolve a parameter value from the
+// VoxgigSolardemo SDK utility: param - resolve a parameter value from the
 // request/entity state (reqmatch, match, reqdata, data), honouring point
 // aliases.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

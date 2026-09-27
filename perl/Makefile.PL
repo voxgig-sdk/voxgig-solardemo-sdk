@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
-# CPAN distribution metadata for the Solardemo SDK.
+# CPAN distribution metadata for the VoxgigSolardemo SDK.
 #
 # NOTE: `perl Makefile.PL` (run by ExtUtils::MakeMaker) GENERATES a file
 # named `Makefile`, which would clobber this port's hand-written
@@ -11,10 +11,10 @@ use ExtUtils::MakeMaker;
 # `.release/` directory and builds there instead.
 
 WriteMakefile(
-    NAME             => 'SolardemoSDK',
-    VERSION_FROM     => 'lib/SolardemoSDK.pm',
+    NAME             => 'VoxgigSolardemoSDK',
+    VERSION_FROM     => 'lib/VoxgigSolardemoSDK.pm',
     ABSTRACT         => 'Unofficial generated perl SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.',
     AUTHOR           => 'Voxgig',
     LICENSE          => 'mit',
-    MIN_PERL_VERSION => '5.018',
+    MIN_PERL_VERSION => '5.036',
 );

@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_fetch_def
+# VoxgigSolardemo SDK utility: make_fetch_def
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/result.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -21,7 +21,7 @@ $REGISTRY{make_fetch_def} = sub {
   return (undef, $ctx->make_error('fetchdef_no_spec',
     'Expected context spec property to be defined.')) unless $spec;
 
-  $ctx->{result} = SolardemoResult->new({}) unless $ctx->{result};
+  $ctx->{result} = VoxgigSolardemoResult->new({}) unless $ctx->{result};
   $spec->{step} = 'prepare';
 
   my ($url, $err) = $ctx->{utility}{make_url}->($ctx);
@@ -34,7 +34,7 @@ $REGISTRY{make_fetch_def} = sub {
     'method' => $spec->{method},
     'headers' => $spec->{headers},
   };
-  if (SolardemoHelpers::rb_truthy($spec->{body})) {
+  if (VoxgigSolardemoHelpers::rb_truthy($spec->{body})) {
     $fetchdef->{body} = Voxgig::Struct::ismap($spec->{body})
       ? Voxgig::Struct::jsonify($spec->{body})
       : $spec->{body};

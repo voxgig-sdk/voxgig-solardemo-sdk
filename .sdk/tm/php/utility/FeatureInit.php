@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: feature_init
+// VoxgigSolardemo SDK utility: feature_init
 
-class SolardemoFeatureInit
+class VoxgigSolardemoFeatureInit
 {
-    public static function call(SolardemoContext $ctx, mixed $f): void
+    public static function call(VoxgigSolardemoContext $ctx, mixed $f): void
     {
         $fname = $f->get_name();
         $fopts = [];

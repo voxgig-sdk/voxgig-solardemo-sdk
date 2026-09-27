@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK pipeline test
+// VoxgigSolardemo SDK pipeline test
 //
 // Direct unit tests for the operation-pipeline utilities. The generated
 // entity tests exercise the happy path; these drive the error and edge
@@ -19,7 +19,7 @@ declare(strict_types=1);
 //   make_fetch_def builds the URL through make_url (spec parts/path), not
 //   inline.
 
-require_once __DIR__ . '/../solardemo_sdk.php';
+require_once __DIR__ . '/../voxgigsolardemo_sdk.php';
 require_once __DIR__ . '/Runner.php';
 
 use PHPUnit\Framework\TestCase;
@@ -73,9 +73,9 @@ class PlEntity
 
 class PipelineTest extends TestCase
 {
-    private static function utility(): SolardemoUtility
+    private static function utility(): VoxgigSolardemoUtility
     {
-        return new SolardemoUtility();
+        return new VoxgigSolardemoUtility();
     }
 
     // Transport-shaped response array with a re-readable body.
@@ -94,15 +94,15 @@ class PipelineTest extends TestCase
         ];
     }
 
-    private static function ctx(array $over = []): SolardemoContext
+    private static function ctx(array $over = []): VoxgigSolardemoContext
     {
         $utility = $over['utility'] ?? self::utility();
         $client = $over['client'] ?? new PlClient(['base' => 'http://h']);
-        $ctx = new SolardemoContext([
+        $ctx = new VoxgigSolardemoContext([
             'client' => $client,
             'utility' => $utility,
         ], null);
-        $ctx->op = new SolardemoOperation(['name' => 'load', 'entity' => 'x']);
+        $ctx->op = new VoxgigSolardemoOperation(['name' => 'load', 'entity' => 'x']);
         foreach ($over as $k => $v) {
             if ($k === 'utility' || $k === 'client') {
                 continue;
@@ -114,7 +114,7 @@ class PipelineTest extends TestCase
 
     private static function code(mixed $err): string
     {
-        return ($err instanceof SolardemoError) ? $err->sdk_code : '';
+        return ($err instanceof VoxgigSolardemoError) ? $err->sdk_code : '';
     }
 
 
@@ -127,7 +127,7 @@ class PipelineTest extends TestCase
     {
         $utility = self::utility();
         $client = new PlClient([]);
-        $ctx = new SolardemoContext([
+        $ctx = new VoxgigSolardemoContext([
             'client' => $client,
             'utility' => $utility,
         ], null);
@@ -188,8 +188,8 @@ class PipelineTest extends TestCase
     public function test_make_point_rejects_a_disallowed_operation(): void
     {
         $ctx = self::ctx(['options' => ['allow' => ['op' => 'load']]]);
-        $ctx->op = new SolardemoOperation(['name' => 'nope', 'entity' => 'x']);
-        [$point, $err] = SolardemoMakePoint::call($ctx);
+        $ctx->op = new VoxgigSolardemoOperation(['name' => 'nope', 'entity' => 'x']);
+        [$point, $err] = VoxgigSolardemoMakePoint::call($ctx);
         $this->assertNull($point);
         $this->assertSame('point_op_allow', self::code($err));
     }
@@ -197,8 +197,8 @@ class PipelineTest extends TestCase
     public function test_make_point_rejects_an_operation_with_no_endpoints(): void
     {
         $ctx = self::ctx(['options' => ['allow' => ['op' => 'load,list,create,update,remove']]]);
-        $ctx->op = new SolardemoOperation(['name' => 'load', 'entity' => 'x', 'points' => []]);
-        [$point, $err] = SolardemoMakePoint::call($ctx);
+        $ctx->op = new VoxgigSolardemoOperation(['name' => 'load', 'entity' => 'x', 'points' => []]);
+        [$point, $err] = VoxgigSolardemoMakePoint::call($ctx);
         $this->assertNull($point);
         $this->assertSame('point_no_points', self::code($err));
     }
@@ -207,8 +207,8 @@ class PipelineTest extends TestCase
     {
         $point = ['method' => 'GET', 'parts' => ['a']];
         $ctx = self::ctx(['options' => ['allow' => ['op' => 'load,list,create,update,remove']]]);
-        $ctx->op = new SolardemoOperation(['name' => 'load', 'entity' => 'x', 'points' => [$point]]);
-        [$got, $err] = SolardemoMakePoint::call($ctx);
+        $ctx->op = new VoxgigSolardemoOperation(['name' => 'load', 'entity' => 'x', 'points' => [$point]]);
+        [$got, $err] = VoxgigSolardemoMakePoint::call($ctx);
         $this->assertNull($err);
         $this->assertSame($point, $got);
     }
@@ -218,7 +218,7 @@ class PipelineTest extends TestCase
         $preset = ['method' => 'GET'];
         $ctx = self::ctx();
         $ctx->out['point'] = $preset;
-        [$got, $err] = SolardemoMakePoint::call($ctx);
+        [$got, $err] = VoxgigSolardemoMakePoint::call($ctx);
         $this->assertNull($err);
         $this->assertSame($preset, $got);
     }
@@ -231,7 +231,7 @@ class PipelineTest extends TestCase
         $ctx = self::ctx();
         $denial = $ctx->make_error('rbac_denied', 'Permission "admin" required for operation "load"');
         $ctx->out['point'] = $denial;
-        [$got, $err] = SolardemoMakePoint::call($ctx);
+        [$got, $err] = VoxgigSolardemoMakePoint::call($ctx);
         $this->assertNull($got);
         $this->assertSame($denial, $err);
         $this->assertSame('rbac_denied', self::code($err));
@@ -239,10 +239,10 @@ class PipelineTest extends TestCase
 
     public function test_make_spec_short_circuits_a_feature_supplied_spec(): void
     {
-        $preset = new SolardemoSpec(['method' => 'GET']);
+        $preset = new VoxgigSolardemoSpec(['method' => 'GET']);
         $ctx = self::ctx();
         $ctx->out['spec'] = $preset;
-        [$got, $err] = SolardemoMakeSpec::call($ctx);
+        [$got, $err] = VoxgigSolardemoMakeSpec::call($ctx);
         $this->assertNull($err);
         $this->assertSame($preset, $got);
     }
@@ -254,37 +254,37 @@ class PipelineTest extends TestCase
     {
         $ctx = self::ctx([
             'spec' => null,
-            'response' => new SolardemoResponse([]),
-            'result' => new SolardemoResult([]),
+            'response' => new VoxgigSolardemoResponse([]),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
-        [, $err] = SolardemoMakeResponse::call($ctx);
+        [, $err] = VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertSame('response_no_spec', self::code($err));
 
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec([]),
+            'spec' => new VoxgigSolardemoSpec([]),
             'response' => null,
-            'result' => new SolardemoResult([]),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
-        [, $err] = SolardemoMakeResponse::call($ctx);
+        [, $err] = VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertSame('response_no_response', self::code($err));
 
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec([]),
-            'response' => new SolardemoResponse([]),
+            'spec' => new VoxgigSolardemoSpec([]),
+            'response' => new VoxgigSolardemoResponse([]),
             'result' => null,
         ]);
-        [, $err] = SolardemoMakeResponse::call($ctx);
+        [, $err] = VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertSame('response_no_result', self::code($err));
     }
 
     public function test_make_response_4xx_sets_result_err_and_copies_headers(): void
     {
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec(['step' => 's']),
-            'response' => new SolardemoResponse(self::resp(404, null, ['x-a' => '1'])),
-            'result' => new SolardemoResult([]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's']),
+            'response' => new VoxgigSolardemoResponse(self::resp(404, null, ['x-a' => '1'])),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
-        [, $err] = SolardemoMakeResponse::call($ctx);
+        [, $err] = VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertNull($err);
         $this->assertNotNull($ctx->result->err);
         $this->assertSame(404, $ctx->result->status);
@@ -295,11 +295,11 @@ class PipelineTest extends TestCase
     public function test_make_response_2xx_parses_the_body_and_marks_ok(): void
     {
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec(['step' => 's']),
-            'response' => new SolardemoResponse(self::resp(200, ['v' => 1])),
-            'result' => new SolardemoResult([]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's']),
+            'response' => new VoxgigSolardemoResponse(self::resp(200, ['v' => 1])),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
-        [, $err] = SolardemoMakeResponse::call($ctx);
+        [, $err] = VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertNull($err);
         $this->assertTrue($ctx->result->ok);
         $this->assertSame(['v' => 1], $ctx->result->body);
@@ -308,25 +308,25 @@ class PipelineTest extends TestCase
     public function test_make_response_records_to_ctrl_explain_when_explain_is_on(): void
     {
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec(['step' => 's']),
-            'response' => new SolardemoResponse(self::resp(200, ['v' => 2])),
-            'result' => new SolardemoResult([]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's']),
+            'response' => new VoxgigSolardemoResponse(self::resp(200, ['v' => 2])),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
         $ctx->ctrl->explain = ['on' => true];
-        SolardemoMakeResponse::call($ctx);
+        VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertNotNull($ctx->ctrl->explain['result'] ?? null);
     }
 
     public function test_make_response_short_circuits_a_feature_supplied_response(): void
     {
-        $preset = new SolardemoResponse(self::resp(299));
+        $preset = new VoxgigSolardemoResponse(self::resp(299));
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec([]),
-            'response' => new SolardemoResponse([]),
-            'result' => new SolardemoResult([]),
+            'spec' => new VoxgigSolardemoSpec([]),
+            'response' => new VoxgigSolardemoResponse([]),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
         $ctx->out['response'] = $preset;
-        [$got, $err] = SolardemoMakeResponse::call($ctx);
+        [$got, $err] = VoxgigSolardemoMakeResponse::call($ctx);
         $this->assertNull($err);
         $this->assertSame($preset, $got);
     }
@@ -336,12 +336,12 @@ class PipelineTest extends TestCase
 
     public function test_make_result_guards_missing_spec_and_result(): void
     {
-        $ctx = self::ctx(['spec' => null, 'result' => new SolardemoResult([])]);
-        [, $err] = SolardemoMakeResult::call($ctx);
+        $ctx = self::ctx(['spec' => null, 'result' => new VoxgigSolardemoResult([])]);
+        [, $err] = VoxgigSolardemoMakeResult::call($ctx);
         $this->assertSame('result_no_spec', self::code($err));
 
-        $ctx = self::ctx(['spec' => new SolardemoSpec([]), 'result' => null]);
-        [, $err] = SolardemoMakeResult::call($ctx);
+        $ctx = self::ctx(['spec' => new VoxgigSolardemoSpec([]), 'result' => null]);
+        [, $err] = VoxgigSolardemoMakeResult::call($ctx);
         $this->assertSame('result_no_result', self::code($err));
     }
 
@@ -350,11 +350,11 @@ class PipelineTest extends TestCase
         $entity = new PlEntity();
         $ctx = self::ctx([
             'entity' => $entity,
-            'spec' => new SolardemoSpec(['step' => 's']),
-            'result' => new SolardemoResult(['ok' => true, 'resdata' => [['a' => 1], ['a' => 2]]]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's']),
+            'result' => new VoxgigSolardemoResult(['ok' => true, 'resdata' => [['a' => 1], ['a' => 2]]]),
         ]);
-        $ctx->op = new SolardemoOperation(['name' => 'list', 'entity' => 'x']);
-        [$result, $err] = SolardemoMakeResult::call($ctx);
+        $ctx->op = new VoxgigSolardemoOperation(['name' => 'list', 'entity' => 'x']);
+        [$result, $err] = VoxgigSolardemoMakeResult::call($ctx);
         $this->assertNull($err);
         $this->assertCount(2, $result->resdata);
         $this->assertCount(2, $entity->made);
@@ -366,11 +366,11 @@ class PipelineTest extends TestCase
         $entity = new PlEntity();
         $ctx = self::ctx([
             'entity' => $entity,
-            'spec' => new SolardemoSpec(['step' => 's']),
-            'result' => new SolardemoResult(['ok' => true, 'resdata' => []]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's']),
+            'result' => new VoxgigSolardemoResult(['ok' => true, 'resdata' => []]),
         ]);
-        $ctx->op = new SolardemoOperation(['name' => 'list', 'entity' => 'x']);
-        [$result, $err] = SolardemoMakeResult::call($ctx);
+        $ctx->op = new VoxgigSolardemoOperation(['name' => 'list', 'entity' => 'x']);
+        [$result, $err] = VoxgigSolardemoMakeResult::call($ctx);
         $this->assertNull($err);
         $this->assertSame([], $result->resdata);
         $this->assertCount(0, $entity->made);
@@ -378,13 +378,13 @@ class PipelineTest extends TestCase
 
     public function test_make_result_short_circuits_on_a_preset_result(): void
     {
-        $preset = new SolardemoResult(['ok' => true]);
+        $preset = new VoxgigSolardemoResult(['ok' => true]);
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec([]),
-            'result' => new SolardemoResult([]),
+            'spec' => new VoxgigSolardemoSpec([]),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
         $ctx->out['result'] = $preset;
-        [$got, $err] = SolardemoMakeResult::call($ctx);
+        [$got, $err] = VoxgigSolardemoMakeResult::call($ctx);
         $this->assertNull($err);
         $this->assertSame($preset, $got);
     }
@@ -395,22 +395,22 @@ class PipelineTest extends TestCase
     public function test_make_request_guards_a_missing_spec(): void
     {
         $ctx = self::ctx(['spec' => null]);
-        [, $err] = SolardemoMakeRequest::call($ctx);
+        [, $err] = VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertSame('request_no_spec', self::code($err));
     }
 
     public function test_make_request_a_transport_error_is_carried_on_the_response(): void
     {
         $utility = self::utility();
-        $boom = new SolardemoError('boom', 'boom');
-        $utility->fetcher = function (SolardemoContext $_c, string $_u, array $_f) use ($boom): array {
+        $boom = new VoxgigSolardemoError('boom', 'boom');
+        $utility->fetcher = function (VoxgigSolardemoContext $_c, string $_u, array $_f) use ($boom): array {
             return [null, $boom];
         };
         $ctx = self::ctx([
             'utility' => $utility,
-            'spec' => new SolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
         ]);
-        [$response, $err] = SolardemoMakeRequest::call($ctx);
+        [$response, $err] = VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertNull($err);
         $this->assertSame($boom, $response->err);
     }
@@ -418,14 +418,14 @@ class PipelineTest extends TestCase
     public function test_make_request_a_null_transport_result_becomes_a_response_error(): void
     {
         $utility = self::utility();
-        $utility->fetcher = function (SolardemoContext $_c, string $_u, array $_f): array {
+        $utility->fetcher = function (VoxgigSolardemoContext $_c, string $_u, array $_f): array {
             return [null, null];
         };
         $ctx = self::ctx([
             'utility' => $utility,
-            'spec' => new SolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
         ]);
-        [$response, $err] = SolardemoMakeRequest::call($ctx);
+        [$response, $err] = VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertNull($err);
         $this->assertNotNull($response->err);
         $this->assertSame('request_no_response', self::code($response->err));
@@ -434,45 +434,45 @@ class PipelineTest extends TestCase
     public function test_make_request_a_normal_transport_response_is_wrapped(): void
     {
         $utility = self::utility();
-        $utility->fetcher = function (SolardemoContext $_c, string $_u, array $_f): array {
+        $utility->fetcher = function (VoxgigSolardemoContext $_c, string $_u, array $_f): array {
             return [PipelineTest::resp_public(200, ['a' => 1]), null];
         };
         $ctx = self::ctx([
             'utility' => $utility,
-            'spec' => new SolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
         ]);
-        [$response, $err] = SolardemoMakeRequest::call($ctx);
+        [$response, $err] = VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertNull($err);
-        $this->assertInstanceOf(SolardemoResponse::class, $response);
+        $this->assertInstanceOf(VoxgigSolardemoResponse::class, $response);
         $this->assertSame(200, $response->status);
     }
 
     public function test_make_request_records_the_fetchdef_to_ctrl_explain(): void
     {
         $utility = self::utility();
-        $utility->fetcher = function (SolardemoContext $_c, string $_u, array $_f): array {
+        $utility->fetcher = function (VoxgigSolardemoContext $_c, string $_u, array $_f): array {
             return [PipelineTest::resp_public(200, []), null];
         };
         $ctx = self::ctx([
             'utility' => $utility,
-            'spec' => new SolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's', 'method' => 'GET', 'base' => 'http://h', 'parts' => ['a']]),
         ]);
         $ctx->ctrl->explain = ['on' => true];
-        SolardemoMakeRequest::call($ctx);
+        VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertNotNull($ctx->ctrl->explain['fetchdef'] ?? null);
     }
 
     public function test_make_request_a_fetchdef_error_surfaces_as_a_response_error(): void
     {
         $utility = self::utility();
-        $utility->make_fetch_def = function (SolardemoContext $c): array {
+        $utility->make_fetch_def = function (VoxgigSolardemoContext $c): array {
             return [null, $c->make_error('fetchdef_boom', 'boom')];
         };
         $ctx = self::ctx([
             'utility' => $utility,
-            'spec' => new SolardemoSpec(['step' => 's', 'method' => 'GET']),
+            'spec' => new VoxgigSolardemoSpec(['step' => 's', 'method' => 'GET']),
         ]);
-        [$response, $err] = SolardemoMakeRequest::call($ctx);
+        [$response, $err] = VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertNull($err);
         $this->assertNotNull($response->err);
         $this->assertSame('fetchdef_boom', self::code($response->err));
@@ -481,10 +481,10 @@ class PipelineTest extends TestCase
 
     public function test_make_request_short_circuits_a_feature_supplied_request(): void
     {
-        $preset = new SolardemoResponse(self::resp(201));
-        $ctx = self::ctx(['spec' => new SolardemoSpec([])]);
+        $preset = new VoxgigSolardemoResponse(self::resp(201));
+        $ctx = self::ctx(['spec' => new VoxgigSolardemoSpec([])]);
         $ctx->out['request'] = $preset;
-        [$got, $err] = SolardemoMakeRequest::call($ctx);
+        [$got, $err] = VoxgigSolardemoMakeRequest::call($ctx);
         $this->assertNull($err);
         $this->assertSame($preset, $got);
     }
@@ -501,20 +501,20 @@ class PipelineTest extends TestCase
     public function test_make_fetch_def_guards_a_missing_spec(): void
     {
         $ctx = self::ctx(['spec' => null]);
-        [, $err] = SolardemoMakeFetchDef::call($ctx);
+        [, $err] = VoxgigSolardemoMakeFetchDef::call($ctx);
         $this->assertSame('fetchdef_no_spec', self::code($err));
     }
 
     public function test_make_fetch_def_serialises_body_and_inits_missing_result(): void
     {
         $ctx = self::ctx([
-            'spec' => new SolardemoSpec([
+            'spec' => new VoxgigSolardemoSpec([
                 'step' => 's', 'method' => 'POST', 'base' => 'http://h',
                 'prefix' => '', 'suffix' => '', 'path' => 'a', 'body' => ['x' => 1],
             ]),
             'result' => null,
         ]);
-        [$fetchdef, $err] = SolardemoMakeFetchDef::call($ctx);
+        [$fetchdef, $err] = VoxgigSolardemoMakeFetchDef::call($ctx);
         $this->assertNull($err);
         $this->assertIsString($fetchdef['body']);
         $this->assertStringContainsString('http://h', $fetchdef['url']);
@@ -526,30 +526,30 @@ class PipelineTest extends TestCase
 
     public function test_done_returns_resdata_on_success(): void
     {
-        $ctx = self::ctx(['result' => new SolardemoResult(['ok' => true, 'resdata' => 42])]);
-        $this->assertSame(42, SolardemoDone::call($ctx));
+        $ctx = self::ctx(['result' => new VoxgigSolardemoResult(['ok' => true, 'resdata' => 42])]);
+        $this->assertSame(42, VoxgigSolardemoDone::call($ctx));
     }
 
     public function test_done_raises_the_error_when_not_ok(): void
     {
-        $ctx = self::ctx(['result' => new SolardemoResult(['ok' => false])]);
-        $this->expectException(SolardemoError::class);
-        SolardemoDone::call($ctx);
+        $ctx = self::ctx(['result' => new VoxgigSolardemoResult(['ok' => false])]);
+        $this->expectException(VoxgigSolardemoError::class);
+        VoxgigSolardemoDone::call($ctx);
     }
 
     public function test_make_error_returns_resdata_when_ctrl_throw_is_false(): void
     {
-        $ctx = self::ctx(['result' => new SolardemoResult(['ok' => false, 'resdata' => 'fallback'])]);
+        $ctx = self::ctx(['result' => new VoxgigSolardemoResult(['ok' => false, 'resdata' => 'fallback'])]);
         $ctx->ctrl->throw_err = false;
-        $this->assertSame('fallback', SolardemoMakeError::call($ctx, null));
+        $this->assertSame('fallback', VoxgigSolardemoMakeError::call($ctx, null));
     }
 
     public function test_make_error_records_to_ctrl_explain(): void
     {
-        $ctx = self::ctx(['result' => new SolardemoResult(['ok' => false])]);
+        $ctx = self::ctx(['result' => new VoxgigSolardemoResult(['ok' => false])]);
         $ctx->ctrl->throw_err = false;
         $ctx->ctrl->explain = ['on' => true];
-        SolardemoMakeError::call($ctx, null);
+        VoxgigSolardemoMakeError::call($ctx, null);
         $this->assertNotNull($ctx->ctrl->explain['err'] ?? null);
     }
 
@@ -560,16 +560,16 @@ class PipelineTest extends TestCase
     {
         $client = new PlClient([]);
         $ctx = self::ctx(['client' => $client]);
-        $a = new SolardemoBaseFeature();
-        $b = new SolardemoBaseFeature();
-        SolardemoFeatureAdd::call($ctx, $a);
-        SolardemoFeatureAdd::call($ctx, $b);
+        $a = new VoxgigSolardemoBaseFeature();
+        $b = new VoxgigSolardemoBaseFeature();
+        VoxgigSolardemoFeatureAdd::call($ctx, $a);
+        VoxgigSolardemoFeatureAdd::call($ctx, $b);
         $this->assertSame([$a, $b], $client->features);
     }
 
-    private static function named_feature(string $name): SolardemoBaseFeature
+    private static function named_feature(string $name): VoxgigSolardemoBaseFeature
     {
-        $f = new SolardemoBaseFeature();
+        $f = new VoxgigSolardemoBaseFeature();
         $f->name = $name;
         return $f;
     }
@@ -582,88 +582,210 @@ class PipelineTest extends TestCase
         $ctx = self::ctx(['client' => $client]);
         $names = fn() => array_map(fn($f) => $f->name, $client->features);
 
-        SolardemoFeatureAdd::call($ctx, self::named_feature('a'));
-        SolardemoFeatureAdd::call($ctx, self::named_feature('b'));
+        VoxgigSolardemoFeatureAdd::call($ctx, self::named_feature('a'));
+        VoxgigSolardemoFeatureAdd::call($ctx, self::named_feature('b'));
         $this->assertSame(['a', 'b'], $names());
 
         $before = self::named_feature('z1');
         $before->_options = ['__before__' => 'b'];
-        SolardemoFeatureAdd::call($ctx, $before);
+        VoxgigSolardemoFeatureAdd::call($ctx, $before);
         $this->assertSame(['a', 'z1', 'b'], $names());
 
         $after = self::named_feature('z2');
         $after->_options = ['__after__' => 'a'];
-        SolardemoFeatureAdd::call($ctx, $after);
+        VoxgigSolardemoFeatureAdd::call($ctx, $after);
         $this->assertSame(['a', 'z2', 'z1', 'b'], $names());
 
         $replace = self::named_feature('z3');
         $replace->_options = ['__replace__' => 'z1'];
-        SolardemoFeatureAdd::call($ctx, $replace);
+        VoxgigSolardemoFeatureAdd::call($ctx, $replace);
         $this->assertSame(['a', 'z2', 'z3', 'b'], $names());
 
         // An ordering option naming no existing feature falls back to append.
         $miss = self::named_feature('z4');
         $miss->_options = ['__before__' => 'missing'];
-        SolardemoFeatureAdd::call($ctx, $miss);
+        VoxgigSolardemoFeatureAdd::call($ctx, $miss);
         $this->assertSame(['a', 'z2', 'z3', 'b', 'z4'], $names());
     }
 
 
     // --- prepare_auth ------------------------------------------------------------
 
-    private static function auth_ctx(array $options, ?array $headers): SolardemoContext
+    /**
+     * A cookie credential as prepare_auth writes it: `<scheme>=K` for the
+     * probe key, with no scheme prefix and nothing else in the bag.
+     */
+    private const COOKIE_PAIR = '/^[^=;]+=K$/';
+
+    private static function auth_ctx(array $options, ?VoxgigSolardemoSpec $spec): VoxgigSolardemoContext
     {
         $client = new PlClient($options);
         return self::ctx([
             'client' => $client,
-            'spec' => $headers === null ? null : new SolardemoSpec(['headers' => $headers]),
+            'spec' => $spec,
         ]);
+    }
+
+    private static function auth_bags(): VoxgigSolardemoSpec
+    {
+        return new VoxgigSolardemoSpec(['headers' => [], 'query' => []]);
+    }
+
+    /**
+     * `basic: false` is explicit: an HTTP Basic API's generated config carries
+     * `auth.basic: true`, and a client that merges it in takes a branch that
+     * needs a secret as well. With none supplied that branch deliberately
+     * writes nothing, which the probe would read as a public API.
+     */
+    private static function auth_block(string $prefix): array
+    {
+        return ['prefix' => $prefix, 'basic' => false];
+    }
+
+    /**
+     * Run prepare_auth with both containers present and see which one the
+     * generated utility writes to, and under what name. Null means this SDK
+     * places no credential at all - a public API - which is a legitimate
+     * shape, and the tests below assert exactly that instead. `pair` is the
+     * `<scheme>=` lead-in of a COOKIE credential, which rides the header bag
+     * under the key `cookie` instead of taking a header of its own.
+     *
+     * @return array{where:string,name:string,value:mixed,pair:string}|null
+     */
+    private static function auth_probe(array $options): ?array
+    {
+        $ctx = self::auth_ctx($options, self::auth_bags());
+        VoxgigSolardemoPrepareAuth::call($ctx);
+        foreach (['headers', 'query'] as $where) {
+            // A cookie credential rides the header bag, because a cookie IS
+            // a header.
+            $bag = 'query' === $where ? $ctx->spec->query : $ctx->spec->headers;
+            foreach ($bag as $name => $value) {
+                $pair = '';
+                if ('headers' === $where && 'cookie' === $name && is_string($value)
+                    && 1 === preg_match(self::COOKIE_PAIR, $value)) {
+                    $pair = substr($value, 0, -1);
+                }
+                return ['where' => $where, 'name' => $name, 'value' => $value, 'pair' => $pair];
+            }
+        }
+        return null;
+    }
+
+    /** @return array{where:string,name:string,value:mixed,pair:string}|null */
+    private static function auth_credential(): ?array
+    {
+        return self::auth_probe(
+            ['apikey' => 'K', 'auth' => self::auth_block('Bearer')]);
+    }
+
+    /**
+     * Every credential this SDK could possibly place: both credentials and
+     * Basic switched on, so whichever branch the API has, something lands
+     * unless the API is public.
+     *
+     * @return array{where:string,name:string,value:mixed,pair:string}|null
+     */
+    private static function auth_any_credential(): ?array
+    {
+        return self::auth_probe([
+            'apikey' => 'K', 'secret' => 'S',
+            'auth' => ['prefix' => 'Bearer', 'basic' => true],
+        ]);
+    }
+
+    /** @return array{0:mixed,1:bool} the value left in the credential slot, and whether it is there */
+    private static function auth_placed(array $options, $seed = null): array
+    {
+        $cred = self::auth_credential();
+        $spec = self::auth_bags();
+        if (null !== $cred && null !== $seed) {
+            // Seed what prepare_auth would have written: pair is the
+            // "<scheme>=" lead-in for a cookie and '' for a header or query,
+            // so a clearing case removes a credential this SDK owns rather
+            // than a cookie the caller put there.
+            $seeded = $cred['pair'] . $seed;
+            if ('query' === $cred['where']) {
+                $spec->query[$cred['name']] = $seeded;
+            } else {
+                $spec->headers[$cred['name']] = $seeded;
+            }
+        }
+        $ctx = self::auth_ctx($options, $spec);
+        VoxgigSolardemoPrepareAuth::call($ctx);
+        if (null === $cred) {
+            return [null, false];
+        }
+        $bag = 'query' === $cred['where'] ? $ctx->spec->query : $ctx->spec->headers;
+        return [$bag[$cred['name']] ?? null, array_key_exists($cred['name'], $bag)];
     }
 
     public function test_prepare_auth_guards_a_missing_spec(): void
     {
-        $ctx = self::auth_ctx(['auth' => ['prefix' => ''], 'apikey' => 'K'], null);
-        [, $err] = SolardemoPrepareAuth::call($ctx);
+        $ctx = self::auth_ctx(['auth' => self::auth_block(''), 'apikey' => 'K'], null);
+        [, $err] = VoxgigSolardemoPrepareAuth::call($ctx);
         $this->assertSame('auth_no_spec', self::code($err));
     }
 
-    public function test_prepare_auth_an_apikey_with_a_prefix_is_space_joined(): void
+    /**
+     * Without this the cases below cannot fail for an SDK whose credential the
+     * probe misses: every one of them takes the public-API path instead.
+     */
+    public function test_prepare_auth_probe_finds_the_credential_this_sdk_places(): void
     {
-        $ctx = self::auth_ctx(['apikey' => 'K', 'auth' => ['prefix' => 'Bearer']], []);
-        [, $err] = SolardemoPrepareAuth::call($ctx);
-        $this->assertNull($err);
-        $this->assertSame('Bearer K', $ctx->spec->headers['authorization']);
+        $this->assertSame(
+            null === self::auth_credential(), null === self::auth_any_credential());
+    }
+
+    public function test_prepare_auth_places_the_apikey_where_this_api_puts_it(): void
+    {
+        $cred = self::auth_credential();
+        if (null === $cred) {
+            // A public API places nothing, and that is the whole assertion.
+            [, $has] = self::auth_placed(['apikey' => 'K', 'auth' => self::auth_block('Bearer')]);
+            $this->assertFalse($has);
+            return;
+        }
+        $this->assertContains($cred['where'], ['headers', 'query']);
+        if ('' !== $cred['pair']) {
+            // A cookie credential is a `<scheme>=<key>` pair, and the scheme
+            // name leaves no room for the option's prefix.
+            $this->assertMatchesRegularExpression(self::COOKIE_PAIR, $cred['value']);
+            return;
+        }
+        // A header credential is prefix-joined; a query credential is the raw
+        // key, because a query parameter has nowhere to put a scheme name.
+        $this->assertSame('query' === $cred['where'] ? 'K' : 'Bearer K', $cred['value']);
     }
 
     public function test_prepare_auth_a_raw_apikey_goes_in_as_is(): void
     {
-        $ctx = self::auth_ctx(['apikey' => 'K', 'auth' => ['prefix' => '']], []);
-        SolardemoPrepareAuth::call($ctx);
-        $this->assertSame('K', $ctx->spec->headers['authorization']);
+        [$value, $has] = self::auth_placed(['apikey' => 'K', 'auth' => self::auth_block('')]);
+        $cred = self::auth_credential();
+        if (null === $cred) {
+            $this->assertFalse($has);
+            return;
+        }
+        $this->assertSame($cred['pair'] . 'K', $value);
     }
 
-    public function test_prepare_auth_an_empty_apikey_drops_the_header(): void
+    public function test_prepare_auth_an_empty_apikey_drops_the_credential(): void
     {
-        $ctx = self::auth_ctx(
-            ['apikey' => '', 'auth' => ['prefix' => 'Bearer']],
-            ['authorization' => 'stale']
-        );
-        SolardemoPrepareAuth::call($ctx);
-        $this->assertArrayNotHasKey('authorization', $ctx->spec->headers);
+        [, $has] = self::auth_placed(
+            ['apikey' => '', 'auth' => self::auth_block('Bearer')], 'stale');
+        $this->assertFalse($has);
     }
 
-    public function test_prepare_auth_a_public_api_drops_the_header(): void
+    public function test_prepare_auth_a_public_api_drops_the_credential(): void
     {
-        $ctx = self::auth_ctx(['apikey' => 'K'], ['authorization' => 'stale']);
-        SolardemoPrepareAuth::call($ctx);
-        $this->assertArrayNotHasKey('authorization', $ctx->spec->headers);
+        [, $has] = self::auth_placed(['apikey' => 'K'], 'stale');
+        $this->assertFalse($has);
     }
 
-    public function test_prepare_auth_a_missing_apikey_option_drops_the_header(): void
+    public function test_prepare_auth_a_missing_apikey_option_drops_the_credential(): void
     {
-        $ctx = self::auth_ctx(['auth' => ['prefix' => 'Bearer']], ['authorization' => 'stale']);
-        SolardemoPrepareAuth::call($ctx);
-        $this->assertArrayNotHasKey('authorization', $ctx->spec->headers);
+        [, $has] = self::auth_placed(['auth' => self::auth_block('Bearer')], 'stale');
+        $this->assertFalse($has);
     }
 
 
@@ -672,23 +794,23 @@ class PipelineTest extends TestCase
     public function test_result_headers_with_non_array_headers_yields_empty_map(): void
     {
         $ctx = self::ctx([
-            'response' => new SolardemoResponse(['headers' => null]),
-            'result' => new SolardemoResult([]),
+            'response' => new VoxgigSolardemoResponse(['headers' => null]),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
-        SolardemoResultHeaders::call($ctx);
+        VoxgigSolardemoResultHeaders::call($ctx);
         $this->assertSame([], $ctx->result->headers);
     }
 
     public function test_result_body_skips_parsing_when_the_body_is_absent(): void
     {
         $ctx = self::ctx([
-            'response' => new SolardemoResponse([
+            'response' => new VoxgigSolardemoResponse([
                 'json' => function () { return ['a' => 1]; },
                 'body' => null,
             ]),
-            'result' => new SolardemoResult([]),
+            'result' => new VoxgigSolardemoResult([]),
         ]);
-        SolardemoResultBody::call($ctx);
+        VoxgigSolardemoResultBody::call($ctx);
         $this->assertNull($ctx->result->body);
     }
 }

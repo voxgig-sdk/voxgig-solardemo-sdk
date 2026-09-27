@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, Helpers, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, Helpers, SdkClient}
 
 // Distributed-tracing telemetry. Opens a span per operation (PrePoint),
 // propagates trace context to the server as W3C `traceparent` plus

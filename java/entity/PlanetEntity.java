@@ -1,15 +1,15 @@
-package voxgig.solardemosdk.entity;
+package voxgig.voxgigsolardemosdk.entity;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Entity;
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.SdkClient;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Entity;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.SdkClient;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
-/** Planet entity client for the Solardemo SDK. */
+/** Planet entity client for the VoxgigSolardemo SDK. */
 @SuppressWarnings({"unchecked", "unused"})
 public class PlanetEntity extends EntityBase {
 

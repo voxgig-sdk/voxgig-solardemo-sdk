@@ -20,7 +20,7 @@ import JAVAPACKAGE.core.Context;
 import JAVAPACKAGE.core.Feature;
 import JAVAPACKAGE.core.Helpers;
 import JAVAPACKAGE.core.Operation;
-import JAVAPACKAGE.core.SolardemoSDK;
+import JAVAPACKAGE.core.VoxgigSolardemoSDK;
 import JAVAPACKAGE.core.Response;
 import JAVAPACKAGE.core.Result;
 import JAVAPACKAGE.core.SdkError;
@@ -238,7 +238,7 @@ public final class FeatureHarness {
   // FhHarness wires features (in init order) to a mock transport and a mini
   // operation pipeline.
   public static final class FhHarness {
-    public SolardemoSDK client;
+    public VoxgigSolardemoSDK client;
     public Utility utility;
     public Context rootctx;
     public String base = "http://api.test";
@@ -357,7 +357,7 @@ public final class FeatureHarness {
   // utility whose fetcher is the mock server, and the requested features
   // initialised against it. Fires PostConstruct once wiring is complete.
   public static FhHarness fhMake(Utility.FetcherFn server, FhFeature... features) {
-    SolardemoSDK client = SolardemoSDK.testSDK();
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK();
     client.features = new ArrayList<>();
 
     Utility utility = client.getUtility();

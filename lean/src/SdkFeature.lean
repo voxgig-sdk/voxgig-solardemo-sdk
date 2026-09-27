@@ -1,4 +1,4 @@
-/- Solardemo SDK feature catalog.
+/- VoxgigSolardemo SDK feature catalog.
 
    A feature observes and modifies the operation pipeline in two ways:
 

@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core._
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core._
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // featureAdd appends a feature to the client's feature list. A feature that
 // exposes add-time placement options can instead position itself relative to

@@ -1,27 +1,27 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_error
+// VoxgigSolardemo SDK utility: make_error
 
 require_once __DIR__ . '/../core/Operation.php';
 require_once __DIR__ . '/../core/Result.php';
 require_once __DIR__ . '/../core/Error.php';
 
-class SolardemoMakeError
+class VoxgigSolardemoMakeError
 {
-    public static function call(?SolardemoContext $ctx, mixed $err): mixed
+    public static function call(?VoxgigSolardemoContext $ctx, mixed $err): mixed
     {
         if ($ctx === null) {
             require_once __DIR__ . '/../core/Context.php';
-            $ctx = new SolardemoContext([], null);
+            $ctx = new VoxgigSolardemoContext([], null);
         }
-        $op = $ctx->op ?? new SolardemoOperation([]);
+        $op = $ctx->op ?? new VoxgigSolardemoOperation([]);
         $opname = $op->name;
         if ($opname === '' || $opname === '_') {
             $opname = 'unknown operation';
         }
 
-        $result = $ctx->result ?? new SolardemoResult([]);
+        $result = $ctx->result ?? new VoxgigSolardemoResult([]);
         $result->ok = false;
 
         if ($err === null) {
@@ -31,8 +31,8 @@ class SolardemoMakeError
             $err = $ctx->make_error('unknown', 'unknown error');
         }
 
-        $errmsg = ($err instanceof SolardemoError) ? $err->msg : (string)$err;
-        $msg = "SolardemoSDK: {$opname}: {$errmsg}";
+        $errmsg = ($err instanceof VoxgigSolardemoError) ? $err->msg : (string)$err;
+        $msg = "VoxgigSolardemoSDK: {$opname}: {$errmsg}";
         $msg = ($ctx->utility->clean)($ctx, $msg);
 
         $result->err = null;
@@ -42,7 +42,7 @@ class SolardemoMakeError
             $ctx->ctrl->explain['err'] = ['message' => $msg];
         }
 
-        $sdk_err = new SolardemoError('', $msg, $ctx);
+        $sdk_err = new VoxgigSolardemoError('', $msg, $ctx);
         $sdk_err->result = ($ctx->utility->clean)($ctx, $result);
         $sdk_err->spec = ($ctx->utility->clean)($ctx, $spec);
 
@@ -50,7 +50,7 @@ class SolardemoMakeError
         // on `err->status` / `err->notFound()` rather than reaching into
         // `err->result`.
         $sdk_err->status = null === $result->status ? -1 : (int)$result->status;
-        if ($err instanceof SolardemoError) {
+        if ($err instanceof VoxgigSolardemoError) {
             $sdk_err->sdk_code = $err->sdk_code;
         }
 

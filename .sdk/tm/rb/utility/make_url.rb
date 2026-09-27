@@ -1,6 +1,6 @@
-# Solardemo SDK utility: make_url
+# VoxgigSolardemo SDK utility: make_url
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   MakeUrl = ->(ctx) {
     spec = ctx.spec
     result = ctx.result

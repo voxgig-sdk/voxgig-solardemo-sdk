@@ -4,8 +4,8 @@ import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 import java.util.function.Supplier
 import SCALAPACKAGE.utility.struct.Struct
 
-// Shared client runtime for the Solardemo SDK. The generated
-// SolardemoSDK class extends this with the API-specific entity accessors.
+// Shared client runtime for the VoxgigSolardemo SDK. The generated
+// VoxgigSolardemoSDK class extends this with the API-specific entity accessors.
 abstract class SdkClient(options0: JMap[String, Object]) {
 
   var mode: String = "live"
@@ -158,7 +158,7 @@ abstract class SdkClient(options0: JMap[String, Object]) {
     val out = new LinkedHashMap[String, Object]()
     out.put("ok", java.lang.Boolean.FALSE)
     out.put("err", new SdkError(op + "_allow",
-      "SolardemoSDK: " + op + ": operation not allowed by" +
+      "VoxgigSolardemoSDK: " + op + ": operation not allowed by" +
         " SDK option allow.op value: \"" + allow + "\"", null))
     out
   }
@@ -212,7 +212,7 @@ abstract class SdkClient(options0: JMap[String, Object]) {
           }
           res.put("ok", java.lang.Boolean.FALSE)
           res.put("err", new SdkError("graphql_error",
-            "SolardemoSDK: graphql: " + msg, null))
+            "VoxgigSolardemoSDK: graphql: " + msg, null))
           res.put("graphql", errors.asInstanceOf[Object])
         case _ =>
       }

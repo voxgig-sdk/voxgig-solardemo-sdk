@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.entity;
+package voxgig.voxgigsolardemosdk.entity;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -11,15 +11,15 @@ import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.SdkClient;
-import voxgig.solardemosdk.core.SdkEntity;
-import voxgig.solardemosdk.core.Utility;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.SdkClient;
+import voxgig.voxgigsolardemosdk.core.SdkEntity;
+import voxgig.voxgigsolardemosdk.core.Utility;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 /**
- * Shared entity runtime for the Solardemo SDK: accreting data/match
+ * Shared entity runtime for the VoxgigSolardemo SDK: accreting data/match
  * state, the entity context, and the operation pipeline (runOp) with its
  * feature hooks. Generated entity classes extend this.
  */

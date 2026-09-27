@@ -1,8 +1,8 @@
-# Solardemo Dart SDK
+# VoxgigSolardemo Dart SDK
 
 
 
-The Dart SDK for the Solardemo API — an entity-oriented client following idiomatic Dart conventions.
+The Dart SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Dart conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `client.Moon()` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
@@ -16,13 +16,13 @@ keeps the cognitive load low.
 ## Install
 This package is not yet published to pub.dev. Add it as a git
 dependency (pinned to a release tag `dart/vX.Y.Z`, see
-[Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)) in your `pubspec.yaml`:
+[Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) in your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  solardemo_sdk:
+  voxgig_solardemo_sdk:
     git:
-      url: https://github.com/voxgig-sdk/solardemo-sdk
+      url: https://github.com/voxgig-sdk/voxgig-solardemo-sdk
       path: dart
       ref: dart/v0.1.0
 ```
@@ -31,7 +31,7 @@ Or depend on a local source checkout:
 
 ```yaml
 dependencies:
-  solardemo_sdk:
+  voxgig_solardemo_sdk:
     path: ../dart
 ```
 
@@ -44,9 +44,9 @@ loading a specific record.
 ### 1. Create a client
 
 ```dart
-import 'package:solardemo_sdk/SolardemoSDK.dart';
+import 'package:voxgig_solardemo_sdk/VoxgigSolardemoSDK.dart';
 
-final client = SolardemoSDK();
+final client = VoxgigSolardemoSDK();
 ```
 
 ### 2. List moon records
@@ -167,7 +167,7 @@ print(fetchdef['headers']);
 Create a mock client for unit testing — no server required:
 
 ```dart
-final client = SolardemoSDK.test();
+final client = VoxgigSolardemoSDK.test();
 
 // Entity ops return the ENTITY and throws on error;
 // call data() for the record.
@@ -190,7 +190,7 @@ Future<dynamic> mockFetch(dynamic url, dynamic init) async {
   };
 }
 
-final client = SolardemoSDK({
+final client = VoxgigSolardemoSDK({
   'base': 'http://localhost:8080',
   'system': {
     'fetch': mockFetch,
@@ -203,7 +203,7 @@ final client = SolardemoSDK({
 Set the live-mode environment variables:
 
 ```bash
-export SOLARDEMO_TEST_LIVE=TRUE
+export VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -215,12 +215,12 @@ cd dart && dart run test/main.dart
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```dart
-import 'package:solardemo_sdk/SolardemoSDK.dart';
+import 'package:voxgig_solardemo_sdk/VoxgigSolardemoSDK.dart';
 
-final client = SolardemoSDK(options);
+final client = VoxgigSolardemoSDK(options);
 ```
 
 Creates a new SDK client.
@@ -237,12 +237,12 @@ Creates a new SDK client.
 ### test
 
 ```dart
-final client = SolardemoSDK.test(testopts, sdkopts);
+final client = VoxgigSolardemoSDK.test(testopts, sdkopts);
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `null`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -425,7 +425,7 @@ final planet = await client.Planet().create({
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -434,17 +434,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -485,7 +617,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -498,8 +638,8 @@ mirrors the dynamic nature of the API and keeps calls terse — a create is
 just `create({'name': 'example'})`.
 
 For a typed, documented view of each entity and operation, the generated
-`SolardemoTypes.dart` provides a class per entity plus per-op request/match
-classes (e.g. `Solardemo.fromMap(entity.data())` and `model.toMap()`), so you
+`VoxgigSolardemoTypes.dart` provides a class per entity plus per-op request/match
+classes (e.g. `VoxgigSolardemo.fromMap(entity.data())` and `model.toMap()`), so you
 can convert to and from those maps wherever you want compile-time structure.
 
 ### Package structure
@@ -507,10 +647,10 @@ can convert to and from those maps wherever you want compile-time structure.
 ```
 dart/
 ├── lib/
-│   ├── SolardemoSDK.dart          -- Main SDK library (exported entry point)
-│   ├── SolardemoTypes.dart        -- Typed entity + request/match models
-│   ├── SolardemoEntityBase.dart   -- Base class for entities
-│   ├── SolardemoError.dart        -- SDK error type
+│   ├── VoxgigSolardemoSDK.dart          -- Main SDK library (exported entry point)
+│   ├── VoxgigSolardemoTypes.dart        -- Typed entity + request/match models
+│   ├── VoxgigSolardemoEntityBase.dart   -- Base class for entities
+│   ├── VoxgigSolardemoError.dart        -- SDK error type
 │   ├── Config.dart              -- Configuration
 │   ├── entity/                  -- Entity implementations
 │   ├── feature/                 -- Built-in features (base, test, log, ...)
@@ -518,9 +658,9 @@ dart/
 └── test/                        -- Test suites (dart run test/main.dart)
 ```
 
-The main library (`SolardemoSDK.dart`) re-exports the SDK class, the typed
+The main library (`VoxgigSolardemoSDK.dart`) re-exports the SDK class, the typed
 models, and every entity class, so a single
-`import 'package:solardemo_sdk/SolardemoSDK.dart';`
+`import 'package:voxgig_solardemo_sdk/VoxgigSolardemoSDK.dart';`
 brings in everything you need.
 
 ### Entity state

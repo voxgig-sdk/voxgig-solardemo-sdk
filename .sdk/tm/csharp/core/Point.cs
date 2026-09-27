@@ -1,8 +1,8 @@
-// Solardemo SDK - typed view over an endpoint (point) definition.
+// VoxgigSolardemo SDK - typed view over an endpoint (point) definition.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Point
 {

@@ -5,6 +5,7 @@ import {
   cmp, each,
   File, Content, Copy, Folder, Fragment,
   entityClassName,
+  pluginExcludes,
   targetFeatures,
   TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
@@ -23,6 +24,8 @@ import {
 
 import { Package } from './Package_rust'
 import { Config } from './Config_rust'
+import { Schema } from './Schema_rust'
+import { PrepareAuth } from './PrepareAuth_rust'
 import { Gitignore } from './Gitignore_rust'
 import { MainEntity } from './MainEntity_rust'
 import { EntityBase } from './EntityBase_rust'
@@ -42,8 +45,6 @@ const Main = cmp(async function Main(props: any) {
   // helpers/applicability.
   const feature = targetFeatures(model, target)
 
-  // The rust crate identifier (RUSTCRATE placeholder), e.g. solar_sdk —
-  // used in every `use <crate>::...` path in the test templates.
   const rustcrate = crateIdent(model)
 
   Package({ target })
@@ -55,15 +56,19 @@ const Main = cmp(async function Main(props: any) {
   // here exactly like the go target.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    // pluginExcludes: the generate-time plugin trim (an INACTIVE plugin
+    // group's declared files stay out of the tree - the model's `path`
+    // entries are target-root-relative, which is this Copy's root). The
+    // FEATURE-level trim for rust stays an add-time concern, as go's does.
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
       RUSTCRATE: rustcrate,
     }
   })
 
-  // Generated core files: the client (sdk.rs), the API config and the
-  // branded error type.
+  PrepareAuth({ target })
+
   Folder({ name: 'core' }, () => {
 
     File({ name: 'sdk.' + target.ext }, () => {
@@ -76,7 +81,6 @@ const Main = cmp(async function Main(props: any) {
           }
         },
 
-        // Entity accessors - injected at SLOT
         () => {
           each(entity, (entity: ModelEntity) => {
             const entitySDK = getModelPath(model, `main.${KIT}.entity.${entity.name}`)
@@ -88,15 +92,11 @@ const Main = cmp(async function Main(props: any) {
 
     Config({ target })
 
+    Schema({ target })
+
     SdkError({ target })
   })
 
-  // feature/mod.rs — the feature module index.
-  //
-  // GENERATED, not templated: rust needs every module declared, and
-  // `target add` only copies source for the features the model selects. A
-  // static index listing all eighteen shipped features stops the crate from
-  // compiling the moment the set is trimmed.
   Folder({ name: 'feature' }, () => {
     File({ name: 'mod.' + target.ext }, () => {
       Content(`// ${model.const.Name} SDK feature modules (mirrors tm/go/feature).
@@ -109,17 +109,76 @@ pub mod base;
 `)
       each(feature, (feat: any) => Content(`pub mod ${feat.name};\n`))
     })
+
+    each(feature, (feat: any) => {
+      const declared = getModelPath(model,
+        `main.${KIT}.feature.${feat.name}.plugin`,
+        { required: false, only_active: false }) || {}
+
+      if (0 === Object.keys(declared).length) {
+        return
+      }
+
+      const mods = new Set<string>()
+      const syms = new Set<string>()
+
+      each(declared, (plugin: any) => {
+        // Filter on `active` HERE (Config_go's note): getting this wrong
+        // declares a module for a file the trim just removed, which is a
+        // compile error rather than a silent one.
+        if (true !== plugin.active) return
+
+        for (const [sym, one] of Object.entries(plugin.def?.rust || {})) {
+          mods.add(String(one).replace(/^.*\//, '').replace(/\.rs$/, ''))
+          syms.add(sym)
+        }
+      })
+
+      const NOHTTP = ['secretspec']
+      const http = Array.from(mods).some((m: string) => !NOHTTP.includes(m))
+
+      Folder({ name: feat.name }, () => {
+        File({ name: 'plugins.' + target.ext }, () => {
+          Content(`// The plugin definitions the model selected for the \`${feat.name}\`
+// feature, and the modules they live in (generated - see Main_rust).
+//
+// Upstream sekreto's contract since its registry was retired: a provider
+// kind not handed to the constructor is unknown to that Sekreto. So this
+// list IS the SDK's provider vocabulary, and a kind nobody selected is
+// neither declared nor compiled.
+
+use crate::feature::${feat.name}::plugin::catalog::Definition;
+
+`)
+          if (http) {
+            Content(`pub mod httpjson;
+`)
+          }
+          for (const m of Array.from(mods).sort()) {
+            Content(`pub mod ${m};
+`)
+          }
+
+          Content(`
+pub fn definitions() -> Vec<Definition> {
+    vec![
+`)
+          for (const sym of Array.from(syms).sort()) {
+            Content(`        ${sym}(),
+`)
+          }
+          Content(`    ]
+}
+`)
+        })
+      })
+    })
   })
 
-  // entity/mod.rs — the entity module index.
   EntityBase({ target })
 
-  // entity/types.rs — the documentary typed models (one struct per entity +
-  // per op). Declared as a module by EntityBase so it compiles with the crate.
   EntityTypes({ target })
 
-  // lib.rs — the crate root: module declarations plus the public API
-  // re-exports (twin of the go root package file).
   File({ name: 'lib.' + target.ext }, () => {
     Content(`// ${model.const.Name} SDK for Rust (generated by @voxgig/sdkgen).
 //

@@ -3,7 +3,7 @@ const { test, describe } = require('node:test')
 const { equal, ok } = require('node:assert')
 
 
-const { SolardemoSDK } = require('..')
+const { VoxgigSolardemoSDK } = require('..')
 
 
 // Network-behaviour simulation over the offline mock transport. The `test`
@@ -14,13 +14,13 @@ const { SolardemoSDK } = require('..')
 describe('netsim', () => {
 
   test('offline simulation fails the request', async () => {
-    const sdk = SolardemoSDK.test({ net: { offline: true } })
+    const sdk = VoxgigSolardemoSDK.test({ net: { offline: true } })
     const res = await sdk.direct({ path: '/ping' })
     equal(res.ok, false, 'offline network must fail the call')
   })
 
   test('failStatus simulation surfaces the error status', async () => {
-    const sdk = SolardemoSDK.test({ net: { failTimes: 1, failStatus: 503 } })
+    const sdk = VoxgigSolardemoSDK.test({ net: { failTimes: 1, failStatus: 503 } })
     const res = await sdk.direct({ path: '/ping' })
     equal(res.ok, false)
     equal(res.status, 503, 'simulated failure status is surfaced')
@@ -28,7 +28,7 @@ describe('netsim', () => {
 
   test('latency simulation delays the request', async () => {
     const delay = 60
-    const sdk = SolardemoSDK.test({ net: { latency: delay } })
+    const sdk = VoxgigSolardemoSDK.test({ net: { latency: delay } })
     const start = Date.now()
     await sdk.direct({ path: '/ping' })
     const elapsed = Date.now() - start
@@ -37,7 +37,7 @@ describe('netsim', () => {
   })
 
   test('a plain test SDK still works with no net simulation', async () => {
-    const sdk = SolardemoSDK.test()
+    const sdk = VoxgigSolardemoSDK.test()
     equal(null !== sdk, true)
   })
 })

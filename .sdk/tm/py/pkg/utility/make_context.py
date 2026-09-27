@@ -1,7 +1,7 @@
-# Solardemo SDK utility: make_context
+# VoxgigSolardemo SDK utility: make_context
 
-from projectname_sdk.core.context import SolardemoContext
+from projectname_sdk.core.context import VoxgigSolardemoContext
 
 
 def make_context_util(ctxmap, basectx):
-    return SolardemoContext(ctxmap, basectx)
+    return VoxgigSolardemoContext(ctxmap, basectx)

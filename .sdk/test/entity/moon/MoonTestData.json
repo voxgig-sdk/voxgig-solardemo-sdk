@@ -33,5 +33,32 @@
         "planet_id": "PLANET01"
       }
     }
+  },
+  "requests": {
+    "POST /api/planet/{planet_id}/moon": {
+      "provenance": "operation-contract",
+      "version": 2,
+      "source": "openapi3"
+    },
+    "GET /api/planet/{planet_id}/moon": {
+      "provenance": "operation-contract",
+      "version": 2,
+      "source": "openapi3"
+    },
+    "GET /api/planet/{planet_id}/moon/{moon_id}": {
+      "provenance": "operation-contract",
+      "version": 2,
+      "source": "openapi3"
+    },
+    "DELETE /api/planet/{planet_id}/moon/{moon_id}": {
+      "provenance": "operation-contract",
+      "version": 2,
+      "source": "openapi3"
+    },
+    "PUT /api/planet/{planet_id}/moon/{moon_id}": {
+      "provenance": "operation-contract",
+      "version": 2,
+      "source": "openapi3"
+    }
   }
 }

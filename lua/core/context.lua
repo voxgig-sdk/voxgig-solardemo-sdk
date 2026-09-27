@@ -1,4 +1,4 @@
--- Solardemo SDK context
+-- VoxgigSolardemo SDK context
 
 local vs = require("utility.struct.struct")
 local Control = require("core.control")
@@ -6,7 +6,7 @@ local Operation = require("core.operation")
 local Spec = require("core.spec")
 local Result = require("core.result")
 local Response = require("core.response")
-local SolardemoError = require("core.error")
+local VoxgigSolardemoError = require("core.error")
 local helpers = require("core.helpers")
 
 local Context = {}
@@ -49,7 +49,14 @@ function Context.new(ctxmap, basectx)
     if type(ctrl_raw.explain) == "table" then
       self.ctrl.explain = ctrl_raw.explain
     end
-  elseif basectx ~= nil and basectx.ctrl ~= nil then
+    if ctrl_raw.actor ~= nil then
+      self.ctrl.actor = ctrl_raw.actor
+    end
+    if type(ctrl_raw.paging) == "table" then
+      self.ctrl.paging = ctrl_raw.paging
+    end
+  elseif basectx ~= nil and basectx.ctrl ~= nil
+      and helpers.get_ctx_prop(ctxmap, "opname") == nil then
     self.ctrl = basectx.ctrl
   end
 
@@ -206,7 +213,7 @@ end
 
 
 function Context:make_error(code, msg)
-  return SolardemoError.new(code, msg, self)
+  return VoxgigSolardemoError.new(code, msg, self)
 end
 
 

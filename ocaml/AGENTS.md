@@ -1,6 +1,6 @@
-# Solardemo OCaml — Agent Guide
+# VoxgigSolardemo OCaml — Agent Guide
 
-The OCaml client for the Solardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The OCaml client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `ocaml/` directory.
@@ -26,7 +26,7 @@ make test
 
 | Source | Path | Edit when… |
 | --- | --- | --- |
-| Target definition | `.sdk/model/target/ocaml.aon` | deps, module, extension, phases change |
+| Target definition | `.sdk/model/target/ocaml.aontu` | deps, module, extension, phases change |
 | Templates | `.sdk/tm/ocaml/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
 | Components | `.sdk/src/cmp/ocaml/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
 
@@ -37,12 +37,20 @@ component.* After editing a component run `npm run build` before
 ## Features in this target
 
 Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aon`; customise
+default activation come from `.sdk/model/feature/<name>.aontu`; customise
 the runtime under `.sdk/tm/ocaml/feature/` and regenerate.
 
 | Feature | Runtime file | Active hooks |
 | --- | --- | --- |
-| **test** — In-memory mock transport for testing without a live server | `feature/test_feature.ml` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **debug** — Debug capture | `feature/debug_feature.ml` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `feature/idempotency_feature.ml` | `PreRequest` |
+| **metrics** — Metrics | `feature/metrics_feature.ml` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `feature/paging_feature.ml` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `feature/ratelimit_feature.ml` | — |
+| **retry** — Retry | `feature/retry_feature.ml` | — |
+| **secrets** — Secrets | `feature/secrets_feature.ml` | `PreSpec` |
+| **test** — Test transport | `feature/test_feature.ml` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `feature/timeout_feature.ml` | — |
 
 ---
 

@@ -1,18 +1,14 @@
-// Operation context (mirrors go core/context.go). Fields use interior
-// mutability (RefCell) since the pipeline mutates the context in place;
-// contexts are shared as Rc<Context>.
-
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::core::control::Control;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{get_bool, get_str, getp, getpath, jo, rand_int, to_map};
 use crate::core::operation::Operation;
 use crate::core::response::Response;
 use crate::core::result::SdkResult;
-use crate::core::sdk::SolardemoSDK;
+use crate::core::sdk::VoxgigSolardemoSDK;
 use crate::core::spec::Spec;
 use crate::core::types::{Entity, OutVal};
 use crate::core::utility_type::Utility;
@@ -25,7 +21,7 @@ pub type OpMap = Rc<RefCell<HashMap<String, Rc<Operation>>>>;
 #[derive(Default)]
 pub struct CtxSpec {
     pub opname: Option<String>,
-    pub client: Option<Rc<SolardemoSDK>>,
+    pub client: Option<Rc<VoxgigSolardemoSDK>>,
     pub utility: Option<Rc<Utility>>,
     /// ctrl as a caller-supplied Value map ({throw, explain, actor, paging}).
     pub ctrl: Option<Value>,
@@ -53,7 +49,7 @@ pub struct Context {
     pub out: RefCell<HashMap<String, OutVal>>,
     pub ctrl: RefCell<Rc<RefCell<Control>>>,
     pub meta: RefCell<Value>,
-    pub client: RefCell<Option<Rc<SolardemoSDK>>>,
+    pub client: RefCell<Option<Rc<VoxgigSolardemoSDK>>>,
     pub utility: RefCell<Option<Rc<Utility>>>,
     pub op: RefCell<Rc<Operation>>,
     pub point: RefCell<Value>,
@@ -104,7 +100,7 @@ impl Context {
             Rc::new(RefCell::new(c))
         } else if let Some(co) = ctxspec.ctrl_obj {
             co
-        } else if let Some(b) = basectx {
+        } else if let Some(b) = basectx.filter(|_| ctxspec.opname.is_none()) {
             b.ctrl.borrow().clone()
         } else {
             Rc::new(RefCell::new(Control::new()))
@@ -236,8 +232,6 @@ impl Context {
     }
 
     fn resolve_op(&self, opname: &str) -> Rc<Operation> {
-        // Cache key is `<entity>:<opname>` so two entities with the same op
-        // (e.g. both have a "list") get distinct cached Operations.
         let entname = self
             .entity
             .borrow()
@@ -254,10 +248,7 @@ impl Context {
             return Rc::new(Operation::new(&Value::empty_map()));
         }
 
-        let opcfg = getpath(
-            &["entity", &entname, "op", opname],
-            &self.config.borrow(),
-        );
+        let opcfg = getpath(&["entity", &entname, "op", opname], &self.config.borrow());
 
         let input = if opname == "update" || opname == "create" {
             "data"
@@ -284,8 +275,8 @@ impl Context {
         op
     }
 
-    pub fn make_error(&self, code: &str, msg: &str) -> SolardemoError {
-        SolardemoError::new(code, msg)
+    pub fn make_error(&self, code: &str, msg: &str) -> VoxgigSolardemoError {
+        VoxgigSolardemoError::new(code, msg)
     }
 
     /// The context utility (set on every pipeline context).

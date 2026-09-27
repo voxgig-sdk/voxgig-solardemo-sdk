@@ -1,11 +1,11 @@
-# Solardemo Elixir SDK
+# VoxgigSolardemo Elixir SDK
 
 
 
-The Elixir SDK for the Solardemo API — an entity-oriented client
+The Elixir SDK for the VoxgigSolardemo API — an entity-oriented client
 following idiomatic, functional Elixir conventions.
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `Solardemo.moon(sdk)` — each
+The SDK exposes the API as capitalised, semantic **Entities** — for example `VoxgigSolardemo.moon(sdk)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -16,13 +16,13 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to [Hex](https://hex.pm). Install it from
-the GitHub release tag (`elixir/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases))
+the GitHub release tag (`elixir/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases))
 by adding a git dependency to your `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:solardemo, git: "https://github.com/voxgig-sdk/solardemo-sdk.git", tag: "elixir/vX.Y.Z"}
+    {:voxgig_solardemo, git: "https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git", tag: "elixir/vX.Y.Z"}
   ]
 end
 ```
@@ -32,7 +32,7 @@ Or from a local source checkout:
 ```elixir
 def deps do
   [
-    {:solardemo, path: "../solardemo-sdk/elixir"}
+    {:voxgig_solardemo, path: "../voxgig-solardemo-sdk/elixir"}
   ]
 end
 ```
@@ -48,9 +48,9 @@ loading a specific record.
 ### 1. Create a client
 
 ```elixir
-alias Solardemo.Helpers, as: H
+alias VoxgigSolardemo.Helpers, as: H
 
-sdk = Solardemo.new()
+sdk = VoxgigSolardemo.new()
 ```
 
 ### 2. List moon records
@@ -59,8 +59,8 @@ sdk = Solardemo.new()
 
 ```elixir
 try do
-  moon = Solardemo.moon(sdk)
-  records = Solardemo.Entity.Moon.list(moon)
+  moon = VoxgigSolardemo.moon(sdk)
+  records = VoxgigSolardemo.Entity.Moon.list(moon)
   IO.inspect(records)
 rescue
   err -> IO.puts("list failed: " <> inspect(err))
@@ -74,8 +74,8 @@ Moon is nested under planet, so provide the `planet_id`.
 
 ```elixir
 try do
-  moon = Solardemo.moon(sdk)
-  record = Solardemo.Entity.Moon.load(moon, H.deep(%{"planet_id" => "example_planet_id", "id" => "example_id"}))
+  moon = VoxgigSolardemo.moon(sdk)
+  record = VoxgigSolardemo.Entity.Moon.load(moon, H.deep(%{"planet_id" => "example_planet_id", "id" => "example_id"}))
   IO.inspect(record)
 rescue
   err -> IO.puts("load failed: " <> inspect(err))
@@ -85,16 +85,16 @@ end
 ### 4. Create, update, and remove
 
 ```elixir
-moon = Solardemo.moon(sdk)
+moon = VoxgigSolardemo.moon(sdk)
 
 # Create — returns the bare created record
-created = Solardemo.Entity.Moon.create(moon, H.deep(%{"planet_id" => "example_planet_id", "diameter" => 1, "id" => "example_id", "kind" => "example_kind", "name" => "example_name"}))
+created = VoxgigSolardemo.Entity.Moon.create(moon, H.deep(%{"planet_id" => "example_planet_id", "diameter" => 1, "id" => "example_id", "kind" => "example_kind", "name" => "example_name"}))
 
 # Update
-Solardemo.Entity.Moon.update(moon, H.deep(%{"id" => Voxgig.Struct.getprop(created, "id"), "planet_id" => "example_planet_id", "diameter" => 1}))
+VoxgigSolardemo.Entity.Moon.update(moon, H.deep(%{"id" => Voxgig.Struct.getprop(created, "id"), "planet_id" => "example_planet_id", "diameter" => 1}))
 
 # Remove
-Solardemo.Entity.Moon.remove(moon, H.deep(%{"id" => Voxgig.Struct.getprop(created, "id"), "planet_id" => "example_planet_id"}))
+VoxgigSolardemo.Entity.Moon.remove(moon, H.deep(%{"id" => Voxgig.Struct.getprop(created, "id"), "planet_id" => "example_planet_id"}))
 ```
 
 
@@ -136,9 +136,9 @@ it returns a result node you branch on with `Voxgig.Struct.getprop/2`:
 
 ```elixir
 alias Voxgig.Struct, as: S
-alias Solardemo.Helpers, as: H
+alias VoxgigSolardemo.Helpers, as: H
 
-result = Solardemo.direct(sdk, H.deep(%{
+result = VoxgigSolardemo.direct(sdk, H.deep(%{
   "path" => "/api/resource/{id}",
   "method" => "GET",
   "params" => %{"id" => "example"}
@@ -157,10 +157,10 @@ end
 ### Prepare a request without sending it
 
 ```elixir
-alias Solardemo.Helpers, as: H
+alias VoxgigSolardemo.Helpers, as: H
 
 # prepare/2 returns the fetch definition and raises on error.
-fetchdef = Solardemo.prepare(sdk, H.deep(%{
+fetchdef = VoxgigSolardemo.prepare(sdk, H.deep(%{
   "path" => "/api/resource/{id}",
   "method" => "DELETE",
   "params" => %{"id" => "example"}
@@ -175,13 +175,13 @@ IO.inspect(Voxgig.Struct.getprop(fetchdef, "method"))
 Create a mock client for unit testing — no server required:
 
 ```elixir
-alias Solardemo.Helpers, as: H
+alias VoxgigSolardemo.Helpers, as: H
 
-sdk = Solardemo.test()
+sdk = VoxgigSolardemo.test()
 
 # Entity ops return the bare record (raise on error).
-moon = Solardemo.moon(sdk)
-records = Solardemo.Entity.Moon.list(moon, H.deep(%{}))
+moon = VoxgigSolardemo.moon(sdk)
+records = VoxgigSolardemo.Entity.Moon.list(moon, H.deep(%{}))
 IO.inspect(records)
 ```
 
@@ -192,7 +192,7 @@ fetchdef)` and returns a `{response, error}` tuple:
 
 ```elixir
 alias Voxgig.Struct, as: S
-alias Solardemo.Helpers, as: H
+alias VoxgigSolardemo.Helpers, as: H
 
 mock_fetch = fn _url, _fetchdef ->
   response = H.deep(%{
@@ -204,7 +204,7 @@ mock_fetch = fn _url, _fetchdef ->
   {response, nil}
 end
 
-sdk = Solardemo.new(H.deep(%{
+sdk = VoxgigSolardemo.new(H.deep(%{
   "base" => "http://localhost:8080",
   "system" => %{"fetch" => mock_fetch}
 }))
@@ -215,7 +215,7 @@ sdk = Solardemo.new(H.deep(%{
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -227,14 +227,14 @@ cd elixir && mix test
 
 ## Reference
 
-### Solardemo
+### VoxgigSolardemo
 
 ```elixir
-sdk = Solardemo.new(options)
+sdk = VoxgigSolardemo.new(options)
 ```
 
 Creates a new SDK client. `options` is a struct value node — build one from a
-native map with `Solardemo.Helpers.deep/1`.
+native map with `VoxgigSolardemo.Helpers.deep/1`.
 
 | Option | Type | Description |
 | --- | --- | --- |
@@ -248,12 +248,12 @@ native map with `Solardemo.Helpers.deep/1`.
 ### test
 
 ```elixir
-sdk = Solardemo.test(testopts, sdkopts)
+sdk = VoxgigSolardemo.test(testopts, sdkopts)
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `nil`.
 
-### Solardemo functions
+### VoxgigSolardemo functions
 
 | Function | Signature | Description |
 | --- | --- | --- |
@@ -266,7 +266,7 @@ Creates a test-mode client with mock transport. Both arguments may be `nil`.
 
 ### Entity interface
 
-Every entity's `Solardemo.Entity.<Name>` module shares the same interface.
+Every entity's `VoxgigSolardemo.Entity.<Name>` module shares the same interface.
 
 | Function | Signature | Description |
 | --- | --- | --- |
@@ -285,7 +285,7 @@ Every entity's `Solardemo.Entity.<Name>` module shares the same interface.
 ### Result shape
 
 Entity operations return the bare result data (a value node — a map for
-single-entity ops, a list for `list`) and raise a `Solardemo.Error` on
+single-entity ops, a list for `list`) and raise a `VoxgigSolardemo.Error` on
 failure. Wrap calls in `try`/`rescue` to handle errors.
 
 The `direct/2` escape hatch never raises — it returns a result node you
@@ -336,13 +336,13 @@ API path: `/api/planet/{planet_id}/forbid`
 
 ## Entities
 
-Every operation lives on the entity's `Solardemo.Entity.<Name>` module and
+Every operation lives on the entity's `VoxgigSolardemo.Entity.<Name>` module and
 takes an entity handle built from the client:
 
 
 ### Moon
 
-Create a handle: `moon = Solardemo.moon(sdk)`
+Create a handle: `moon = VoxgigSolardemo.moon(sdk)`
 
 #### Operations
 
@@ -367,22 +367,22 @@ Create a handle: `moon = Solardemo.moon(sdk)`
 #### Example: Load
 
 ```elixir
-moon = Solardemo.moon(sdk)
-record = Solardemo.Entity.Moon.load(moon, Solardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
+moon = VoxgigSolardemo.moon(sdk)
+record = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
 ```
 
 #### Example: List
 
 ```elixir
-moon = Solardemo.moon(sdk)
-records = Solardemo.Entity.Moon.list(moon)
+moon = VoxgigSolardemo.moon(sdk)
+records = VoxgigSolardemo.Entity.Moon.list(moon)
 ```
 
 #### Example: Create
 
 ```elixir
-moon = Solardemo.moon(sdk)
-record = Solardemo.Entity.Moon.create(moon, Solardemo.Helpers.deep(%{
+moon = VoxgigSolardemo.moon(sdk)
+record = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%{
   "planet_id" => "example_planet_id",  # String.t()
   "diameter" => 1,  # float()
   "id" => "example_id",  # String.t()
@@ -394,7 +394,7 @@ record = Solardemo.Entity.Moon.create(moon, Solardemo.Helpers.deep(%{
 
 ### Planet
 
-Create a handle: `planet = Solardemo.planet(sdk)`
+Create a handle: `planet = VoxgigSolardemo.planet(sdk)`
 
 #### Operations
 
@@ -421,22 +421,22 @@ Create a handle: `planet = Solardemo.planet(sdk)`
 #### Example: Load
 
 ```elixir
-planet = Solardemo.planet(sdk)
-record = Solardemo.Entity.Planet.load(planet, Solardemo.Helpers.deep(%{"id" => "planet_id"}))
+planet = VoxgigSolardemo.planet(sdk)
+record = VoxgigSolardemo.Entity.Planet.load(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
 ```
 
 #### Example: List
 
 ```elixir
-planet = Solardemo.planet(sdk)
-records = Solardemo.Entity.Planet.list(planet)
+planet = VoxgigSolardemo.planet(sdk)
+records = VoxgigSolardemo.Entity.Planet.list(planet)
 ```
 
 #### Example: Create
 
 ```elixir
-planet = Solardemo.planet(sdk)
-record = Solardemo.Entity.Planet.create(planet, Solardemo.Helpers.deep(%{
+planet = VoxgigSolardemo.planet(sdk)
+record = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
   "diameter" => 1,  # float()
   "id" => "example_id",  # String.t()
   "kind" => "example_kind",  # String.t()
@@ -446,7 +446,7 @@ record = Solardemo.Entity.Planet.create(planet, Solardemo.Helpers.deep(%{
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -455,17 +455,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -506,7 +638,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -520,7 +660,7 @@ the dynamic nature of the API and lets a feature hook mutate a shared node
 that every later pipeline stage observes — the immutable-Elixir way to honour
 the shared-mutable hook contract.
 
-Build inputs from native Elixir maps with `Solardemo.Helpers.deep/1`,
+Build inputs from native Elixir maps with `VoxgigSolardemo.Helpers.deep/1`,
 and read fields off results with `Voxgig.Struct.getprop/2`.
 
 ### Module structure
@@ -528,11 +668,12 @@ and read fields off results with `Voxgig.Struct.getprop/2`.
 ```
 elixir/
 ├── lib/
-│   ├── solardemo.ex                 -- Main SDK module (entity factories)
+│   ├── voxgig-solardemo.ex                 -- Main SDK module (entity factories)
 │   ├── config.ex                 -- Resolved configuration
+│   ├── schema.ex                 -- Generated option + entity specs
 │   ├── features.ex               -- Feature factory
 │   ├── pipeline.ex               -- Operation pipeline
-│   └── solardemo/
+│   └── voxgig-solardemo/
 │       ├── context.ex            -- Operation context
 │       ├── entity_base.ex        -- Shared entity behaviour
 │       ├── error.ex              -- SDK error type
@@ -545,9 +686,9 @@ elixir/
 └── test/                         -- ExUnit suites
 ```
 
-The main module `Solardemo` exposes the SDK constructors and one entity
+The main module `VoxgigSolardemo` exposes the SDK constructors and one entity
 factory function per entity. Call an operation on the matching
-`Solardemo.Entity.<Name>` module.
+`VoxgigSolardemo.Entity.<Name>` module.
 
 ### Entity state
 

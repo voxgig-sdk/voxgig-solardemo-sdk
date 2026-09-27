@@ -1,27 +1,27 @@
-# Solardemo SDK utility: make_error
+# VoxgigSolardemo SDK utility: make_error
 
 from __future__ import annotations
-from projectname_sdk.core.operation import SolardemoOperation
-from projectname_sdk.core.result import SolardemoResult
-from projectname_sdk.core.control import SolardemoControl
-from projectname_sdk.core.error import SolardemoError
+from projectname_sdk.core.operation import VoxgigSolardemoOperation
+from projectname_sdk.core.result import VoxgigSolardemoResult
+from projectname_sdk.core.control import VoxgigSolardemoControl
+from projectname_sdk.core.error import VoxgigSolardemoError
 
 
 def make_error_util(ctx, err):
     if ctx is None:
-        from projectname_sdk.core.context import SolardemoContext
-        ctx = SolardemoContext({}, None)
+        from projectname_sdk.core.context import VoxgigSolardemoContext
+        ctx = VoxgigSolardemoContext({}, None)
 
     op = ctx.op
     if op is None:
-        op = SolardemoOperation({})
+        op = VoxgigSolardemoOperation({})
     opname = op.name
     if opname == "" or opname == "_":
         opname = "unknown operation"
 
     result = ctx.result
     if result is None:
-        result = SolardemoResult({})
+        result = VoxgigSolardemoResult({})
     result.ok = False
 
     if err is None:
@@ -30,7 +30,7 @@ def make_error_util(ctx, err):
         err = ctx.make_error("unknown", "unknown error")
 
     errmsg = ""
-    if isinstance(err, SolardemoError):
+    if isinstance(err, VoxgigSolardemoError):
         errmsg = err.msg
     elif hasattr(err, "msg") and err.msg is not None:
         errmsg = err.msg
@@ -39,7 +39,7 @@ def make_error_util(ctx, err):
     else:
         errmsg = str(err)
 
-    msg = "SolardemoSDK: " + opname + ": " + errmsg
+    msg = "VoxgigSolardemoSDK: " + opname + ": " + errmsg
     msg = ctx.utility.clean(ctx, msg)
 
     result.err = None
@@ -49,7 +49,7 @@ def make_error_util(ctx, err):
     if ctx.ctrl.explain is not None:
         ctx.ctrl.explain["err"] = {"message": msg}
 
-    sdk_err = SolardemoError("", msg, ctx)
+    sdk_err = VoxgigSolardemoError("", msg, ctx)
     sdk_err.result = ctx.utility.clean(ctx, result)
     sdk_err.spec = ctx.utility.clean(ctx, spec)
 
@@ -57,7 +57,7 @@ def make_error_util(ctx, err):
     # `err.status` / `err.not_found` instead of reaching into `err.result`.
     sdk_err.status = -1 if result.status is None else result.status
 
-    if isinstance(err, SolardemoError):
+    if isinstance(err, VoxgigSolardemoError):
         sdk_err.code = err.code
 
     ctx.ctrl.err = sdk_err

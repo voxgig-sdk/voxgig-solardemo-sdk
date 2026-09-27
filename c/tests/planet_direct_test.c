@@ -24,11 +24,11 @@ static voxgig_value* planet_mock(void* ud, voxgig_value* args) {
     "json", json_thunk(data));
 }
 
-static SolardemoSDK* planet_direct_setup(voxgig_value* mockres) {
+static VoxgigSolardemoSDK* planet_direct_setup(voxgig_value* mockres) {
   voxgig_value* opts = cmap(2,
     "base", v_str("http://localhost:8080"),
     "system", cmap(1, "fetch", vfn(planet_mock, mockres)));
-  return solardemo_sdk_new(opts);
+  return voxgigsolardemo_sdk_new(opts);
 }
 
 int main(void) {
@@ -39,7 +39,7 @@ int main(void) {
     voxgig_value* mockres = clist(2,
       cmap(1, "id", v_str("direct01")),
       cmap(1, "id", v_str("direct02")));
-    SolardemoSDK* sdk = planet_direct_setup(mockres);
+    VoxgigSolardemoSDK* sdk = planet_direct_setup(mockres);
     voxgig_value* params = v_map();
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
@@ -60,9 +60,9 @@ int main(void) {
   {
     CALLS = 0;
     voxgig_value* mockres = cmap(1, "id", v_str("direct01"));
-    SolardemoSDK* sdk = planet_direct_setup(mockres);
+    VoxgigSolardemoSDK* sdk = planet_direct_setup(mockres);
     voxgig_value* params = v_map();
-    setp(params, "id", v_str("direct01"));
+    setp(params, "undefined", v_str("direct01"));
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
       "path", v_str("api/planet/{id}"),
@@ -81,5 +81,5 @@ int main(void) {
     CHECK(strstr(LAST_URL, "direct01") != NULL, "load: url has direct01");
   }
 
-  TEST_SUMMARY("solardemo_planet_direct");
+  TEST_SUMMARY("voxgigsolardemo_planet_direct");
 }

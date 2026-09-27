@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 // Moon direct test
 
-require_once __DIR__ . '/../solardemo_sdk.php';
+require_once __DIR__ . '/../voxgigsolardemo_sdk.php';
 require_once __DIR__ . '/Runner.php';
 
 use PHPUnit\Framework\TestCase;
@@ -136,18 +136,18 @@ function moon_direct_setup($mockres)
     $calls = new \ArrayObject();
 
     $env = Runner::env_override([
-        "SOLARDEMO_TEST_MOON_ENTID" => [],
-        "SOLARDEMO_TEST_LIVE" => "FALSE",
+        "VOXGIG_SOLARDEMO_TEST_MOON_ENTID" => [],
+        "VOXGIG_SOLARDEMO_TEST_LIVE" => "FALSE",
     ]);
 
-    $live = $env["SOLARDEMO_TEST_LIVE"] === "TRUE";
+    $live = $env["VOXGIG_SOLARDEMO_TEST_LIVE"] === "TRUE";
 
     if ($live) {
         // Merged so the generated fields win: sdk-test-control.json's
         // test.client.options adds to the live client, it does not redirect it.
         $merged_opts = array_merge(Runner::live_client_options(), [
         ]);
-        $client = new SolardemoSDK($merged_opts);
+        $client = new VoxgigSolardemoSDK($merged_opts);
         return [
             "client" => $client,
             "calls" => $calls,
@@ -175,7 +175,7 @@ function moon_direct_setup($mockres)
         ];
     };
 
-    $client = new SolardemoSDK([
+    $client = new VoxgigSolardemoSDK([
         "base" => "http://localhost:8080",
         "system" => [
             "fetch" => $mock_fetch,

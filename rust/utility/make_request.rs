@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{get_str, setp};
 use crate::core::response::Response;
 use crate::core::result::SdkResult;
@@ -11,7 +11,7 @@ use crate::utility::voxgigstruct::Value;
 
 pub fn make_request_util(
     ctx: &Rc<Context>,
-) -> Result<Rc<RefCell<Response>>, SolardemoError> {
+) -> Result<Rc<RefCell<Response>>, VoxgigSolardemoError> {
     if let Some(OutVal::Response(resp)) = ctx.out_get("request") {
         return Ok(resp);
     }

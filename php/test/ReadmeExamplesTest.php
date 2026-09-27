@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK — documentation example COMPLETENESS GATE.
+// VoxgigSolardemo SDK — documentation example COMPLETENESS GATE.
 //
 // Guarantees every fenced php code example across ALL THREE package docs is
 // unit-tested. Reads the root ../../README.md, the PHP ../README.md, and
@@ -12,7 +12,7 @@ declare(strict_types=1);
 //      snippet omits one). Every documented php example must parse.
 //   2. RUN — every RUNNABLE block (one that constructs the SDK, drives
 //      \$client->, or performs an entity op load/list/create/update/remove) is
-//      EXECUTED offline in seeded test mode (SolardemoSDK::test)
+//      EXECUTED offline in seeded test mode (VoxgigSolardemoSDK::test)
 //      against the real SDK. The captured output is scanned for a real
 //      PHP-level error (undefined method, wrong-arg-count, TypeError, ...)
 //      REGARDLESS of exit code, so a bug a documented try/catch swallows and
@@ -26,17 +26,17 @@ declare(strict_types=1);
 // PHP is dynamically typed, so syntax + actually running every example is the
 // strongest check available without a live server.
 
-require_once __DIR__ . '/../solardemo_sdk.php';
+require_once __DIR__ . '/../voxgigsolardemo_sdk.php';
 
 use PHPUnit\Framework\TestCase;
 
 class ReadmeExamplesTest extends TestCase
 {
-    private const SDK_CLASS = 'SolardemoSDK';
+    private const SDK_CLASS = 'VoxgigSolardemoSDK';
 
     // SDK file basename (no extension) — used to strip the doc's own require of
     // the SDK file from a runnable block (we require it by absolute path).
-    private const SDK_BASE = 'solardemo_sdk';
+    private const SDK_BASE = 'voxgigsolardemo_sdk';
 
     // Entity accessor (\$client->Name()) => fixture storage key (lowercase name).
     private const ENTITIES = [
@@ -62,7 +62,7 @@ class ReadmeExamplesTest extends TestCase
     // That only holds if the run pass can SEE a parse failure — and without
     // these two patterns it could not, so a syntax error in a runnable example
     // would have passed both gates.
-    private const FATAL = '/(Call to undefined method|Call to undefined function|Call to a member function|ArgumentCountError|Too few arguments|Undefined constant|Uncaught TypeError|ParseError|Parse error)/';
+    private const FATAL = '/(Call to undefined method|Call to undefined function|Call to a member function|ArgumentCountError|Too few arguments|Undefined constant|Uncaught TypeError|ParseError|Parse error|Allowed memory size|Cannot use object of type)/';
 
     // The three documentation sources this gate covers.
     private function docs(): array
@@ -277,7 +277,7 @@ class ReadmeExamplesTest extends TestCase
     {
         $ran = 0;
         $failures = [];
-        $sdk = __DIR__ . '/../solardemo_sdk.php';
+        $sdk = __DIR__ . '/../voxgigsolardemo_sdk.php';
 
         // BATCHED. One php process for every runnable snippet, not one each.
         // A repo with 277 entities documents hundreds of examples, and a
@@ -317,20 +317,14 @@ class ReadmeExamplesTest extends TestCase
 
             $driver = $dir . '/_driver.php';
             file_put_contents($driver, $this->batchDriver($paths));
-            $out = [];
-            $rc = 0;
-            exec('php ' . escapeshellarg($driver) . ' 2>&1', $out, $rc);
-            $text = implode("\n", $out);
+            [$text, $rc] = $this->runOutput('php ' . escapeshellarg($driver));
 
             foreach ($runnable as $i => $blk) {
                 $seg = $this->batchSegment($text, $i);
                 if ($seg === null) {
                     // No END marker: the batch died inside or before this
                     // snippet. Re-run it alone so the verdict is isolated.
-                    $solo = [];
-                    $src = 0;
-                    exec('php ' . escapeshellarg($paths[$i]) . ' 2>&1', $solo, $src);
-                    $seg = implode("\n", $solo);
+                    [$seg, $src] = $this->runOutput('php ' . escapeshellarg($paths[$i]));
                     $rc = $src;
                 }
                 if (preg_match(self::FATAL, $seg) === 1) {
@@ -353,6 +347,33 @@ class ReadmeExamplesTest extends TestCase
      * in flight, so the harness can tell "this one died" from "the batch
      * stopped before reaching it", and re-run only what it must.
      */
+    private function runOutput(string $command): array
+    {
+        // A printed entity can include the client graph. Scan the stream;
+        // retaining all output (and a second joined copy) exhausts PHP's heap.
+        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes);
+        if (!is_resource($process)) throw new RuntimeException('Could not run README example');
+        $summary = '';
+        $tail = '';
+        $reported = false;
+        while (($chunk = fgets($pipes[1], 8192)) !== false) {
+            if (preg_match('/@@VOX(BEGIN|END) [0-9]+/', $chunk, $marker)) {
+                $summary .= "\n" . $marker[0] . "\n";
+                if ($marker[1] === 'BEGIN') $reported = false;
+                $tail = '';
+            }
+            $window = $tail . $chunk;
+            if (!$reported && preg_match(self::FATAL, $window, $error, PREG_OFFSET_CAPTURE)) {
+                $summary .= "\n" . substr($window, max(0, $error[0][1] - 100), 512) . "\n";
+                $reported = true;
+            }
+            // Keep enough overlap to catch an error phrase split by fgets.
+            $tail = substr($window, -256);
+        }
+        fclose($pipes[1]);
+        return [$summary, proc_close($process)];
+    }
+
     private function batchDriver(array $paths): string
     {
         // NOWDOC, not heredoc. The driver is PHP source that must survive

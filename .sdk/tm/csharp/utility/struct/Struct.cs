@@ -1,7 +1,7 @@
+// VENDORED: @voxgig/struct 0.1.1 (csharp/Struct.cs)
+// Source: https://github.com/voxgig/struct @ 3a42881b1d26c75ebbed9f1897f0ba94cf3cf780  [tag: sdk-20260925-1316-0]
+// License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 /* Copyright (c) 2025-2026 Voxgig Ltd. MIT LICENSE. */
-
-// Vendored from github.com/voxgig/struct csharp/Struct.cs — do not edit here;
-// upstream is the canonical source.
 
 // VERSION: @voxgig/struct 0.0.10
 
@@ -2890,6 +2890,9 @@ namespace Voxgig.Struct
                     return inj.DParent;
                 }
 
+                // Clone children and reset inj key index.
+                // The inject child loop will now iterate over the cloned children,
+                // validating them against the current list values.
                 var dpList = (List<object?>)inj.DParent;
                 foreach (var item in Items(inj.DParent))
                 {
@@ -2897,9 +2900,22 @@ namespace Voxgig.Struct
                 }
 
                 Slice(inj.Parent, 0, dpList.Count, true);
-                inj.KeyI = 0;
 
-                return GetProp(inj.DParent, 0);
+                // NOTE: modifying inj! This extends the child value loop in inject
+                // to cover every cloned child.
+                for (int ckeyI = Size(inj.Keys); ckeyI < Size(inj.Parent); ckeyI++)
+                {
+                    inj.Keys.Add(StrKey(ckeyI));
+                }
+
+                // Restart the child value loop at the first element (the loop
+                // increments keyI on resume) so that the first element is also
+                // validated against the child template.
+                inj.KeyI = -1;
+
+                // SKIP leaves the cloned child template in place at the first
+                // element so the resumed loop can validate it.
+                return SKIP;
             }
 
             return NONE;
@@ -2925,7 +2941,6 @@ namespace Voxgig.Struct
 
             inj.SetVal(inj.DParent, 2);
             inj.Path = (List<object?>)Slice(inj.Path, -1)!;
-            inj.Key = StrKey(GetElem(inj.Path, -1)) ?? S_MT;
 
             var tvals = (List<object?>)Slice(inj.Parent, 1)!;
             if (0 == Size(tvals))
@@ -2936,14 +2951,19 @@ namespace Voxgig.Struct
                 return null;
             }
 
+            // GetProp answers null for a missing key where ts hands the nested
+            // call `undefined`, so `$NIL` rejected every optional entry the
+            // caller omitted and no default client could be constructed.
+            object? dval = inj.DParent ?? NONE;
+
             foreach (object? tval in tvals)
             {
                 var terrs = new List<object?>();
                 var vstore = (Dictionary<string, object?>)Merge(
                     new List<object?> { new Dictionary<string, object?>(), store }, 1)!;
-                vstore[S_DTOP] = inj.DParent;
+                vstore[S_DTOP] = dval;
 
-                object? vcurrent = Validate(inj.DParent, tval, new InjectState
+                object? vcurrent = Validate(dval, tval, new InjectState
                 {
                     Extra = vstore,
                     Errs = terrs,

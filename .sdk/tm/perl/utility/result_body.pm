@@ -1,4 +1,4 @@
-# Solardemo SDK utility: result_body
+# VoxgigSolardemo SDK utility: result_body
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ my $__dir;
 BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -19,7 +19,7 @@ $REGISTRY{result_body} = sub {
   my $response = $ctx->{response};
   my $result = $ctx->{result};
   if ($result && $response && $response->{json_func}
-    && SolardemoHelpers::rb_truthy($response->{body})) {
+    && VoxgigSolardemoHelpers::rb_truthy($response->{body})) {
     $result->{body} = $response->{json_func}->();
   }
   return $result;

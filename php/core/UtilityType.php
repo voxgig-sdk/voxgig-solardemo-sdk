@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility type
+// VoxgigSolardemo SDK utility type
 
-class SolardemoUtility
+class VoxgigSolardemoUtility
 {
     public mixed $clean = null;
     public mixed $done = null;
@@ -53,9 +53,9 @@ class SolardemoUtility
         }
     }
 
-    public static function copy(SolardemoUtility $src): SolardemoUtility
+    public static function copy(VoxgigSolardemoUtility $src): VoxgigSolardemoUtility
     {
-        $u = new SolardemoUtility();
+        $u = new VoxgigSolardemoUtility();
         $u->clean = $src->clean;
         $u->done = $src->done;
         $u->make_error = $src->make_error;

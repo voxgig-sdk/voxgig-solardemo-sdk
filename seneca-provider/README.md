@@ -1,12 +1,12 @@
-![Seneca Solardemo-Provider](http://senecajs.org/files/assets/seneca-logo.png)
+![Seneca VoxgigSolardemo-Provider](http://senecajs.org/files/assets/seneca-logo.png)
 
-> _Seneca Solardemo-Provider_ is a plugin for [Seneca](http://senecajs.org)
+> _Seneca VoxgigSolardemo-Provider_ is a plugin for [Seneca](http://senecajs.org)
 
 Provides access to the Solar System API using the Seneca _provider_
 convention. Solar System entities are represented as Seneca entities so that
 they can be accessed using the Seneca entity API and messages.
 
-Requests are handled by the [Solar System SDK](https://github.com/voxgig-sdk/solardemo-sdk),
+Requests are handled by the [Solar System SDK](https://github.com/voxgig-sdk/voxgig-solardemo-sdk),
 which is generated from the API's OpenAPI specification. This plugin is
 generated from the same specification by
 [@voxgig/sdkgen](https://github.com/voxgig/sdkgen) — do not edit it by hand,
@@ -17,7 +17,7 @@ Entities
 Tutorial](https://senecajs.org/docs/tutorials/understanding-data-entities.html)
 for more details on the Seneca entity API.
 
-[![build](https://github.com/senecajs/seneca-solardemo-provider/actions/workflows/build.yml/badge.svg)](https://github.com/senecajs/seneca-solardemo-provider/actions/workflows/build.yml)
+[![build](https://github.com/senecajs/seneca-voxgig-solardemo-provider/actions/workflows/build.yml/badge.svg)](https://github.com/senecajs/seneca-voxgig-solardemo-provider/actions/workflows/build.yml)
 
 | This open source module is sponsored and supported by [Voxgig](https://voxgig.com). |
 | --- |
@@ -48,29 +48,29 @@ const Seneca = require('seneca')
 const seneca = Seneca()
   .use('promisify')
   .use('entity')
-  .use('env', { var: { $SOLARDEMO_APIKEY: '' } })
+  .use('env', { var: { $VOXGIG_SOLARDEMO_APIKEY: '' } })
   .use('provider', {
     provider: {
-      solardemo: {
-        keys: { apikey: { value: '$SOLARDEMO_APIKEY' } },
+      voxgig-solardemo: {
+        keys: { apikey: { value: '$VOXGIG_SOLARDEMO_APIKEY' } },
       },
     },
   })
-  .use('@seneca/solardemo-provider')
+  .use('@seneca/voxgig-solardemo-provider')
 
 await seneca.ready()
 
 const planets = await seneca
-  .entity('provider/solardemo/planet').list$()
+  .entity('provider/voxgig-solardemo/planet').list$()
 const planet = await seneca
-  .entity('provider/solardemo/planet').load$('some-id')
+  .entity('provider/voxgig-solardemo/planet').load$('some-id')
 ```
 
 
 ## Install
 
 ```sh
-npm install @seneca/solardemo-provider
+npm install @seneca/voxgig-solardemo-provider
 ```
 
 This plugin expects the Seneca host framework to be present:
@@ -84,7 +84,7 @@ npm install seneca seneca-entity seneca-promisify @seneca/provider @seneca/env
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `sdk` | object | Passed straight to the `SolardemoSDK` constructor. Most usefully `base`, to point at a server. |
+| `sdk` | object | Passed straight to the `VoxgigSolardemoSDK` constructor. Most usefully `base`, to point at a server. |
 | `test` | boolean | Run the SDK in offline test mode (in-memory mock transport). |
 | `testopts` | object | Seed and options for the mock, used only when `test` is true. |
 
@@ -92,12 +92,12 @@ npm install seneca seneca-entity seneca-promisify @seneca/provider @seneca/env
 ## Entities
 
 Each API entity is exposed as a Seneca entity under
-`provider/solardemo/<entity>`.
+`provider/voxgig-solardemo/<entity>`.
 
 | Seneca entity | Commands | Fields |
 | --- | --- | --- |
-| `provider/solardemo/moon` | `list$`, `load$`, `save$`, `remove$` | `diameter`, `id`, `kind`, `name`, `planet_id` |
-| `provider/solardemo/planet` | `list$`, `load$`, `save$`, `remove$` | `diameter`, `id`, `kind`, `name` |
+| `provider/voxgig-solardemo/moon` | `list$`, `load$`, `save$`, `remove$` | `diameter`, `id`, `kind`, `name`, `planet_id` |
+| `provider/voxgig-solardemo/planet` | `list$`, `load$`, `save$`, `remove$` | `diameter`, `id`, `kind`, `name` |
 
 ### Nested entities
 
@@ -106,6 +106,50 @@ parent's id in the query. Leaving it out throws with a message naming the
 missing key, rather than failing as an opaque 404 from a half-built URL.
 
 - `moon` requires `planet_id`
+
+### Actions
+
+Some API endpoints are not one of the five CRUD operations — merging a pull
+request, uploading an image. The API definition folds each one into an
+ordinary operation as an alternative route, and this plugin selects one with
+the `action$` directive, alongside Seneca's own `sort$`, `limit$` and
+`fields$`.
+
+| Entity | Action | Route | Command |
+| --- | --- | --- | --- |
+| `planet` | `forbid` | `/api/planet/{planet_id}/forbid` | `save$` |
+| `planet` | `terraform` | `/api/planet/{planet_id}/terraform` | `save$` |
+
+An action returns that action's OWN response, which is not necessarily a
+record of the entity it hangs off — check the API definition for its shape.
+Naming an action the entity does not have throws, and names the ones it
+does have. It never falls back to the plain command.
+
+On `save$`, pass it as a directive. The rest of the entity is the
+action's payload:
+
+```js
+const planet = seneca.entity('provider/voxgig-solardemo/planet')
+
+await planet
+  .make$({ id: 'some-id', /* ...the action's own arguments */ })
+  .directive$({ action$: 'forbid' })
+  .save$()
+```
+
+> **`make$({ action$: 'forbid' })` does not work**, and cannot.
+> `seneca-entity`'s `make$` copies only keys without a `$`, plus the four
+> directives it knows by name (`id$`, `merge$`, `custom$`, `directive$`),
+> so any other trailing-`$` key is dropped before this plugin sees it —
+> there is nothing left for it to refuse. Use `directive$` as above, or
+> assign the property to an entity you already made:
+>
+> ```js
+> const p = planet.make$({ id: 'some-id' })
+> p.action$ = 'forbid'
+> await p.save$()
+> ```
+
 
 
 ## Action Patterns
@@ -118,15 +162,15 @@ whose logs cannot be read.
 
 | Pattern | Description |
 | --- | --- |
-| `sys:provider,provider:solardemo,get:info` | Plugin and SDK version information. |
-| `sys:entity,cmd:list,zone:provider,base:solardemo,name:moon` | List records. |
-| `sys:entity,cmd:load,zone:provider,base:solardemo,name:moon` | Load one record. |
-| `sys:entity,cmd:save,zone:provider,base:solardemo,name:moon` | Create or update a record. |
-| `sys:entity,cmd:remove,zone:provider,base:solardemo,name:moon` | Remove a record. |
-| `sys:entity,cmd:list,zone:provider,base:solardemo,name:planet` | List records. |
-| `sys:entity,cmd:load,zone:provider,base:solardemo,name:planet` | Load one record. |
-| `sys:entity,cmd:save,zone:provider,base:solardemo,name:planet` | Create or update a record. |
-| `sys:entity,cmd:remove,zone:provider,base:solardemo,name:planet` | Remove a record. |
+| `sys:provider,provider:voxgig-solardemo,get:info` | Plugin and SDK version information. |
+| `sys:entity,cmd:list,zone:provider,base:voxgig-solardemo,name:moon` | List records. |
+| `sys:entity,cmd:load,zone:provider,base:voxgig-solardemo,name:moon` | Load one record. |
+| `sys:entity,cmd:save,zone:provider,base:voxgig-solardemo,name:moon` | Create or update a record. |
+| `sys:entity,cmd:remove,zone:provider,base:voxgig-solardemo,name:moon` | Remove a record. |
+| `sys:entity,cmd:list,zone:provider,base:voxgig-solardemo,name:planet` | List records. |
+| `sys:entity,cmd:load,zone:provider,base:voxgig-solardemo,name:planet` | Load one record. |
+| `sys:entity,cmd:save,zone:provider,base:voxgig-solardemo,name:planet` | Create or update a record. |
+| `sys:entity,cmd:remove,zone:provider,base:voxgig-solardemo,name:planet` | Remove a record. |
 
 
 
@@ -138,7 +182,7 @@ The SDK ships an in-memory mock transport, so this plugin can be exercised
 with no server:
 
 ```js
-.use('@seneca/solardemo-provider', { test: true, testopts: { entity: { ... } } })
+.use('@seneca/voxgig-solardemo-provider', { test: true, testopts: { entity: { ... } } })
 ```
 
 `testopts` is passed straight to the SDK's test constructor; `entity`
@@ -147,14 +191,14 @@ seeds the mock store. See `test/seed.js` for the shape.
 ### Running against a server
 
 ```js
-.use('@seneca/solardemo-provider', { sdk: { base: 'http://localhost:8901' } })
+.use('@seneca/voxgig-solardemo-provider', { sdk: { base: 'http://localhost:8901' } })
 ```
 
 The companion test server is distributed in the SDK's source repository
 only. From a checkout beside this one:
 
 ```sh
-cd ../app && npm start
+cd .sdksrc/voxgig-solardemo-sdk/app && npm start
 ```
 
 Then `node test/live.js` reads from it, and `node test/quick.js` runs a
@@ -179,19 +223,19 @@ short bridge between the two.
 
 ## Support
 
-- Issues and bugs: [GitHub issues](https://github.com/senecajs/seneca-solardemo-provider/issues)
+- Issues and bugs: [GitHub issues](https://github.com/senecajs/seneca-voxgig-solardemo-provider/issues)
 - Seneca community: [senecajs.org](http://senecajs.org)
 
 
 ## API
 
-### Plugin export: `SolardemoProvider/sdk`
+### Plugin export: `VoxgigSolardemoProvider/sdk`
 
-Returns the configured `SolardemoSDK` instance, for the operations
+Returns the configured `VoxgigSolardemoSDK` instance, for the operations
 the entity API does not cover:
 
 ```js
-const sdk = seneca.export('SolardemoProvider/sdk')()
+const sdk = seneca.export('VoxgigSolardemoProvider/sdk')()
 ```
 
 
@@ -210,4 +254,4 @@ examples, extra testing, or new features, please get in touch.
 
 Generated by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen) from the
 Solar System API definition, against the
-[@voxgig-sdk/solardemo](https://www.npmjs.com/package/@voxgig-sdk/solardemo) SDK.
+[@voxgig-sdk/voxgig-solardemo-sdk](https://www.npmjs.com/package/@voxgig-sdk/voxgig-solardemo-sdk) SDK.

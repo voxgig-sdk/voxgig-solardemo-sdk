@@ -1,15 +1,15 @@
-# Solardemo TypeScript SDK
+# VoxgigSolardemo TypeScript SDK
 
 
 
-The TypeScript SDK for the Solardemo API — a type-safe, entity-oriented client with full async/await support.
+The TypeScript SDK for the VoxgigSolardemo API — a type-safe, entity-oriented client with full async/await support.
 
 The API is exposed as capitalised, semantic **Entities** — e.g.
 `client.Moon()` — each with a small set of operations (`list`, `load`, `create`, `update`, `remove`)
 instead of raw URL paths and query parameters. This keeps the surface
 predictable and low-friction for both humans and AI agents.
 
-> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go`, `go-cli`, `go-mcp`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `zig` — see
+> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go`, `go-cli`, `go-mcp`, `haskell`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `zig` — see
 > the [top-level README](../README.md).
 
 
@@ -17,7 +17,7 @@ predictable and low-friction for both humans and AI agents.
 This package is not yet published to npm. Install it from the GitHub
 release tag (`ts/vX.Y.Z`):
 
-- Releases: [https://github.com/voxgig-sdk/solardemo-sdk/releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)
+- Releases: [https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)
 
 
 ## Tutorial: your first API call
@@ -28,9 +28,9 @@ loading a specific record.
 ### 1. Create a client
 
 ```ts
-import { SolardemoSDK } from '@voxgig-sdk/solardemo'
+import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo-sdk'
 
-const client = new SolardemoSDK()
+const client = new VoxgigSolardemoSDK()
 ```
 
 ### 2. List moon records
@@ -162,7 +162,7 @@ console.log(fetchdef.headers)
 Create a mock client for unit testing — no server required:
 
 ```ts
-const client = SolardemoSDK.test()
+const client = VoxgigSolardemoSDK.test()
 
 const moon = await client.Moon().list()
 // moon is the entity, populated with mock response data
@@ -173,7 +173,7 @@ console.log(moon)
 You can also use the instance method:
 
 ```ts
-const client = new SolardemoSDK()
+const client = new VoxgigSolardemoSDK()
 const testClient = client.tester()
 ```
 
@@ -208,7 +208,7 @@ const logger = {
   },
 }
 
-const client = new SolardemoSDK({
+const client = new VoxgigSolardemoSDK({
   extend: [logger],
 })
 ```
@@ -218,7 +218,7 @@ const client = new SolardemoSDK({
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -227,15 +227,20 @@ Then run:
 cd ts && npm test
 ```
 
+Live entity tests continue independent operations after errors and attempt
+supported cleanup. Their final result reports failures and missing prerequisites
+after the remaining work completes. The model and test inputs determine which
+API operations the generated scenarios cover.
+
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 #### Constructor
 
 ```ts
-new SolardemoSDK(options?: {
+new VoxgigSolardemoSDK(options?: {
   base?: string
   prefix?: string
   suffix?: string
@@ -262,13 +267,13 @@ new SolardemoSDK(options?: {
 | `direct(fetchargs?)` | `Promise<DirectResult>` | Build and send an HTTP request. |
 | `Moon(data?)` | `MoonEntity` | Create a Moon entity instance. |
 | `Planet(data?)` | `PlanetEntity` | Create a Planet entity instance. |
-| `tester(testopts?, sdkopts?)` | `SolardemoSDK` | Create a test-mode client instance. |
+| `tester(testopts?, sdkopts?)` | `VoxgigSolardemoSDK` | Create a test-mode client instance. |
 
 #### Static methods
 
 | Method | Returns | Description |
 | --- | --- | --- |
-| `SolardemoSDK.test(testopts?, sdkopts?)` | `SolardemoSDK` | Create a test-mode client. |
+| `VoxgigSolardemoSDK.test(testopts?, sdkopts?)` | `VoxgigSolardemoSDK` | Create a test-mode client. |
 
 ### Entity interface
 
@@ -286,7 +291,7 @@ All entities share the same interface.
 | `data` | `data(data?: Partial<Entity>): Entity` | Get or set entity data. |
 | `match` | `match(match?: Partial<Entity>): Partial<Entity>` | Get or set entity match criteria. |
 | `make` | `make(): Entity` | Create a new instance with the same options. |
-| `client` | `client(): SolardemoSDK` | Return the parent SDK client. |
+| `client` | `client(): VoxgigSolardemoSDK` | Return the parent SDK client. |
 | `entopts` | `entopts(): object` | Return a copy of the entity options. |
 
 #### Return values
@@ -468,7 +473,7 @@ const planet = await client.Planet().create({
 
 ## Features
 
-This SDK ships 2 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -477,12 +482,110 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`secrets`](#secrets) | Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens |
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### secrets
 
-Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens.
+Secrets.
 
 | Option | Default |
 |---|---|
@@ -500,13 +603,28 @@ activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -547,8 +665,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **SecretsFeature**: Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -556,9 +681,9 @@ were added, so later features can override earlier ones.
 ### Module structure
 
 ```
-solardemo/
+voxgig-solardemo/
 ├── src/
-│   ├── SolardemoSDK.ts        # Main SDK class
+│   ├── VoxgigSolardemoSDK.ts        # Main SDK class
 │   ├── entity/             # Entity implementations
 │   ├── feature/            # Built-in features (Base, Test, Log)
 │   └── utility/            # Utility functions
@@ -569,7 +694,7 @@ solardemo/
 Import the SDK from the package root:
 
 ```ts
-import { SolardemoSDK } from '@voxgig-sdk/solardemo'
+import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo-sdk'
 ```
 
 ### Entity state

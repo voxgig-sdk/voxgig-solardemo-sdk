@@ -1,9 +1,9 @@
-# Solardemo SDK error
+# VoxgigSolardemo SDK error
 
 use strict;
 use warnings;
 
-package SolardemoError;
+package VoxgigSolardemoError;
 
 use overload
   '""'     => sub { defined $_[0]->{msg} ? $_[0]->{msg} : '' },
@@ -14,7 +14,7 @@ sub new {
   my ($class, $code, $msg, $ctx) = @_;
   return bless {
     is_sdk_error => 1,
-    sdk          => 'Solardemo',
+    sdk          => 'VoxgigSolardemo',
     code         => (defined $code ? $code : ''),
     msg          => (defined $msg ? $msg : ''),
     ctx          => $ctx,

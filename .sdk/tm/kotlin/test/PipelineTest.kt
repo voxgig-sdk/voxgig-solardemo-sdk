@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 import KOTLINPACKAGE.core.Context
 import KOTLINPACKAGE.core.Entity
 import KOTLINPACKAGE.core.Operation
-import KOTLINPACKAGE.core.SolardemoSDK
+import KOTLINPACKAGE.core.VoxgigSolardemoSDK
 import KOTLINPACKAGE.core.Response
 import KOTLINPACKAGE.core.Result
 import KOTLINPACKAGE.core.SdkError
@@ -29,11 +29,11 @@ import KOTLINPACKAGE.sdktest.FeatureHarness.fhResponse
 @Suppress("UNCHECKED_CAST")
 class PipelineTest {
 
-  private fun plClient(sdkopts: MutableMap<String, Any?>?): SolardemoSDK {
-    return SolardemoSDK.testSDK(null, sdkopts)
+  private fun plClient(sdkopts: MutableMap<String, Any?>?): VoxgigSolardemoSDK {
+    return VoxgigSolardemoSDK.testSDK(null, sdkopts)
   }
 
-  private fun plCtx(client: SolardemoSDK, utility: Utility, ctrl: MutableMap<String, Any?>?): Context {
+  private fun plCtx(client: VoxgigSolardemoSDK, utility: Utility, ctrl: MutableMap<String, Any?>?): Context {
     val ctxmap = linkedMapOf<String, Any?>()
     ctxmap["opname"] = "load"
     ctxmap["client"] = client
@@ -464,7 +464,7 @@ class PipelineTest {
     return f
   }
 
-  private fun names(client: SolardemoSDK): String {
+  private fun names(client: VoxgigSolardemoSDK): String {
     val out = StringBuilder()
     for (i in client.features.indices) {
       if (i > 0) {

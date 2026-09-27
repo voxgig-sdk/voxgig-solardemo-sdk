@@ -1,6 +1,6 @@
-# Solardemo Clojure — Agent Guide
+# VoxgigSolardemo Clojure — Agent Guide
 
-The Clojure client for the Solardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Clojure client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `clojure/` directory.
@@ -26,7 +26,7 @@ make test
 
 | Source | Path | Edit when… |
 | --- | --- | --- |
-| Target definition | `.sdk/model/target/clojure.aon` | deps, module, extension, phases change |
+| Target definition | `.sdk/model/target/clojure.aontu` | deps, module, extension, phases change |
 | Templates | `.sdk/tm/clojure/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
 | Components | `.sdk/src/cmp/clojure/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
 
@@ -37,12 +37,20 @@ component.* After editing a component run `npm run build` before
 ## Features in this target
 
 Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aon`; customise
+default activation come from `.sdk/model/feature/<name>.aontu`; customise
 the runtime under `.sdk/tm/clojure/feature/` and regenerate.
 
 | Feature | Runtime file | Active hooks |
 | --- | --- | --- |
-| **test** — In-memory mock transport for testing without a live server | `feature/test_feature.clj` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **debug** — Debug capture | `feature/debug_feature.clj` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `feature/idempotency_feature.clj` | `PreRequest` |
+| **metrics** — Metrics | `feature/metrics_feature.clj` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `feature/paging_feature.clj` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `feature/ratelimit_feature.clj` | — |
+| **retry** — Retry | `feature/retry_feature.clj` | — |
+| **secrets** — Secrets | `feature/secrets_feature.clj` | `PreSpec` |
+| **test** — Test transport | `feature/test_feature.clj` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `feature/timeout_feature.clj` | — |
 
 ---
 

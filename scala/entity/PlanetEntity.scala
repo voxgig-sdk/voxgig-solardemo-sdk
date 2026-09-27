@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.entity
+package voxgig.voxgigsolardemosdk.entity
 
 import java.util.{LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, Entity, Helpers, SdkClient}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.{Context, Entity, Helpers, SdkClient}
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
-// Planet entity client for the Solardemo SDK.
+// Planet entity client for the VoxgigSolardemo SDK.
 class PlanetEntity(client0: SdkClient, entopts0: JMap[String, Object]) extends EntityBase("planet", client0, entopts0) {
 
   override def make(): Entity = {

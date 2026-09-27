@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.{Map => JMap}
 

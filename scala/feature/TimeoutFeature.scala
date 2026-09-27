@@ -1,9 +1,9 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{Map => JMap}
 import java.util.concurrent.{CompletableFuture, CompletionException, TimeUnit, TimeoutException}
 import java.util.function.Supplier
-import voxgig.solardemosdk.core.{Context, FetcherFn, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, FetcherFn, SdkClient}
 
 // Per-request timeout: races each attempt against a deadline.
 class TimeoutFeature extends BaseFeature("timeout", "0.0.1", true) {

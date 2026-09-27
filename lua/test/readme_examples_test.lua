@@ -15,7 +15,7 @@
 --      is neither runnable nor an explicit comment-only placeholder FAILS
 --      the gate, so no runnable example can be silently skipped.
 
-local SDK_MODULE = "solardemo_sdk"
+local SDK_MODULE = "voxgig-solardemo_sdk"
 
 -- A test-mode client seeded with a fixture for every entity. The constructor
 -- of each runnable snippet is rewritten to this form so the offline mock has

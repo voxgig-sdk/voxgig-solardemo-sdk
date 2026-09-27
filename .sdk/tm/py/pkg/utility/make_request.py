@@ -1,8 +1,8 @@
-# Solardemo SDK utility: make_request
+# VoxgigSolardemo SDK utility: make_request
 
 from __future__ import annotations
-from projectname_sdk.core.response import SolardemoResponse
-from projectname_sdk.core.result import SolardemoResult
+from projectname_sdk.core.response import VoxgigSolardemoResponse
+from projectname_sdk.core.result import VoxgigSolardemoResult
 
 
 def make_request_util(ctx):
@@ -16,8 +16,8 @@ def make_request_util(ctx):
     spec = ctx.spec
     utility = ctx.utility
 
-    response = SolardemoResponse({})
-    result = SolardemoResult({})
+    response = VoxgigSolardemoResponse({})
+    result = VoxgigSolardemoResult({})
     ctx.result = result
 
     if spec is None:
@@ -42,11 +42,11 @@ def make_request_util(ctx):
     if fetch_err is not None:
         response.err = fetch_err
     elif fetched is None:
-        response = SolardemoResponse({
+        response = VoxgigSolardemoResponse({
             "err": ctx.make_error("request_no_response", "response: undefined"),
         })
     elif isinstance(fetched, dict):
-        response = SolardemoResponse(fetched)
+        response = VoxgigSolardemoResponse(fetched)
     else:
         response.err = ctx.make_error("request_invalid_response", "response: invalid type")
 

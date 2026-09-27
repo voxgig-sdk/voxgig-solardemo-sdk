@@ -5,7 +5,7 @@ const config = {
   root: __dirname+'/../dist/Root.js',
   folder: __dirname+'/../..',
   meta: {
-    name: 'solardemo'
+    name: 'voxgig-solardemo'
   },
   model: {
     folder: __dirname+'/../model',

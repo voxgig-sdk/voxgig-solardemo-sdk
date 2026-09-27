@@ -1,10 +1,10 @@
-// Minimal C test harness for the Solardemo SDK test binaries. Each test
+// Minimal C test harness for the VoxgigSolardemo SDK test binaries. Each test
 // file #includes this and "api.h", runs checks via CHECK/CHECK_EQ_STR/etc.,
 // and ends its main() with TEST_SUMMARY(name) which prints a
 // "<name>: N checks, M failed" line and returns non-zero on any failure.
 
-#ifndef SOLARDEMO_CTEST_H
-#define SOLARDEMO_CTEST_H
+#ifndef VOXGIGSOLARDEMO_CTEST_H
+#define VOXGIGSOLARDEMO_CTEST_H
 
 #include "api.h"
 
@@ -55,4 +55,4 @@ static int CT_FAILS = 0;
     return CT_FAILS == 0 ? 0 : 1;                                             \
   } while (0)
 
-#endif // SOLARDEMO_CTEST_H
+#endif // VOXGIGSOLARDEMO_CTEST_H

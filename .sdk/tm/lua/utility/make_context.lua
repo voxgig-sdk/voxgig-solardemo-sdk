@@ -1,4 +1,4 @@
--- Solardemo SDK utility: make_context
+-- VoxgigSolardemo SDK utility: make_context
 
 local Context = require("core.context")
 

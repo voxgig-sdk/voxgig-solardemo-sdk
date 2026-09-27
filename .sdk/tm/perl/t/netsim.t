@@ -1,5 +1,5 @@
 #!perl
-# Solardemo SDK netsim test
+# VoxgigSolardemo SDK netsim test
 #
 # Network-behaviour simulation over the offline mock transport. The test
 # feature accepts an optional "net" config so unit tests can exercise slow,
@@ -14,24 +14,24 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use Time::HiRes ();
 
-use SolardemoSDK;
+use VoxgigSolardemoSDK;
 
 {
-  my $sdk = SolardemoSDK->test({ 'net' => { 'offline' => 1 } }, undef);
+  my $sdk = VoxgigSolardemoSDK->test({ 'net' => { 'offline' => 1 } }, undef);
   my $res = $sdk->direct({ 'path' => '/ping' });
   ok(!$res->{ok}, 'offline network must fail the call');
   ok(defined $res->{err}, 'offline network yields an error');
 }
 
 {
-  my $sdk = SolardemoSDK->test({ 'net' => { 'failTimes' => 1, 'failStatus' => 503 } }, undef);
+  my $sdk = VoxgigSolardemoSDK->test({ 'net' => { 'failTimes' => 1, 'failStatus' => 503 } }, undef);
   my $res = $sdk->direct({ 'path' => '/ping' });
   ok(!$res->{ok}, 'failStatus simulation fails the call');
   is($res->{status}, 503, 'simulated failure status is surfaced');
 }
 
 {
-  my $sdk = SolardemoSDK->test({ 'net' => { 'errorTimes' => 1 } }, undef);
+  my $sdk = VoxgigSolardemoSDK->test({ 'net' => { 'errorTimes' => 1 } }, undef);
   my $res = $sdk->direct({ 'path' => '/ping' });
   ok(!$res->{ok}, 'errorTimes simulation fails the call');
   like('' . $res->{err}, qr/connection error/i, 'errorTimes yields a connection error');
@@ -39,7 +39,7 @@ use SolardemoSDK;
 
 {
   my $delay = 60;
-  my $sdk = SolardemoSDK->test({ 'net' => { 'latency' => $delay } }, undef);
+  my $sdk = VoxgigSolardemoSDK->test({ 'net' => { 'latency' => $delay } }, undef);
   my $start = Time::HiRes::time();
   $sdk->direct({ 'path' => '/ping' });
   my $elapsed = int((Time::HiRes::time() - $start) * 1000);
@@ -48,7 +48,7 @@ use SolardemoSDK;
 }
 
 {
-  my $sdk = SolardemoSDK->test(undef, undef);
+  my $sdk = VoxgigSolardemoSDK->test(undef, undef);
   ok(defined $sdk, 'plain test SDK still works with no net simulation');
 }
 

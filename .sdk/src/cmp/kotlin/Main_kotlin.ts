@@ -4,7 +4,8 @@ import * as Path from 'node:path'
 import {
   cmp, each,
   File, Copy, Folder, Fragment,
-  TEST_CONTROL_EXCLUDE
+  TEST_CONTROL_EXCLUDE,
+  pluginExcludes
 } from '@voxgig/sdkgen'
 
 
@@ -21,11 +22,13 @@ import {
 
 import { Package } from './Package_kotlin'
 import { Config } from './Config_kotlin'
+import { Schema } from './Schema_kotlin'
 import { Gitignore } from './Gitignore_kotlin'
 import { MainEntity } from './MainEntity_kotlin'
 import { EntityBase } from './EntityBase_kotlin'
 import { EntityTypes } from './EntityTypes_kotlin'
 import { SdkError } from './SdkError_kotlin'
+import { PrepareAuth } from './PrepareAuth_kotlin'
 import { kotlinPackage } from './utility_kotlin'
 
 
@@ -48,15 +51,18 @@ const Main = cmp(async function Main(props: any) {
   // token used throughout the templates (package/import statements).
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
       KOTLINPACKAGE: kotlinpackage,
+
+      'com.voxgig.sekreto': kotlinpackage + '.feature.secrets.sekreto',
     }
   })
 
-  // Shared entity runtime (entity/EntityBase.kt).
   EntityBase({ target })
+
+  PrepareAuth({ target })
 
   // Generate the client class and config in core/.
   Folder({ name: 'core' }, () => {
@@ -75,7 +81,6 @@ const Main = cmp(async function Main(props: any) {
           }
         },
 
-        // Entities - injected at SLOT
         () => {
           each(entity, (entity: ModelEntity) => {
             const entitySDK = getModelPath(model, `main.${KIT}.entity.${entity.name}`)
@@ -86,6 +91,7 @@ const Main = cmp(async function Main(props: any) {
     })
 
     Config({ target })
+    Schema({ target })
 
     // Generate the typed reference-model file (<Name>Types.kt) beside the
     // other generated core files. Documentation/DX shapes only — not wired

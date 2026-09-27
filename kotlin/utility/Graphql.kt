@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Result
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Result
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // GraphQL transport. API-INDEPENDENT: every GraphQL SDK this generator
 // produces uses this file unchanged. The API-specific part — which

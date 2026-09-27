@@ -1,5 +1,5 @@
-# Solardemo SDK utility: feature_add
-module SolardemoUtilities
+# VoxgigSolardemo SDK utility: feature_add
+module VoxgigSolardemoUtilities
   # Features can position themselves relative to an already-added feature
   # via `_options` ("__before__" / "__after__" / "__replace__"), set by the
   # caller on `extend` feature instances — mirrors the ts featureAdd. The

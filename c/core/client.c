@@ -1,4 +1,4 @@
-// SolardemoSDK client (generated — mirrors the rust Main fragment).
+// VoxgigSolardemoSDK client (generated — mirrors the rust Main fragment).
 
 #include "api.h"
 
@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-SolardemoSDK* solardemo_sdk_new(voxgig_value* options) {
-  SolardemoSDK* sdk = (SolardemoSDK*)calloc(1, sizeof(SolardemoSDK));
+VoxgigSolardemoSDK* voxgigsolardemo_sdk_new(voxgig_value* options) {
+  VoxgigSolardemoSDK* sdk = (VoxgigSolardemoSDK*)calloc(1, sizeof(VoxgigSolardemoSDK));
   sdk->mode = strdup("live");
   sdk->options = voxgig_new_undef();
   sdk->utility = utility_new();
@@ -79,7 +79,7 @@ SolardemoSDK* solardemo_sdk_new(voxgig_value* options) {
   return sdk;
 }
 
-voxgig_value* sdk_prepare(SolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err) {
+voxgig_value* sdk_prepare(VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err) {
   *err = NULL;
   Utility* utility = sdk->utility;
   (void)utility;
@@ -143,18 +143,18 @@ static voxgig_value* err_map(const char* msg) {
 }
 
 // Is this raw-access op permitted by the SDK's allow.op option?
-static bool sdk_op_allowed(SolardemoSDK* sdk, const char* op) {
+static bool sdk_op_allowed(VoxgigSolardemoSDK* sdk, const char* op) {
   voxgig_value* allow_op = getpath2(sdk->options, "allow", "op");
   if (!voxgig_is_string(allow_op)) return false;
   return NULL != strstr(voxgig_as_string(allow_op), op);
 }
 
-static voxgig_value* sdk_op_denied(SolardemoSDK* sdk, const char* op) {
+static voxgig_value* sdk_op_denied(VoxgigSolardemoSDK* sdk, const char* op) {
   voxgig_value* allow_op = getpath2(sdk->options, "allow", "op");
   const char* allow = voxgig_is_string(allow_op) ? voxgig_as_string(allow_op) : "";
   char msg[512];
   snprintf(msg, sizeof(msg),
-    "SolardemoSDK: %s: operation not allowed by"
+    "VoxgigSolardemoSDK: %s: operation not allowed by"
     " SDK option allow.op value: \"%s\"", op, allow);
   return err_map(msg);
 }
@@ -164,7 +164,7 @@ static voxgig_value* sdk_op_denied(SolardemoSDK* sdk, const char* op) {
 // fetchargs: a caller-supplied marker would let anyone opt straight back out
 // of the gate by passing it.
 static voxgig_value* sdk_raw_request(
-  SolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err) {
+  VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err) {
   *err = NULL;
   Utility* utility = sdk->utility;
 
@@ -230,7 +230,7 @@ static voxgig_value* sdk_raw_request(
 // Raw endpoint access is operator-controllable, like every entity op.
 // Blocking it means denying BOTH the 'direct' and 'graphql' tokens, since
 // either one reaches the same endpoint.
-voxgig_value* sdk_direct(SolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err) {
+voxgig_value* sdk_direct(VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err) {
   *err = NULL;
 
   if (!sdk_op_allowed(sdk, "direct")) {
@@ -251,7 +251,7 @@ voxgig_value* sdk_direct(SolardemoSDK* sdk, voxgig_value* fetchargs, PNError** e
 //
 // NOTE: like sdk_direct, this bypasses the feature pipeline — no retry,
 // ratelimit or paging features apply.
-voxgig_value* sdk_graphql(SolardemoSDK* sdk, const char* query,
+voxgig_value* sdk_graphql(VoxgigSolardemoSDK* sdk, const char* query,
                           voxgig_value* variables, voxgig_value* ctrl,
                           PNError** err) {
   *err = NULL;
@@ -284,7 +284,7 @@ voxgig_value* sdk_graphql(SolardemoSDK* sdk, const char* query,
     const char* m = get_str(first, "message");
     if (!m || '\0' == m[0]) m = "graphql error";
     char msg[512];
-    snprintf(msg, sizeof(msg), "SolardemoSDK: graphql: %s", m);
+    snprintf(msg, sizeof(msg), "VoxgigSolardemoSDK: graphql: %s", m);
     setp(res, "ok", v_bool(false));
     setp(res, "err", v_str(msg));
     setp(res, "graphql", v_share(errors));
@@ -295,17 +295,17 @@ voxgig_value* sdk_graphql(SolardemoSDK* sdk, const char* query,
 
 
 // Moon entity bound to this client.
-Entity* solardemo_moon(SolardemoSDK* client, voxgig_value* entopts) {
+Entity* voxgigsolardemo_moon(VoxgigSolardemoSDK* client, voxgig_value* entopts) {
   return moon_entity_new(client, entopts);
 }
 
 // Planet entity bound to this client.
-Entity* solardemo_planet(SolardemoSDK* client, voxgig_value* entopts) {
+Entity* voxgigsolardemo_planet(VoxgigSolardemoSDK* client, voxgig_value* entopts) {
   return planet_entity_new(client, entopts);
 }
 
 
-SolardemoSDK* test_sdk(voxgig_value* testopts, voxgig_value* sdkopts) {
+VoxgigSolardemoSDK* test_sdk(voxgig_value* testopts, voxgig_value* sdkopts) {
   sdkopts = voxgig_is_map(sdkopts) ? voxgig_clone(sdkopts) : voxgig_new_map();
   testopts = voxgig_is_map(testopts) ? voxgig_clone(testopts) : voxgig_new_map();
   setp(testopts, "active", v_bool(true));
@@ -314,7 +314,7 @@ SolardemoSDK* test_sdk(voxgig_value* testopts, voxgig_value* sdkopts) {
   voxgig_value* path = clist(2, v_str("feature"), v_str("test"));
   voxgig_setpath(sdkopts, path, testopts, NULL);
 
-  SolardemoSDK* sdk = solardemo_sdk_new(sdkopts);
+  VoxgigSolardemoSDK* sdk = voxgigsolardemo_sdk_new(sdkopts);
   free(sdk->mode);
   sdk->mode = strdup("test");
   return sdk;

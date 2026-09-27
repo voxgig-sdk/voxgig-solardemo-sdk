@@ -1,4 +1,4 @@
-# Solardemo SDK utility: graphql
+# VoxgigSolardemo SDK utility: graphql
 #
 # GraphQL transport. API-INDEPENDENT: every GraphQL SDK this generator
 # produces uses this file unchanged. The API-specific part — which
@@ -26,7 +26,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -40,10 +40,10 @@ our $GRAPHQL_CONTENT_TYPE = 'application/json';
 sub graphql_error_code {
   my ($gqlerr) = @_;
 
-  my $ext = SolardemoHelpers::gp($gqlerr, 'extensions');
+  my $ext = VoxgigSolardemoHelpers::gp($gqlerr, 'extensions');
 
-  my $raw = SolardemoHelpers::gp($ext, 'code');
-  $raw = SolardemoHelpers::gp($ext, 'type') if !defined $raw || '' eq $raw;
+  my $raw = VoxgigSolardemoHelpers::gp($ext, 'code');
+  $raw = VoxgigSolardemoHelpers::gp($ext, 'type') if !defined $raw || '' eq $raw;
   $raw = defined $raw ? uc("$raw") : '';
 
   return 'request_auth'
@@ -65,7 +65,7 @@ sub graphql_error_code {
 $REGISTRY{graphql_body} = sub {
   my ($ctx) = @_;
 
-  my $gql = SolardemoHelpers::gp($ctx->{point}, 'graphql');
+  my $gql = VoxgigSolardemoHelpers::gp($ctx->{point}, 'graphql');
   return undef unless ref($gql) eq 'HASH';
 
   # reqmatch/reqdata hold the caller's arguments for THIS call; data/match
@@ -82,14 +82,14 @@ $REGISTRY{graphql_body} = sub {
 
   my %variables;
 
-  my $varlist = SolardemoHelpers::gp($gql, 'vars');
+  my $varlist = VoxgigSolardemoHelpers::gp($gql, 'vars');
   $varlist = [] unless ref($varlist) eq 'ARRAY';
 
   for my $spec (@$varlist) {
     next unless ref($spec) eq 'HASH';
 
-    my $name = SolardemoHelpers::gp($spec, 'name');
-    my $from = SolardemoHelpers::gp($spec, 'from');
+    my $name = VoxgigSolardemoHelpers::gp($spec, 'name');
+    my $from = VoxgigSolardemoHelpers::gp($spec, 'from');
     next unless defined $name;
 
     if (!defined $from || '' eq $from) {
@@ -105,13 +105,13 @@ $REGISTRY{graphql_body} = sub {
 
     # Only send variables the caller actually supplied: sending an explicit
     # null would clear a field on many APIs.
-    my $val = SolardemoHelpers::gp($reqsrc, $from);
-    $val = SolardemoHelpers::gp($datasrc, $from) unless defined $val;
+    my $val = VoxgigSolardemoHelpers::gp($reqsrc, $from);
+    $val = VoxgigSolardemoHelpers::gp($datasrc, $from) unless defined $val;
     $variables{$name} = $val if defined $val;
   }
 
   return {
-    query     => SolardemoHelpers::gp($gql, 'doc'),
+    query     => VoxgigSolardemoHelpers::gp($gql, 'doc'),
     variables => \%variables,
   };
 };
@@ -128,14 +128,14 @@ $REGISTRY{graphql_errors} = sub {
   my $result = $ctx->{result};
   return 0 unless $result && $ctx->{point};
 
-  my $kind = SolardemoHelpers::gp($ctx->{point}, 'kind');
+  my $kind = VoxgigSolardemoHelpers::gp($ctx->{point}, 'kind');
   return 0 unless defined $kind && 'graphql' eq $kind;
 
-  my $errors = SolardemoHelpers::gp($result->{body}, 'errors');
+  my $errors = VoxgigSolardemoHelpers::gp($result->{body}, 'errors');
   return 0 unless ref($errors) eq 'ARRAY' && 0 < scalar(@$errors);
 
   my $first = $errors->[0];
-  my $msg = SolardemoHelpers::gp($first, 'message');
+  my $msg = VoxgigSolardemoHelpers::gp($first, 'message');
   $msg = 'graphql error' unless defined $msg && '' ne $msg;
   $msg = $msg . ' (+' . (scalar(@$errors) - 1) . ' more)'
     if 1 < scalar(@$errors);

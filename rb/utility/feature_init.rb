@@ -1,6 +1,6 @@
-# Solardemo SDK utility: feature_init
+# VoxgigSolardemo SDK utility: feature_init
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   FeatureInit = ->(ctx, f) {
     fname = f.get_name
     fopts = {}

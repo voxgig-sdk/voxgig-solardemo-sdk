@@ -1,6 +1,6 @@
-# Solardemo SDK helpers
+# VoxgigSolardemo SDK helpers
 
-module SolardemoHelpers
+module VoxgigSolardemoHelpers
   def self.to_map(v)
     v.is_a?(Hash) ? v : nil
   end

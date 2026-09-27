@@ -1,4 +1,4 @@
-// SolardemoError — the SDK error type (mirrors core/error.rs).
+// VoxgigSolardemoError — the SDK error type (mirrors core/error.rs).
 
 #include "sdk.h"
 
@@ -15,7 +15,7 @@ static char* dup_str(const char* s) {
 
 PNError* pn_error_new(const char* code, const char* msg) {
   PNError* e = (PNError*)calloc(1, sizeof(PNError));
-  e->sdk = dup_str("Solardemo");
+  e->sdk = dup_str("VoxgigSolardemo");
   e->code = dup_str(code);
   e->msg = dup_str(msg);
   e->result = NULL;

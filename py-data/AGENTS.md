@@ -1,18 +1,18 @@
-# Solardemo Data — agent guide
+# VoxgigSolardemo Data — agent guide
 
-Notebook-oriented pandas access to the Solardemo API. If you are writing an
+Notebook-oriented pandas access to the VoxgigSolardemo API. If you are writing an
 analysis cell, use THIS package; if you are writing an application, use the
 sibling SDK at `../py` instead.
 
 ## Getting a client
 
 ```python
-from solardemo_data import data
+from voxgigsolardemo_data import data
 ad = data()
 ```
 
 Credentials resolve from, in order: the `token=` argument, the Colab secret
-`SOLARDEMO_APIKEY`, then the environment variable `SOLARDEMO_APIKEY`.
+`VOXGIG_SOLARDEMO_APIKEY`, then the environment variable `VOXGIG_SOLARDEMO_APIKEY`.
 Do not construct the SDK client directly and do not read env vars yourself —
 `data()` already does both.
 

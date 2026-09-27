@@ -11,21 +11,21 @@ using Xunit;
 
 using Voxgig.Struct;
 
-using SolardemoSdk;
-using SolardemoSdk.Feature;
+using VoxgigSolardemoSdk;
+using VoxgigSolardemoSdk.Feature;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class PipelineTest
 {
     // PlClient builds a client + isolated utility for pipeline utility tests.
-    private static (SolardemoSDK, Utility) PlClient(Dictionary<string, object?>? sdkopts)
+    private static (VoxgigSolardemoSDK, Utility) PlClient(Dictionary<string, object?>? sdkopts)
     {
-        var client = SolardemoSDK.TestSDK(null, sdkopts);
+        var client = VoxgigSolardemoSDK.TestSDK(null, sdkopts);
         return (client, client.GetUtility());
     }
 
-    private static Context PlCtx(SolardemoSDK client, Utility utility,
+    private static Context PlCtx(VoxgigSolardemoSDK client, Utility utility,
         Dictionary<string, object?>? ctrl)
     {
         var ctxmap = new Dictionary<string, object?>
@@ -48,7 +48,7 @@ public class PipelineTest
             act();
             return "";
         }
-        catch (SolardemoError err)
+        catch (VoxgigSolardemoError err)
         {
             return err.Code;
         }
@@ -152,7 +152,7 @@ public class PipelineTest
         public object? Match(object? match = null) => null;
 
         // The deletion half of the entity contract, mirroring
-        // SolardemoEntityBase: `remove` marks the instance, which keeps the
+        // VoxgigSolardemoEntityBase: `remove` marks the instance, which keeps the
         // data it held but is no longer a live record.
         private bool _deleted = false;
 
@@ -312,7 +312,7 @@ public class PipelineTest
 
     // --- MakeRequest ----------------------------------------------------------
 
-    private static Utility UtilWith(SolardemoSDK client, FetcherFunc fetcher)
+    private static Utility UtilWith(VoxgigSolardemoSDK client, FetcherFunc fetcher)
     {
         var u = client.GetUtility();
         u.Fetcher = fetcher;
@@ -349,7 +349,7 @@ public class PipelineTest
         var ctx = PlCtx(client, utility, null);
         ctx.Spec = ReqSpec();
         var resp = utility.MakeRequest(ctx);
-        Assert.True(resp.Err is SolardemoError pe && pe.Code == "boom",
+        Assert.True(resp.Err is VoxgigSolardemoError pe && pe.Code == "boom",
             $"expected transport error carried, got {resp.Err}");
     }
 

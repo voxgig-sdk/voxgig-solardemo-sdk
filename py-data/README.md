@@ -1,14 +1,14 @@
-# Solardemo Data
+# VoxgigSolardemo Data
 
 Solar System as **pandas DataFrames**, for data analysts working in
 notebooks. Built on the sibling [Python SDK](../py) in this repo.
 
 ```python
 # Not yet on PyPI — install both packages from this repo:
-!pip install "git+https://github.com/voxgig-sdk/solardemo-sdk#subdirectory=py" \
-             "git+https://github.com/voxgig-sdk/solardemo-sdk#subdirectory=py-data"
+!pip install "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk#subdirectory=py" \
+             "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk#subdirectory=py-data"
 
-from solardemo_data import data
+from voxgigsolardemo_data import data
 
 ad = data()
 df = ad.moons()          # every page, flattened, typed -> DataFrame
@@ -24,26 +24,26 @@ This package is not on PyPI yet. Install it and the SDK it wraps straight
 from the repo — in a notebook, prefix with `!`:
 
 ```sh
-pip install "git+https://github.com/voxgig-sdk/solardemo-sdk#subdirectory=py" \
-            "git+https://github.com/voxgig-sdk/solardemo-sdk#subdirectory=py-data"
+pip install "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk#subdirectory=py" \
+            "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk#subdirectory=py-data"
 ```
 
-Released versions are tagged at https://github.com/voxgig-sdk/solardemo-sdk/releases.
+Released versions are tagged at https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases.
 
 ## Credentials
 
 `data()` looks in three places, in order, and stops at the first hit:
 
 1. the `token=` / `base_url=` arguments
-2. **Colab secrets** — `SOLARDEMO_APIKEY`
+2. **Colab secrets** — `VOXGIG_SOLARDEMO_APIKEY`
 3. **environment variables** — the same names
 
-In Colab, open the key panel in the left sidebar, add `SOLARDEMO_APIKEY`, and
+In Colab, open the key panel in the left sidebar, add `VOXGIG_SOLARDEMO_APIKEY`, and
 switch on notebook access for it. Elsewhere:
 
 ```python
 import os
-os.environ["SOLARDEMO_APIKEY"] = "your-api-key"
+os.environ["VOXGIG_SOLARDEMO_APIKEY"] = "your-api-key"
 ```
 
 ## Accessors

@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 @SuppressWarnings({"unchecked"})
 final class PreparePath {

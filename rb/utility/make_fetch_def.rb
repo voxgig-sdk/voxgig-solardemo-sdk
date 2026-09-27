@@ -1,12 +1,12 @@
-# Solardemo SDK utility: make_fetch_def
+# VoxgigSolardemo SDK utility: make_fetch_def
 require_relative 'struct/voxgig_struct'
 require_relative '../core/result'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   MakeFetchDef = ->(ctx) {
     spec = ctx.spec
     return nil, ctx.make_error("fetchdef_no_spec", "Expected context spec property to be defined.") unless spec
 
-    ctx.result = SolardemoResult.new({}) unless ctx.result
+    ctx.result = VoxgigSolardemoResult.new({}) unless ctx.result
     spec.step = "prepare"
 
     url, err = ctx.utility.make_url.call(ctx)

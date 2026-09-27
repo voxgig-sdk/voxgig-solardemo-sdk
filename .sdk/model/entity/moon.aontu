@@ -1,0 +1,343 @@
+# Entity: moon
+
+main: kit: entity: moon: {
+
+  alias: field: {}
+
+  fields: {
+    diameter: {
+      fo: "float"
+      h: "Diameter"
+      n: "diameter"
+      r: true
+      t: "`$NUMBER`"
+    }
+    id: {
+      h: "Id"
+      n: "id"
+      r: true
+      t: "`$STRING`"
+    }
+    kind: {
+      h: "Kind"
+      n: "kind"
+      r: true
+      t: "`$STRING`"
+    }
+    name: {
+      h: "Name"
+      n: "name"
+      r: true
+      t: "`$STRING`"
+    }
+    planet_id: {
+      h: "Planet Id"
+      n: "planet_id"
+      r: true
+      t: "`$STRING`"
+    }
+  }
+
+  id: {
+    field: "id"
+    name: "id"
+  }
+
+  name: "moon"
+  op: {
+    create: {
+      name: "create"
+      points: [
+        {
+          co: {
+            id: "POST /api/planet/{planet_id}/moon"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "planet_id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "POST"
+          o: "/api/planet/{planet_id}/moon"
+          q: {
+            exist: [
+              "planet_id"
+            ]
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "planet_id"
+            }
+            {
+              lit: "moon"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    list: {
+      name: "list"
+      points: [
+        {
+          co: {
+            id: "GET /api/planet/{planet_id}/moon"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "planet_id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "GET"
+          o: "/api/planet/{planet_id}/moon"
+          q: {
+            exist: [
+              "planet_id"
+            ]
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "planet_id"
+            }
+            {
+              lit: "moon"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    load: {
+      name: "load"
+      points: [
+        {
+          co: {
+            id: "GET /api/planet/{planet_id}/moon/{moon_id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "moon_id"
+                r: true
+                t: "`$STRING`"
+              }
+              {
+                k: "param"
+                n: "planet_id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "GET"
+          o: "/api/planet/{planet_id}/moon/{moon_id}"
+          q: {
+            exist: [
+              "id"
+              "planet_id"
+            ]
+          }
+          r: {
+            param: {
+              moon_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "planet_id"
+            }
+            {
+              lit: "moon"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    remove: {
+      name: "remove"
+      points: [
+        {
+          co: {
+            id: "DELETE /api/planet/{planet_id}/moon/{moon_id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "moon_id"
+                r: true
+                t: "`$STRING`"
+              }
+              {
+                k: "param"
+                n: "planet_id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "DELETE"
+          o: "/api/planet/{planet_id}/moon/{moon_id}"
+          q: {
+            exist: [
+              "id"
+              "planet_id"
+            ]
+          }
+          r: {
+            param: {
+              moon_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "planet_id"
+            }
+            {
+              lit: "moon"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    update: {
+      name: "update"
+      points: [
+        {
+          co: {
+            id: "PUT /api/planet/{planet_id}/moon/{moon_id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "moon_id"
+                r: true
+                t: "`$STRING`"
+              }
+              {
+                k: "param"
+                n: "planet_id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "PUT"
+          o: "/api/planet/{planet_id}/moon/{moon_id}"
+          q: {
+            exist: [
+              "id"
+              "planet_id"
+            ]
+          }
+          r: {
+            param: {
+              moon_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "planet_id"
+            }
+            {
+              lit: "moon"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+  }
+
+
+  relations: ancestors: [
+    [path("$.main.kit.entity.planet")]
+  ]
+
+}

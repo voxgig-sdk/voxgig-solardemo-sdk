@@ -10,7 +10,7 @@ trait Entity {
   def matchArgs(args: Object*): Object
 }
 
-// The full CRUD entity contract of the Solardemo SDK. Every generated
+// The full CRUD entity contract of the VoxgigSolardemo SDK. Every generated
 // entity implements every operation; unsupported operations throw an
 // SdkError at runtime (see Helpers.unsupportedOp).
 trait SdkEntity extends Entity {
@@ -25,7 +25,7 @@ trait SdkEntity extends Entity {
   def stream(action: String, args: JMap[String, Object], callopts: JMap[String, Object]): Iterator[Object]
 }
 
-// A Solardemo SDK feature. Hook methods are dispatched by name via the
+// A VoxgigSolardemo SDK feature. Hook methods are dispatched by name via the
 // featureHook utility. Concrete features extend BaseFeature and override the
 // hooks they need.
 trait Feature {

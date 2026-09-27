@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: prepare_path
+// VoxgigSolardemo SDK utility: prepare_path
 
-class SolardemoPreparePath
+class VoxgigSolardemoPreparePath
 {
-    public static function call(SolardemoContext $ctx): string
+    public static function call(VoxgigSolardemoContext $ctx): string
     {
         $point = $ctx->point;
         $parts = [];

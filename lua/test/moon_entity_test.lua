@@ -2,7 +2,7 @@
 
 local json = require("dkjson")
 local vs = require("utility.struct.struct")
-local sdk = require("solardemo_sdk")
+local sdk = require("voxgig-solardemo_sdk")
 local helpers = require("core.helpers")
 local runner = require("test.runner")
 
@@ -70,7 +70,7 @@ describe("MoonEntity", function()
     -- The basic flow consumes synthetic IDs from the fixture. In live mode
     -- without an *_ENTID env override, those IDs hit the live API and 4xx.
     if setup.synthetic_only then
-      pending("live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_MOON_ENTID JSON to run live")
+      pending("live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live")
       return
     end
     local client = setup.client
@@ -184,17 +184,17 @@ function moon_basic_setup(extra)
   -- Detect ENTID env override before envOverride consumes it. When live
   -- mode is on without a real override, the basic test runs against synthetic
   -- IDs from the fixture and 4xx's. Surface this so the test can skip.
-  local entid_env_raw = os.getenv("SOLARDEMO_TEST_MOON_ENTID")
+  local entid_env_raw = os.getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
   local idmap_overridden = entid_env_raw ~= nil and entid_env_raw:match("^%s*{") ~= nil
 
   local env = runner.env_override({
-    ["SOLARDEMO_TEST_MOON_ENTID"] = idmap,
-    ["SOLARDEMO_TEST_LIVE"] = "FALSE",
-    ["SOLARDEMO_TEST_EXPLAIN"] = "FALSE",
+    ["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"] = idmap,
+    ["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE",
+    ["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] = "FALSE",
   })
 
   local idmap_resolved = helpers.to_map(
-    env["SOLARDEMO_TEST_MOON_ENTID"])
+    env["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"])
   if idmap_resolved == nil then
     idmap_resolved = helpers.to_map(idmap)
   end
@@ -202,7 +202,7 @@ function moon_basic_setup(extra)
     idmap_resolved["planet_id"] = idmap_resolved["planet01"]
   end
 
-  if env["SOLARDEMO_TEST_LIVE"] == "TRUE" then
+  if env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE" then
     local merged_opts = vs.merge({
       -- FIRST, so the generated fields below win: sdk-test-control.json's
       -- test.client.options adds to the live client, it does not redirect it.
@@ -214,13 +214,13 @@ function moon_basic_setup(extra)
     client = sdk.new(helpers.to_map(merged_opts))
   end
 
-  local live = env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+  local live = env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
   return {
     client = client,
     data = entity_data,
     idmap = idmap_resolved,
     env = env,
-    explain = env["SOLARDEMO_TEST_EXPLAIN"] == "TRUE",
+    explain = env["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] == "TRUE",
     live = live,
     synthetic_only = live and not idmap_overridden,
     now = os.time() * 1000,

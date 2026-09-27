@@ -1,8 +1,8 @@
-// Solardemo SDK utility: registration - wires every utility
+// VoxgigSolardemo SDK utility: registration - wires every utility
 // implementation onto a Utility instance (called by the Utility
 // constructor).
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

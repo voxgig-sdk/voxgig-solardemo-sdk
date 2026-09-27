@@ -1,9 +1,10 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.core.Utility
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.core.Schema
+import voxgig.voxgigsolardemosdk.core.Utility
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 @Suppress("UNCHECKED_CAST")
 fun makeOptions(ctx: Context): MutableMap<String, Any?> {
@@ -79,28 +80,18 @@ fun makeOptions(ctx: Context): MutableMap<String, Any?> {
     cfgopts = linkedMapOf()
   }
 
-  val optspec = Json.parse(
-    "{" +
-      "\"apikey\": \"\"," +
-      "\"base\": \"http://localhost:8000\"," +
-      "\"prefix\": \"\"," +
-      "\"suffix\": \"\"," +
-      "\"auth\": { \"prefix\": \"\" }," +
-      "\"headers\": { \"`\$CHILD`\": \"`\$STRING`\" }," +
-      "\"allow\": {" +
-      "  \"method\": \"GET,PUT,POST,PATCH,DELETE,OPTIONS\"," +
-      "  \"op\": \"create,update,load,list,remove,command,direct,graphql\"" +
-      "}," +
-      "\"entity\": { \"`\$CHILD`\": {" +
-      "  \"`\$OPEN`\": true, \"active\": false, \"alias\": {} } }," +
-      "\"feature\": { \"`\$CHILD`\": {" +
-      "  \"`\$OPEN`\": true, \"active\": false } }," +
-      "\"utility\": {}," +
-      "\"system\": {}," +
-      "\"test\": { \"active\": false, \"entity\": { \"`\$OPEN`\": true } }," +
-      "\"clean\": { \"keys\": \"key,token,id\" }" +
-      "}",
-  ) as MutableMap<String, Any?>
+  // THE OPTION SPEC IS GENERATED, NOT WRITTEN HERE.
+  //
+  // Built from the model: `main.kit.optspec` for the standard options, plus
+  // one entry per feature this target carries, from that feature's own
+  // `config.options` / `config.optspec`. Editing this file to add an option
+  // would put it back where it was — one of twenty hand-maintained copies of
+  // a schema nothing cross-checked — so add it to the model instead and every
+  // ported target validates it.
+  //
+  // Already parsed, and shared: makeOptions validates AGAINST the spec and
+  // writes into the options, never into the spec.
+  val optspec = Schema.optspec
 
   // Preserve system.fetch before merge/validate.
   var sysFetch = Struct.getpath(opts, listOf("system", "fetch"))

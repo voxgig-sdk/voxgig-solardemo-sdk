@@ -5,7 +5,7 @@ using System.Text.Json;
 using Voxgig.Struct;
 using Xunit;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class PlanetDirectTest
 {
@@ -160,7 +160,7 @@ public class PlanetDirectTest
 
     private class PlanetDirectSetupResult
     {
-        public SolardemoSDK Client = null!;
+        public VoxgigSolardemoSDK Client = null!;
         public List<Dictionary<string, object?>> Calls = new();
         public bool Live;
         public Dictionary<string, object?> Idmap = new();
@@ -174,11 +174,11 @@ public class PlanetDirectTest
 
         var env = TestRunner.EnvOverride(new Dictionary<string, object?>
         {
-            ["SOLARDEMO_TEST_PLANET_ENTID"] = new Dictionary<string, object?>(),
-            ["SOLARDEMO_TEST_LIVE"] = "FALSE",
+            ["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"] = new Dictionary<string, object?>(),
+            ["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE",
         });
 
-        var live = Equals(env["SOLARDEMO_TEST_LIVE"], "TRUE");
+        var live = Equals(env["VOXGIG_SOLARDEMO_TEST_LIVE"], "TRUE");
 
         if (live)
         {
@@ -192,10 +192,10 @@ public class PlanetDirectTest
             {
                 liveOpts[_kv.Key] = _kv.Value;
             }
-            var liveClient = new SolardemoSDK(liveOpts);
+            var liveClient = new VoxgigSolardemoSDK(liveOpts);
 
             var idmap = new Dictionary<string, object?>();
-            var entidRaw = env["SOLARDEMO_TEST_PLANET_ENTID"];
+            var entidRaw = env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"];
             if (entidRaw is string entidStr && entidStr.StartsWith("{"))
             {
                 try
@@ -240,7 +240,7 @@ public class PlanetDirectTest
                 };
             };
 
-        var client = new SolardemoSDK(new Dictionary<string, object?>
+        var client = new VoxgigSolardemoSDK(new Dictionary<string, object?>
         {
             ["base"] = "http://localhost:8080",
             ["system"] = new Dictionary<string, object?>

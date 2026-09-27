@@ -1,8 +1,6 @@
-// Custom utility overrides (mirrors tm/go/test/custom_utility_test.go):
-// caller-supplied callables in options.utility land on utility.custom.
 
-use solardemo_sdk::core::helpers::{call_vfn, getp, jo, vfn};
-use solardemo_sdk::{test_sdk, Value};
+use voxgig_solardemo_sdk::core::helpers::{call_vfn, getp, jo, vfn};
+use voxgig_solardemo_sdk::{test_sdk, Value};
 
 const UTILS: [(&str, &str); 21] = [
     ("auth", "AUTH"),
@@ -33,7 +31,7 @@ fn custom_utility_basic() {
     let utility_opts = Value::empty_map();
     for (key, tag) in UTILS {
         let tag = tag.to_string();
-        solardemo_sdk::core::helpers::setp(
+        voxgig_solardemo_sdk::core::helpers::setp(
             &utility_opts,
             key,
             vfn(move |_v| jo(vec![("util", Value::str(tag.clone()))])),

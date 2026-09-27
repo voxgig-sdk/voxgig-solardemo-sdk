@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{LinkedHashMap, Map => JMap}
 import java.util.concurrent.ThreadLocalRandom
-import voxgig.solardemosdk.core.{Context, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, SdkClient}
 
 // Idempotency keys for mutating operations. Adds an `Idempotency-Key`
 // header (name configurable via `header`) to unsafe requests so a server

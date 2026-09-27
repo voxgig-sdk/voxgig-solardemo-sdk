@@ -1,8 +1,8 @@
-// Solardemo SDK utility: makeFetchDef.
+// VoxgigSolardemo SDK utility: makeFetchDef.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

@@ -1,4 +1,4 @@
-# Solardemo SDK omni runner smoke test
+# VoxgigSolardemo SDK omni runner smoke test
 #
 # Smoke tests for the VENDORED omni runner itself. A runner that cannot FAIL
 # a bad entry would turn every corpus suite vacuously green, so the failure
@@ -10,10 +10,10 @@
 # lists, no OMNI block - the lenient v0 format the shared corpus uses), so
 # these tests depend on no fixture file.
 
-defmodule Solardemo.OmniSmokeTest do
+defmodule VoxgigSolardemo.OmniSmokeTest do
   use ExUnit.Case
 
-  alias Solardemo.Omni, as: O
+  alias VoxgigSolardemo.Omni, as: O
 
   @spec_smoke %{
     "primary" => %{
@@ -52,7 +52,7 @@ defmodule Solardemo.OmniSmokeTest do
   end
 
   defp pack do
-    runner = O.make_runner(@spec_smoke, Solardemo.test())
+    runner = O.make_runner(@spec_smoke, VoxgigSolardemo.test())
     runner.("smoke")
   end
 

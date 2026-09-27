@@ -1,4 +1,4 @@
-// Solardemo SDK entities (generated).
+// VoxgigSolardemo SDK entities (generated).
 
 pub mod moon;
 pub mod planet;

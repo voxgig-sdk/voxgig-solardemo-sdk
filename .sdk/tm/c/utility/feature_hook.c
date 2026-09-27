@@ -7,7 +7,7 @@
 #include <string.h>
 
 void feature_hook_util(Context* ctx, const char* name) {
-  SolardemoSDK* client = ctx->client;
+  VoxgigSolardemoSDK* client = ctx->client;
   if (!client) return;
 
   size_t n = client->features_len;

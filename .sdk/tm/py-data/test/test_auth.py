@@ -1,4 +1,4 @@
-# Solardemo Data — credential discovery tests.
+# VoxgigSolardemo Data — credential discovery tests.
 
 from __future__ import annotations
 

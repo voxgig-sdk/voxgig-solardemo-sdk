@@ -1,4 +1,4 @@
--- Solardemo SDK shared configuration
+-- VoxgigSolardemo SDK shared configuration
 
 local make_config = require("config")
 

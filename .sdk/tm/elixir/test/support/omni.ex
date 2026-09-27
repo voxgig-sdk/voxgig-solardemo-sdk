@@ -1,11 +1,11 @@
-# ProjectName SDK corpus test runner: the vendored @voxgig/omni engine driven
+# VoxgigSolardemo SDK corpus test runner: the vendored @voxgig/omni engine driven
 # through its NATIVE API (`Voxgig.Omni.Runner.make_runner/2`), presented to the
 # corpus suites in the runner shape they already use (`:spec`, `:runset`,
 # `:runsetflags`, `:client`). No compatibility shim is vendored: the adapter
 # below IS the whole bridge, per language, per the vendor-tag rollout
 # (docs/design/vendor-tag-rollout.md, Decision 4). It is the Elixir peer of
 # tm/lua/test/omni.lua, tm/rb/test/omni.rb, tm/clojure/test/sdk/test/omni.clj
-# and tm/swift/Tests/ProjectNameSDKTests/OmniResolver.swift.
+# and tm/swift/Tests/VoxgigSolardemoSDKTests/OmniResolver.swift.
 #
 # Five local decisions, each load-bearing:
 #
@@ -71,7 +71,7 @@
 # tuple and the provider carries `@livekey`, so neither is ever rebuilt as
 # corpus data and no cyclic SDK object is ever walked.
 
-defmodule ProjectName.Omni do
+defmodule VoxgigSolardemo.Omni do
   alias Voxgig.Omni.Runner
   alias Voxgig.Omni.Util, as: U
   alias Voxgig.Struct, as: S
@@ -268,7 +268,7 @@ defmodule ProjectName.Omni do
   # (omni stamps the provider onto every ctx/args map entry as "client").
 
   defp sdkprovider(client) do
-    utility = ProjectName.get_utility(client)
+    utility = VoxgigSolardemo.get_utility(client)
 
     %{
       @livekey => true,
@@ -279,7 +279,7 @@ defmodule ProjectName.Omni do
       subject: fn name -> wrapsubject(lookup(utility, name)) end,
       # A DEF.client entry becomes another SDK instance, rewrapped with the
       # same shape rather than a bare hook map.
-      client: fn options -> sdkprovider(ProjectName.test(nil, tostruct(options))) end,
+      client: fn options -> sdkprovider(VoxgigSolardemo.test(nil, tostruct(options))) end,
       # Client options may reference the runner store.
       inject: fn options, store ->
         toomni(S.inject(tostruct(options), tostruct(store)), false)
@@ -308,7 +308,7 @@ defmodule ProjectName.Omni do
   # how a refusal is asserted by kind rather than by message text. The ctx
   # an SDK error carries is NOT mirrored: it reaches the client, which
   # reaches the root ctx, which reaches the client again.
-  def errify(%ProjectName.Error{} = err) do
+  def errify(%VoxgigSolardemo.Error{} = err) do
     %{"name" => "Error", "message" => Exception.message(err), "code" => err.code || ""}
   end
 

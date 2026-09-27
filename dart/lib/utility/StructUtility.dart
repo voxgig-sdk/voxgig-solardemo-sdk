@@ -1,4 +1,4 @@
-// Struct utility surface for the Solardemo SDK.
+// Struct utility surface for the VoxgigSolardemo SDK.
 //
 // Wraps the vendored voxgig struct port (voxgig_struct.dart) as an instance
 // whose members mirror the donor (ts) StructUtility class shape. Function

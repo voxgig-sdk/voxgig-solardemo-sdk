@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
-	"github.com/voxgig-sdk/solardemo-sdk/go/core"
+	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 )
 
 func TestPlanetDirect(t *testing.T) {
@@ -41,14 +41,14 @@ func TestPlanetDirect(t *testing.T) {
 			// against an arbitrary public API, so the default SKIPS here.
 			// A project that owns its test server sets strict and FAILS.
 			if err != nil {
-				t.Skipf("list call failed (likely synthetic IDs against live API): %v", err)
+				t.Fatalf("list call failed (likely synthetic IDs against live API): %v", err)
 			}
 			if result["ok"] != true {
-				t.Skipf("list call not ok (likely synthetic IDs against live API): %v", result)
+				t.Fatalf("list call not ok (likely synthetic IDs against live API): %v", result)
 			}
 			status := core.ToInt(result["status"])
 			if status < 200 || status >= 300 {
-				t.Skipf("expected 2xx status, got %v", result["status"])
+				t.Fatalf("expected 2xx status, got %v", result["status"])
 			}
 		} else {
 			if err != nil {
@@ -102,10 +102,10 @@ func TestPlanetDirect(t *testing.T) {
 				"params": listParams,
 			})
 			if listErr != nil {
-				t.Skipf("list call failed (likely synthetic IDs against live API): %v", listErr)
+				t.Fatalf("list call failed (likely synthetic IDs against live API): %v", listErr)
 			}
 			if listResult["ok"] != true {
-				t.Skipf("list call not ok (likely synthetic IDs against live API): %v", listResult)
+				t.Fatalf("list call not ok (likely synthetic IDs against live API): %v", listResult)
 			}
 
 			// Get first entity ID from list
@@ -131,14 +131,14 @@ func TestPlanetDirect(t *testing.T) {
 			// the IDs we can construct from setup.idmap — unless the model
 			// sets main.kit.test.live.strict.
 			if err != nil {
-				t.Skipf("load call failed (likely synthetic IDs against live API): %v", err)
+				t.Fatalf("load call failed (likely synthetic IDs against live API): %v", err)
 			}
 			if result["ok"] != true {
-				t.Skipf("load call not ok (likely synthetic IDs against live API): %v", result)
+				t.Fatalf("load call not ok (likely synthetic IDs against live API): %v", result)
 			}
 			status := core.ToInt(result["status"])
 			if status < 200 || status >= 300 {
-				t.Skipf("expected 2xx status, got %v", result["status"])
+				t.Fatalf("expected 2xx status, got %v", result["status"])
 			}
 		} else {
 			if err != nil {
@@ -182,7 +182,7 @@ func TestPlanetDirect(t *testing.T) {
 }
 
 type planetDirectSetupResult struct {
-	client *sdk.SolardemoSDK
+	client *sdk.VoxgigSolardemoSDK
 	calls  *[]map[string]any
 	live   bool
 	idmap  map[string]any
@@ -194,11 +194,11 @@ func planetDirectSetup(mockres any) *planetDirectSetupResult {
 	calls := &[]map[string]any{}
 
 	env := envOverride(map[string]any{
-		"SOLARDEMO_TEST_PLANET_ENTID": map[string]any{},
-		"SOLARDEMO_TEST_LIVE":    "FALSE",
+		"VOXGIG_SOLARDEMO_TEST_PLANET_ENTID": map[string]any{},
+		"VOXGIG_SOLARDEMO_TEST_LIVE":    "FALSE",
 	})
 
-	live := env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+	live := env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
 
 	if live {
 		// sdk-test-control.json's test.client.options seeds the live
@@ -211,10 +211,10 @@ func planetDirectSetup(mockres any) *planetDirectSetupResult {
 		} {
 			mergedOpts[k] = v
 		}
-		client := sdk.NewSolardemoSDK(mergedOpts)
+		client := sdk.NewVoxgigSolardemoSDK(mergedOpts)
 
 		idmap := map[string]any{}
-		if entidRaw, ok := env["SOLARDEMO_TEST_PLANET_ENTID"]; ok {
+		if entidRaw, ok := env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"]; ok {
 			if entidStr, ok := entidRaw.(string); ok && strings.HasPrefix(entidStr, "{") {
 				json.Unmarshal([]byte(entidStr), &idmap)
 			} else if entidMap, ok := entidRaw.(map[string]any); ok {
@@ -240,7 +240,7 @@ func planetDirectSetup(mockres any) *planetDirectSetupResult {
 		}, nil
 	}
 
-	client := sdk.NewSolardemoSDK(map[string]any{
+	client := sdk.NewVoxgigSolardemoSDK(map[string]any{
 		"base": "http://localhost:8080",
 		"system": map[string]any{
 			"fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),

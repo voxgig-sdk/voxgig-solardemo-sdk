@@ -1,4 +1,4 @@
-# Solardemo SDK utility registration
+# VoxgigSolardemo SDK utility registration
 require_relative '../core/utility_type'
 require_relative 'clean'
 require_relative 'done'
@@ -31,36 +31,36 @@ require_relative 'result_headers'
 require_relative 'transform_request'
 require_relative 'transform_response'
 
-SolardemoUtility.registrar = ->(u) {
-  u.clean = SolardemoUtilities::Clean
-  u.done = SolardemoUtilities::Done
-  u.make_error = SolardemoUtilities::MakeError
-  u.feature_add = SolardemoUtilities::FeatureAdd
-  u.feature_hook = SolardemoUtilities::FeatureHook
-  u.feature_init = SolardemoUtilities::FeatureInit
-  u.fetcher = SolardemoUtilities::Fetcher
-  u.make_fetch_def = SolardemoUtilities::MakeFetchDef
-  u.make_context = SolardemoUtilities::MakeContext
-  u.make_options = SolardemoUtilities::MakeOptions
-  u.make_request = SolardemoUtilities::MakeRequest
-  u.make_response = SolardemoUtilities::MakeResponse
-  u.make_result = SolardemoUtilities::MakeResult
-  u.make_point = SolardemoUtilities::MakePoint
-  u.make_spec = SolardemoUtilities::MakeSpec
-  u.make_url = SolardemoUtilities::MakeUrl
-  u.param = SolardemoUtilities::Param
-  u.prepare_auth = SolardemoUtilities::PrepareAuth
-  u.prepare_body = SolardemoUtilities::PrepareBody
-  u.prepare_headers = SolardemoUtilities::PrepareHeaders
-  u.prepare_method = SolardemoUtilities::PrepareMethod
-  u.prepare_params = SolardemoUtilities::PrepareParams
-  u.prepare_path = SolardemoUtilities::PreparePath
-  u.prepare_query = SolardemoUtilities::PrepareQuery
-  u.graphql_body = SolardemoUtilities::GraphqlBody
-  u.graphql_errors = SolardemoUtilities::GraphqlErrors
-  u.result_basic = SolardemoUtilities::ResultBasic
-  u.result_body = SolardemoUtilities::ResultBody
-  u.result_headers = SolardemoUtilities::ResultHeaders
-  u.transform_request = SolardemoUtilities::TransformRequest
-  u.transform_response = SolardemoUtilities::TransformResponse
+VoxgigSolardemoUtility.registrar = ->(u) {
+  u.clean = VoxgigSolardemoUtilities::Clean
+  u.done = VoxgigSolardemoUtilities::Done
+  u.make_error = VoxgigSolardemoUtilities::MakeError
+  u.feature_add = VoxgigSolardemoUtilities::FeatureAdd
+  u.feature_hook = VoxgigSolardemoUtilities::FeatureHook
+  u.feature_init = VoxgigSolardemoUtilities::FeatureInit
+  u.fetcher = VoxgigSolardemoUtilities::Fetcher
+  u.make_fetch_def = VoxgigSolardemoUtilities::MakeFetchDef
+  u.make_context = VoxgigSolardemoUtilities::MakeContext
+  u.make_options = VoxgigSolardemoUtilities::MakeOptions
+  u.make_request = VoxgigSolardemoUtilities::MakeRequest
+  u.make_response = VoxgigSolardemoUtilities::MakeResponse
+  u.make_result = VoxgigSolardemoUtilities::MakeResult
+  u.make_point = VoxgigSolardemoUtilities::MakePoint
+  u.make_spec = VoxgigSolardemoUtilities::MakeSpec
+  u.make_url = VoxgigSolardemoUtilities::MakeUrl
+  u.param = VoxgigSolardemoUtilities::Param
+  u.prepare_auth = VoxgigSolardemoUtilities::PrepareAuth
+  u.prepare_body = VoxgigSolardemoUtilities::PrepareBody
+  u.prepare_headers = VoxgigSolardemoUtilities::PrepareHeaders
+  u.prepare_method = VoxgigSolardemoUtilities::PrepareMethod
+  u.prepare_params = VoxgigSolardemoUtilities::PrepareParams
+  u.prepare_path = VoxgigSolardemoUtilities::PreparePath
+  u.prepare_query = VoxgigSolardemoUtilities::PrepareQuery
+  u.graphql_body = VoxgigSolardemoUtilities::GraphqlBody
+  u.graphql_errors = VoxgigSolardemoUtilities::GraphqlErrors
+  u.result_basic = VoxgigSolardemoUtilities::ResultBasic
+  u.result_body = VoxgigSolardemoUtilities::ResultBody
+  u.result_headers = VoxgigSolardemoUtilities::ResultHeaders
+  u.transform_request = VoxgigSolardemoUtilities::TransformRequest
+  u.transform_response = VoxgigSolardemoUtilities::TransformResponse
 }

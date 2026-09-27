@@ -1,4 +1,4 @@
-# Solardemo SDK operation pipeline
+# VoxgigSolardemo SDK operation pipeline
 #
 # run_op drives one operation through the stages, firing feature hooks
 # between them (the generator replaces each marker line with a
@@ -7,9 +7,9 @@
 # by the rescue clause so PreUnexpected still fires — or returns bare
 # resdata when throw_err is disabled, delivered via the :sdk_ret throw.
 
-defmodule Solardemo.Pipeline do
+defmodule VoxgigSolardemo.Pipeline do
   alias Voxgig.Struct, as: S
-  alias Solardemo.Utility
+  alias VoxgigSolardemo.Utility
 
   def run_op(ctx, post_done) do
     out = S.getprop(ctx, "out")

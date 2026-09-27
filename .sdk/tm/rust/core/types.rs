@@ -1,10 +1,9 @@
-// Core traits and shared type aliases (mirrors go core/types.go).
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::response::Response;
 use crate::core::result::SdkResult;
 use crate::core::spec::Spec;
@@ -20,7 +19,6 @@ pub trait Feature {
     fn name(&self) -> String;
     fn active(&self) -> bool;
 
-    /// Ordering options consulted by the featureAdd utility. Default: None.
     fn add_options(&self) -> Option<Value> {
         None
     }
@@ -42,11 +40,8 @@ pub trait Feature {
     fn pre_done(&mut self, _ctx: &Rc<Context>) {}
     fn pre_unexpected(&mut self, _ctx: &Rc<Context>) {}
 
-    /// Non-standard hooks (go dispatches these reflectively; rust routes
-    /// unknown hook names here).
     fn custom_hook(&mut self, _name: &str, _ctx: &Rc<Context>) {}
 
-    /// Hook dispatch by name (called by the featureHook utility).
     fn dispatch(&mut self, name: &str, ctx: &Rc<Context>) {
         match name {
             "PostConstruct" => self.post_construct(ctx),
@@ -77,44 +72,29 @@ pub trait Entity {
     fn data(&self, args: Option<&Value>) -> Value;
     fn matchv(&self, args: Option<&Value>) -> Value;
 
-    /// `remove` resolves to the entity, marked. The instance KEEPS the data
-    /// it held — a caller can still read what was deleted — but it is no
-    /// longer a live record.
     fn mark_deleted(&self);
     fn deleted(&self) -> bool;
 }
 
-/// SolardemoEntity: the full CRUD contract every generated entity
+/// VoxgigSolardemoEntity: the full CRUD contract every generated entity
 /// implements. Ops the API spec doesn't define are runtime-error stubs.
-pub trait SolardemoEntity: Entity + Sized {
-    /// Every operation resolves to the ENTITY, not the raw data — `list` to a
-    /// vector of them, one per record. The record is reached through
-    /// `.data(None)`. See AGENTS.md "Entity operations return ENTITIES".
-    ///
-    /// The receivers are `&Rc<Self>` because the result IS this entity: the
-    /// op absorbs `resdata`/`resmatch` into it and hands the handle back.
-    /// `Value` cannot carry an entity — it is a closed data union
-    /// (Noval|Null|Bool|Num|Str|List|Map|Func|Sentinel) and adding a variant
-    /// to a general-purpose struct library to carry SDK objects would be
-    /// wrong — so the CONTRACT lives in these signatures instead.
-    fn load(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError>;
-    fn list(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, SolardemoError>;
-    fn create(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError>;
-    fn update(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError>;
-    fn remove(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, SolardemoError>;
+pub trait VoxgigSolardemoEntity: Entity + Sized {
+    fn load(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>;
+    fn list(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError>;
+    fn create(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>;
+    fn update(self: &Rc<Self>, reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>;
+    fn remove(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>;
 }
 
 /// Transport: `(ctx, url, fetchdef) -> transport-shaped response map`.
 /// An Ok(Value::Noval) mirrors go's (nil, nil) transport result.
 pub type FetcherFn =
-    Rc<dyn Fn(&Rc<Context>, &str, &Value) -> Result<Value, SolardemoError>>;
+    Rc<dyn Fn(&Rc<Context>, &str, &Value) -> Result<Value, VoxgigSolardemoError>>;
 
-/// Pipeline stage products staged on ctx.out (go stores these in the
-/// untyped ctx.Out map; rust keeps them in one typed enum).
 #[derive(Clone)]
 pub enum OutVal {
     Val(Value),
-    Err(SolardemoError),
+    Err(VoxgigSolardemoError),
     Spec(Rc<RefCell<Spec>>),
     Response(Rc<RefCell<Response>>),
     Result(Rc<RefCell<SdkResult>>),

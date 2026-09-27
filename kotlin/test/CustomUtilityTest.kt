@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 // Custom utility overrides supplied via options.utility land on the utility
 // object's custom map.
@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-import voxgig.solardemosdk.core.SolardemoSDK
-import voxgig.solardemosdk.sdktest.FeatureHarness.fhMap
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhMap
 
 @Suppress("UNCHECKED_CAST")
 class CustomUtilityTest {
@@ -37,7 +37,7 @@ class CustomUtilityTest {
       customUtils[key] = util(key.uppercase())
     }
 
-    val client = SolardemoSDK.testSDK(null, fhMap("apikey", "APIKEY01", "utility", customUtils))
+    val client = VoxgigSolardemoSDK.testSDK(null, fhMap("apikey", "APIKEY01", "utility", customUtils))
 
     val u = client.getUtility()
 

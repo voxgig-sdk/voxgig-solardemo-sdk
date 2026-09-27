@@ -2,10 +2,10 @@
 // ignore_for_file: non_constant_identifier_names
 
 import 'dart:async';
-import '../utility/ErrUtility.dart';import '../SolardemoEntityBase.dart';
+import '../utility/ErrUtility.dart';import '../VoxgigSolardemoEntityBase.dart';
 
-// Typed models: see ../SolardemoTypes.dart (Moon and the per-op request/match types).
-class MoonEntity extends SolardemoEntityBase {
+// Typed models: see ../VoxgigSolardemoTypes.dart (Moon and the per-op request/match types).
+class MoonEntity extends VoxgigSolardemoEntityBase {
   MoonEntity(dynamic client, dynamic entopts) : super(client, entopts) {
     name = 'moon';
     name_ = 'moon';
@@ -18,7 +18,7 @@ class MoonEntity extends SolardemoEntityBase {
 
 
   /// Load a Moon by match (see MoonLoadMatch in
-  /// SolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
   Future<dynamic> load([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -144,7 +144,7 @@ class MoonEntity extends SolardemoEntityBase {
 
 
   /// List Moon entities by match (see MoonListMatch in
-  /// SolardemoTypes.dart). Returns a list of Moon entity instances.
+  /// VoxgigSolardemoTypes.dart). Returns a list of Moon entity instances.
   Future<dynamic> list([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -258,7 +258,7 @@ class MoonEntity extends SolardemoEntityBase {
 
 
   /// Create a Moon (see MoonCreateData in
-  /// SolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
   Future<dynamic> create([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -380,7 +380,7 @@ class MoonEntity extends SolardemoEntityBase {
 
 
   /// Update a Moon (see MoonUpdateData in
-  /// SolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
   Future<dynamic> update([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -506,7 +506,7 @@ class MoonEntity extends SolardemoEntityBase {
 
 
   /// Remove a Moon by match (see MoonRemoveMatch in
-  /// SolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
   Future<dynamic> remove([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 

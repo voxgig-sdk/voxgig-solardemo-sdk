@@ -88,13 +88,13 @@ pub const Fetcher = struct {
 // (Zig error unions cannot carry a payload, so the rich error travels here.)
 pub const OpResult = union(enum) {
     ok: Value,
-    err: *err.SolardemoError,
+    err: *err.VoxgigSolardemoError,
 };
 
 // Pipeline stage products staged on ctx.out.
 pub const OutVal = union(enum) {
     val: Value,
-    err: *err.SolardemoError,
+    err: *err.VoxgigSolardemoError,
     spec: *spec_mod.Spec,
     response: *resp_mod.Response,
     result: *result_mod.SdkResult,

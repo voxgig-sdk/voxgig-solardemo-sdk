@@ -1,4 +1,4 @@
-# ProjectName SDK primary-utility test
+# VoxgigSolardemo SDK primary-utility test
 #
 # The primary corpus (.sdk/test/test.json -> "primary") drives THIS SDK's
 # request-shaping utilities through the VENDORED @voxgig/omni engine, via the
@@ -27,16 +27,16 @@
 #   context state calls `sync/2` to write the observable live-context fields
 #   back onto the ctx map it was given. That map is what omni matches.
 
-defmodule ProjectName.PrimaryUtilityTest do
+defmodule VoxgigSolardemo.PrimaryUtilityTest do
   use ExUnit.Case
 
   alias Voxgig.Struct, as: S
-  alias ProjectName.Omni, as: O
-  alias ProjectName.Utility, as: U
+  alias VoxgigSolardemo.Omni, as: O
+  alias VoxgigSolardemo.Utility, as: U
 
   setup_all do
     testfile = Path.join(File.cwd!(), "../.sdk/test/test.json")
-    sdk = ProjectName.test()
+    sdk = VoxgigSolardemo.test()
     runner = O.make_runner(testfile, sdk)
     {:ok, run: runner.("primary"), sdk: sdk}
   end
@@ -96,14 +96,14 @@ defmodule ProjectName.PrimaryUtilityTest do
   # traverses a cycle. Only the sections that need client defaults ask for it.
   defp livectx(node, opts) do
     sdk = Keyword.fetch!(opts, :sdk)
-    util = ProjectName.get_utility(sdk)
-    rootctx = ProjectName.get_root_ctx(sdk)
+    util = VoxgigSolardemo.get_utility(sdk)
+    rootctx = VoxgigSolardemo.get_root_ctx(sdk)
 
     ctxmap = S.clone(node)
     S.delprop(ctxmap, "client")
     S.delprop(ctxmap, "utility")
 
-    ctx = ProjectName.Context.new(ctxmap, nil)
+    ctx = VoxgigSolardemo.Context.new(ctxmap, nil)
     S.setprop(ctx, "utility", util)
     S.setprop(ctx, "config", S.getprop(rootctx, "config"))
 
@@ -114,19 +114,19 @@ defmodule ProjectName.PrimaryUtilityTest do
     end
 
     specmap = S.getprop(ctxmap, "spec")
-    if S.ismap(specmap), do: S.setprop(ctx, "spec", ProjectName.Spec.new(specmap))
+    if S.ismap(specmap), do: S.setprop(ctx, "spec", VoxgigSolardemo.Spec.new(specmap))
 
     resmap = S.getprop(ctxmap, "result")
 
     if S.ismap(resmap) do
-      result = ProjectName.Result.new(resmap)
+      result = VoxgigSolardemo.Result.new(resmap)
       errmap = S.getprop(resmap, "err")
 
       if S.ismap(errmap) do
         msg = S.getprop(errmap, "message")
 
         if is_binary(msg) and msg != "",
-          do: S.setprop(result, "err", ProjectName.Error.new("", msg, nil))
+          do: S.setprop(result, "err", VoxgigSolardemo.Error.new("", msg, nil))
       end
 
       S.setprop(ctx, "result", result)
@@ -135,7 +135,7 @@ defmodule ProjectName.PrimaryUtilityTest do
     respmap = S.getprop(ctxmap, "response")
 
     if S.ismap(respmap) do
-      response = ProjectName.Response.new(respmap)
+      response = VoxgigSolardemo.Response.new(respmap)
       body = S.getprop(respmap, "body")
       if body != nil, do: S.setprop(response, "json_func", fn -> body end)
 
@@ -253,7 +253,7 @@ defmodule ProjectName.PrimaryUtilityTest do
     # client.
     runsection.("makeContext", fn args ->
       ctxmap = argnode(args, 0)
-      out = ProjectName.Context.new(ctxmap, nil)
+      out = VoxgigSolardemo.Context.new(ctxmap, nil)
       S.delprop(out, "client")
       S.delprop(out, "utility")
       S.delprop(out, "config")
@@ -285,7 +285,7 @@ defmodule ProjectName.PrimaryUtilityTest do
     # and the api key the cases assert on. prepare_auth reads its options off
     # the CLIENT (as the reference does, via client.options()), so the section
     # gets a client built from the same block.
-    specsdk = ProjectName.test(nil, setup_opts(spec, "makeSpec"))
+    specsdk = VoxgigSolardemo.test(nil, setup_opts(spec, "makeSpec"))
     specopts = [sdk: specsdk, client: true]
 
     runsection.("makeSpec", fn args -> ctxrun.(args, specopts, &U.make_spec/1) end)
@@ -293,7 +293,7 @@ defmodule ProjectName.PrimaryUtilityTest do
     runsection.("makeUrl", fn args -> ctxrun.(args, base, &U.make_url/1) end)
 
     runsection.("operator", fn args ->
-      op = ProjectName.Operation.new(argnode(args, 0))
+      op = VoxgigSolardemo.Operation.new(argnode(args, 0))
 
       S.jm([
         "entity", S.getprop(op, "entity"),
@@ -311,7 +311,7 @@ defmodule ProjectName.PrimaryUtilityTest do
       out
     end)
 
-    authsdk = ProjectName.test(nil, setup_opts(spec, "prepareAuth"))
+    authsdk = VoxgigSolardemo.test(nil, setup_opts(spec, "prepareAuth"))
     authopts = [sdk: authsdk, client: true]
 
     runsection.("prepareAuth", fn args -> ctxrun.(args, authopts, &U.prepare_auth/1) end)

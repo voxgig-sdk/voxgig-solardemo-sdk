@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.List;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Feature;
-import voxgig.solardemosdk.core.FeaturePlacement;
-import voxgig.solardemosdk.core.SdkClient;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Feature;
+import voxgig.voxgigsolardemosdk.core.FeaturePlacement;
+import voxgig.voxgigsolardemosdk.core.SdkClient;
 
 // featureAdd appends a feature to the client's feature list. A feature
 // that implements FeaturePlacement (every BaseFeature does, via the

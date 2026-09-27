@@ -8,7 +8,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use Cwd ();
 
-use SolardemoSDK;
+use VoxgigSolardemoSDK;
 require(Cwd::abs_path("$FindBin::Bin/runner.pm"));
 
 DIRECT_LIST: {
@@ -16,7 +16,7 @@ DIRECT_LIST: {
     { 'id' => 'direct01' },
     { 'id' => 'direct02' },
   ]);
-  my ($_should_skip, $_reason) = SolardemoTestRunner::is_control_skipped(
+  my ($_should_skip, $_reason) = VoxgigSolardemoTestRunner::is_control_skipped(
     'direct', 'direct-list-moon', $setup->{live} ? 'live' : 'unit');
   if ($_should_skip) {
     note($_reason || 'skipped via sdk-test-control.json');
@@ -61,7 +61,7 @@ DIRECT_LIST: {
       pass('direct-list-moon: skipped (live)');
       last DIRECT_LIST;
     }
-    my $status = SolardemoHelpers::to_int($result->{status});
+    my $status = VoxgigSolardemoHelpers::to_int($result->{status});
     if ($status < 200 || $status >= 300) {
       note("expected 2xx status, got $status");
       pass('direct-list-moon: skipped (live)');
@@ -72,7 +72,7 @@ DIRECT_LIST: {
   else {
     ok(!defined $result->{err}, 'direct-list-moon: no error');
     ok($result->{ok}, 'direct-list-moon: ok');
-    is(SolardemoHelpers::to_int($result->{status}), 200, 'direct-list-moon: status');
+    is(VoxgigSolardemoHelpers::to_int($result->{status}), 200, 'direct-list-moon: status');
     ok(Voxgig::Struct::islist($result->{data}), 'direct-list-moon: data is array');
     is(scalar @{ $result->{data} }, 2, 'direct-list-moon: data length');
     is(scalar @{ $setup->{calls} }, 1, 'direct-list-moon: 1 call');
@@ -81,7 +81,7 @@ DIRECT_LIST: {
 
 DIRECT_LOAD: {
   my $setup = moon_direct_setup({ 'id' => 'direct01' });
-  my ($_should_skip, $_reason) = SolardemoTestRunner::is_control_skipped(
+  my ($_should_skip, $_reason) = VoxgigSolardemoTestRunner::is_control_skipped(
     'direct', 'direct-load-moon', $setup->{live} ? 'live' : 'unit');
   if ($_should_skip) {
     note($_reason || 'skipped via sdk-test-control.json');
@@ -122,7 +122,7 @@ DIRECT_LOAD: {
       pass('direct-load-moon: skipped (live)');
       last DIRECT_LOAD;
     }
-    my $status = SolardemoHelpers::to_int($result->{status});
+    my $status = VoxgigSolardemoHelpers::to_int($result->{status});
     if ($status < 200 || $status >= 300) {
       note("expected 2xx status, got $status");
       pass('direct-load-moon: skipped (live)');
@@ -133,7 +133,7 @@ DIRECT_LOAD: {
   else {
     ok(!defined $result->{err}, 'direct-load-moon: no error');
     ok($result->{ok}, 'direct-load-moon: ok');
-    is(SolardemoHelpers::to_int($result->{status}), 200, 'direct-load-moon: status');
+    is(VoxgigSolardemoHelpers::to_int($result->{status}), 200, 'direct-load-moon: status');
     ok(defined $result->{data}, 'direct-load-moon: data');
     if (Voxgig::Struct::ismap($result->{data})) {
       is($result->{data}{id}, 'direct01', 'direct-load-moon: id');
@@ -145,23 +145,23 @@ DIRECT_LOAD: {
 
 sub moon_direct_setup {
   my ($mockres) = @_;
-  SolardemoTestRunner::load_env_local();
+  VoxgigSolardemoTestRunner::load_env_local();
 
   my $calls = [];
 
-  my $env = SolardemoTestRunner::env_override({
-    'SOLARDEMO_TEST_MOON_ENTID' => {},
-    'SOLARDEMO_TEST_LIVE' => 'FALSE',
+  my $env = VoxgigSolardemoTestRunner::env_override({
+    'VOXGIG_SOLARDEMO_TEST_MOON_ENTID' => {},
+    'VOXGIG_SOLARDEMO_TEST_LIVE' => 'FALSE',
   });
 
-  my $live = ((($env->{'SOLARDEMO_TEST_LIVE'}) || '') eq 'TRUE') ? 1 : 0;
+  my $live = ((($env->{'VOXGIG_SOLARDEMO_TEST_LIVE'}) || '') eq 'TRUE') ? 1 : 0;
 
   if ($live) {
     # live_client_options() FIRST so the generated fields below win:
     # sdk-test-control.json's test.client.options adds to the live client,
     # it does not redirect it (a later key wins in a Perl hash literal).
-    my $client = SolardemoSDK->new({
-      %{ SolardemoTestRunner::live_client_options() },
+    my $client = VoxgigSolardemoSDK->new({
+      %{ VoxgigSolardemoTestRunner::live_client_options() },
     });
     return {
       'client' => $client,
@@ -185,7 +185,7 @@ sub moon_direct_setup {
     }, undef);
   };
 
-  my $client = SolardemoSDK->new({
+  my $client = VoxgigSolardemoSDK->new({
     'base' => 'http://localhost:8080',
     'system' => {
       'fetch' => $mock_fetch,

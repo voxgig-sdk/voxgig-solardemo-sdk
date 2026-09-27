@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 import java.util.concurrent.ThreadLocalRandom
-import voxgig.solardemosdk.core.{Context, FetcherFn, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, FetcherFn, SdkClient}
 
 // Automatic retry of transient failures with exponential backoff and jitter.
 class RetryFeature extends BaseFeature("retry", "0.0.1", true) {

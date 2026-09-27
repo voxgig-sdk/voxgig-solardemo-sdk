@@ -157,7 +157,7 @@ fn track_attempt_ok(track: *RetryTrack, attempt: i64, res: Value, wait: i64) voi
     track.retries.array.append(entry) catch {};
 }
 
-fn track_attempt_err(track: *RetryTrack, attempt: i64, e: ?*err.SolardemoError, wait: i64) void {
+fn track_attempt_err(track: *RetryTrack, attempt: i64, e: ?*err.VoxgigSolardemoError, wait: i64) void {
     track.attempts += 1;
     const entry = h.omap();
     h.setp(entry, "attempt", h.vnum(attempt));

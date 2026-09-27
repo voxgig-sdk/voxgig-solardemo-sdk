@@ -1,4 +1,4 @@
--- Solardemo SDK utility: prepare_body
+-- VoxgigSolardemo SDK utility: prepare_body
 
 local function prepare_body_util(ctx)
   local op = ctx.op

@@ -1,8 +1,8 @@
-// Solardemo SDK utility: prepareHeaders.
+// VoxgigSolardemo SDK utility: prepareHeaders.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

@@ -1,9 +1,9 @@
-# Solardemo SDK control
+# VoxgigSolardemo SDK control
 
 use strict;
 use warnings;
 
-package SolardemoControl;
+package VoxgigSolardemoControl;
 
 sub new {
   my ($class, $opts) = @_;

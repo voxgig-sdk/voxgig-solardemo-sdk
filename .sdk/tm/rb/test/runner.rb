@@ -1,8 +1,8 @@
-# Solardemo SDK test runner
+# VoxgigSolardemo SDK test runner
 
 require 'json'
 
-module SolardemoTestRunner
+module VoxgigSolardemoTestRunner
   @env = {}
 
   def self.load_env_local
@@ -136,6 +136,6 @@ module SolardemoTestRunner
 end
 
 # Module-level aliases for test convenience.
-Runner = SolardemoTestRunner
-Helpers = SolardemoHelpers
+Runner = VoxgigSolardemoTestRunner
+Helpers = VoxgigSolardemoHelpers
 Vs = VoxgigStruct

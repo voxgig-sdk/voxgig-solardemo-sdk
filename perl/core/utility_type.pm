@@ -1,9 +1,9 @@
-# Solardemo SDK utility type
+# VoxgigSolardemo SDK utility type
 
 use strict;
 use warnings;
 
-package SolardemoUtility;
+package VoxgigSolardemoUtility;
 
 # The utility object is a blessed hash whose members are the named pipeline
 # utilities (fetcher, make_spec, ...), each a coderef called as

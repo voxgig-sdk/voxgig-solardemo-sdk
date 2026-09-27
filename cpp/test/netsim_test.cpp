@@ -1,4 +1,4 @@
-// Solardemo SDK — network-simulation tests over the offline mock transport
+// VoxgigSolardemo SDK — network-simulation tests over the offline mock transport
 // (mirrors java test/NetsimTest.java). The `test` feature's optional `net`
 // block exercises slow / failing / offline conditions with no live server;
 // these drive the transport through direct(), so they run for every SDK.
@@ -11,13 +11,13 @@ using namespace sdk;
 using namespace sdk::fh;
 
 static void offline_simulation_fails_request() {
-  auto client = SolardemoSDK::testSDK(fhMap({{"net", fhMap({{"offline", Value(true)}})}}), Value::undef());
+  auto client = VoxgigSolardemoSDK::testSDK(fhMap({{"net", fhMap({{"offline", Value(true)}})}}), Value::undef());
   Value res = client->direct(fhMap({{"path", Value("/ping")}}));
   ASSERT_EQ_VAL(getp(res, "ok"), Value(false), "offline network must fail the call");
 }
 
 static void failstatus_simulation_surfaces_status() {
-  auto client = SolardemoSDK::testSDK(
+  auto client = VoxgigSolardemoSDK::testSDK(
       fhMap({{"net", fhMap({{"failTimes", Value(1)}, {"failStatus", Value(503)}})}}), Value::undef());
   Value res = client->direct(fhMap({{"path", Value("/ping")}}));
   ASSERT_EQ_VAL(getp(res, "ok"), Value(false), "expected failed call");
@@ -26,7 +26,7 @@ static void failstatus_simulation_surfaces_status() {
 
 static void latency_simulation_delays_request() {
   int delay = 60;
-  auto client = SolardemoSDK::testSDK(fhMap({{"net", fhMap({{"latency", Value(delay)}})}}), Value::undef());
+  auto client = VoxgigSolardemoSDK::testSDK(fhMap({{"net", fhMap({{"latency", Value(delay)}})}}), Value::undef());
   auto start = std::chrono::steady_clock::now();
   client->direct(fhMap({{"path", Value("/ping")}}));
   auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -35,7 +35,7 @@ static void latency_simulation_delays_request() {
 }
 
 static void plain_test_sdk_works_without_net() {
-  auto client = SolardemoSDK::testSDK();
+  auto client = VoxgigSolardemoSDK::testSDK();
   ASSERT_NOTNULL(client, "expected a client");
 }
 

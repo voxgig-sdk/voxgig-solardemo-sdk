@@ -1,6 +1,6 @@
-// Solardemo SDK - per-call control block.
+// VoxgigSolardemo SDK - per-call control block.
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Control
 {

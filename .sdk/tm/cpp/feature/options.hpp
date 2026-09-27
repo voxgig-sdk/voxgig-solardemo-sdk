@@ -1,4 +1,4 @@
-// Solardemo SDK — shared feature option readers (mirrors java
+// VoxgigSolardemo SDK — shared feature option readers (mirrors java
 // feature/FeatureOptions.java). Feature options arrive as struct Value
 // maps; injectable clocks (now/sleep) arrive as struct function Values so
 // tests can drive timing-based features deterministically.

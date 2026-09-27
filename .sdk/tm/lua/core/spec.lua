@@ -1,4 +1,4 @@
--- Solardemo SDK spec
+-- VoxgigSolardemo SDK spec
 
 local Spec = {}
 Spec.__index = Spec

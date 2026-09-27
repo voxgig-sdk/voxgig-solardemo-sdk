@@ -1,20 +1,20 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_point
+// VoxgigSolardemo SDK utility: make_point
 
 require_once __DIR__ . '/../core/Helpers.php';
 
-class SolardemoMakePoint
+class VoxgigSolardemoMakePoint
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         if (isset($ctx->out['point'])) {
             // A PrePoint feature hook (e.g. rbac) can short-circuit endpoint
             // resolution by placing an error in ctx.out.point; surface it as
             // the pipeline error so the network is never touched (the PHP
             // analogue of the TS `ctx.out.point instanceof Error` check).
-            if ($ctx->out['point'] instanceof SolardemoError) {
+            if ($ctx->out['point'] instanceof VoxgigSolardemoError) {
                 return [null, $ctx->out['point']];
             }
             $ctx->point = $ctx->out['point'];
@@ -44,7 +44,7 @@ class SolardemoMakePoint
             $point = null;
             $matched = false;
             foreach ($op->points as $p) {
-                $select_def = SolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($p, 'select'));
+                $select_def = VoxgigSolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($p, 'select'));
                 $found = true;
 
                 if ($selector && $select_def) {
@@ -125,7 +125,7 @@ class SolardemoMakePoint
             if ($reqselector) {
                 $req_action = \Voxgig\Struct\Struct::getprop($reqselector, '$action');
                 if ($req_action && $point) {
-                    $point_select = SolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($point, 'select'));
+                    $point_select = VoxgigSolardemoHelpers::to_map(\Voxgig\Struct\Struct::getprop($point, 'select'));
                     $point_action = \Voxgig\Struct\Struct::getprop($point_select, '$action');
                     if ($req_action !== $point_action) {
                         return [null, $ctx->make_error('point_action_invalid',

@@ -1,4 +1,4 @@
-;; Solardemo SDK test utilities (shared assertion + reporting helpers).
+;; VoxgigSolardemo SDK test utilities (shared assertion + reporting helpers).
 (ns sdk.testutil
   (:require [voxgig.struct :as vs]
             [sdk.core :as core]))

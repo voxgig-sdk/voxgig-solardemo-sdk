@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, SdkClient}
 
 // Client-side role/permission enforcement. Before an operation resolves its
 // endpoint, the required permission is checked against the held permissions;

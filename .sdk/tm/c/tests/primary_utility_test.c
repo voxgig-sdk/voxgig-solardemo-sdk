@@ -16,7 +16,7 @@ static int TESTS = 0;
     fn();                                                                      \
   } while (0)
 
-static SolardemoSDK* C;
+static VoxgigSolardemoSDK* C;
 static Utility* U;
 
 static void base_client(void) {
@@ -483,7 +483,7 @@ static void test_primary_feature_init_inactive(void) {
 
 static void test_primary_fetcher_live(void) {
   voxgig_value* calls = v_list();
-  SolardemoSDK* live = projectname_sdk_new(
+  VoxgigSolardemoSDK* live = projectname_sdk_new(
       cmap(1, "system", cmap(1, "fetch", vfn(pu_sysfetch, calls))));
   Utility* util = sdk_get_utility(live);
   CtxSpec cs;
@@ -503,7 +503,7 @@ static void test_primary_fetcher_live(void) {
 }
 
 static void test_primary_fetcher_blocked_test_mode(void) {
-  SolardemoSDK* blocked = projectname_sdk_new(
+  VoxgigSolardemoSDK* blocked = projectname_sdk_new(
       cmap(1, "system", cmap(1, "fetch", vfn(pu_sysfetch, v_list()))));
   free(blocked->mode);
   blocked->mode = strdup("test");
@@ -524,7 +524,7 @@ static void test_primary_fetcher_blocked_test_mode(void) {
 }
 
 static void test_primary_new_sdk_smoke(void) {
-  SolardemoSDK* client = projectname_sdk_new(v_undef());
+  VoxgigSolardemoSDK* client = projectname_sdk_new(v_undef());
   CHECK_STR_EQ(client->mode, "live", "new sdk mode live");
 }
 

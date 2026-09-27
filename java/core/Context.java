@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 /** Per-operation context threaded through the pipeline and feature hooks. */
 @SuppressWarnings({"unchecked"})
@@ -82,7 +82,8 @@ public class Context {
         this.ctrl = (Control) cv;
       }
     }
-    else if (basectx != null && basectx.ctrl != null) {
+    else if (basectx != null && basectx.ctrl != null
+        && Helpers.getCtxProp(ctxmap, "opname") == null) {
       this.ctrl = basectx.ctrl;
     }
 

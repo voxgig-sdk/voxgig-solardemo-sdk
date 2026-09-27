@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK spec
+// VoxgigSolardemo SDK spec
 
-class SolardemoSpec
+class VoxgigSolardemoSpec
 {
     public array $parts;
     public array $headers;

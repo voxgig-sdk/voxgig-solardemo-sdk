@@ -1,5 +1,5 @@
 #!perl
-# Solardemo SDK entity stream() test
+# VoxgigSolardemo SDK entity stream() test
 #
 # Exercises the generated entity-base stream(action, args, callopts) method.
 # stream() runs an operation through the full pipeline and returns an
@@ -17,28 +17,28 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use Scalar::Util ();
 
-use SolardemoSDK;
+use VoxgigSolardemoSDK;
 
 # True when this SDK was generated with the named feature.
 sub has_feature {
   my ($name) = @_;
-  my $f = SolardemoConfig::make_config()->{feature};
+  my $f = VoxgigSolardemoConfig::make_config()->{feature};
   return (Voxgig::Struct::ismap($f) && defined $f->{$name}) ? 1 : 0;
 }
 
 # Discover an entity whose `list` op has a point with no required params, so
 # the seeded list needs no path parameters. Returns (name, AccessorMethod).
 sub find_list_entity {
-  my $config = SolardemoConfig::make_config();
-  my $entities = SolardemoHelpers::to_map(
-    SolardemoHelpers::gp($config, 'entity')) || {};
+  my $config = VoxgigSolardemoConfig::make_config();
+  my $entities = VoxgigSolardemoHelpers::to_map(
+    VoxgigSolardemoHelpers::gp($config, 'entity')) || {};
   for my $name (sort keys %$entities) {
-    my $points = SolardemoHelpers::gpath($config, "entity.$name.op.list.points");
+    my $points = VoxgigSolardemoHelpers::gpath($config, "entity.$name.op.list.points");
     next unless Voxgig::Struct::islist($points);
     for my $p (@$points) {
-      my $params = SolardemoHelpers::gpath($p, 'args.params');
+      my $params = VoxgigSolardemoHelpers::gpath($p, 'args.params');
       my $reqd = Voxgig::Struct::islist($params)
-        ? scalar(grep { SolardemoHelpers::is_true($_->{reqd}) } @$params)
+        ? scalar(grep { VoxgigSolardemoHelpers::is_true($_->{reqd}) } @$params)
         : 0;
       return ($name, ucfirst($name)) if 0 == $reqd;
     }
@@ -72,7 +72,7 @@ SKIP: {
 
   # --- Fallback: no streaming feature -> materialised items. ---
   {
-    my $sdk = SolardemoSDK->test({ 'entity' => $seed }, undef);
+    my $sdk = VoxgigSolardemoSDK->test({ 'entity' => $seed }, undef);
     skip("SDK has no $method accessor", 1) unless $sdk->can($method);
     my $ent = $sdk->$method(undef);
     my $iter = $ent->stream('list', {}, undef);
@@ -86,7 +86,7 @@ SKIP: {
   # --- Streaming active: yields from the streaming feature's iterator. ---
   if (has_feature('streaming')) {
     {
-      my $sdk = SolardemoSDK->test(
+      my $sdk = VoxgigSolardemoSDK->test(
         { 'entity' => $seed },
         { 'feature' => { 'streaming' => {
           'active' => Voxgig::Struct::JTRUE() } } });
@@ -99,7 +99,7 @@ SKIP: {
 
     # chunkSize groups items into arrayref batches: 3 items / 2 -> [2, 1].
     {
-      my $sdk = SolardemoSDK->test(
+      my $sdk = VoxgigSolardemoSDK->test(
         { 'entity' => $seed },
         { 'feature' => { 'streaming' => {
           'active' => Voxgig::Struct::JTRUE(), 'chunkSize' => 2 } } });
@@ -112,7 +112,7 @@ SKIP: {
 
     # signal cancels iteration between yields.
     {
-      my $sdk = SolardemoSDK->test(
+      my $sdk = VoxgigSolardemoSDK->test(
         { 'entity' => $seed },
         { 'feature' => { 'streaming' => {
           'active' => Voxgig::Struct::JTRUE() } } });

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK feature test
+// VoxgigSolardemo SDK feature test
 //
 // Behavioural + coverage tests for the enterprise features shipped with
 // this SDK. Each block runs only when its feature is present (see
@@ -18,7 +18,7 @@ declare(strict_types=1);
 // real pipeline raises via make_error before a PreUnexpected dispatch
 // point), which keeps the features' emit-once semantics covered.
 
-require_once __DIR__ . '/../solardemo_sdk.php';
+require_once __DIR__ . '/../voxgigsolardemo_sdk.php';
 
 use PHPUnit\Framework\TestCase;
 
@@ -56,7 +56,7 @@ class FtClock
 
 // Control extension carrying the optional per-call fields some features
 // read (audit: actor; paging: paging).
-class FtCtrl extends SolardemoControl
+class FtCtrl extends VoxgigSolardemoControl
 {
     public mixed $actor = null;
     public mixed $paging = null;
@@ -86,9 +86,9 @@ class FtClient
     public string $mode = 'test';
     public array $features = [];
     public array $options;
-    private SolardemoUtility $utility;
+    private VoxgigSolardemoUtility $utility;
 
-    public function __construct(SolardemoUtility $utility, array $options)
+    public function __construct(VoxgigSolardemoUtility $utility, array $options)
     {
         $this->utility = $utility;
         $this->options = $options;
@@ -99,7 +99,7 @@ class FtClient
         return $this->options;
     }
 
-    public function get_utility(): SolardemoUtility
+    public function get_utility(): VoxgigSolardemoUtility
     {
         return $this->utility;
     }
@@ -119,7 +119,7 @@ class FtRecorder
 
     public function server(): callable
     {
-        return function (SolardemoContext $_ctx, string $url, array $fetchdef): array {
+        return function (VoxgigSolardemoContext $_ctx, string $url, array $fetchdef): array {
             $this->calls[] = ['url' => $url, 'fetchdef' => $fetchdef];
             $n = count($this->calls);
             if ($this->reply !== null) {
@@ -142,14 +142,14 @@ class FtHarness
     private static ?array $feature_config = null;
 
     public FtClient $client;
-    public SolardemoUtility $utility;
-    public SolardemoContext $rootctx;
+    public VoxgigSolardemoUtility $utility;
+    public VoxgigSolardemoContext $rootctx;
 
     // True when this SDK was generated with the named feature.
     public static function hasFeature(string $name): bool
     {
         if (self::$feature_config === null) {
-            $config = SolardemoConfig::shared_config();
+            $config = VoxgigSolardemoConfig::shared_config();
             $f = $config['feature'] ?? [];
             self::$feature_config = is_array($f) ? $f : [];
         }
@@ -181,10 +181,10 @@ class FtHarness
         string $base = 'http://api.test',
         array $headers = []
     ) {
-        $utility = new SolardemoUtility();
+        $utility = new VoxgigSolardemoUtility();
         $this->utility = $utility;
 
-        $utility->fetcher = $server ?? function (SolardemoContext $_ctx, string $_url, array $fetchdef): array {
+        $utility->fetcher = $server ?? function (VoxgigSolardemoContext $_ctx, string $_url, array $fetchdef): array {
             $method = strtoupper((string)($fetchdef['method'] ?? 'GET'));
             return [self::response(200, ['ok' => true, 'method' => $method]), null];
         };
@@ -207,7 +207,7 @@ class FtHarness
             if (!self::hasFeature($name)) {
                 continue;
             }
-            $f = SolardemoConfig::make_feature($name);
+            $f = VoxgigSolardemoConfig::make_feature($name);
             $fopts = array_merge(['active' => true], $fspec['options'] ?? []);
             $this->client->options['feature'][$f->get_name()] = $fopts;
             $f->init($this->rootctx, $fopts);
@@ -241,7 +241,7 @@ class FtHarness
         return 'GET';
     }
 
-    private static function buildUrl(SolardemoSpec $spec): string
+    private static function buildUrl(VoxgigSolardemoSpec $spec): string
     {
         $keys = [];
         foreach ($spec->query as $k => $v) {
@@ -286,12 +286,12 @@ class FtHarness
         ($utility->feature_hook)($ctx, 'PostConstructEntity');
 
         ($utility->feature_hook)($ctx, 'PrePoint');
-        if (($ctx->out['point'] ?? null) instanceof SolardemoError) {
+        if (($ctx->out['point'] ?? null) instanceof VoxgigSolardemoError) {
             return $this->fail($ctx, $ctx->out['point']);
         }
 
         ($utility->feature_hook)($ctx, 'PreSpec');
-        $ctx->spec = new SolardemoSpec([
+        $ctx->spec = new VoxgigSolardemoSpec([
             'method' => $method,
             'base' => $this->client->options['base'],
             'path' => $o['path'] ?? ('/' . $entity),
@@ -317,12 +317,12 @@ class FtHarness
         [$fetched, $fetch_err] = ($utility->fetcher)($ctx, $fetchdef['url'], $fetchdef);
 
         if (is_array($fetched)) {
-            $ctx->response = new SolardemoResponse($fetched);
+            $ctx->response = new VoxgigSolardemoResponse($fetched);
         }
 
         ($utility->feature_hook)($ctx, 'PreResponse');
 
-        $result = new SolardemoResult([]);
+        $result = new VoxgigSolardemoResult([]);
         $ctx->result = $result;
 
         if ($fetch_err !== null) {
@@ -358,7 +358,7 @@ class FtHarness
         return $this->fail($ctx, $result->err);
     }
 
-    private function fail(SolardemoContext $ctx, mixed $err): array
+    private function fail(VoxgigSolardemoContext $ctx, mixed $err): array
     {
         ($this->utility->feature_hook)($ctx, 'PreUnexpected');
         return [
@@ -381,7 +381,7 @@ class FeatureTest extends TestCase
 
     private static function code(mixed $err): string
     {
-        return ($err instanceof SolardemoError) ? $err->sdk_code : '';
+        return ($err instanceof VoxgigSolardemoError) ? $err->sdk_code : '';
     }
 
     public function test_at_least_the_test_feature_is_present(): void
@@ -548,7 +548,7 @@ class FeatureTest extends TestCase
         $this->needs('retry');
         $clock = new FtClock();
         $n = 0;
-        $server = function (SolardemoContext $ctx, string $_url, array $_fd) use (&$n): array {
+        $server = function (VoxgigSolardemoContext $ctx, string $_url, array $_fd) use (&$n): array {
             $n++;
             return [null, $ctx->make_error('boom', 'boom')];
         };
@@ -1102,6 +1102,50 @@ class FeatureTest extends TestCase
         $this->assertStringContainsString('cursor=xyz', $rec->calls[0]['url']);
         $this->assertSame('abc', $res['result']->paging['cursor']);
         $this->assertTrue($res['result']->paging['hasMore']);
+    }
+
+    public function test_paging_snake_case_signals_and_ctrl_write_back(): void
+    {
+        $this->needs('paging');
+        $rec = new FtRecorder(function (int $n) {
+            return FtHarness::response(200, 1 === $n
+                ? ['has_more' => true, 'next_cursor' => 'c2']
+                : ['has_more' => false]);
+        });
+        $h = new FtHarness([
+            ['name' => 'paging'],
+        ], $rec->server());
+        $res = $h->op(['op' => 'list', 'path' => '/w', 'ctrl' => ['paging' => []]]);
+        $this->assertTrue($res['result']->paging['hasMore']);
+        $this->assertSame('c2', $res['result']->paging['cursor']);
+        $written = $res['ctx']->ctrl->paging;
+        $this->assertSame('c2', $written['cursor']);
+        $this->assertTrue($written['hasMore']);
+        // Arrays are values here, so the written-back record is passed on by hand.
+        $res = $h->op(['op' => 'list', 'path' => '/w', 'ctrl' => ['paging' => $written]]);
+        $this->assertStringContainsString('cursor=c2', $rec->calls[1]['url']);
+        $this->assertFalse($res['ctx']->ctrl->paging['hasMore']);
+        $this->assertNull($res['ctx']->ctrl->paging['cursor']);
+    }
+
+    public function test_paging_continues_from_written_back_next_page(): void
+    {
+        $this->needs('paging');
+        $rec = new FtRecorder(function (int $n) {
+            return FtHarness::response(200, 1 === $n ? ['next_page' => 2] : [],
+                ['x-page' => (string) $n]);
+        });
+        $h = new FtHarness([
+            ['name' => 'paging'],
+        ], $rec->server());
+        $res = $h->op(['op' => 'list', 'path' => '/w']);
+        $written = $res['ctx']->ctrl->paging;
+        $this->assertEquals(1, $written['page']);
+        $this->assertEquals(2, $written['nextPage']);
+        $this->assertTrue($written['hasMore']);
+        $res = $h->op(['op' => 'list', 'path' => '/w', 'ctrl' => ['paging' => $written]]);
+        $this->assertStringContainsString('page=2', $rec->calls[1]['url']);
+        $this->assertFalse($res['ctx']->ctrl->paging['hasMore']);
     }
 
     public function test_paging_non_list_op_is_not_paged(): void

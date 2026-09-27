@@ -1,0 +1,370 @@
+# Entity: planet
+
+main: kit: entity: planet: {
+
+  alias: field: {}
+
+  fields: {
+    diameter: {
+      fo: "float"
+      h: "Diameter"
+      n: "diameter"
+      r: true
+      t: "`$NUMBER`"
+    }
+    forbidReason: {
+      h: "Forbid Reason"
+      n: "forbidReason"
+      r: false
+      ro: true
+      sh: "Why the planet is forbidden, carried from the forbid action's `why`."
+      t: "`$STRING`"
+    }
+    forbidState: {
+      h: "Forbid State"
+      n: "forbidState"
+      r: false
+      ro: true
+      sh: "Set by the forbid action, and absent until it first runs."
+      t: "`$STRING`"
+    }
+    id: {
+      h: "Id"
+      n: "id"
+      r: true
+      t: "`$STRING`"
+    }
+    kind: {
+      h: "Kind"
+      n: "kind"
+      r: true
+      t: "`$STRING`"
+    }
+    name: {
+      h: "Name"
+      n: "name"
+      r: true
+      t: "`$STRING`"
+    }
+    terraformState: {
+      h: "Terraform State"
+      n: "terraformState"
+      r: false
+      ro: true
+      sh: "Set by the terraform action, and absent until it first runs."
+      t: "`$STRING`"
+    }
+  }
+
+  id: {
+    field: "id"
+    name: "id"
+  }
+
+  name: "planet"
+  op: {
+    create: {
+      name: "create"
+      points: [
+        {
+          co: {
+            id: "POST /api/planet/{planet_id}/forbid"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "POST"
+          o: "/api/planet/{planet_id}/forbid"
+          q: {
+            "$action": "forbid"
+            exist: [
+              "id"
+            ]
+          }
+          r: {
+            param: {
+              planet_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "id"
+            }
+            {
+              lit: "forbid"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+        {
+          co: {
+            id: "POST /api/planet/{planet_id}/terraform"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "POST"
+          o: "/api/planet/{planet_id}/terraform"
+          q: {
+            "$action": "terraform"
+            exist: [
+              "id"
+            ]
+          }
+          r: {
+            param: {
+              planet_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "id"
+            }
+            {
+              lit: "terraform"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+        {
+          co: {
+            id: "POST /api/planet"
+            source: "openapi3"
+            version: 2
+          }
+          m: "POST"
+          o: "/api/planet"
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    list: {
+      name: "list"
+      points: [
+        {
+          co: {
+            id: "GET /api/planet"
+            source: "openapi3"
+            version: 2
+          }
+          m: "GET"
+          o: "/api/planet"
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    load: {
+      name: "load"
+      points: [
+        {
+          co: {
+            id: "GET /api/planet/{planet_id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "GET"
+          o: "/api/planet/{planet_id}"
+          q: {
+            exist: [
+              "id"
+            ]
+          }
+          r: {
+            param: {
+              planet_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    remove: {
+      name: "remove"
+      points: [
+        {
+          co: {
+            id: "DELETE /api/planet/{planet_id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "DELETE"
+          o: "/api/planet/{planet_id}"
+          q: {
+            exist: [
+              "id"
+            ]
+          }
+          r: {
+            param: {
+              planet_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+    update: {
+      name: "update"
+      points: [
+        {
+          co: {
+            id: "PUT /api/planet/{planet_id}"
+            source: "openapi3"
+            version: 2
+          }
+          g: {
+            params: [
+              {
+                k: "param"
+                n: "id"
+                or: "planet_id"
+                r: true
+                t: "`$STRING`"
+              }
+            ]
+          }
+          m: "PUT"
+          o: "/api/planet/{planet_id}"
+          q: {
+            exist: [
+              "id"
+            ]
+          }
+          r: {
+            param: {
+              planet_id: "id"
+            }
+          }
+          s: [
+            {
+              lit: "api"
+            }
+            {
+              lit: "planet"
+            }
+            {
+              var: "id"
+            }
+          ]
+          t: {
+            req: "`reqdata`"
+            res: "`body`"
+          }
+        }
+      ]
+    }
+  }
+
+
+
+}

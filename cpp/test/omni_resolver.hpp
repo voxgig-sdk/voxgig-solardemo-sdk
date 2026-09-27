@@ -1,4 +1,4 @@
-// Solardemo SDK — the corpus test runner: vendored @voxgig/omni driven
+// VoxgigSolardemo SDK — the corpus test runner: vendored @voxgig/omni driven
 // through its NATIVE API (omni::makeRunner(spec, provider)), presented to
 // the corpus tests in the runner shape they already use (run.spec,
 // run.runset, run.runsetflags, run.client). No compat shim is vendored:
@@ -89,7 +89,7 @@
 //    errify half is already solved natively by the Provider::errify hook.
 //    The cycle risk is structurally impossible on omni's side — a Json is
 //    a by-value tree and literally cannot be cyclic — PROVIDED typed SDK
-//    state (a CtxPtr, a live SolardemoSDK, an Injector closure) never
+//    state (a CtxPtr, a live VoxgigSolardemoSDK, an Injector closure) never
 //    enters the Json world, which decisions 1 and 5 guarantee. to_omni
 //    still refuses to recurse past MAXCONVERTDEPTH, so a cyclic
 //    sdk::Value fails loudly with the entry named instead of blowing the
@@ -257,7 +257,7 @@ inline SdkErrorPtr& lasterror() {
 
 class NamedRunner;
 
-inline std::shared_ptr<::omni::Provider> sdk_provider(std::shared_ptr<SolardemoSDK> client);
+inline std::shared_ptr<::omni::Provider> sdk_provider(std::shared_ptr<VoxgigSolardemoSDK> client);
 
 /**
  * What the runner returns for one named spec section — the shape the
@@ -268,9 +268,9 @@ class Run {
 public:
   // The resolved spec section, in this port's value model.
   Value spec;
-  std::shared_ptr<SolardemoSDK> client;
+  std::shared_ptr<VoxgigSolardemoSDK> client;
 
-  Run(const ::omni::RunPack& pack, std::shared_ptr<SolardemoSDK> client_)
+  Run(const ::omni::RunPack& pack, std::shared_ptr<VoxgigSolardemoSDK> client_)
       : spec(to_sdk(pack.spec)), client(std::move(client_)), pack_(pack) {}
 
   /** A named group of the resolved spec. */
@@ -328,7 +328,7 @@ private:
 /** A loaded spec: resolves one named section at a time. */
 class NamedRunner {
 public:
-  NamedRunner(const ::omni::Runner& runner, std::shared_ptr<SolardemoSDK> client)
+  NamedRunner(const ::omni::Runner& runner, std::shared_ptr<VoxgigSolardemoSDK> client)
       : runner_(runner), client_(std::move(client)) {}
 
   Run runner(const std::string& name, const Value& store = Value::undef()) const {
@@ -337,11 +337,11 @@ public:
 
 private:
   ::omni::Runner runner_;
-  std::shared_ptr<SolardemoSDK> client_;
+  std::shared_ptr<VoxgigSolardemoSDK> client_;
 };
 
 /** Wrap a live client as an omni provider (decisions 5 and 6). */
-inline std::shared_ptr<::omni::Provider> sdk_provider(std::shared_ptr<SolardemoSDK> client) {
+inline std::shared_ptr<::omni::Provider> sdk_provider(std::shared_ptr<VoxgigSolardemoSDK> client) {
   auto provider = std::make_shared<::omni::Provider>();
 
   // A DEF.client entry becomes another live test SDK, wrapped the same
@@ -351,7 +351,7 @@ inline std::shared_ptr<::omni::Provider> sdk_provider(std::shared_ptr<SolardemoS
   provider->client = [](const Json& options) -> std::shared_ptr<::omni::Provider> {
     Value opts = to_sdk(options);
     if (!opts.is_map()) opts = vmap();
-    return sdk_provider(SolardemoSDK::testSDK(Value::undef(), opts));
+    return sdk_provider(VoxgigSolardemoSDK::testSDK(Value::undef(), opts));
   };
 
   // Client options may reference the runner store.
@@ -389,7 +389,7 @@ inline std::shared_ptr<::omni::Provider> sdk_provider(std::shared_ptr<SolardemoS
  * `./test/x.out`, so the "../.sdk/test/test.json" constant the suites
  * already use carries over unchanged.
  */
-inline NamedRunner makeRunner(const std::string& path, std::shared_ptr<SolardemoSDK> client) {
+inline NamedRunner makeRunner(const std::string& path, std::shared_ptr<VoxgigSolardemoSDK> client) {
   return NamedRunner(::omni::makeRunner(path, sdk_provider(client)), client);
 }
 
@@ -398,7 +398,7 @@ inline NamedRunner makeRunner(const std::string& path, std::shared_ptr<Solardemo
  * the smoke test free of a fixture file. Named apart from makeRunner
  * because `const char*` converts to both std::string and Value.
  */
-inline NamedRunner makeRunnerSpec(const Value& spec, std::shared_ptr<SolardemoSDK> client) {
+inline NamedRunner makeRunnerSpec(const Value& spec, std::shared_ptr<VoxgigSolardemoSDK> client) {
   return NamedRunner(::omni::makeRunner(to_omni(spec), sdk_provider(client)), client);
 }
 
@@ -411,7 +411,7 @@ inline NamedRunner makeRunnerSpec(const Value& spec, std::shared_ptr<SolardemoSD
  * decision 5. (The engine half of the retired runset call sites did this
  * as make_ctx_from_map + fixctx, per section, by hand.)
  */
-inline CtxPtr omni_ctx(const Value& arg, std::shared_ptr<SolardemoSDK> client,
+inline CtxPtr omni_ctx(const Value& arg, std::shared_ptr<VoxgigSolardemoSDK> client,
                        UtilityPtr utility) {
   Value ctxmap = Helpers::toMapAny(arg);
   if (!ctxmap.is_map()) ctxmap = vmap();

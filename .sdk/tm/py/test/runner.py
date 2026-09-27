@@ -1,4 +1,4 @@
-# Solardemo SDK test runner
+# VoxgigSolardemo SDK test runner
 
 from __future__ import annotations
 import os
@@ -7,7 +7,7 @@ import json
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
 
 
-class SolardemoTestRunner:
+class VoxgigSolardemoTestRunner:
     _env = {}
 
     @staticmethod
@@ -27,23 +27,23 @@ class SolardemoTestRunner:
                 continue
             key = line[:eq_idx].strip()
             val = line[eq_idx + 1:].strip()
-            SolardemoTestRunner._env[key] = val
+            VoxgigSolardemoTestRunner._env[key] = val
 
     @staticmethod
     def getenv(key):
-        val = SolardemoTestRunner._env.get(key)
+        val = VoxgigSolardemoTestRunner._env.get(key)
         if val is not None:
             return val
         return os.environ.get(key)
 
     @staticmethod
     def env_override(m):
-        live = SolardemoTestRunner.getenv("PROJECTENV_TEST_LIVE")
-        override = SolardemoTestRunner.getenv("PROJECTENV_TEST_OVERRIDE")
+        live = VoxgigSolardemoTestRunner.getenv("PROJECTENV_TEST_LIVE")
+        override = VoxgigSolardemoTestRunner.getenv("PROJECTENV_TEST_OVERRIDE")
 
         if live == "TRUE" or override == "TRUE":
             for key in list(m.keys()):
-                envval = SolardemoTestRunner.getenv(key)
+                envval = VoxgigSolardemoTestRunner.getenv(key)
                 if envval is not None and envval != "":
                     envval = envval.strip()
                     if envval.startswith("{"):
@@ -56,7 +56,7 @@ class SolardemoTestRunner:
                             pass
                     m[key] = envval
 
-        explain = SolardemoTestRunner.getenv("PROJECTENV_TEST_EXPLAIN")
+        explain = VoxgigSolardemoTestRunner.getenv("PROJECTENV_TEST_EXPLAIN")
         if explain is not None and explain != "":
             m["PROJECTENV_TEST_EXPLAIN"] = explain
 
@@ -70,26 +70,26 @@ class SolardemoTestRunner:
         Returns a dict with the empty-skip default if the file is missing or invalid
         so tests never crash on a bad config.
         """
-        if SolardemoTestRunner._test_control is not None:
-            return SolardemoTestRunner._test_control
+        if VoxgigSolardemoTestRunner._test_control is not None:
+            return VoxgigSolardemoTestRunner._test_control
         ctrl_path = os.path.join(os.path.dirname(__file__), "sdk-test-control.json")
         try:
             with open(ctrl_path, "r") as f:
-                SolardemoTestRunner._test_control = json.load(f)
+                VoxgigSolardemoTestRunner._test_control = json.load(f)
         except (FileNotFoundError, IOError, ValueError):
-            SolardemoTestRunner._test_control = {
+            VoxgigSolardemoTestRunner._test_control = {
                 "version": 1,
                 "test": {"skip": {
                     "live": {"direct": [], "entityOp": []},
                     "unit": {"direct": [], "entityOp": []},
                 }},
             }
-        return SolardemoTestRunner._test_control
+        return VoxgigSolardemoTestRunner._test_control
 
     @staticmethod
     def is_control_skipped(kind, name, mode):
         """Check sdk-test-control.json for a skip entry. Returns (skip, reason)."""
-        ctrl = SolardemoTestRunner.load_test_control()
+        ctrl = VoxgigSolardemoTestRunner.load_test_control()
         skip = ctrl.get("test", {}).get("skip", {}).get(mode, {}) or {}
         items = skip.get(kind, []) or []
         for item in items:
@@ -122,7 +122,7 @@ class SolardemoTestRunner:
         silently redirect the whole suite - credential included - to another
         host.
         """
-        ctrl = SolardemoTestRunner.load_test_control()
+        ctrl = VoxgigSolardemoTestRunner.load_test_control()
         opts = ctrl.get("test", {}).get("client", {}).get("options")
         if not isinstance(opts, dict):
             return {}
@@ -132,7 +132,7 @@ class SolardemoTestRunner:
     @staticmethod
     def live_delay_ms():
         """Per-test live pacing delay (ms); default 500."""
-        ctrl = SolardemoTestRunner.load_test_control()
+        ctrl = VoxgigSolardemoTestRunner.load_test_control()
         v = ctrl.get("test", {}).get("live", {}).get("delayMs")
         if isinstance(v, int) and v >= 0:
             return v
@@ -166,32 +166,32 @@ class SolardemoTestRunner:
 
 # Module-level convenience functions.
 def load_env_local():
-    SolardemoTestRunner.load_env_local()
+    VoxgigSolardemoTestRunner.load_env_local()
 
 
 def env_override(m):
-    return SolardemoTestRunner.env_override(m)
+    return VoxgigSolardemoTestRunner.env_override(m)
 
 
 def entity_data(v):
-    return SolardemoTestRunner.entity_data(v)
+    return VoxgigSolardemoTestRunner.entity_data(v)
 
 
 def entity_list_to_data(lst):
-    return SolardemoTestRunner.entity_list_to_data(lst)
+    return VoxgigSolardemoTestRunner.entity_list_to_data(lst)
 
 
 def is_control_skipped(kind, name, mode):
-    return SolardemoTestRunner.is_control_skipped(kind, name, mode)
+    return VoxgigSolardemoTestRunner.is_control_skipped(kind, name, mode)
 
 
 def load_test_control():
-    return SolardemoTestRunner.load_test_control()
+    return VoxgigSolardemoTestRunner.load_test_control()
 
 
 def live_client_options():
-    return SolardemoTestRunner.live_client_options()
+    return VoxgigSolardemoTestRunner.live_client_options()
 
 
 def live_delay_ms():
-    return SolardemoTestRunner.live_delay_ms()
+    return VoxgigSolardemoTestRunner.live_delay_ms()

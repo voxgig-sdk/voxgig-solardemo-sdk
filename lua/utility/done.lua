@@ -1,4 +1,4 @@
--- Solardemo SDK utility: done
+-- VoxgigSolardemo SDK utility: done
 
 local function done_util(ctx)
   if ctx.ctrl.explain ~= nil then

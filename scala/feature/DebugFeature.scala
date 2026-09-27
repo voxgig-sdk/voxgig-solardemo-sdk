@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, Helpers, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, Helpers, SdkClient}
 
 // Request/response capture for debugging. Records a bounded ring buffer of
 // per-operation traces — method, URL, redacted headers, response status and

@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{LinkedHashMap, Map => JMap}
 import java.util.concurrent.ThreadLocalRandom
-import voxgig.solardemosdk.core.{Context, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, SdkClient}
 
 // Client tracking. Establishes a stable per-client session id at
 // construction and stamps identifying headers on every request: a
@@ -70,7 +70,7 @@ class ClienttrackFeature extends BaseFeature("clienttrack", "0.0.1", true) {
   }
 
   private def agentName(): String = {
-    val name = FeatureOptions.foptStr(this.options, "clientName", "Solardemo-SDK")
+    val name = FeatureOptions.foptStr(this.options, "clientName", "VoxgigSolardemo-SDK")
     val version = FeatureOptions.foptStr(this.options, "clientVersion", "0.0.1")
     name + "/" + version
   }

@@ -1,11 +1,11 @@
-// Solardemo SDK utility: makeUrl - substitute params and append the
+// VoxgigSolardemo SDK utility: makeUrl - substitute params and append the
 // query string.
 
 using System.Text.RegularExpressions;
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

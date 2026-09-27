@@ -1,4 +1,4 @@
-# Tutorial: your first Solardemo query
+# Tutorial: your first VoxgigSolardemo query
 
 This tutorial takes you from an empty folder to a script that
 reads and writes Solar System data through
@@ -12,21 +12,19 @@ You need [Node.js](https://nodejs.org) 24 or later.
 
 You also need a server to talk to. The SDK itself installs from npm,
 but its test server does not — it ships only in the SDK's source
-repository, so clone that:
+repository. `make sdk-src` fetches that source at the tag this plugin
+was generated from, into `.sdksrc/voxgig-solardemo-sdk`:
 
 ```sh
-$ git clone https://github.com/voxgig-sdk/solardemo-sdk.git
+$ make sdk-src
 ```
-
-If you already have that checkout beside this plugin, it is at
-`..`, and you can skip the clone.
 
 ## Step 1: Start the test server
 
 That server implements the Solar System API. Build and start it:
 
 ```sh
-$ cd solardemo-sdk/app
+$ cd .sdksrc/voxgig-solardemo-sdk/app
 $ npm install
 $ npm run build
 $ npm start
@@ -46,10 +44,10 @@ Leave the server running.
 In a new terminal:
 
 ```sh
-$ mkdir solardemo-demo
-$ cd solardemo-demo
+$ mkdir voxgig-solardemo-demo
+$ cd voxgig-solardemo-demo
 $ npm init -y
-$ npm install seneca seneca-entity seneca-promisify @seneca/provider @seneca/solardemo-provider
+$ npm install seneca seneca-entity seneca-promisify @seneca/provider @seneca/voxgig-solardemo-provider
 ```
 
 The first four are the Seneca host: the framework itself, the entity
@@ -70,19 +68,19 @@ async function main() {
     .use('entity')
     .use('provider', {
       provider: {
-        solardemo: {
+        'voxgig-solardemo': {
           keys: {
             apikey: { value: '' },
           },
         },
       },
     })
-    .use('@seneca/solardemo-provider', {
+    .use('@seneca/voxgig-solardemo-provider', {
       sdk: { base: 'http://localhost:8901' },
     })
     .ready()
 
-  const info = await seneca.post('sys:provider,provider:solardemo,get:info')
+  const info = await seneca.post('sys:provider,provider:voxgig-solardemo,get:info')
   console.log(info)
 }
 
@@ -100,15 +98,15 @@ You should see:
 ```js
 {
   ok: true,
-  name: 'solardemo',
+  name: 'voxgig-solardemo',
   version: '0.1.0',
-  sdk: { name: '@voxgig-sdk/solardemo', version: '0.1.0' },
+  sdk: { name: '@voxgig-sdk/voxgig-solardemo-sdk', version: '0.1.0' },
 }
 ```
 
 Two details of that configuration are worth a moment. The `apikey` is
-declared even though nothing here asks for credentials — an empty
-value simply means no `authorization` header is sent. Every Seneca
+declared even though nothing here asks for credentials — this API declares
+no authentication, so the value is never read. Every Seneca
 provider is configured the same way, so an application that later moves
 to an authenticated service changes one value rather than its shape.
 And `get:info` is answered by the plugin itself, without calling the
@@ -121,7 +119,7 @@ Replace the `console.log(info)` line with:
 
 ```js
   const planets = await seneca
-    .entity('provider/solardemo/planet')
+    .entity('provider/voxgig-solardemo/planet')
     .list$()
 
   console.log('Found ' + planets.length + ' planet record(s):')
@@ -144,7 +142,7 @@ Add:
 
 ```js
   const one = await seneca
-    .entity('provider/solardemo/planet')
+    .entity('provider/voxgig-solardemo/planet')
     .load$(planets[0].id)
 
   console.log('loaded', one.id, one.diameter)
@@ -155,7 +153,7 @@ something that is not there:
 
 ```js
   const missing = await seneca
-    .entity('provider/solardemo/planet')
+    .entity('provider/voxgig-solardemo/planet')
     .load$('nosuchplanet')
 
   console.log('missing =', missing)   // null
@@ -173,7 +171,7 @@ so add:
 ```js
   // Create: make$ builds an entity, save$ persists it.
   let planet = await seneca
-    .entity('provider/solardemo/planet')
+    .entity('provider/voxgig-solardemo/planet')
     .make$({ diameter: 1234, kind: 'tutorial-kind', name: 'tutorial-name' })
     .save$()
 
@@ -199,7 +197,7 @@ And remove it, leaving the server as you found it:
 
 ```js
   await seneca
-    .entity('provider/solardemo/planet')
+    .entity('provider/voxgig-solardemo/planet')
     .remove$(planet.id)
 ```
 
@@ -209,7 +207,7 @@ Load it once more and, as before, you get `null`:
   console.log(
     'after remove:',
     await seneca
-      .entity('provider/solardemo/planet')
+      .entity('provider/voxgig-solardemo/planet')
       .load$(planet.id)
   )   // null
 ```
@@ -232,7 +230,7 @@ call needs a `planet_id` in its query:
 
 ```js
   const moons = await seneca
-    .entity('provider/solardemo/moon')
+    .entity('provider/voxgig-solardemo/moon')
     .list$({ planet_id: planets[0].id })
 
   console.log('found ' + moons.length + ' moon record(s)')
@@ -243,9 +241,9 @@ needed, rather than letting a half-built URL come back as a puzzling
 404:
 
 ```js
-  // throws: @seneca/solardemo-provider: moon list: planet_id is required
+  // throws: @seneca/voxgig-solardemo-provider: moon list: planet_id is required
   await seneca
-    .entity('provider/solardemo/moon')
+    .entity('provider/voxgig-solardemo/moon')
     .list$()
 ```
 
@@ -258,7 +256,7 @@ the way you saw:
 
 - Provider configuration has the same shape even when no credentials
   are needed.
-- API resources are Seneca entities under `provider/solardemo/`,
+- API resources are Seneca entities under `provider/voxgig-solardemo/`,
   reached with the entity API you already know.
 - A resource nested under another in the API needs its parent's id in
   every query, and says which key is missing when you forget.

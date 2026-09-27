@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.{LinkedHashMap, Map => JMap}
 
@@ -42,11 +42,11 @@ class Utility private (noregister: Boolean) {
 
   // The struct utility surface, exposed as a member so features/tests can
   // reach the struct functions through the utility object.
-  val struct: voxgig.solardemosdk.utility.StructUtility.type = voxgig.solardemosdk.utility.StructUtility
+  val struct: voxgig.voxgigsolardemosdk.utility.StructUtility.type = voxgig.voxgigsolardemosdk.utility.StructUtility
 
   def this() = {
     this(false)
-    voxgig.solardemosdk.utility.Register.registerAll(this)
+    voxgig.voxgigsolardemosdk.utility.Register.registerAll(this)
   }
 
   // A field-level copy sharing nothing mutable but the function refs.

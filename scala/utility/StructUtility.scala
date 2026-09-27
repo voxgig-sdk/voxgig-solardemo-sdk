@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.util.{List => JList, Map => JMap}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // The struct utility surface exposed via the SDK utility object's `struct`
 // member (utility.struct.*). Thin forwarders over the vendored struct

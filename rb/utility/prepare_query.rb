@@ -1,6 +1,6 @@
-# Solardemo SDK utility: prepare_query
+# VoxgigSolardemo SDK utility: prepare_query
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   PrepareQuery = ->(ctx) {
     point = ctx.point
     reqmatch = ctx.reqmatch || {}
@@ -14,7 +14,7 @@ module SolardemoUtilities
     if items
       items.each do |item|
         key, val = item[0], item[1]
-        out[key] = val if val && key.is_a?(String) && !params.include?(key)
+        out[key] = val if val && key.is_a?(String) && key != "$action" && !params.include?(key)
       end
     end
     out

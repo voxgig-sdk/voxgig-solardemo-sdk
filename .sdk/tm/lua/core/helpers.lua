@@ -1,4 +1,4 @@
--- Solardemo SDK helpers
+-- VoxgigSolardemo SDK helpers
 
 local helpers = {}
 

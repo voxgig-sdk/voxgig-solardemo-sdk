@@ -2,13 +2,13 @@
 const { test, describe } = require('node:test')
 const { equal } = require('node:assert')
 
-const { SolardemoSDK } = require('../..')
+const { VoxgigSolardemoSDK } = require('../..')
 
 
 describe('Custom', () => {
 
   test('basic', async () => {
-    const client = SolardemoSDK.test({}, {
+    const client = VoxgigSolardemoSDK.test({}, {
       apikey: 'APIKEY01',
 
       // NOTE: original utility.options must remain in place.

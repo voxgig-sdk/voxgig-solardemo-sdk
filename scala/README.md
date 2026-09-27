@@ -1,8 +1,8 @@
-# Solardemo Scala SDK
+# VoxgigSolardemo Scala SDK
 
 
 
-The Scala SDK for the Solardemo API — an entity-oriented client following idiomatic Scala conventions.
+The Scala SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Scala conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `client.moon(null)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
@@ -17,7 +17,7 @@ keeps the cognitive load low.
 This package is not yet published to Maven Central. The generated SDK is a
 plain-source scala-cli project (no build tool, no third-party runtime
 dependencies). Install it from the GitHub release tag
-(`scala/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)) or from a source
+(`scala/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or from a source
 checkout — compile it with scala-cli:
 
 ```bash
@@ -33,9 +33,9 @@ loading a specific record.
 ### 1. Create a client
 
 ```scala
-import voxgig.solardemosdk.core.SolardemoSDK
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
 
-val client = new SolardemoSDK()
+val client = new VoxgigSolardemoSDK()
 ```
 
 ### 2. List moon records
@@ -154,7 +154,7 @@ println(fetchdef.get("headers"))
 Create a mock client for unit testing — no server required:
 
 ```scala
-val client = SolardemoSDK.testSDK(null, null)
+val client = VoxgigSolardemoSDK.testSDK(null, null)
 
 // Entity ops return the ENTITY and raises on error;
 // call data() for the record.
@@ -181,7 +181,7 @@ val mockFetch: java.util.function.BiFunction[String, java.util.Map[String, Objec
 val options = new java.util.LinkedHashMap[String, Object]()
 options.put("base", "http://localhost:8080")
 options.put("system", java.util.Map.of("fetch", mockFetch))
-val client = new SolardemoSDK(options)
+val client = new VoxgigSolardemoSDK(options)
 ```
 
 ### Run live tests
@@ -189,7 +189,7 @@ val client = new SolardemoSDK(options)
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -201,10 +201,10 @@ cd scala && make test
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```scala
-val client = new SolardemoSDK(options)
+val client = new VoxgigSolardemoSDK(options)
 ```
 
 Creates a new SDK client. `options` is a `java.util.Map[String, Object]`.
@@ -221,12 +221,12 @@ Creates a new SDK client. `options` is a `java.util.Map[String, Object]`.
 ### testSDK
 
 ```scala
-val client = SolardemoSDK.testSDK(testopts, sdkopts)
+val client = VoxgigSolardemoSDK.testSDK(testopts, sdkopts)
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `null`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -408,7 +408,7 @@ val planet = client.planet(null).create(java.util.Map.of(
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -417,17 +417,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -468,7 +600,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -481,7 +621,7 @@ dynamic nature of the API and keeps the SDK flexible: no regeneration is
 needed when the API schema changes.
 
 Use `Helpers.toMapAny(value)` to safely coerce a value to a
-`java.util.Map[String, Object]`. A `SolardemoTypes.scala` module of
+`java.util.Map[String, Object]`. A `VoxgigSolardemoTypes.scala` module of
 reference `case class` types is also generated for editor documentation.
 
 ### Project structure
@@ -496,7 +636,7 @@ scala/
 └── sdktest/                     -- Generated per-entity tests (scala-cli mains)
 ```
 
-The main client class (`SolardemoSDK`, package `voxgig.solardemosdk.core`)
+The main client class (`VoxgigSolardemoSDK`, package `voxgig.voxgigsolardemosdk.core`)
 exposes the entity accessors. Reference entity or utility types directly only
 when needed. The SDK is a dependency-free scala-cli project: JSON parsing is
 the vendored `utility/Json.java`, HTTP transport is the JDK

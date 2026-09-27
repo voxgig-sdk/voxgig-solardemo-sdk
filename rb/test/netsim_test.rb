@@ -1,4 +1,4 @@
-# Solardemo SDK netsim test
+# VoxgigSolardemo SDK netsim test
 #
 # Network-behaviour simulation over the offline mock transport. The test
 # feature accepts an optional "net" config so unit tests can exercise slow,
@@ -7,25 +7,25 @@
 # every generated SDK regardless of its API shape.
 
 require "minitest/autorun"
-require_relative "../Solardemo_sdk"
+require_relative "../VoxgigSolardemo_sdk"
 
 class NetsimTest < Minitest::Test
   def test_offline_simulation_fails_the_request
-    sdk = SolardemoSDK.test({ "net" => { "offline" => true } }, nil)
+    sdk = VoxgigSolardemoSDK.test({ "net" => { "offline" => true } }, nil)
     res = sdk.direct({ "path" => "/ping" })
     assert_equal false, res["ok"], "offline network must fail the call"
     refute_nil res["err"]
   end
 
   def test_fail_status_simulation_surfaces_the_error_status
-    sdk = SolardemoSDK.test({ "net" => { "failTimes" => 1, "failStatus" => 503 } }, nil)
+    sdk = VoxgigSolardemoSDK.test({ "net" => { "failTimes" => 1, "failStatus" => 503 } }, nil)
     res = sdk.direct({ "path" => "/ping" })
     assert_equal false, res["ok"]
     assert_equal 503, res["status"], "simulated failure status is surfaced"
   end
 
   def test_error_times_simulation_yields_a_connection_error
-    sdk = SolardemoSDK.test({ "net" => { "errorTimes" => 1 } }, nil)
+    sdk = VoxgigSolardemoSDK.test({ "net" => { "errorTimes" => 1 } }, nil)
     res = sdk.direct({ "path" => "/ping" })
     assert_equal false, res["ok"]
     assert_match(/connection error/i, res["err"].to_s)
@@ -33,7 +33,7 @@ class NetsimTest < Minitest::Test
 
   def test_latency_simulation_delays_the_request
     delay = 60
-    sdk = SolardemoSDK.test({ "net" => { "latency" => delay } }, nil)
+    sdk = VoxgigSolardemoSDK.test({ "net" => { "latency" => delay } }, nil)
     start = Time.now.to_f
     sdk.direct({ "path" => "/ping" })
     elapsed = ((Time.now.to_f - start) * 1000).to_i
@@ -42,7 +42,7 @@ class NetsimTest < Minitest::Test
   end
 
   def test_plain_test_sdk_still_works_with_no_net_simulation
-    sdk = SolardemoSDK.test(nil, nil)
+    sdk = VoxgigSolardemoSDK.test(nil, nil)
     refute_nil sdk
   end
 end

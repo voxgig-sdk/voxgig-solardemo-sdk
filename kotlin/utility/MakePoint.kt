@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // How many path segments a point has.
 private fun partsLen(point: Map<String, Any?>?): Int {

@@ -1,9 +1,9 @@
-# Solardemo SDK base feature
+# VoxgigSolardemo SDK base feature
 
 use strict;
 use warnings;
 
-package SolardemoBaseFeature;
+package VoxgigSolardemoBaseFeature;
 
 # Blessed-hash feature object. `_options` positions this feature when added
 # via the client `extend` option: "__before__" / "__after__" / "__replace__"

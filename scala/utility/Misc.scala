@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.util.{Map => JMap}
-import voxgig.solardemosdk.core._
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core._
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 object MakeContext {
   def makeContext(ctxmap: JMap[String, Object], basectx: Context): Context =

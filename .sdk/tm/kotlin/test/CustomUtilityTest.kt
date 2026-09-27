@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-import KOTLINPACKAGE.core.SolardemoSDK
+import KOTLINPACKAGE.core.VoxgigSolardemoSDK
 import KOTLINPACKAGE.sdktest.FeatureHarness.fhMap
 
 @Suppress("UNCHECKED_CAST")
@@ -37,7 +37,7 @@ class CustomUtilityTest {
       customUtils[key] = util(key.uppercase())
     }
 
-    val client = SolardemoSDK.testSDK(null, fhMap("apikey", "APIKEY01", "utility", customUtils))
+    val client = VoxgigSolardemoSDK.testSDK(null, fhMap("apikey", "APIKEY01", "utility", customUtils))
 
     val u = client.getUtility()
 

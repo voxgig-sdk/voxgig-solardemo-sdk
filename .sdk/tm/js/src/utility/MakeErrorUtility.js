@@ -19,7 +19,7 @@ function makeError(ctx, err) {
   err = err || ctx.error('unknown', 'unknown error')
 
   const errmsg = err.message || 'unknown error'
-  const msg = 'SolardemoSDK: ' + op.name + ': ' + errmsg
+  const msg = 'VoxgigSolardemoSDK: ' + op.name + ': ' + errmsg
   err.message = clean(ctx, msg)
 
   if (result.err) {

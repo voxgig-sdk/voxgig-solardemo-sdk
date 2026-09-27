@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_method
+# VoxgigSolardemo SDK utility: prepare_method
 
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
 

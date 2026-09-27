@@ -1,12 +1,12 @@
-// Planet entity client for the Solardemo SDK.
+// Planet entity client for the VoxgigSolardemo SDK.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Entity;
+namespace VoxgigSolardemoSdk.Entity;
 
-public class PlanetEntity : SolardemoEntityBase
+public class PlanetEntity : VoxgigSolardemoEntityBase
 {
-    public PlanetEntity(SolardemoSDK client, Dictionary<string, object?>? entopts = null)
+    public PlanetEntity(VoxgigSolardemoSDK client, Dictionary<string, object?>? entopts = null)
         : base(client, entopts, "planet")
     {
     }

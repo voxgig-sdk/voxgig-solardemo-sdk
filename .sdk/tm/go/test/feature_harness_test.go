@@ -1,15 +1,5 @@
 package sdktest
 
-// Offline feature-test harness: a faithful miniature of the real operation
-// pipeline (same hook order and short-circuit rules as the generated
-// Entity*Op code) driven against a configurable mock transport, with no
-// live server and no API-specific fixtures.
-//
-// SEPARATE FROM feature_test.go ON PURPOSE. `target add` drops the
-// cross-feature suite when a project trims its feature set (it constructs
-// every shipped feature by name), but pipeline_test.go and friends use
-// these fh* helpers too — leaving them in feature_test.go took the whole
-// test package down with it.
 
 import (
 	"fmt"
@@ -113,7 +103,7 @@ func fhF(f sdk.Feature, options map[string]any) fhFeature {
 // fhHarness wires features (in init order) to a mock transport and a mini
 // operation pipeline.
 type fhHarness struct {
-	client  *sdk.SolardemoSDK
+	client  *sdk.VoxgigSolardemoSDK
 	utility *sdk.Utility
 	rootctx *sdk.Context
 	base    string
@@ -354,7 +344,7 @@ func fhPopulateResult(ctx *sdk.Context, response any, fetchErr error) {
 
 // fhErrCode extracts the SDK error code, "" otherwise.
 func fhErrCode(err error) string {
-	if se, ok := err.(*sdk.SolardemoError); ok {
+	if se, ok := err.(*sdk.VoxgigSolardemoError); ok {
 		return se.Code
 	}
 	return ""

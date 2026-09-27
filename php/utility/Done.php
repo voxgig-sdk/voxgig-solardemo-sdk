@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: done
+// VoxgigSolardemo SDK utility: done
 
-class SolardemoDone
+class VoxgigSolardemoDone
 {
-    public static function call(SolardemoContext $ctx): mixed
+    public static function call(VoxgigSolardemoContext $ctx): mixed
     {
         if ($ctx->ctrl->explain) {
             $ctx->ctrl->explain = ($ctx->utility->clean)($ctx, $ctx->ctrl->explain);

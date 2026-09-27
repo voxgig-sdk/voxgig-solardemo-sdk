@@ -1,14 +1,14 @@
-// Solardemo SDK - shared value helpers for the loose object model
+// VoxgigSolardemo SDK - shared value helpers for the loose object model
 // (Dictionary<string, object?> maps, List<object?> lists, string/long/double
 // /bool scalars - the same representation the vendored Voxgig.Struct port
 // uses).
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public static class Helpers
 {
     // UnsupportedOp is thrown by entity base methods for operations the
-    // underlying API spec doesn't define. The SolardemoEntityBase class
+    // underlying API spec doesn't define. The VoxgigSolardemoEntityBase class
     // declares every CRUD method on every entity, so absent ops must still
     // be callable - they error at runtime instead of failing to compile.
     public static Exception UnsupportedOp(string opname, string entityname)

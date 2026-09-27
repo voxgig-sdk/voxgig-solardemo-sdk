@@ -1,4 +1,4 @@
--- Solardemo SDK utility: transform_response
+-- VoxgigSolardemo SDK utility: transform_response
 
 local vs = require("utility.struct.struct")
 local helpers = require("core.helpers")

@@ -1,4 +1,4 @@
-// Solardemo SDK entities (generated).
+// VoxgigSolardemo SDK entities (generated).
 
 #ifndef SDK_ENTITY_ENTITIES_HPP
 #define SDK_ENTITY_ENTITIES_HPP

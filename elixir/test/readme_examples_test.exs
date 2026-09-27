@@ -1,4 +1,4 @@
-# Solardemo SDK — documentation elixir-examples syntax gate.
+# VoxgigSolardemo SDK — documentation elixir-examples syntax gate.
 #
 # SYNTAX + PRESENCE gate over every elixir fenced code block in three docs:
 #   - the repository ROOT README.md (one directory above the elixir/ package),
@@ -9,7 +9,7 @@
 # example (missing end, unbalanced map, bad token) fails the suite. Generated
 # by @voxgig/sdkgen — do not edit by hand.
 
-defmodule Solardemo.ReadmeExamplesTest do
+defmodule VoxgigSolardemo.ReadmeExamplesTest do
   use ExUnit.Case
 
   # The triple-backtick markdown fence, built without literal backticks.

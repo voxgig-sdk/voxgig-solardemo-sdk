@@ -1,4 +1,4 @@
--- Solardemo SDK utility: prepare_headers
+-- VoxgigSolardemo SDK utility: prepare_headers
 
 local vs = require("utility.struct.struct")
 

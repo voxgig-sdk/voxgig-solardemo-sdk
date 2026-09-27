@@ -1,6 +1,6 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
-import voxgig.solardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Context;
 
 final class Clean {
 

@@ -1,4 +1,4 @@
-// Solardemo SDK — BaseFeature (no-op base; mirrors java BaseFeature).
+// VoxgigSolardemo SDK — BaseFeature (no-op base; mirrors java BaseFeature).
 
 #ifndef SDK_FEATURE_BASE_HPP
 #define SDK_FEATURE_BASE_HPP

@@ -7,8 +7,8 @@
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 
-import voxgig.solardemosdk.core.{Entity, Helpers}
-import voxgig.solardemosdk.utility.Json
+import voxgig.voxgigsolardemosdk.core.{Entity, Helpers}
+import voxgig.voxgigsolardemosdk.utility.Json
 
 // Pass/fail accumulator shared by all generated entity/direct test objects.
 class SdkTestReport {

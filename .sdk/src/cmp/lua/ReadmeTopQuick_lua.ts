@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName, luaKey } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -19,10 +19,6 @@ function luaLit(type: any, placeholder: string = 'example'): string {
   return `"${placeholder}"`
 }
 
-// Non-identifier table keys use bracket syntax.
-function luaKey(name: string): string {
-  return /^[A-Za-z_]\w*$/.test(name) ? name : `["${name}"]`
-}
 
 
 const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
@@ -50,8 +46,6 @@ local client = ${ctor}
     // Lua keyword (e.g. `end`) would otherwise emit uncompilable code.
     const eVar = exampleVarName(eName.toLowerCase(), 'lua')
     const opnames = Object.keys(exampleEntity.op || {})
-    // Model-driven id key: null when the entity has no id-like field, in which
-    // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
 
     let hasCall = false

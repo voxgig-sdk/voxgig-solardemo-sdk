@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK netsim test
+// VoxgigSolardemo SDK netsim test
 //
 // Network-behaviour simulation over the offline mock transport. The `test`
 // feature accepts an optional `net` config so unit tests can exercise slow,
@@ -19,7 +19,7 @@ class NetsimTest extends TestCase
 {
     public function test_offline_simulation_fails_the_request(): void
     {
-        $sdk = SolardemoSDK::test(['net' => ['offline' => true]]);
+        $sdk = VoxgigSolardemoSDK::test(['net' => ['offline' => true]]);
         $res = $sdk->direct(['path' => '/ping']);
         $this->assertFalse($res['ok'], 'offline network must fail the call');
         $this->assertNotNull($res['err'] ?? null);
@@ -27,7 +27,7 @@ class NetsimTest extends TestCase
 
     public function test_fail_status_simulation_surfaces_the_error_status(): void
     {
-        $sdk = SolardemoSDK::test(['net' => ['failTimes' => 1, 'failStatus' => 503]]);
+        $sdk = VoxgigSolardemoSDK::test(['net' => ['failTimes' => 1, 'failStatus' => 503]]);
         $res = $sdk->direct(['path' => '/ping']);
         $this->assertFalse($res['ok']);
         $this->assertSame(503, $res['status'], 'simulated failure status is surfaced');
@@ -36,7 +36,7 @@ class NetsimTest extends TestCase
     public function test_latency_simulation_delays_the_request(): void
     {
         $delay = 60;
-        $sdk = SolardemoSDK::test(['net' => ['latency' => $delay]]);
+        $sdk = VoxgigSolardemoSDK::test(['net' => ['latency' => $delay]]);
         $start = microtime(true);
         $sdk->direct(['path' => '/ping']);
         $elapsed_ms = (microtime(true) - $start) * 1000.0;
@@ -47,7 +47,7 @@ class NetsimTest extends TestCase
 
     public function test_a_plain_test_sdk_still_works_with_no_net_simulation(): void
     {
-        $sdk = SolardemoSDK::test();
+        $sdk = VoxgigSolardemoSDK::test();
         $this->assertNotNull($sdk);
     }
 }

@@ -1,4 +1,4 @@
-// Solardemo SDK — drives the primary utility functions against the shared
+// VoxgigSolardemo SDK — drives the primary utility functions against the shared
 // test.json spec (../.sdk/test/test.json, section "primary") through the
 // VENDORED omni runner (test/omni_resolver.hpp over test/vendor/omni).
 // Mirrors java test/PrimaryUtilityTest.java + tm/go/test/primary_utility_test.go.
@@ -30,12 +30,12 @@ static const char* TEST_JSON_FILE = "../.sdk/test/test.json";
 // it drives, because several of them mutate it.
 static res::Run& primaryRun() {
   static res::Run run =
-      res::makeRunner(TEST_JSON_FILE, SolardemoSDK::testSDK())
+      res::makeRunner(TEST_JSON_FILE, VoxgigSolardemoSDK::testSDK())
           .runner("primary", Value::undef());
   return run;
 }
 
-static std::shared_ptr<SolardemoSDK> client() { return SolardemoSDK::testSDK(); }
+static std::shared_ptr<VoxgigSolardemoSDK> client() { return VoxgigSolardemoSDK::testSDK(); }
 
 // args[0], or no value at all (an entry with no in/args/ctx, which this
 // port's omni delivers as one absent argument).
@@ -84,7 +84,7 @@ static void runsection(const std::string& name, const res::Subject& subject) {
 }
 
 // Helper: create basic test context.
-static CtxPtr makeTestCtx(std::shared_ptr<SolardemoSDK> client_, UtilityPtr utility) {
+static CtxPtr makeTestCtx(std::shared_ptr<VoxgigSolardemoSDK> client_, UtilityPtr utility) {
   CtxSpec cs;
   cs.setOpname("load");
   cs.client = client_.get();
@@ -93,7 +93,7 @@ static CtxPtr makeTestCtx(std::shared_ptr<SolardemoSDK> client_, UtilityPtr util
 }
 
 // Helper: create full test context with point and match.
-static CtxPtr makeTestFullCtx(std::shared_ptr<SolardemoSDK> client_, UtilityPtr utility) {
+static CtxPtr makeTestFullCtx(std::shared_ptr<VoxgigSolardemoSDK> client_, UtilityPtr utility) {
   CtxPtr ctx = makeTestCtx(client_, utility);
   ctx->point = fhMap({
       {"parts", vlist({Value("items"), Value("{id}")})},
@@ -309,7 +309,7 @@ static void fetcherLive() {
     return vmap({{"status", Value(200)}, {"statusText", Value("OK")}});
   };
   Value opts = fhMap({{"system", fhMap({{"fetch", Value(fetchFn)}})}});
-  auto liveClient = std::make_shared<SolardemoSDK>(opts);
+  auto liveClient = std::make_shared<VoxgigSolardemoSDK>(opts);
   UtilityPtr liveUtility = liveClient->getUtility();
 
   CtxSpec cs;
@@ -329,7 +329,7 @@ static void fetcherBlockedTestMode() {
     return vmap();
   };
   Value opts = fhMap({{"system", fhMap({{"fetch", Value(fetchFn)}})}});
-  auto blockedClient = std::make_shared<SolardemoSDK>(opts);
+  auto blockedClient = std::make_shared<VoxgigSolardemoSDK>(opts);
   blockedClient->mode = "test";
 
   UtilityPtr blockedUtility = blockedClient->getUtility();
@@ -541,7 +541,7 @@ static void makeSpecBasic() {
   // client cannot be read back out of the ctx map: this section's
   // specially-optioned client is constructed here (resolver decision 5).
   Value setupOpts = rs::get_spec(primaryRun().spec, {"makeSpec", "DEF", "setup", "a"});
-  auto specClient = SolardemoSDK::testSDK(Value::undef(), setupOpts);
+  auto specClient = VoxgigSolardemoSDK::testSDK(Value::undef(), setupOpts);
   UtilityPtr specUtility = specClient->getUtility();
 
   runsection("makeSpec", [&](std::vector<Value>& args) -> Value {
@@ -631,7 +631,7 @@ static void paramBasic() {
 static void prepareAuthBasic() {
   // Constructed at the call site: see the note on makeSpec above.
   Value setupOpts = rs::get_spec(primaryRun().spec, {"prepareAuth", "DEF", "setup", "a"});
-  auto authClient = SolardemoSDK::testSDK(Value::undef(), setupOpts);
+  auto authClient = VoxgigSolardemoSDK::testSDK(Value::undef(), setupOpts);
   UtilityPtr authUtility = authClient->getUtility();
 
   runsection("prepareAuth", [&](std::vector<Value>& args) -> Value {
@@ -786,7 +786,7 @@ static void transformResponseBasic() {
 
 // Sections under `primary` that are NOT this SDK's pipeline surface, with the
 // reason each is exempt. `check` is omni's OWN runner fixture (it comes from
-// .sdk/test/struct/test.aon, which the corpus build merges into primary); no
+// .sdk/test/struct/test.aontu, which the corpus build merges into primary); no
 // port drives it from a primary suite.
 static const std::vector<std::string>& notThisSuite() {
   static const std::vector<std::string> names = {"check"};

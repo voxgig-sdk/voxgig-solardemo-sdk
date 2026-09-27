@@ -57,7 +57,7 @@ fun makeError(ctx: Context, errIn: RuntimeException?): Any? {
   }
 
   val errmsg = err.message ?: err.toString()
-  var msg = "SolardemoSDK: $opname: $errmsg"
+  var msg = "VoxgigSolardemoSDK: $opname: $errmsg"
   msg = clean(ctx, msg) as String
 
   result.err = null

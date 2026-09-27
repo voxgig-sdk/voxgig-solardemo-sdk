@@ -1,4 +1,4 @@
-// Solardemo SDK — umbrella include. A test or consumer includes this one
+// VoxgigSolardemo SDK — umbrella include. A test or consumer includes this one
 // header to get the whole SDK: the runtime type graph, the pipeline
 // utilities, the vendored struct, the generated API config, the per-entity
 // clients and the generated client class.

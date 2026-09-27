@@ -1,6 +1,6 @@
-// Solardemo SDK utility: prepareBody.
+// VoxgigSolardemo SDK utility: prepareBody.
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

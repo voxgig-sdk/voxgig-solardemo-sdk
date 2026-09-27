@@ -1,8 +1,8 @@
-# Solardemo Swift SDK
+# VoxgigSolardemo Swift SDK
 
 
 
-The Swift SDK for the Solardemo API — an entity-oriented client following idiomatic Swift conventions.
+The Swift SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Swift conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `client.Moon()` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
@@ -17,7 +17,7 @@ keeps the cognitive load low.
 This package is not yet published to a SwiftPM registry. The generated SDK
 is a dependency-free SwiftPM package (Foundation only, plus the vendored
 Voxgig Struct port). Depend on it from the GitHub release tag
-(`swift/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)) by adding it to
+(`swift/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) by adding it to
 your `Package.swift`:
 
 ```swift
@@ -42,9 +42,9 @@ loading a specific record.
 ### 1. Create a client
 
 ```swift
-import SolardemoSdk
+import VoxgigSolardemoSdk
 
-let client = SolardemoSDK()
+let client = VoxgigSolardemoSDK()
 ```
 
 ### 2. List moon records
@@ -167,7 +167,7 @@ print(fetchdef.entries["headers"] ?? .noval)
 Create a mock client for unit testing — no server required:
 
 ```swift
-let client = SolardemoSDK.testSDK(nil, nil)
+let client = VoxgigSolardemoSDK.testSDK(nil, nil)
 
 // Entity ops return the ENTITY and throws on error;
 // call data() for the record.
@@ -195,7 +195,7 @@ system.entries["fetch"] = .nat(fetch)
 let options = VMap()
 options.entries["base"] = .string("http://localhost:8080")
 options.entries["system"] = .map(system)
-let client = SolardemoSDK(options)
+let client = VoxgigSolardemoSDK(options)
 ```
 
 ### Run live tests
@@ -203,7 +203,7 @@ let client = SolardemoSDK(options)
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -215,10 +215,10 @@ cd swift && make test
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```swift
-let client = SolardemoSDK(options)
+let client = VoxgigSolardemoSDK(options)
 ```
 
 Creates a new SDK client. `options` is a `VMap` of `Value`.
@@ -235,12 +235,12 @@ Creates a new SDK client. `options` is a `VMap` of `Value`.
 ### testSDK
 
 ```swift
-let client = SolardemoSDK.testSDK(testopts, sdkopts)
+let client = VoxgigSolardemoSDK.testSDK(testopts, sdkopts)
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `nil`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -248,8 +248,8 @@ Creates a test-mode client with mock transport. Both arguments may be `nil`.
 | `getUtility` | `() -> Utility` | Copy of the SDK utility object. |
 | `prepare` | `(fetchargs) throws -> VMap` | Build an HTTP request definition without sending. Throws on error. |
 | `direct` | `(fetchargs) -> VMap` | Build and send an HTTP request. Returns a result map (branch on `ok`). |
-| `Moon` | `(entopts) -> SolardemoEntityBase` | Create a Moon entity instance. |
-| `Planet` | `(entopts) -> SolardemoEntityBase` | Create a Planet entity instance. |
+| `Moon` | `(entopts) -> VoxgigSolardemoEntityBase` | Create a Moon entity instance. |
+| `Planet` | `(entopts) -> VoxgigSolardemoEntityBase` | Create a Planet entity instance. |
 
 ### Entity interface
 
@@ -422,7 +422,7 @@ let planet = try client.Planet().create(VMap([
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -431,17 +431,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -482,7 +614,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -496,7 +636,7 @@ SDK flexible: no regeneration is needed when the API schema changes.
 
 Use the `.asMap` / `.asList` / `.asString` accessors to safely coerce a
 `Value` to a concrete Swift type (each returns `nil` on a type mismatch).
-A `SolardemoTypes.swift` file of reference `struct` types is also
+A `VoxgigSolardemoTypes.swift` file of reference `struct` types is also
 generated for editor documentation.
 
 ### Project structure
@@ -504,16 +644,16 @@ generated for editor documentation.
 ```
 swift/
 ├── Package.swift                     -- SwiftPM manifest (zero runtime deps)
-├── Sources/SolardemoSdk/
+├── Sources/VoxgigSolardemoSdk/
 │   ├── core/                         -- Main client, config, entity base, error type
 │   ├── entity/                       -- Generated entity clients
 │   ├── feature/                      -- Built-in features (Base, Test, Log, ...)
 │   ├── utility/                      -- Utility functions
 │   └── Struct/                       -- Vendored Voxgig Struct port
-└── Tests/SolardemoSdkTests/    -- Test suites (XCTest)
+└── Tests/VoxgigSolardemoSdkTests/    -- Test suites (XCTest)
 ```
 
-The main client class (`SolardemoSDK`, under `Sources/SolardemoSdk/core`)
+The main client class (`VoxgigSolardemoSDK`, under `Sources/VoxgigSolardemoSdk/core`)
 exposes the entity accessors. Reference entity or utility types directly only
 when needed. The SDK is dependency-free: JSON parsing is the vendored
 `Struct/JSON.swift`, HTTP transport is Foundation's `URLSession`, and the

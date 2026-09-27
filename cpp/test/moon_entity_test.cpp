@@ -7,7 +7,7 @@ using namespace sdk;
 using namespace sdk::rs;
 
 struct MoonSetup {
-  std::shared_ptr<SolardemoSDK> client;
+  std::shared_ptr<VoxgigSolardemoSDK> client;
   Value data;
   Value idmap;
   Value env;
@@ -23,7 +23,7 @@ static MoonSetup moon_basic_setup(const Value& extra) {
   Value entity_data = vs::parse_json(read_file(entity_data_file));
 
   Value options = vmap({{"entity", getp(entity_data, "existing")}});
-  auto client = SolardemoSDK::testSDK(options, extra);
+  auto client = VoxgigSolardemoSDK::testSDK(options, extra);
 
   // idmap via transform (upper-cased id name synthetics), matching the donors.
   Value idmap = Struct::transform(
@@ -38,23 +38,23 @@ static MoonSetup moon_basic_setup(const Value& extra) {
   if (!idmap.is_map()) idmap = vmap();
 
   Value env = env_override(vmap({
-    {"SOLARDEMO_TEST_MOON_ENTID", idmap},
-    {"SOLARDEMO_TEST_LIVE", Value("FALSE")},
-    {"SOLARDEMO_TEST_EXPLAIN", Value("FALSE")}
+    {"VOXGIG_SOLARDEMO_TEST_MOON_ENTID", idmap},
+    {"VOXGIG_SOLARDEMO_TEST_LIVE", Value("FALSE")},
+    {"VOXGIG_SOLARDEMO_TEST_EXPLAIN", Value("FALSE")}
   }));
 
-  Value idmap_resolved = Helpers::toMapAny(getp(env, "SOLARDEMO_TEST_MOON_ENTID"));
+  Value idmap_resolved = Helpers::toMapAny(getp(env, "VOXGIG_SOLARDEMO_TEST_MOON_ENTID"));
   if (!idmap_resolved.is_map()) idmap_resolved = idmap;
 
   if (getp(idmap_resolved, "planet_id").is_undef()) {
     setp(idmap_resolved, "planet_id", getp(idmap_resolved, "planet01"));
   }
 
-  bool live = getp(env, "SOLARDEMO_TEST_LIVE") == Value("TRUE");
+  bool live = getp(env, "VOXGIG_SOLARDEMO_TEST_LIVE") == Value("TRUE");
 
   MoonSetup s;
   s.client = client;
-  s.data = entity_data;
+  s.d = entity_data;
   s.idmap = idmap_resolved;
   s.env = env;
   s.live = live;
@@ -64,7 +64,7 @@ static MoonSetup moon_basic_setup(const Value& extra) {
 }
 
 static void moon_entity_instance() {
-  auto testsdk = SolardemoSDK::testSDK();
+  auto testsdk = VoxgigSolardemoSDK::testSDK();
   auto ent = testsdk->moon();
   ASSERT_EQ(ent->getName(), std::string("moon"), "entity name");
 }
@@ -81,12 +81,12 @@ static void moon_entity_stream() {
   Value sdkopts = vmap({{"feature",
       vmap({{"streaming", vmap({{"active", Value(true)}})}})}});
 
-  auto strsdk = SolardemoSDK::testSDK(seed, sdkopts);
+  auto strsdk = VoxgigSolardemoSDK::testSDK(seed, sdkopts);
   auto se = strsdk->moon();
   std::vector<Value> items = se->stream("list", Value::undef(), Value::undef());
   ASSERT_EQ((int)items.size(), 2, "stream yields both seeded items");
 
-  auto plainsdk = SolardemoSDK::testSDK(seed, Value::undef());
+  auto plainsdk = VoxgigSolardemoSDK::testSDK(seed, Value::undef());
   auto pe = plainsdk->moon();
   std::vector<Value> pitems = pe->stream("list", Value::undef(), Value::undef());
   ASSERT_EQ((int)pitems.size(), 2, "fallback stream yields both items");

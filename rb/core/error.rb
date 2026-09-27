@@ -1,12 +1,12 @@
-# Solardemo SDK error
+# VoxgigSolardemo SDK error
 
-class SolardemoError < StandardError
+class VoxgigSolardemoError < StandardError
   attr_accessor :is_sdk_error, :sdk, :code, :msg, :ctx, :result, :spec, :status
 
   def initialize(code = "", msg = "", ctx = nil)
     super(msg)
     @is_sdk_error = true
-    @sdk = "Solardemo"
+    @sdk = "VoxgigSolardemo"
     @code = code
     @msg = msg
     @ctx = ctx

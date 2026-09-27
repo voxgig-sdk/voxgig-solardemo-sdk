@@ -1,4 +1,4 @@
-// Solardemo SDK — umbrella runtime header (template; Solardemo tokens
+// VoxgigSolardemo SDK — umbrella runtime header (template; VoxgigSolardemo tokens
 // are substituted at generation time). Mirrors the rust core/ pipeline
 // types, but flat C with explicit heap structs + function-pointer vtables.
 //
@@ -20,8 +20,8 @@
 //   error *err is set to a heap PNError and the return value is unspecified
 //   (usually NULL). NULL PNError* == no error everywhere.
 
-#ifndef SOLARDEMO_SDK_H
-#define SOLARDEMO_SDK_H
+#ifndef VOXGIGSOLARDEMO_SDK_H
+#define VOXGIGSOLARDEMO_SDK_H
 
 #include "voxgig_struct.h"
 
@@ -32,7 +32,7 @@
 // Forward decls.
 typedef struct Context Context;
 typedef struct Utility Utility;
-typedef struct SolardemoSDK SolardemoSDK;
+typedef struct VoxgigSolardemoSDK VoxgigSolardemoSDK;
 typedef struct Feature Feature;
 typedef struct Entity Entity;
 typedef struct Operation Operation;
@@ -43,11 +43,11 @@ typedef struct Point Point;
 typedef struct Fetcher Fetcher;
 
 // ===========================================================================
-// Error (mirrors core/error.rs SolardemoError)
+// Error (mirrors core/error.rs VoxgigSolardemoError)
 // ===========================================================================
 
 typedef struct PNError {
-  char* sdk;   // "Solardemo"
+  char* sdk;   // "VoxgigSolardemo"
   char* code;  // machine code
   char* msg;   // human message
   voxgig_value* result; // cleaned snapshot (NULL until makeError)
@@ -300,7 +300,7 @@ voxgig_value* utility_fetch(Utility* u, Context* ctx, const char* url,
                             voxgig_value* fetchdef, PNError** err);
 
 // ===========================================================================
-// Entity (vtable; mirrors core/types.rs Entity + SolardemoEntity)
+// Entity (vtable; mirrors core/types.rs Entity + VoxgigSolardemoEntity)
 // ===========================================================================
 
 // Every operation resolves to the ENTITY, not the raw data. `list` resolves
@@ -323,7 +323,7 @@ typedef struct EntityVT {
   void (*mark_deleted)(Entity*);
   bool (*deleted)(Entity*);
 
-  // CRUD ops (SolardemoEntity). On error set *err and return NULL.
+  // CRUD ops (VoxgigSolardemoEntity). On error set *err and return NULL.
   Entity* (*load)(Entity*, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err);
   // Returns a NULL-terminated Entity* array (never NULL on success).
   Entity** (*list)(Entity*, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err);
@@ -345,7 +345,7 @@ struct Entity {
 // Construction spec (rust CtxSpec). Unset fields are NULL / empty string.
 typedef struct CtxSpec {
   const char* opname;       // NULL => ""
-  SolardemoSDK* client;
+  VoxgigSolardemoSDK* client;
   Utility* utility;
   voxgig_value* ctrl;       // caller ctrl map (NULL => none)
   Control* ctrl_obj;        // existing control (NULL => none)
@@ -375,6 +375,10 @@ struct Context {
   voxgig_value* out_point_val;
   PNError* out_point_err;
   Spec* out_spec;
+  // A PreSpec hook (e.g. validate) rejecting the operation. `out_spec` above
+  // is a Spec, so it cannot carry the error the way go's `out["spec"]` map
+  // slot does; this is the same seam as out_point_err, one stage later.
+  PNError* out_spec_err;
   Response* out_request;
   Response* out_response;
   SdkResult* out_result;
@@ -382,7 +386,7 @@ struct Context {
 
   Control* ctrl;
   voxgig_value* meta;
-  SolardemoSDK* client;
+  VoxgigSolardemoSDK* client;
   Utility* utility;
   Operation* op;
   voxgig_value* point;
@@ -407,14 +411,15 @@ Utility* context_util(Context* ctx);
 // ctx.out helpers.
 void ctx_out_set_point_val(Context* ctx, voxgig_value* v);
 void ctx_out_set_point_err(Context* ctx, PNError* e);
+void ctx_out_set_spec_err(Context* ctx, PNError* e);
 voxgig_value* ctx_out_extra_get(Context* ctx, const char* key);
 void ctx_out_extra_set(Context* ctx, const char* key, voxgig_value* v);
 
 // ===========================================================================
-// SDK client (mirrors Main.fragment SolardemoSDK) — generic fields.
+// SDK client (mirrors Main.fragment VoxgigSolardemoSDK) — generic fields.
 // ===========================================================================
 
-struct SolardemoSDK {
+struct VoxgigSolardemoSDK {
   char* mode;             // "live" | "test"
   voxgig_value* options;
   Utility* utility;
@@ -426,27 +431,46 @@ struct SolardemoSDK {
 };
 
 // Feature-list mutation (used by feature_add).
-void sdk_features_push(SolardemoSDK* sdk, Feature* f);
-void sdk_features_insert(SolardemoSDK* sdk, size_t i, Feature* f);
-void sdk_features_replace(SolardemoSDK* sdk, size_t i, Feature* f);
+void sdk_features_push(VoxgigSolardemoSDK* sdk, Feature* f);
+void sdk_features_insert(VoxgigSolardemoSDK* sdk, size_t i, Feature* f);
+void sdk_features_replace(VoxgigSolardemoSDK* sdk, size_t i, Feature* f);
 
-voxgig_value* sdk_options_map(SolardemoSDK* sdk); // deep clone of options
-Utility* sdk_get_utility(SolardemoSDK* sdk);      // utility_copy
-Context* sdk_get_root_ctx(SolardemoSDK* sdk);
+voxgig_value* sdk_options_map(VoxgigSolardemoSDK* sdk); // deep clone of options
+Utility* sdk_get_utility(VoxgigSolardemoSDK* sdk);      // utility_copy
+Context* sdk_get_root_ctx(VoxgigSolardemoSDK* sdk);
 
 // Constructors / prepare / direct are in the generated client.c:
-SolardemoSDK* solardemo_sdk_new(voxgig_value* options);
-SolardemoSDK* test_sdk(voxgig_value* testopts, voxgig_value* sdkopts);
-voxgig_value* sdk_prepare(SolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err);
-voxgig_value* sdk_direct(SolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err);
-voxgig_value* sdk_graphql(SolardemoSDK* sdk, const char* query,
+VoxgigSolardemoSDK* voxgigsolardemo_sdk_new(voxgig_value* options);
+VoxgigSolardemoSDK* test_sdk(voxgig_value* testopts, voxgig_value* sdkopts);
+voxgig_value* sdk_prepare(VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err);
+voxgig_value* sdk_direct(VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err);
+voxgig_value* sdk_graphql(VoxgigSolardemoSDK* sdk, const char* query,
                           voxgig_value* variables, voxgig_value* ctrl,
                           PNError** err);
 
 // Generated config (core/config.c).
 voxgig_value* make_config(void);
 voxgig_value* shared_config(void);
+
+// Generated schemas (core/schema.c): the model's option spec, which
+// make_options validates client options against, and the per-entity field
+// specs. The shared_* accessors parse once and hand back a value that is
+// READ-ONLY to the caller, exactly as shared_config does.
+voxgig_value* make_optspec(void);
+voxgig_value* shared_optspec(void);
+voxgig_value* make_entityspec(void);
+voxgig_value* shared_entityspec(void);
 Feature* make_feature(const char* name);
+
+// The plugin DEFINITIONS the model selected for one feature's chain - the c
+// peer of go's core.FeaturePlugins(name). Each entry is a `Definition*` from
+// the vendored voxgig/plugin (feature/secrets/plugin/catalog.h), typed void*
+// here because core/ must never name a gated feature's types: the accessor
+// exists in every generated config.c, and answers *n = 0 / NULL for a
+// feature with no plugins or an SDK that never selected the feature. A
+// feature casts the array back at the one place it hands the list to the
+// vendored library.
+void** feature_plugins(const char* name, size_t* n);
 
 // ===========================================================================
 // Utility builder prototypes (utility/*.c). Fallible ones take PNError** err.
@@ -536,4 +560,4 @@ Feature* feature_netsim_new(void);
 // exposes none). Backed by the optional FeatureVT.track slot.
 voxgig_value* feature_track(Feature* f);
 
-#endif // SOLARDEMO_SDK_H
+#endif // VOXGIGSOLARDEMO_SDK_H

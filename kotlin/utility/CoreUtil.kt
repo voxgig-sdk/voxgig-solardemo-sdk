@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.core.Result
-import voxgig.solardemosdk.core.SdkError
-import voxgig.solardemosdk.core.Spec
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.core.Result
+import voxgig.voxgigsolardemosdk.core.SdkError
+import voxgig.voxgigsolardemosdk.core.Spec
 
 fun makeContext(ctxmap: MutableMap<String, Any?>?, basectx: Context?): Context {
   return Context(ctxmap, basectx)
@@ -57,7 +57,7 @@ fun makeError(ctx: Context, errIn: RuntimeException?): Any? {
   }
 
   val errmsg = err.message ?: err.toString()
-  var msg = "SolardemoSDK: $opname: $errmsg"
+  var msg = "VoxgigSolardemoSDK: $opname: $errmsg"
   msg = clean(ctx, msg) as String
 
   result.err = null

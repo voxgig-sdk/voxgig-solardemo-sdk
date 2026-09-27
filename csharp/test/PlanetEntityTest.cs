@@ -5,14 +5,14 @@ using System.Text.Json;
 using Voxgig.Struct;
 using Xunit;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class PlanetEntityTest
 {
     [Fact]
     public void Instance()
     {
-        var testsdk = SolardemoSDK.TestSDK(null, null);
+        var testsdk = VoxgigSolardemoSDK.TestSDK(null, null);
         var ent = testsdk.Planet();
         Assert.NotNull(ent);
     }
@@ -35,7 +35,7 @@ public class PlanetEntityTest
         }
         // The basic flow consumes synthetic IDs from the fixture. In live
         // mode without an *_ENTID env override, those IDs hit the live API
-        // and 4xx; set SOLARDEMO_TEST_PLANET_ENTID JSON to run live.
+        // and 4xx; set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live.
         if (setup.SyntheticOnly)
         {
             return;
@@ -182,7 +182,7 @@ public class PlanetEntityTest
             ["entity"] = entityData["existing"],
         };
 
-        var client = SolardemoSDK.TestSDK(options, extra);
+        var client = VoxgigSolardemoSDK.TestSDK(options, extra);
 
         // Generate idmap via transform, matching the TS pattern.
         var idmap = StructUtils.Transform(
@@ -204,22 +204,22 @@ public class PlanetEntityTest
         // live mode is on without a real override, the basic test runs
         // against synthetic IDs from the fixture and 4xx's.
         var entidEnvRaw = Environment.GetEnvironmentVariable(
-            "SOLARDEMO_TEST_PLANET_ENTID") ?? "";
+            "VOXGIG_SOLARDEMO_TEST_PLANET_ENTID") ?? "";
         var idmapOverridden = entidEnvRaw != "" &&
             entidEnvRaw.Trim().StartsWith("{");
 
         var env = TestRunner.EnvOverride(new Dictionary<string, object?>
         {
-            ["SOLARDEMO_TEST_PLANET_ENTID"] = idmap,
-            ["SOLARDEMO_TEST_LIVE"] = "FALSE",
-            ["SOLARDEMO_TEST_EXPLAIN"] = "FALSE",
+            ["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"] = idmap,
+            ["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE",
+            ["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] = "FALSE",
         });
 
-        var idmapResolved = Helpers.ToMapAny(env["SOLARDEMO_TEST_PLANET_ENTID"])
+        var idmapResolved = Helpers.ToMapAny(env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"])
             ?? Helpers.ToMapAny(idmap)
             ?? new Dictionary<string, object?>();
 
-        if (Equals(env["SOLARDEMO_TEST_LIVE"], "TRUE"))
+        if (Equals(env["VOXGIG_SOLARDEMO_TEST_LIVE"], "TRUE"))
         {
             // 'extra ?? new ...', not a bare 'extra': Merge returns null when
             // the last entry is null, and BasicSetup is normally called with no
@@ -236,17 +236,17 @@ public class PlanetEntityTest
                 },
                 extraOpts,
             });
-            client = new SolardemoSDK(Helpers.ToMapAny(mergedOpts));
+            client = new VoxgigSolardemoSDK(Helpers.ToMapAny(mergedOpts));
         }
 
-        var live = Equals(env["SOLARDEMO_TEST_LIVE"], "TRUE");
+        var live = Equals(env["VOXGIG_SOLARDEMO_TEST_LIVE"], "TRUE");
         return new EntityTestSetup
         {
             Client = client,
             Data = entityData,
             Idmap = idmapResolved,
             Env = env,
-            Explain = Equals(env["SOLARDEMO_TEST_EXPLAIN"], "TRUE"),
+            Explain = Equals(env["VOXGIG_SOLARDEMO_TEST_EXPLAIN"], "TRUE"),
             Live = live,
             SyntheticOnly = live && !idmapOverridden,
             Now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),

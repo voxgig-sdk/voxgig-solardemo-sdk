@@ -1,4 +1,4 @@
-// Solardemo SDK — documentation scala-examples PRESENCE + STRUCTURE gate.
+// VoxgigSolardemo SDK — documentation scala-examples PRESENCE + STRUCTURE gate.
 //
 // GUARANTEE (see ReadmeExamplesTest_scala.ts for why this is a structure gate
 // and not an execute gate): every scala example in the docs is accounted for.

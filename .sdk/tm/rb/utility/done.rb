@@ -1,5 +1,5 @@
-# Solardemo SDK utility: done
-module SolardemoUtilities
+# VoxgigSolardemo SDK utility: done
+module VoxgigSolardemoUtilities
   Done = ->(ctx) {
     if ctx.ctrl.explain
       ctx.ctrl.explain = ctx.utility.clean.call(ctx, ctx.ctrl.explain)

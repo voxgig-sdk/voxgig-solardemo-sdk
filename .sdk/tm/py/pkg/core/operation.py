@@ -1,10 +1,10 @@
-# Solardemo SDK operation
+# VoxgigSolardemo SDK operation
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
 
 
-class SolardemoOperation:
+class VoxgigSolardemoOperation:
     def __init__(self, opmap=None):
         if opmap is None:
             opmap = {}

@@ -1,4 +1,4 @@
--- Solardemo SDK utility: feature_init
+-- VoxgigSolardemo SDK utility: feature_init
 
 local vs = require("utility.struct.struct")
 

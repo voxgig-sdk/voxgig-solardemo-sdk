@@ -1,8 +1,8 @@
-# Solardemo SDK test runner
+# VoxgigSolardemo SDK test runner
 
 require 'json'
 
-module SolardemoTestRunner
+module VoxgigSolardemoTestRunner
   @env = {}
 
   def self.load_env_local
@@ -23,8 +23,8 @@ module SolardemoTestRunner
   end
 
   def self.env_override(m)
-    live = getenv("SOLARDEMO_TEST_LIVE")
-    override = getenv("SOLARDEMO_TEST_OVERRIDE")
+    live = getenv("VOXGIG_SOLARDEMO_TEST_LIVE")
+    override = getenv("VOXGIG_SOLARDEMO_TEST_OVERRIDE")
 
     if live == "TRUE" || override == "TRUE"
       m.each_key do |key|
@@ -44,8 +44,8 @@ module SolardemoTestRunner
       end
     end
 
-    explain = getenv("SOLARDEMO_TEST_EXPLAIN")
-    m["SOLARDEMO_TEST_EXPLAIN"] = explain if explain && !explain.empty?
+    explain = getenv("VOXGIG_SOLARDEMO_TEST_EXPLAIN")
+    m["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] = explain if explain && !explain.empty?
 
     m
   end
@@ -136,6 +136,6 @@ module SolardemoTestRunner
 end
 
 # Module-level aliases for test convenience.
-Runner = SolardemoTestRunner
-Helpers = SolardemoHelpers
+Runner = VoxgigSolardemoTestRunner
+Helpers = VoxgigSolardemoHelpers
 Vs = VoxgigStruct

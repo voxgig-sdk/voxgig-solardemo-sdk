@@ -15,7 +15,7 @@ from test.omni import (
     UNDEFMARK,
 )
 
-from projectname_sdk import SolardemoSDK
+from projectname_sdk import VoxgigSolardemoSDK
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
 from projectname_sdk.utility.voxgig_struct.voxgig_struct import (
     T_noval, T_scalar, T_function, T_symbol, T_any, T_node, T_instance, T_null,
@@ -26,7 +26,7 @@ STRUCT_TEST_JSON = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), '../../.sdk/test/test.json')
 
 # The struct corpus drives the LIVE SDK's struct utilities, as ts does.
-runner = makeRunner(STRUCT_TEST_JSON, SolardemoSDK.test(None, None))
+runner = makeRunner(STRUCT_TEST_JSON, VoxgigSolardemoSDK.test(None, None))
 runparts = runner('struct')
 
 spec = runparts["spec"]

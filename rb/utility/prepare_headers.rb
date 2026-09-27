@@ -1,6 +1,6 @@
-# Solardemo SDK utility: prepare_headers
+# VoxgigSolardemo SDK utility: prepare_headers
 require_relative 'struct/voxgig_struct'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   PrepareHeaders = ->(ctx) {
     options = ctx.client.options_map
     headers = VoxgigStruct.getprop(options, "headers")

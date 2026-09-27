@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.feature;
+package voxgig.voxgigsolardemosdk.feature;
 
 import java.util.ArrayList;
 import java.util.List;

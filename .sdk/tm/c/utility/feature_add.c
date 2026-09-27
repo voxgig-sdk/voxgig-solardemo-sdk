@@ -7,7 +7,7 @@
 #include <string.h>
 
 void feature_add_util(Context* ctx, Feature* f) {
-  SolardemoSDK* client = ctx->client;
+  VoxgigSolardemoSDK* client = ctx->client;
   if (!client) return;
 
   voxgig_value* fopts = f->vt->add_options(f);

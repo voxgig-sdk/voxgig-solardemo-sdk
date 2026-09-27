@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.Map;
 
-/** Small shared conversions used across the Solardemo SDK runtime. */
+/** Small shared conversions used across the VoxgigSolardemo SDK runtime. */
 @SuppressWarnings({"unchecked"})
 public final class Helpers {
 

@@ -1,13 +1,3 @@
-// Primary utility tests — run the shared `primary` subtree of
-// ../.sdk/test/test.json against the SDK pipeline utilities (mirrors
-// tm/go/test/primary_utility_test.go).
-//
-// The corpus is driven by the VENDORED omni runner through the adapter in
-// tests/omni_resolver/mod.rs. Subjects receive omni's native argument list:
-// a `ctx` entry arrives as args[0], a MAP — `make_ctx_from_map` builds the
-// typed context a generated utility takes, and the subject writes the
-// observable ctx state back into that same map, which is what a
-// `match: {ctx: ...}` assertion reads (see the resolver's decision 3).
 
 mod common;
 mod omni_resolver;
@@ -22,12 +12,9 @@ use RUSTCRATE::core::helpers::{get_str, getp, ja, jo, setp, to_map, vfn};
 use RUSTCRATE::utility::voxgigstruct as vs;
 use RUSTCRATE::{
     new as new_sdk, test_sdk, BaseFeature, Context, CtxSpec, Feature, FeatureRef, Operation,
-    ProjectNameError, ProjectNameSDK, SdkResult, Spec, Utility, Value,
+    VoxgigSolardemoError, VoxgigSolardemoSDK, SdkResult, Spec, Utility, Value,
 };
 
-// Sections deliberately left empty in the shared corpus
-// (.sdk/test/primary/<name>.aon carries a PENDING header). Everything else
-// MUST contribute cases.
 const PENDING_SECTIONS: &[&str] = &[
     "fetcher", "makeFetchDef", "makeResult", "featureAdd",
     "featureHook", "featureInit",
@@ -42,16 +29,9 @@ fn primary_run() -> Run {
     run
 }
 
-/// Run one corpus section, failing loudly when it would run ZERO cases.
-///
-/// A renamed section, a fixture that failed to compile, or an empty set used
-/// to report PASS while running zero assertions — the whole point of a shared
-/// oracle lost without a single red test. The guard lives here rather than in
-/// the runner, which is vendored verbatim; the shared corpus is a v0 spec,
-/// and v0 tolerates an empty set.
 fn runsection<F>(run: &mut Run, name: &str, subject: F)
 where
-    F: FnMut(&mut Vec<Value>) -> Result<Value, ProjectNameError> + 'static,
+    F: FnMut(&mut Vec<Value>) -> Result<Value, VoxgigSolardemoError> + 'static,
 {
     let basic = run.set(&[name, "basic"]);
     assert!(
@@ -78,14 +58,14 @@ where
     }
 }
 
-fn base_client() -> (Rc<ProjectNameSDK>, Rc<Utility>) {
+fn base_client() -> (Rc<VoxgigSolardemoSDK>, Rc<Utility>) {
     let client = test_sdk(Value::Noval, Value::Noval);
     let utility = client.get_utility();
     (client, utility)
 }
 
 // Helper: create basic test context.
-fn make_test_ctx(client: &Rc<ProjectNameSDK>, utility: &Rc<Utility>) -> Rc<Context> {
+fn make_test_ctx(client: &Rc<VoxgigSolardemoSDK>, utility: &Rc<Utility>) -> Rc<Context> {
     utility.make_context(
         CtxSpec {
             opname: Some("load".to_string()),
@@ -98,7 +78,7 @@ fn make_test_ctx(client: &Rc<ProjectNameSDK>, utility: &Rc<Utility>) -> Rc<Conte
 }
 
 // Helper: create full test context with point and match.
-fn make_test_full_ctx(client: &Rc<ProjectNameSDK>, utility: &Rc<Utility>) -> Rc<Context> {
+fn make_test_full_ctx(client: &Rc<VoxgigSolardemoSDK>, utility: &Rc<Utility>) -> Rc<Context> {
     let ctx = make_test_ctx(client, utility);
     *ctx.point.borrow_mut() = jo(vec![
         ("parts", ja(vec![Value::str("items"), Value::str("{id}")])),
@@ -323,7 +303,7 @@ fn primary_feature_init_inactive() {
 fn primary_fetcher_live() {
     let calls: Rc<RefCell<Vec<Value>>> = Rc::new(RefCell::new(Vec::new()));
     let c = calls.clone();
-    let live_client = ProjectNameSDK::new(jo(vec![(
+    let live_client = VoxgigSolardemoSDK::new(jo(vec![(
         "system",
         jo(vec![(
             "fetch",
@@ -363,7 +343,7 @@ fn primary_fetcher_live() {
 fn primary_fetcher_blocked_test_mode() {
     // A live SDK then set mode to test (not using test_sdk, which installs
     // the test feature's mock transport).
-    let blocked_client = ProjectNameSDK::new(jo(vec![(
+    let blocked_client = VoxgigSolardemoSDK::new(jo(vec![(
         "system",
         jo(vec![("fetch", vfn(|_args| Value::empty_map()))]),
     )]));
@@ -749,7 +729,6 @@ fn primary_param_basic() {
 
         // Write the resolved spec alias back into args[0] — the map a
         // `match: {ctx: {spec: {alias: ...}}}` assertion reads (resolver
-        // decision 3 retargets it onto `args.0`).
         if let Some(spec) = ctx.spec.borrow().clone() {
             setp(
                 &ctxmap,
@@ -837,7 +816,6 @@ fn primary_prepare_params_basic() {
     });
 }
 
-// Was two hand-written cases that had drifted out of the shared corpus (the
 // preparePath fixture shipped as an empty `set: []`). Now driven by the
 // corpus like every other section, so all ports assert the same separator /
 // blank-segment behaviour.

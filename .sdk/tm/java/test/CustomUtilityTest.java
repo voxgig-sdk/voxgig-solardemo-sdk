@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 import JAVAPACKAGE.core.Context;
-import JAVAPACKAGE.core.SolardemoSDK;
+import JAVAPACKAGE.core.VoxgigSolardemoSDK;
 import JAVAPACKAGE.core.Utility;
 
 @SuppressWarnings({"unchecked"})
@@ -45,7 +45,7 @@ public class CustomUtilityTest {
       customUtils.put(key, util(key.toUpperCase()));
     }
 
-    SolardemoSDK client = SolardemoSDK.testSDK(null, fhMap(
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(null, fhMap(
         "apikey", "APIKEY01",
         "utility", customUtils));
 
@@ -90,7 +90,7 @@ public class CustomUtilityTest {
     // not live", so a REQUIRED OpenAPI server variable resolves to a
     // deterministic test-<name> instead of failing construction. It installs
     // no transport, so the scripted fetcher still stands.
-    SolardemoSDK client = new SolardemoSDK(fhMap(
+    VoxgigSolardemoSDK client = new VoxgigSolardemoSDK(fhMap(
         "test", fhMap("active", true),
         "utility", fhMap("fetcher", scripted)));
 
@@ -115,7 +115,7 @@ public class CustomUtilityTest {
     // not live", so a REQUIRED OpenAPI server variable resolves to a
     // deterministic test-<name> instead of failing construction. It installs
     // no transport, so the scripted fetcher still stands.
-    SolardemoSDK client = new SolardemoSDK(fhMap(
+    VoxgigSolardemoSDK client = new VoxgigSolardemoSDK(fhMap(
         "test", fhMap("active", true),
         "utility", fhMap("notAUtilityMember", (Supplier<String>) () -> "EXTRA")));
     assertTrue(client.getUtility().custom.containsKey("notAUtilityMember"),

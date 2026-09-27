@@ -1,9 +1,9 @@
-defmodule Solardemo.MixProject do
+defmodule VoxgigSolardemo.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :solardemo,
+      app: :voxgig_solardemo,
       version: "0.1.0",
       elixir: "~> 1.14",
       description: "Unofficial generated elixir SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
@@ -27,7 +27,7 @@ defmodule Solardemo.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"Homepage" => "https://github.com/voxgig-sdk/solardemo-sdk"}
+      links: %{"Homepage" => "https://github.com/voxgig-sdk/voxgig-solardemo-sdk"}
     ]
   end
 end

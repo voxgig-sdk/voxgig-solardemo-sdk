@@ -1,4 +1,4 @@
--- Solardemo SDK feature test
+-- VoxgigSolardemo SDK feature test
 --
 -- Behavioural + coverage tests for the enterprise features shipped with
 -- this SDK. Each block runs only when its feature is present (see

@@ -1,8 +1,8 @@
-// Solardemo SDK - resolved operation definition.
+// VoxgigSolardemo SDK - resolved operation definition.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Operation
 {

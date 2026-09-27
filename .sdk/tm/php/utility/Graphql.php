@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: graphql
+// VoxgigSolardemo SDK utility: graphql
 //
 // GraphQL transport. API-INDEPENDENT: every GraphQL SDK this generator
 // produces uses this file unchanged. The API-specific part — which
@@ -18,7 +18,7 @@ declare(strict_types=1);
 //                    HTTP 200, so the status-driven path in result_basic
 //                    never sees them.
 
-class SolardemoGraphql
+class VoxgigSolardemoGraphql
 {
     // Content type every GraphQL-over-HTTP request uses.
     public const CONTENT_TYPE = 'application/json';
@@ -63,7 +63,7 @@ class SolardemoGraphql
     // (empty `from`) takes the request data as a whole — which is what
     // makes a generated create/update call look exactly like its REST
     // equivalent.
-    public static function body(SolardemoContext $ctx): mixed
+    public static function body(VoxgigSolardemoContext $ctx): mixed
     {
         $gql = \Voxgig\Struct\Struct::getprop($ctx->point, 'graphql');
         if (!is_array($gql)) {
@@ -141,7 +141,7 @@ class SolardemoGraphql
     // REST surface has no partial-success concept, and silently returning
     // half an object would be worse than failing. The raw envelope stays
     // available on the result for callers that need it.
-    public static function errors(SolardemoContext $ctx): bool
+    public static function errors(VoxgigSolardemoContext $ctx): bool
     {
         $result = $ctx->result;
         $point = $ctx->point;

@@ -5,14 +5,14 @@
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 
-import voxgig.solardemosdk.core.{Helpers, SdkEntity, SolardemoSDK}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.{Helpers, SdkEntity, VoxgigSolardemoSDK}
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 object MoonEntityTest {
 
   def run(rep: SdkTestReport): Unit = {
     rep.scope("moon.instance") {
-      val testsdk = SolardemoSDK.testSDK()
+      val testsdk = VoxgigSolardemoSDK.testSDK()
       val ent = testsdk.moon(null)
       rep.check("moon.instance", ent != null, "expected non-null moon entity")
     }
@@ -22,7 +22,7 @@ object MoonEntityTest {
           "../.sdk/test/entity/moon/MoonTestData.json"))
       val options = new LinkedHashMap[String, Object]()
       options.put("entity", entityData.get("existing"))
-      val client = SolardemoSDK.testSDK(options, null)
+      val client = VoxgigSolardemoSDK.testSDK(options, null)
 
       val idmap = new LinkedHashMap[String, Object]()
       idmap.put("moon01", "MOON01")

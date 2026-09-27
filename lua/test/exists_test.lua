@@ -1,8 +1,8 @@
--- Solardemo SDK exists test
+-- VoxgigSolardemo SDK exists test
 
-local sdk = require("solardemo_sdk")
+local sdk = require("voxgig-solardemo_sdk")
 
-describe("SolardemoSDK", function()
+describe("VoxgigSolardemoSDK", function()
   it("should create test SDK", function()
     local testsdk = sdk.test(nil, nil)
     assert.is_not_nil(testsdk)

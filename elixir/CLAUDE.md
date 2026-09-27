@@ -1,4 +1,4 @@
-# Solardemo Elixir
+# VoxgigSolardemo Elixir
 
 This project uses **AGENTS.md** as the operating guide for coding agents.
 

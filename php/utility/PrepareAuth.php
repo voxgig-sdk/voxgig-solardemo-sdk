@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: prepare_auth
+// VoxgigSolardemo SDK utility: prepare_auth
 
-class SolardemoPrepareAuth
+class VoxgigSolardemoPrepareAuth
 {
     private const HEADER_AUTH = 'authorization';
     private const OPTION_APIKEY = 'apikey';
     private const NOT_FOUND = '__NOTFOUND__';
 
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         $spec = $ctx->spec;
         if (!$spec) {

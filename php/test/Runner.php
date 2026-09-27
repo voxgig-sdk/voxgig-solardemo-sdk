@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK test runner
+// VoxgigSolardemo SDK test runner
 
-class SolardemoTestRunner
+class VoxgigSolardemoTestRunner
 {
     private static array $env = [];
 
@@ -43,8 +43,8 @@ class SolardemoTestRunner
 
     public static function env_override(array $m): array
     {
-        $live = self::getenv('SOLARDEMO_TEST_LIVE');
-        $override = self::getenv('SOLARDEMO_TEST_OVERRIDE');
+        $live = self::getenv('VOXGIG_SOLARDEMO_TEST_LIVE');
+        $override = self::getenv('VOXGIG_SOLARDEMO_TEST_OVERRIDE');
 
         if ($live === 'TRUE' || $override === 'TRUE') {
             foreach (array_keys($m) as $key) {
@@ -63,9 +63,9 @@ class SolardemoTestRunner
             }
         }
 
-        $explain = self::getenv('SOLARDEMO_TEST_EXPLAIN');
+        $explain = self::getenv('VOXGIG_SOLARDEMO_TEST_EXPLAIN');
         if ($explain !== null && $explain !== '') {
-            $m['SOLARDEMO_TEST_EXPLAIN'] = $explain;
+            $m['VOXGIG_SOLARDEMO_TEST_EXPLAIN'] = $explain;
         }
 
         return $m;
@@ -187,8 +187,8 @@ class SolardemoTestRunner
 }
 
 // Aliases for test convenience.
-class_alias('SolardemoTestRunner', 'Runner');
-class_alias('SolardemoHelpers', 'Helpers');
+class_alias('VoxgigSolardemoTestRunner', 'Runner');
+class_alias('VoxgigSolardemoHelpers', 'Helpers');
 class_alias('Voxgig\Struct\Struct', 'Vs');
 
 // Filter array of maps by matching key-value criteria.

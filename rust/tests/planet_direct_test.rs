@@ -10,12 +10,12 @@ use std::rc::Rc;
 
 use common::*;
 
-use solardemo_sdk::core::helpers::{getp, ja, jo, json_thunk, setp, to_int, to_map};
-use solardemo_sdk::utility::voxgigstruct as vs;
-use solardemo_sdk::{Value, SolardemoSDK};
+use voxgig_solardemo_sdk::core::helpers::{getp, ja, jo, json_thunk, setp, to_int, to_map};
+use voxgig_solardemo_sdk::utility::voxgigstruct as vs;
+use voxgig_solardemo_sdk::{Value, VoxgigSolardemoSDK};
 
 struct PlanetDirectSetup {
-    client: Rc<SolardemoSDK>,
+    client: Rc<VoxgigSolardemoSDK>,
     calls: Rc<RefCell<Vec<Value>>>,
     live: bool,
     idmap: Value,
@@ -27,24 +27,24 @@ fn planet_direct_setup(mockres: Value) -> PlanetDirectSetup {
     let calls: Rc<RefCell<Vec<Value>>> = Rc::new(RefCell::new(Vec::new()));
 
     let env = env_override(jo(vec![
-        ("SOLARDEMO_TEST_PLANET_ENTID", Value::empty_map()),
-        ("SOLARDEMO_TEST_LIVE", Value::str("FALSE")),
+        ("VOXGIG_SOLARDEMO_TEST_PLANET_ENTID", Value::empty_map()),
+        ("VOXGIG_SOLARDEMO_TEST_LIVE", Value::str("FALSE")),
     ]));
 
-    let live = getp(&env, "SOLARDEMO_TEST_LIVE") == Value::str("TRUE");
+    let live = getp(&env, "VOXGIG_SOLARDEMO_TEST_LIVE") == Value::str("TRUE");
 
     if live {
         // live_client_options() FIRST, so the generated entries below win:
         // sdk-test-control.json's test.client.options adds to the live
         // client, it does not redirect it.
-        let client = SolardemoSDK::new(to_map(&vs::merge(
+        let client = VoxgigSolardemoSDK::new(to_map(&vs::merge(
             &ja(vec![
                 live_client_options(),
                 jo(vec![]),
             ]),
             None,
         )));
-        let idmap = match to_map(&getp(&env, "SOLARDEMO_TEST_PLANET_ENTID")) {
+        let idmap = match to_map(&getp(&env, "VOXGIG_SOLARDEMO_TEST_PLANET_ENTID")) {
             Value::Map(m) => Value::Map(m),
             _ => Value::empty_map(),
         };
@@ -74,7 +74,7 @@ fn planet_direct_setup(mockres: Value) -> PlanetDirectSetup {
         ])
     });
 
-    let client = SolardemoSDK::new(jo(vec![
+    let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str("http://localhost:8080")),
         ("system", jo(vec![("fetch", mock_fetch)])),
     ]));

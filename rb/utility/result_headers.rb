@@ -1,5 +1,5 @@
-# Solardemo SDK utility: result_headers
-module SolardemoUtilities
+# VoxgigSolardemo SDK utility: result_headers
+module VoxgigSolardemoUtilities
   ResultHeaders = ->(ctx) {
     response = ctx.response
     result = ctx.result

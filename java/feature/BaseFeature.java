@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.feature;
+package voxgig.voxgigsolardemosdk.feature;
 
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Feature;
-import voxgig.solardemosdk.core.FeaturePlacement;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Feature;
+import voxgig.voxgigsolardemosdk.core.FeaturePlacement;
 
 /** No-op base feature; concrete features override the hooks they need. */
 public class BaseFeature implements Feature, FeaturePlacement {

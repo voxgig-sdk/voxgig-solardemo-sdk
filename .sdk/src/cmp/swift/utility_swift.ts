@@ -3,6 +3,7 @@ import * as Path from 'node:path'
 
 import {
   camelify,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 import {
@@ -16,9 +17,6 @@ function projectPath(suffix?: string): string {
 }
 
 
-// A lowerCamelCase Swift local-variable identifier for a snake_case model name
-// (`planet_ref01` -> `planetRef01`). Swift keywords that are illegal as a plain
-// binding get a trailing underscore.
 function swiftVarName(name: string): string {
   const pascal = camelify(name)
   const lower = pascal.charAt(0).toLowerCase() + pascal.slice(1)
@@ -29,12 +27,6 @@ function swiftVarName(name: string): string {
 }
 
 
-// No Swift identifier may begin with a digit, but a model field may: a
-// `3d_id` field camelifies to `3DId`, and `public var 3DId: String` does not
-// merely fail to bind — the compiler reads it as a malformed number and the
-// whole module dies on "'D' is not a valid digit in integer literal", naming
-// nothing that leads back to the field. Prefixed with an underscore, the same
-// convention cmp/c/utility_c.ts already applies.
 function leadingDigitSafe(ident: string): string {
   return /^[0-9]/.test(ident) ? '_' + ident : ident
 }
@@ -70,29 +62,6 @@ function swiftString(val: string): string {
 }
 
 
-// Strip model-internal keys (ending in `$`) from a cloned value graph.
-// Emission-time normalisation of a model subtree (L0).
-//
-// Always drops jostraca's iteration metadata (`$`-suffixed keys: index$,
-// key$, val$). With `dropDefaults`, also drops keys whose value IS the
-// default the runtime already assumes when the key is absent, which is pure
-// payload — see CONFIG_DEFAULT.
-//
-// Rebuilds the tree rather than mutating during a walk. The previous
-// implementation walked a clone calling `delete p[k]`, but walk() assigns its
-// callback's result back over the child (`setprop(out, ckey, walk(...))`), so
-// the delete was undone on the way out and the helper silently did nothing.
-// Returning `undefined` from the callback does not fix it either: setprop
-// stores undefined rather than removing the key, which then emits as a null.
-//
-// `dropDefaults` is opt-in and must be passed ONLY for the entity subtree.
-// `active` means something different in feature config, where absent reads as
-// INACTIVE (see feature_init) — dropping `active: true` there would silently
-// disable the feature.
-// jostraca's iteration metadata, injected by each()/names() while it walks the
-// model. Listed explicitly rather than matched by trailing-dollar suffix: a
-// trailing dollar is not exclusive to jostraca -- Seneca uses entity$ as real
-// data -- so a blanket suffix match can silently drop a legitimate API field.
 const MODEL_META = ['index$', 'key$', 'val$']
 
 // Keys whose value IS the default the runtime already assumes when the key is
@@ -132,10 +101,6 @@ function clean(o: any, dropDefaults?: boolean): any {
 }
 
 
-// SwiftPM's convention is Sources/<target>/ and Tests/<target>Tests/, and the
-// target is named <Name>Sdk in Package_swift. These name the two directories
-// so the copied runtime lands under the API's own name rather than under the
-// template's placeholder — see the note in Main_swift.
 function swiftTargetDir(model: any): string {
   return model.const.Name + 'Sdk'
 }
@@ -146,10 +111,16 @@ function swiftTestDir(model: any): string {
 }
 
 
+function swiftSecretsActive(model: any, target: any): boolean {
+  return null != targetFeatures(model, target)['secrets']
+}
+
+
 export {
   clean,
   projectPath,
   swiftPascalName,
+  swiftSecretsActive,
   swiftTargetDir,
   swiftTestDir,
   swiftVarName,

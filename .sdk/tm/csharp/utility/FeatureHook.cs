@@ -1,12 +1,12 @@
-// Solardemo SDK utility: featureHook - dispatch a named hook to every
+// VoxgigSolardemo SDK utility: featureHook - dispatch a named hook to every
 // feature. Reflection-based (like the go port) so custom features may
 // implement arbitrary hook names beyond the BaseFeature set.
 
 using System.Reflection;
 
-using SolardemoSdk.Feature;
+using VoxgigSolardemoSdk.Feature;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

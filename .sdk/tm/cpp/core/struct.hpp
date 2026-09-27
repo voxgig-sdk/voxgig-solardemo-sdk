@@ -1,4 +1,4 @@
-// Solardemo SDK — struct facade + shared helpers.
+// VoxgigSolardemo SDK — struct facade + shared helpers.
 //
 // The generated SDK's data model IS the vendored voxgig struct Value
 // (utility/voxgigstruct). This header exposes the struct utility functions

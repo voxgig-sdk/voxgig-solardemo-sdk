@@ -1,9 +1,9 @@
-# Solardemo SDK utility: prepare_body
+# VoxgigSolardemo SDK utility: prepare_body
 
 use strict;
 use warnings;
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 

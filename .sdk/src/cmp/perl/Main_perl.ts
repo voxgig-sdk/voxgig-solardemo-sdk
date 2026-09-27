@@ -4,6 +4,7 @@ import * as Path from 'node:path'
 import {
   cmp, each, names,
   File, Content, Copy, Folder, Fragment,
+  pluginExcludes,
   targetFeatures,
   TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
@@ -22,6 +23,8 @@ import {
 
 import { Package } from './Package_perl'
 import { Config } from './Config_perl'
+import { Schema } from './Schema_perl'
+import { PrepareAuth } from './PrepareAuth_perl'
 import { Gitignore } from './Gitignore_perl'
 import { MainEntity } from './MainEntity_perl'
 
@@ -43,6 +46,10 @@ const Main = cmp(async function Main(props: any) {
   // helpers/applicability.
   const feature = targetFeatures(model, target)
 
+  // Does the secrets feature apply here and is it switched on? Both, since
+  // targetFeatures already dropped it for a target with no sekreto port.
+  const secrets = null != (feature as any).secrets
+
   Package({ target })
 
   Gitignore({})
@@ -50,7 +57,7 @@ const Main = cmp(async function Main(props: any) {
   // Copy tm/perl files with replacements
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
     }
@@ -72,10 +79,24 @@ const Main = cmp(async function Main(props: any) {
             '/(?<indent>[ \\t]*)#[ \\t]*#(?<name>[A-Za-z0-9]+)-Hook[ \\t]*\\n?/':
               ({ name, indent }: any) =>
                 `${indent}$utility->{feature_hook}->($ctx, "${name}");\n`,
+
+            '/(?<indent>[ \\t]*)#[ \\t]*#SecretsAccessor[ \\t]*\\n?/':
+              ({ indent }: any) => !secrets ? '' :
+                `${indent}# The LIVE Sekreto instance: for arbitrary secrets and redaction.\n` +
+                `${indent}#\n` +
+                `${indent}#   $sdk->secrets->get('db.password')\n` +
+                `${indent}#   $sdk->secrets->redactall($logline)\n` +
+                `${indent}#\n` +
+                `${indent}# Never a clone: sekreto holds provider state (caches, vault\n` +
+                `${indent}# leases) that has to stay live to be worth anything.\n` +
+                `${indent}sub secrets {\n` +
+                `${indent}  my ($self) = @_;\n` +
+                `${indent}  my $f = $self->{_secrets};\n` +
+                `${indent}  return defined $f ? $f->sekreto : undef;\n` +
+                `${indent}}\n\n`,
           }
         },
 
-        // Entities - injected at SLOT
         () => {
           each(entity, (entity: ModelEntity) => {
             const entitySDK = getModelPath(model, `main.${KIT}.entity.${entity.name}`)
@@ -86,10 +107,12 @@ const Main = cmp(async function Main(props: any) {
     })
   })
 
-  // Generate config module
   Folder({ name: '.' }, () => {
     Config({ target })
+    Schema({ target })
   })
+
+  PrepareAuth({ target })
 
   // Generate feature factory module
   File({ name: 'features.pm' }, () => {

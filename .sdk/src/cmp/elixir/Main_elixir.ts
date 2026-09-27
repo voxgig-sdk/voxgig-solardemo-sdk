@@ -4,6 +4,7 @@ import * as Path from 'node:path'
 import {
   cmp, each,
   File, Folder, Content, Copy, Fragment,
+  pluginExcludes,
   targetFeatures,
 } from '@voxgig/sdkgen'
 
@@ -16,14 +17,13 @@ import {
 
 import { Package } from './Package_elixir'
 import { Config } from './Config_elixir'
+import { Schema } from './Schema_elixir'
+import { PrepareAuth } from './PrepareAuth_elixir'
 import { Gitignore } from './Gitignore_elixir'
 import { MainEntity } from './MainEntity_elixir'
 import { EntityTypes } from './EntityTypes_elixir'
 
 
-// #`-comment hook marker key (gotcha #1: jostraca's built-in #Name-Tag
-// replacement only matches `//` comments, so an Elixir `# #<Name>-Hook`
-// line never matches and the pipeline hook would be silently dropped).
 const HOOK_KEY =
   '/(?<indent>[ \\t]*)#[ \\t]*#(?<name>[A-Za-z0-9]+)-Hook[ \\t]*\\n?/'
 
@@ -52,16 +52,6 @@ const Main = cmp(async function Main(props: any) {
   // Generate the documented typespec module (lib/<app>_types.ex).
   EntityTypes({ target })
 
-  // Copy tm/elixir (with ProjectName/projectname substitution).
-  //
-  // THE RUNTIME DIRECTORY HAS TO CARRY THE APP NAME. Copy substitutes file
-  // CONTENTS, never path components, so a blanket copy shipped the runtime as
-  // lib/projectname/ in every generated SDK. Nothing broke — Elixir resolves
-  // modules by their `defmodule`, not by path, and those were substituted
-  // correctly — so it compiled, tested green, and published looking wrong.
-  //
-  // Copy's `to` prop names the destination, so lib/projectname is copied
-  // explicitly under the app's own name and excluded from the blanket copy.
   Copy({
     from: 'tm/' + target.name,
     exclude: [/src\//, /lib\/projectname\//],
@@ -74,6 +64,7 @@ const Main = cmp(async function Main(props: any) {
     Copy({
       from: 'tm/' + target.name + '/lib/projectname',
       to: model.const.name,
+      exclude: [...pluginExcludes(model)],
       replace: {
         ...stdrep,
       }
@@ -100,7 +91,6 @@ const Main = cmp(async function Main(props: any) {
       )
     })
 
-    // Operation pipeline (hook markers replaced here — gotcha #1).
     File({ name: 'pipeline.' + target.ext }, () => {
       Fragment({
         from: ff + 'Pipeline.fragment.ex',
@@ -139,10 +129,13 @@ defmodule ${Name}.Features do
 end
 `)
     })
+
+    PrepareAuth({ target })
   })
 
   // Config module.
   Config({ target })
+  Schema({ target })
 })
 
 

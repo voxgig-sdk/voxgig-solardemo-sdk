@@ -73,8 +73,8 @@
  * may include it and use only part of it.
  */
 
-#ifndef SOLARDEMO_OMNI_RESOLVER_H
-#define SOLARDEMO_OMNI_RESOLVER_H
+#ifndef VOXGIGSOLARDEMO_OMNI_RESOLVER_H
+#define VOXGIGSOLARDEMO_OMNI_RESOLVER_H
 
 #include "vendor/omni/omni.h"
 #include "voxgig_struct.h"
@@ -358,4 +358,4 @@ OMNIVX omni_flags omnivx_flags(int donull, const char* name) {
   return flags;
 }
 
-#endif /* SOLARDEMO_OMNI_RESOLVER_H */
+#endif /* VOXGIGSOLARDEMO_OMNI_RESOLVER_H */

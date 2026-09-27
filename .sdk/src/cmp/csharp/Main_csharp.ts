@@ -4,6 +4,7 @@ import * as Path from 'node:path'
 import {
   cmp, each,
   File, Content, Copy, Folder, Fragment,
+  pluginExcludes,
   TEST_CONTROL_EXCLUDE
 } from '@voxgig/sdkgen'
 
@@ -21,6 +22,8 @@ import {
 
 import { Package } from './Package_csharp'
 import { Config } from './Config_csharp'
+import { Schema } from './Schema_csharp'
+import { PrepareAuth } from './PrepareAuth_csharp'
 import { Gitignore } from './Gitignore_csharp'
 import { MainEntity } from './MainEntity_csharp'
 import { SdkError } from './SdkError_csharp'
@@ -39,15 +42,15 @@ const Main = cmp(async function Main(props: any) {
 
   Gitignore({})
 
-  // Copy tm/csharp files with replacements. `src/` holds only the
-  // per-feature extension folders (not shipped into the SDK output).
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
     }
   })
+
+  PrepareAuth({ target })
 
   // Generated files live in core/ beside the copied runtime.
   Folder({ name: 'core' }, () => {
@@ -80,6 +83,8 @@ const Main = cmp(async function Main(props: any) {
     })
 
     Config({ target })
+
+    Schema({ target })
 
     SdkError({ target })
 

@@ -1,8 +1,8 @@
-# Solardemo PHP SDK
+# VoxgigSolardemo PHP SDK
 
 
 
-The PHP SDK for the Solardemo API — an entity-oriented client using PHP conventions.
+The PHP SDK for the VoxgigSolardemo API — an entity-oriented client using PHP conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `$client->Moon()` — with named operations (`list`/`load`/`create`/`update`/`remove`) instead of raw URL paths and query strings. Working with resources and verbs keeps call sites self-describing and reduces cognitive load.
 
@@ -14,7 +14,7 @@ The SDK exposes the API as capitalised, semantic **Entities** — for example `$
 This package is not yet published to Packagist. Install it from the
 GitHub release tag (`php/vX.Y.Z`):
 
-- Releases: [https://github.com/voxgig-sdk/solardemo-sdk/releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)
+- Releases: [https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)
 
 
 ## Tutorial: your first API call
@@ -26,18 +26,19 @@ loading a specific record.
 
 ```php
 <?php
-require_once 'solardemo_sdk.php';
+require_once 'voxgigsolardemo_sdk.php';
 
-$client = new SolardemoSDK();
+$client = new VoxgigSolardemoSDK();
 ```
 
 ### 2. List moon records
 
 ```php
 try {
-    // list() returns an array of Moon records — iterate directly.
+    // list() returns entity instances; data_get() reads each record.
     $moons = $client->Moon()->list();
-    foreach ($moons as $item) {
+    foreach ($moons as $record) {
+        $item = $record->data_get();
         echo $item["id"] . " " . $item["diameter"] . "\n";
     }
 } catch (\Throwable $err) {
@@ -53,7 +54,7 @@ Moon is nested under planet, so provide the `planet_id`.
 try {
     // load() returns the ENTITY — call data_get() for the Moon record (throws on error).
     $moon = $client->Moon()->load(["planet_id" => "example_planet_id", "id" => "example_id"]);
-    print_r($moon);
+    print_r($moon->data_get());
 } catch (\Throwable $err) {
     echo "Error: " . $err->getMessage();
 }
@@ -151,14 +152,14 @@ Create a mock client for unit testing — no server required. Seed fixture
 data via the `entity` option so offline calls resolve without a live server:
 
 ```php
-$client = SolardemoSDK::test([
+$client = VoxgigSolardemoSDK::test([
     "entity" => ["moon" => ["test01" => ["id" => "test01"]]],
 ]);
 
-// Entity ops return the ENTITY (throws on error);
+// list() returns entity instances (throws on error);
 // call data_get() for the mock record.
 $moon = $client->Moon()->list();
-print_r($moon);
+print_r(array_map(fn($item) => $item->data_get(), $moon));
 ```
 
 ### Use a custom fetch function
@@ -178,7 +179,7 @@ $mock_fetch = function ($url, $init) {
     ];
 };
 
-$client = new SolardemoSDK([
+$client = new VoxgigSolardemoSDK([
     "base" => "http://localhost:8080",
     "system" => [
         "fetch" => $mock_fetch,
@@ -191,7 +192,7 @@ $client = new SolardemoSDK([
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -203,11 +204,11 @@ cd php && ./vendor/bin/phpunit test/
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```php
-require_once 'solardemo_sdk.php';
-$client = new SolardemoSDK($options);
+require_once 'voxgigsolardemo_sdk.php';
+$client = new VoxgigSolardemoSDK($options);
 ```
 
 Creates a new SDK client.
@@ -224,12 +225,12 @@ Creates a new SDK client.
 ### test
 
 ```php
-$client = SolardemoSDK::test($testopts, $sdkopts);
+$client = VoxgigSolardemoSDK::test($testopts, $sdkopts);
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be `null`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -417,7 +418,7 @@ $planet = $client->Planet()->create([
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -426,17 +427,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -477,7 +610,15 @@ with hook methods named after pipeline stages (e.g. `PrePoint`,
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -495,8 +636,9 @@ Use `Helpers::to_map()` to safely validate that a value is an array.
 
 ```
 php/
-├── solardemo_sdk.php          -- Main SDK class
+├── voxgigsolardemo_sdk.php          -- Main SDK class
 ├── config.php                     -- Configuration
+├── schema.php                     -- Generated option + entity specs
 ├── features.php                   -- Feature factory
 ├── core/                          -- Core types and context
 ├── entity/                        -- Entity implementations
@@ -505,7 +647,7 @@ php/
 └── test/                          -- Test suites
 ```
 
-The main class (`solardemo_sdk.php`) exports the SDK class
+The main class (`voxgigsolardemo_sdk.php`) exports the SDK class
 and test helper. Import entity or utility modules directly only
 when needed.
 

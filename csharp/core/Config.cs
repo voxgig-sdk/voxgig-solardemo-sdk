@@ -1,7 +1,7 @@
-// Solardemo SDK - generated model configuration and feature
+// VoxgigSolardemo SDK - generated model configuration and feature
 // factory. GENERATED from the API model - do not edit by hand.
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public static class SdkConfig
 {
@@ -11,20 +11,197 @@ public static class SdkConfig
         {
             ["main"] = new Dictionary<string, object?>
             {
-                ["name"] = "Solardemo",
-                ["slug"] = "solardemo",
+                ["name"] = "VoxgigSolardemo",
+                ["slug"] = "voxgig-solardemo",
                 ["version"] = "0.1.0",
                 ["target"] = "csharp",
             },
             ["feature"] = new Dictionary<string, object?>
             {
+                ["debug"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["max"] = 100,
+                        ["redact"] = new List<object?>
+                        {
+                            "authorization",
+                            "cookie",
+                            "set-cookie",
+                            "api-key",
+                            "apikey",
+                            "x-api-key",
+                            "idempotency-key",
+                        },
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["now"] = "`$FUNCTION`",
+                        ["onEntry"] = "`$FUNCTION`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "none",
+                },
+                ["idempotency"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["header"] = "Idempotency-Key",
+                        ["methods"] = new List<object?>
+                        {
+                            "POST",
+                            "PUT",
+                            "PATCH",
+                            "DELETE",
+                        },
+                        ["ops"] = new List<object?>
+                        {
+                            "create",
+                            "update",
+                            "remove",
+                        },
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["keygen"] = "`$FUNCTION`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "none",
+                },
+                ["metrics"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["now"] = "`$FUNCTION`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "none",
+                },
+                ["paging"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["afterVar"] = "after",
+                        ["cursorParam"] = "cursor",
+                        ["firstVar"] = "first",
+                        ["limitParam"] = "limit",
+                        ["pageParam"] = "page",
+                        ["startPage"] = 1,
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["limit"] = "`$NUMBER`",
+                        ["ops"] = "`$LIST`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "none",
+                },
+                ["ratelimit"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["burst"] = 5,
+                        ["rate"] = 5,
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["now"] = "`$FUNCTION`",
+                        ["sleep"] = "`$FUNCTION`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "wrap",
+                },
+                ["retry"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["factor"] = 2,
+                        ["maxDelay"] = 2000,
+                        ["minDelay"] = 50,
+                        ["retries"] = 2,
+                        ["statuses"] = new List<object?>
+                        {
+                            408,
+                            425,
+                            429,
+                            500,
+                            502,
+                            503,
+                            504,
+                        },
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["jitter"] = "`$BOOLEAN`",
+                        ["sleep"] = "`$FUNCTION`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "wrap",
+                },
+                ["secrets"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["cache"] = true,
+                        ["exchange"] = new Dictionary<string, object?>
+                        {
+                            ["active"] = false,
+                            ["method"] = "POST",
+                            ["path"] = "auth/token",
+                            ["refresh"] = "",
+                            ["request"] = "refresh_token",
+                            ["response"] = "access_token",
+                            ["retries"] = 1,
+                            ["statuses"] = new List<object?>
+                            {
+                                401,
+                            },
+                        },
+                        ["name"] = "apikey",
+                        ["providers"] = new List<object?>(),
+                    },
+                    ["optspec"] = new Dictionary<string, object?>(),
+                    ["strict"] = false,
+                    ["transport"] = "wrap",
+                },
                 ["test"] = new Dictionary<string, object?>
                 {
                     ["options"] = new Dictionary<string, object?>
                     {
                         ["active"] = false,
                     },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["entity"] = "`$MAP`",
+                        ["net"] = "`$MAP`",
+                    },
+                    ["strict"] = false,
                     ["transport"] = "base",
+                },
+                ["timeout"] = new Dictionary<string, object?>
+                {
+                    ["options"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = false,
+                        ["ms"] = 30000,
+                    },
+                    ["optspec"] = new Dictionary<string, object?>
+                    {
+                        ["clearTimer"] = "`$FUNCTION`",
+                        ["setTimer"] = "`$FUNCTION`",
+                    },
+                    ["strict"] = false,
+                    ["transport"] = "wrap",
                 },
             },
             ["options"] = new Dictionary<string, object?>
@@ -48,35 +225,45 @@ public static class SdkConfig
                     {
                         new Dictionary<string, object?>
                         {
-                            ["format"] = "float",
                             ["name"] = "diameter",
-                            ["req"] = true,
+                            ["title"] = "Diameter",
                             ["type"] = "`$NUMBER`",
+                            ["req"] = true,
+                            ["format"] = "float",
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "id",
-                            ["req"] = true,
+                            ["title"] = "Id",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "kind",
-                            ["req"] = true,
+                            ["title"] = "Kind",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "name",
-                            ["req"] = true,
+                            ["title"] = "Name",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "planet_id",
-                            ["req"] = true,
+                            ["title"] = "Planet Id",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
+                    },
+                    ["id"] = new Dictionary<string, object?>
+                    {
+                        ["field"] = "id",
+                        ["name"] = "id",
                     },
                     ["name"] = "moon",
                     ["op"] = new Dictionary<string, object?>
@@ -89,27 +276,6 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "planet_id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "POST /api/planet/{planet_id}/moon",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet/{planet_id}/moon",
@@ -132,24 +298,39 @@ public static class SdkConfig
                                             ["lit"] = "moon",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
-                                    {
-                                        ["exist"] = new List<object?>
-                                        {
-                                            "planet_id",
-                                        },
-                                    },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
                                         "planet",
                                         "{planet_id}",
                                         "moon",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>(),
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "planet_id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "planet_id",
+                                        },
                                     },
                                 },
                             },
@@ -162,27 +343,6 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "planet_id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "GET /api/planet/{planet_id}/moon",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet/{planet_id}/moon",
@@ -205,24 +365,39 @@ public static class SdkConfig
                                             ["lit"] = "moon",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
-                                    {
-                                        ["exist"] = new List<object?>
-                                        {
-                                            "planet_id",
-                                        },
-                                    },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
                                         "planet",
                                         "{planet_id}",
                                         "moon",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>(),
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "planet_id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "planet_id",
+                                        },
                                     },
                                 },
                             },
@@ -235,45 +410,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "moon_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "planet_id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "GET /api/planet/{planet_id}/moon/{moon_id}",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet/{planet_id}/moon/{moon_id}",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["moon_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -297,19 +436,6 @@ public static class SdkConfig
                                             ["var"] = "id",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
-                                    {
-                                        ["exist"] = new List<object?>
-                                        {
-                                            "id",
-                                            "planet_id",
-                                        },
-                                    },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
@@ -317,6 +443,48 @@ public static class SdkConfig
                                         "{planet_id}",
                                         "moon",
                                         "{id}",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
+                                        {
+                                            ["moon_id"] = "id",
+                                        },
+                                    },
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "moon_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "planet_id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "id",
+                                            "planet_id",
+                                        },
                                     },
                                 },
                             },
@@ -329,45 +497,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "moon_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "planet_id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "DELETE /api/planet/{planet_id}/moon/{moon_id}",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "DELETE",
                                     ["orig"] = "/api/planet/{planet_id}/moon/{moon_id}",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["moon_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -391,19 +523,6 @@ public static class SdkConfig
                                             ["var"] = "id",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
-                                    {
-                                        ["exist"] = new List<object?>
-                                        {
-                                            "id",
-                                            "planet_id",
-                                        },
-                                    },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
@@ -411,6 +530,48 @@ public static class SdkConfig
                                         "{planet_id}",
                                         "moon",
                                         "{id}",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
+                                        {
+                                            ["moon_id"] = "id",
+                                        },
+                                    },
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "moon_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "planet_id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "id",
+                                            "planet_id",
+                                        },
                                     },
                                 },
                             },
@@ -423,45 +584,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "moon_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "planet_id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "PUT /api/planet/{planet_id}/moon/{moon_id}",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"path\",\"name\":\"moon_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"planet_id\":{\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"planet_id\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "PUT",
                                     ["orig"] = "/api/planet/{planet_id}/moon/{moon_id}",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["moon_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -485,19 +610,6 @@ public static class SdkConfig
                                             ["var"] = "id",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
-                                    {
-                                        ["exist"] = new List<object?>
-                                        {
-                                            "id",
-                                            "planet_id",
-                                        },
-                                    },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
@@ -505,6 +617,48 @@ public static class SdkConfig
                                         "{planet_id}",
                                         "moon",
                                         "{id}",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
+                                        {
+                                            ["moon_id"] = "id",
+                                        },
+                                    },
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "moon_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "planet_id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "id",
+                                            "planet_id",
+                                        },
                                     },
                                 },
                             },
@@ -516,7 +670,7 @@ public static class SdkConfig
                         {
                             new List<object?>
                             {
-                                "planet",
+                                "$.main.kit.entity.planet",
                             },
                         },
                     },
@@ -527,50 +681,62 @@ public static class SdkConfig
                     {
                         new Dictionary<string, object?>
                         {
-                            ["format"] = "float",
                             ["name"] = "diameter",
-                            ["req"] = true,
+                            ["title"] = "Diameter",
                             ["type"] = "`$NUMBER`",
+                            ["req"] = true,
+                            ["format"] = "float",
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "forbidReason",
-                            ["readOnly"] = true,
-                            ["short"] = "Why the planet is forbidden, carried from the forbid action's `why`.",
+                            ["title"] = "Forbid Reason",
                             ["type"] = "`$STRING`",
+                            ["short"] = "Why the planet is forbidden, carried from the forbid action's `why`.",
+                            ["readOnly"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "forbidState",
-                            ["readOnly"] = true,
-                            ["short"] = "Set by the forbid action, and absent until it first runs.",
+                            ["title"] = "Forbid State",
                             ["type"] = "`$STRING`",
+                            ["short"] = "Set by the forbid action, and absent until it first runs.",
+                            ["readOnly"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "id",
-                            ["req"] = true,
+                            ["title"] = "Id",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "kind",
-                            ["req"] = true,
+                            ["title"] = "Kind",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "name",
-                            ["req"] = true,
+                            ["title"] = "Name",
                             ["type"] = "`$STRING`",
+                            ["req"] = true,
                         },
                         new Dictionary<string, object?>
                         {
                             ["name"] = "terraformState",
-                            ["readOnly"] = true,
-                            ["short"] = "Set by the terraform action, and absent until it first runs.",
+                            ["title"] = "Terraform State",
                             ["type"] = "`$STRING`",
+                            ["short"] = "Set by the terraform action, and absent until it first runs.",
+                            ["readOnly"] = true,
                         },
+                    },
+                    ["id"] = new Dictionary<string, object?>
+                    {
+                        ["field"] = "id",
+                        ["name"] = "id",
                     },
                     ["name"] = "planet",
                     ["op"] = new Dictionary<string, object?>
@@ -583,37 +749,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "POST /api/planet/{planet_id}/forbid",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"forbid\":{\"type\":\"boolean\"},\"why\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet/{planet_id}/forbid",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["planet_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -633,6 +771,39 @@ public static class SdkConfig
                                             ["lit"] = "forbid",
                                         },
                                     },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                        "forbid",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
+                                        {
+                                            ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
                                     ["select"] = new Dictionary<string, object?>
                                     {
                                         ["$action"] = "forbid",
@@ -641,52 +812,12 @@ public static class SdkConfig
                                             "id",
                                         },
                                     },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                        "forbid",
-                                    },
                                 },
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "POST /api/planet/{planet_id}/terraform",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"start\":{\"type\":\"boolean\"},\"stop\":{\"type\":\"boolean\"}},\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"ok\":{\"type\":\"boolean\"},\"state\":{\"type\":\"string\"}},\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet/{planet_id}/terraform",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["planet_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -706,6 +837,39 @@ public static class SdkConfig
                                             ["lit"] = "terraform",
                                         },
                                     },
+                                    ["parts"] = new List<object?>
+                                    {
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                        "terraform",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
+                                        {
+                                            ["planet_id"] = "id",
+                                        },
+                                    },
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>
+                                    {
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
                                     ["select"] = new Dictionary<string, object?>
                                     {
                                         ["$action"] = "terraform",
@@ -714,29 +878,9 @@ public static class SdkConfig
                                             "id",
                                         },
                                     },
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
-                                    ["parts"] = new List<object?>
-                                    {
-                                        "api",
-                                        "planet",
-                                        "{id}",
-                                        "terraform",
-                                    },
                                 },
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>(),
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "POST /api/planet",
-                                        ["json"] = "{\"parameters\":[],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"Created\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "POST",
                                     ["orig"] = "/api/planet",
@@ -751,17 +895,19 @@ public static class SdkConfig
                                             ["lit"] = "planet",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>(),
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
                                         "planet",
                                     },
+                                    ["rename"] = new Dictionary<string, object?>(),
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>(),
+                                    ["select"] = new Dictionary<string, object?>(),
                                 },
                             },
                         },
@@ -773,14 +919,6 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>(),
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "GET /api/planet",
-                                        ["json"] = "{\"parameters\":[],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"items\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"},\"type\":\"array\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet",
@@ -795,17 +933,19 @@ public static class SdkConfig
                                             ["lit"] = "planet",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>(),
-                                    ["transform"] = new Dictionary<string, object?>
-                                    {
-                                        ["req"] = "`reqdata`",
-                                        ["res"] = "`body`",
-                                    },
                                     ["parts"] = new List<object?>
                                     {
                                         "api",
                                         "planet",
                                     },
+                                    ["rename"] = new Dictionary<string, object?>(),
+                                    ["transform"] = new Dictionary<string, object?>
+                                    {
+                                        ["req"] = "`reqdata`",
+                                        ["res"] = "`body`",
+                                    },
+                                    ["args"] = new Dictionary<string, object?>(),
+                                    ["select"] = new Dictionary<string, object?>(),
                                 },
                             },
                         },
@@ -817,37 +957,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "GET /api/planet/{planet_id}",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "GET",
                                     ["orig"] = "/api/planet/{planet_id}",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["planet_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -863,11 +975,17 @@ public static class SdkConfig
                                             ["var"] = "id",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
+                                    ["parts"] = new List<object?>
                                     {
-                                        ["exist"] = new List<object?>
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
                                         {
-                                            "id",
+                                            ["planet_id"] = "id",
                                         },
                                     },
                                     ["transform"] = new Dictionary<string, object?>
@@ -875,11 +993,26 @@ public static class SdkConfig
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
                                     },
-                                    ["parts"] = new List<object?>
+                                    ["args"] = new Dictionary<string, object?>
                                     {
-                                        "api",
-                                        "planet",
-                                        "{id}",
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "id",
+                                        },
                                     },
                                 },
                             },
@@ -892,37 +1025,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "DELETE /api/planet/{planet_id}",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"responses\":{\"204\":{\"description\":\"No Content\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "DELETE",
                                     ["orig"] = "/api/planet/{planet_id}",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["planet_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -938,11 +1043,17 @@ public static class SdkConfig
                                             ["var"] = "id",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
+                                    ["parts"] = new List<object?>
                                     {
-                                        ["exist"] = new List<object?>
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
                                         {
-                                            "id",
+                                            ["planet_id"] = "id",
                                         },
                                     },
                                     ["transform"] = new Dictionary<string, object?>
@@ -950,11 +1061,26 @@ public static class SdkConfig
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
                                     },
-                                    ["parts"] = new List<object?>
+                                    ["args"] = new Dictionary<string, object?>
                                     {
-                                        "api",
-                                        "planet",
-                                        "{id}",
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "id",
+                                        },
                                     },
                                 },
                             },
@@ -967,37 +1093,9 @@ public static class SdkConfig
                             {
                                 new Dictionary<string, object?>
                                 {
-                                    ["args"] = new Dictionary<string, object?>
-                                    {
-                                        ["params"] = new List<object?>
-                                        {
-                                            new Dictionary<string, object?>
-                                            {
-                                                ["kind"] = "param",
-                                                ["name"] = "id",
-                                                ["orig"] = "planet_id",
-                                                ["reqd"] = true,
-                                                ["type"] = "`$STRING`",
-                                            },
-                                        },
-                                    },
-                                    ["contract"] = new Dictionary<string, object?>
-                                    {
-                                        ["id"] = "PUT /api/planet/{planet_id}",
-                                        ["json"] = "{\"parameters\":[{\"in\":\"path\",\"name\":\"planet_id\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"protocol\":\"http\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"properties\":{\"diameter\":{\"format\":\"float\",\"type\":\"number\"},\"forbidReason\":{\"description\":\"Why the planet is forbidden, carried from the forbid action's `why`. Absent while the planet is allowed.\",\"readOnly\":true,\"type\":\"string\"},\"forbidState\":{\"description\":\"Set by the forbid action, and absent until it first runs. One of allowed or forbidden.\",\"readOnly\":true,\"type\":\"string\"},\"id\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"terraformState\":{\"description\":\"Set by the terraform action, and absent until it first runs. One of idle, terraforming or complete.\",\"readOnly\":true,\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"kind\",\"diameter\"],\"type\":\"object\"}}},\"description\":\"OK\"}},\"securitySource\":\"unspecified\"}",
-                                        ["source"] = "openapi3",
-                                        ["version"] = 1,
-                                    },
                                     ["kind"] = "http",
                                     ["method"] = "PUT",
                                     ["orig"] = "/api/planet/{planet_id}",
-                                    ["rename"] = new Dictionary<string, object?>
-                                    {
-                                        ["param"] = new Dictionary<string, object?>
-                                        {
-                                            ["planet_id"] = "id",
-                                        },
-                                    },
                                     ["segments"] = new List<object?>
                                     {
                                         new Dictionary<string, object?>
@@ -1013,11 +1111,17 @@ public static class SdkConfig
                                             ["var"] = "id",
                                         },
                                     },
-                                    ["select"] = new Dictionary<string, object?>
+                                    ["parts"] = new List<object?>
                                     {
-                                        ["exist"] = new List<object?>
+                                        "api",
+                                        "planet",
+                                        "{id}",
+                                    },
+                                    ["rename"] = new Dictionary<string, object?>
+                                    {
+                                        ["param"] = new Dictionary<string, object?>
                                         {
-                                            "id",
+                                            ["planet_id"] = "id",
                                         },
                                     },
                                     ["transform"] = new Dictionary<string, object?>
@@ -1025,11 +1129,26 @@ public static class SdkConfig
                                         ["req"] = "`reqdata`",
                                         ["res"] = "`body`",
                                     },
-                                    ["parts"] = new List<object?>
+                                    ["args"] = new Dictionary<string, object?>
                                     {
-                                        "api",
-                                        "planet",
-                                        "{id}",
+                                        ["params"] = new List<object?>
+                                        {
+                                            new Dictionary<string, object?>
+                                            {
+                                                ["name"] = "id",
+                                                ["orig"] = "planet_id",
+                                                ["type"] = "`$STRING`",
+                                                ["kind"] = "param",
+                                                ["reqd"] = true,
+                                            },
+                                        },
+                                    },
+                                    ["select"] = new Dictionary<string, object?>
+                                    {
+                                        ["exist"] = new List<object?>
+                                        {
+                                            "id",
+                                        },
                                     },
                                 },
                             },
@@ -1056,12 +1175,37 @@ public static class SdkConfig
         return SharedConfigVal.Value;
     }
 
+    public static List<object?> FeaturePlugins(string name)
+    {
+        switch (name)
+        {
+            default:
+                return new List<object?>();
+        }
+    }
+
     public static Feature.BaseFeature MakeFeature(string name)
     {
         switch (name)
         {
+            case "debug":
+                return new Feature.DebugFeature();
+            case "idempotency":
+                return new Feature.IdempotencyFeature();
+            case "metrics":
+                return new Feature.MetricsFeature();
+            case "paging":
+                return new Feature.PagingFeature();
+            case "ratelimit":
+                return new Feature.RatelimitFeature();
+            case "retry":
+                return new Feature.RetryFeature();
+            case "secrets":
+                return new Feature.SecretsFeature();
             case "test":
                 return new Feature.TestFeature();
+            case "timeout":
+                return new Feature.TimeoutFeature();
             default:
                 return new Feature.BaseFeature();
         }

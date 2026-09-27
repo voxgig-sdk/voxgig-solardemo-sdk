@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: result_headers
+// VoxgigSolardemo SDK utility: result_headers
 
-class SolardemoResultHeaders
+class VoxgigSolardemoResultHeaders
 {
-    public static function call(SolardemoContext $ctx): ?SolardemoResult
+    public static function call(VoxgigSolardemoContext $ctx): ?VoxgigSolardemoResult
     {
         $response = $ctx->response;
         $result = $ctx->result;

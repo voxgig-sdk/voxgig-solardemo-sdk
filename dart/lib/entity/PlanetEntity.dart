@@ -2,10 +2,10 @@
 // ignore_for_file: non_constant_identifier_names
 
 import 'dart:async';
-import '../utility/ErrUtility.dart';import '../SolardemoEntityBase.dart';
+import '../utility/ErrUtility.dart';import '../VoxgigSolardemoEntityBase.dart';
 
-// Typed models: see ../SolardemoTypes.dart (Planet and the per-op request/match types).
-class PlanetEntity extends SolardemoEntityBase {
+// Typed models: see ../VoxgigSolardemoTypes.dart (Planet and the per-op request/match types).
+class PlanetEntity extends VoxgigSolardemoEntityBase {
   PlanetEntity(dynamic client, dynamic entopts) : super(client, entopts) {
     name = 'planet';
     name_ = 'planet';
@@ -18,7 +18,7 @@ class PlanetEntity extends SolardemoEntityBase {
 
 
   /// Load a Planet by match (see PlanetLoadMatch in
-  /// SolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
   Future<dynamic> load([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -144,7 +144,7 @@ class PlanetEntity extends SolardemoEntityBase {
 
 
   /// List Planet entities by match (see PlanetListMatch in
-  /// SolardemoTypes.dart). Returns a list of Planet entity instances.
+  /// VoxgigSolardemoTypes.dart). Returns a list of Planet entity instances.
   Future<dynamic> list([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -258,7 +258,7 @@ class PlanetEntity extends SolardemoEntityBase {
 
 
   /// Create a Planet (see PlanetCreateData in
-  /// SolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
   Future<dynamic> create([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -380,7 +380,7 @@ class PlanetEntity extends SolardemoEntityBase {
 
 
   /// Update a Planet (see PlanetUpdateData in
-  /// SolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
   Future<dynamic> update([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -506,7 +506,7 @@ class PlanetEntity extends SolardemoEntityBase {
 
 
   /// Remove a Planet by match (see PlanetRemoveMatch in
-  /// SolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
   Future<dynamic> remove([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 

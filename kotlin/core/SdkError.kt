@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 /**
- * Solardemo SDK error. Carries the SDK error code, the operation context,
+ * VoxgigSolardemo SDK error. Carries the SDK error code, the operation context,
  * and cleaned copies of the result and spec at failure time.
  */
 class SdkError(code: String?, msg: String, ctx: Context?) : RuntimeException(msg) {
 
-  val sdk: String = "Solardemo"
+  val sdk: String = "VoxgigSolardemo"
   var code: String = code ?: ""
   var msg: String = msg
 

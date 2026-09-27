@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_fetch_def
+// VoxgigSolardemo SDK utility: make_fetch_def
 
 require_once __DIR__ . '/../core/Result.php';
 
-class SolardemoMakeFetchDef
+class VoxgigSolardemoMakeFetchDef
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         $spec = $ctx->spec;
         if (!$spec) {
@@ -15,7 +15,7 @@ class SolardemoMakeFetchDef
         }
 
         if (!$ctx->result) {
-            $ctx->result = new SolardemoResult([]);
+            $ctx->result = new VoxgigSolardemoResult([]);
         }
         $spec->step = 'prepare';
 

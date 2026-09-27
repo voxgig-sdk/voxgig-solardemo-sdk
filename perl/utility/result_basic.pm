@@ -1,11 +1,11 @@
-# Solardemo SDK utility: result_basic
+# VoxgigSolardemo SDK utility: result_basic
 
 use strict;
 use warnings;
 
 use Scalar::Util ();
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -20,7 +20,7 @@ $REGISTRY{result_basic} = sub {
       my $msg = "request: $result->{status}: $result->{status_text}";
       if ($result->{err}) {
         my $prev = (Scalar::Util::blessed($result->{err})
-          && $result->{err}->isa('SolardemoError'))
+          && $result->{err}->isa('VoxgigSolardemoError'))
           ? $result->{err}{msg} : "$result->{err}";
         $result->{err} = $ctx->make_error('request_status', "$prev: $msg");
       }

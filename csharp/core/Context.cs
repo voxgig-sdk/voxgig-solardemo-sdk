@@ -1,8 +1,8 @@
-// Solardemo SDK - operation context.
+// VoxgigSolardemo SDK - operation context.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Context
 {
@@ -10,7 +10,7 @@ public class Context
     public Dictionary<string, object?> Out = new();
     public Control Ctrl = new();
     public Dictionary<string, object?> Meta = new();
-    public SolardemoSDK? Client;
+    public VoxgigSolardemoSDK? Client;
     public Utility? Utility;
     public Operation? Op;
     public Dictionary<string, object?>? Point;
@@ -33,7 +33,7 @@ public class Context
         Id = "C" + (Random.Shared.Next(90000000) + 10000000);
 
         // Client
-        if (Helpers.GetCtxProp(ctxmap, "client") is SolardemoSDK sdk)
+        if (Helpers.GetCtxProp(ctxmap, "client") is VoxgigSolardemoSDK sdk)
         {
             Client = sdk;
         }
@@ -78,7 +78,7 @@ public class Context
         {
             Ctrl = ctrl;
         }
-        else if (basectx?.Ctrl != null)
+        else if (basectx?.Ctrl != null && Helpers.GetCtxProp(ctxmap, "opname") == null)
         {
             Ctrl = basectx.Ctrl;
         }
@@ -250,8 +250,8 @@ public class Context
         return op;
     }
 
-    public SolardemoError MakeError(string code, string msg)
+    public VoxgigSolardemoError MakeError(string code, string msg)
     {
-        return new SolardemoError(code, msg, this);
+        return new VoxgigSolardemoError(code, msg, this);
     }
 }

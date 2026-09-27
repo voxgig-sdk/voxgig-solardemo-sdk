@@ -1,8 +1,14 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
 // Drives the primary utility functions against the shared test.json spec
-// (../.sdk/test/test.json, section "primary"). Mirrors
+// (../.sdk/test/test.json, section "primary") through the VENDORED omni
+// runner (OmniResolver over test/vendor/omni). Mirrors
 // tm/go/test/primary_utility_test.go.
+//
+// Subjects receive omni's native argument list: a ctx entry arrives as
+// args[0], a MAP - OmniResolver.omniCtx builds the typed Context a
+// generated utility takes, and OmniResolver.omniSyncCtx writes the
+// observable ctx state back for `match: {ctx: ...}` assertions.
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,45 +17,129 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import static voxgig.solardemosdk.sdktest.FeatureHarness.fhMap;
-import static voxgig.solardemosdk.sdktest.RunnerSupport.getSpec;
-import static voxgig.solardemosdk.sdktest.RunnerSupport.loadTestSpec;
-import static voxgig.solardemosdk.sdktest.RunnerSupport.makeCtxFromMap;
-import static voxgig.solardemosdk.sdktest.RunnerSupport.runset;
+import static voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhMap;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 
 import org.junit.jupiter.api.Test;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.Operation;
-import voxgig.solardemosdk.core.SolardemoSDK;
-import voxgig.solardemosdk.core.Result;
-import voxgig.solardemosdk.core.Spec;
-import voxgig.solardemosdk.core.Utility;
-import voxgig.solardemosdk.feature.BaseFeature;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Entity;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.Operation;
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.core.Result;
+import voxgig.voxgigsolardemosdk.core.SdkError;
+import voxgig.voxgigsolardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.core.Utility;
+import voxgig.voxgigsolardemosdk.feature.BaseFeature;
 
 @SuppressWarnings({"unchecked"})
 public class PrimaryUtilityTest {
 
-  static Map<String, Object> primary() {
-    Map<String, Object> spec = loadTestSpec();
-    Map<String, Object> primary = getSpec(spec, "primary");
-    assertNotNull(primary, "primary section not found in test.json");
-    return primary;
+  static final String TEST_JSON_FILE = "../.sdk/test/test.json";
+
+  // PENDING sections are the ones deliberately left empty in the shared
+  // corpus (.sdk/test/primary/<name>.aontu). Everything else MUST contribute
+  // cases.
+  static final Set<String> PENDING = Set.of(
+      "fetcher", "makeFetchDef", "makeResult",
+      "featureAdd", "featureHook", "featureInit");
+
+  // One client + one corpus runner for the whole suite (the go shape).
+  private static VoxgigSolardemoSDK CLIENT;
+  private static Utility UTILITY;
+  private static OmniResolver.Run RUN;
+
+  static synchronized OmniResolver.Run run() {
+    if (RUN == null) {
+      CLIENT = VoxgigSolardemoSDK.testSDK();
+      UTILITY = CLIENT.getUtility();
+      RUN = OmniResolver.makeRunner(TEST_JSON_FILE, CLIENT).runner("primary", null);
+      assertNotNull(RUN.spec, "primary section not found in test.json");
+    }
+    return RUN;
   }
 
-  static SolardemoSDK client() {
-    return SolardemoSDK.testSDK();
+  static VoxgigSolardemoSDK client() {
+    run();
+    return CLIENT;
+  }
+
+  static Utility utility() {
+    run();
+    return UTILITY;
+  }
+
+  // Run one corpus section, failing loudly when it would run ZERO cases.
+  // A renamed section, a fixture that failed to compile, or an empty set
+  // used to report PASS while running zero assertions - the whole point of
+  // a shared oracle lost without a single red test. (The guard lives here
+  // rather than in the runner, which is vendored verbatim; the shared
+  // corpus is a v0 spec, and v0 tolerates an empty set.)
+  static void runsection(String name, OmniResolver.Subject subject) {
+    OmniResolver.Run run = run();
+    Map<String, Object> section = Helpers.toMapAny(run.spec.get(name));
+    assertNotNull(section, "test corpus section \"" + name
+        + "\" missing - check the name against .sdk/test/primary/");
+    Map<String, Object> basic = Helpers.toMapAny(section.get("basic"));
+    Object set = basic == null ? null : basic.get("set");
+    if (!(set instanceof List)) {
+      fail("test corpus section \"" + name
+          + "\" has no basic.set list - zero cases would run");
+    }
+    if (((List<Object>) set).isEmpty() && !PENDING.contains(name)) {
+      fail("test corpus section \"" + name + "\" is EMPTY - zero cases "
+          + "would run; add cases, or mark the fixture PENDING in .sdk/test/primary/");
+    }
+    run.runset(basic, subject);
+  }
+
+  // Rename the corpus's `headers` bag to the real container, and the
+  // `authorization` key inside it to the real credential name. Applied only
+  // to the prepareAuth section, so real header assertions elsewhere are
+  // untouched.
+  @SuppressWarnings("unchecked")
+  static Object retargetAuth(Object node, PipelineTest.AuthCred cred) {
+    if (node instanceof List) {
+      List<Object> out = new ArrayList<>();
+      for (Object child : (List<Object>) node) {
+        out.add(retargetAuth(child, cred));
+      }
+      return out;
+    }
+    if (!(node instanceof Map)) {
+      return node;
+    }
+
+    Map<String, Object> out = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : ((Map<String, Object>) node).entrySet()) {
+      if ("headers".equals(entry.getKey())) {
+        Map<String, Object> bag = new LinkedHashMap<>();
+        Map<String, Object> inner = Helpers.toMapAny(entry.getValue());
+        if (inner != null) {
+          for (Map.Entry<String, Object> bagentry : inner.entrySet()) {
+            String name = "authorization".equals(bagentry.getKey())
+                ? cred.name() : bagentry.getKey();
+            bag.put(name, retargetAuth(bagentry.getValue(), cred));
+          }
+        }
+        out.put(cred.where(), bag);
+      }
+      else {
+        out.put(entry.getKey(), retargetAuth(entry.getValue(), cred));
+      }
+    }
+    return out;
   }
 
   // Helper: create basic test context.
-  static Context makeTestCtx(SolardemoSDK client, Utility utility,
+  static Context makeTestCtx(VoxgigSolardemoSDK client, Utility utility,
       Map<String, Object> overrides) {
     Map<String, Object> ctxmap = new LinkedHashMap<>();
     ctxmap.put("opname", "load");
@@ -62,7 +152,7 @@ public class PrimaryUtilityTest {
   }
 
   // Helper: create full test context with point and match.
-  static Context makeTestFullCtx(SolardemoSDK client, Utility utility) {
+  static Context makeTestFullCtx(VoxgigSolardemoSDK client, Utility utility) {
     Context ctx = makeTestCtx(client, utility, null);
     List<Object> params = new ArrayList<>();
     params.add(fhMap("name", "id", "reqd", true));
@@ -86,8 +176,7 @@ public class PrimaryUtilityTest {
 
   @Test
   public void exists() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    Utility utility = utility();
 
     assertNotNull(utility.clean, "clean");
     assertNotNull(utility.done, "done");
@@ -122,56 +211,54 @@ public class PrimaryUtilityTest {
 
   @Test
   public void cleanBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestCtx(client, utility, null);
     Object cleaned = utility.clean.apply(ctx, fhMap("key", "secret123", "name", "test"));
     assertNotNull(cleaned, "cleaned should not be null");
   }
 
   @Test
+  public void cleanCorpus() {
+    runsection("clean", (args) -> {
+      if (2 != args.length) {
+        throw new RuntimeException("clean: expected 2 args, got " + args.length);
+      }
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().clean.apply(ctx, args[1]);
+    });
+  }
+
+  @Test
   public void doneBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "done", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      RunnerSupport.fixctx(ctx, client);
-      return utility.done.apply(ctx);
+    runsection("done", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().done.apply(ctx);
     });
   }
 
   @Test
   public void makeErrorBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "makeError", "basic"), (entry) -> {
-      List<Object> args = entry.get("args") instanceof List
-          ? (List<Object>) entry.get("args") : new ArrayList<>();
-      if (args.isEmpty()) {
-        args.add(new LinkedHashMap<String, Object>());
+    runsection("makeError", (args) -> {
+      if (0 == args.length) {
+        args = new Object[] { new LinkedHashMap<String, Object>() };
       }
 
-      Map<String, Object> ctxmap = Helpers.toMapAny(args.get(0));
-      if (ctxmap == null) {
-        ctxmap = new LinkedHashMap<>();
-      }
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      RunnerSupport.fixctx(ctx, client);
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
       RuntimeException err = null;
-      if (args.size() > 1) {
-        err = RunnerSupport.errFromMap(Helpers.toMapAny(args.get(1)));
+      if (args.length > 1) {
+        err = RunnerSupport.errFromMap(Helpers.toMapAny(args[1]));
       }
 
-      return utility.makeError.apply(ctx, err);
+      return utility().makeError.apply(ctx, err);
     });
   }
 
   @Test
   public void makeErrorNoThrow() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestFullCtx(client, utility);
     ctx.ctrl.throwing = false;
     Map<String, Object> resmap = new LinkedHashMap<>();
@@ -188,8 +275,8 @@ public class PrimaryUtilityTest {
 
   @Test
   public void featureAddBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestCtx(client, utility, null);
     int startLen = client.features.size();
 
@@ -210,7 +297,7 @@ public class PrimaryUtilityTest {
 
   @Test
   public void featureHookBasic() {
-    SolardemoSDK hookClient = client();
+    VoxgigSolardemoSDK hookClient = VoxgigSolardemoSDK.testSDK();
     Utility hookUtility = hookClient.getUtility();
     Context ctx = makeTestCtx(hookClient, hookUtility, null);
 
@@ -236,7 +323,7 @@ public class PrimaryUtilityTest {
 
   @Test
   public void featureInitBasic() {
-    SolardemoSDK initClient = client();
+    VoxgigSolardemoSDK initClient = VoxgigSolardemoSDK.testSDK();
     Utility initUtility = initClient.getUtility();
     Context ctx = makeTestCtx(initClient, initUtility, null);
     ctx.options.put("feature", fhMap("initfeat", fhMap("active", true)));
@@ -253,7 +340,7 @@ public class PrimaryUtilityTest {
 
   @Test
   public void featureInitInactive() {
-    SolardemoSDK initClient = client();
+    VoxgigSolardemoSDK initClient = VoxgigSolardemoSDK.testSDK();
     Utility initUtility = initClient.getUtility();
     Context ctx = makeTestCtx(initClient, initUtility, null);
     ctx.options.put("feature", fhMap("nofeat", fhMap("active", false)));
@@ -273,7 +360,7 @@ public class PrimaryUtilityTest {
     final List<Map<String, Object>> calls = new ArrayList<>();
     // Concrete base: a live construction must satisfy any server variables a
     // templated base URL declares; a literal base sidesteps the requirement.
-    SolardemoSDK liveClient = new SolardemoSDK(fhMap(
+    VoxgigSolardemoSDK liveClient = new VoxgigSolardemoSDK(fhMap(
         "base", "http://localhost:8080",
         "system", fhMap(
             "fetch", (BiFunction<String, Map<String, Object>, Map<String, Object>>)
@@ -301,7 +388,7 @@ public class PrimaryUtilityTest {
     // installs the test feature).
     // Concrete base: a live construction must satisfy any server variables a
     // templated base URL declares; a literal base sidesteps the requirement.
-    SolardemoSDK blockedClient = new SolardemoSDK(fhMap(
+    VoxgigSolardemoSDK blockedClient = new VoxgigSolardemoSDK(fhMap(
         "base", "http://localhost:8080",
         "system", fhMap(
             "fetch", (BiFunction<String, Map<String, Object>, Map<String, Object>>)
@@ -329,12 +416,10 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeContextBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "makeContext", "basic"), (entry) -> {
-      Map<String, Object> in = Helpers.toMapAny(entry.get("in"));
+    runsection("makeContext", (args) -> {
+      Map<String, Object> in = Helpers.toMapAny(args[0]);
       if (in != null) {
-        Context ctx = utility.makeContext.apply(in, null);
+        Context ctx = utility().makeContext.apply(in, null);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", ctx.id);
         if (ctx.op != null) {
@@ -348,8 +433,8 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeFetchDefBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestFullCtx(client, utility);
     ctx.spec = new Spec(fhMap(
         "base", "http://localhost:8080",
@@ -375,8 +460,8 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeFetchDefWithBody() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestFullCtx(client, utility);
     ctx.spec = new Spec(fhMap(
         "base", "http://localhost:8080",
@@ -401,43 +486,30 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeOptionsBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "makeOptions", "basic"), (entry) -> {
-      Map<String, Object> in = Helpers.toMapAny(entry.get("in"));
+    runsection("makeOptions", (args) -> {
+      Map<String, Object> in = Helpers.toMapAny(args[0]);
       Map<String, Object> ctxmap = new LinkedHashMap<>();
       if (in != null) {
         ctxmap.put("options", in.get("options"));
         ctxmap.put("config", in.get("config"));
       }
-      Context ctx = utility.makeContext.apply(ctxmap, null);
-      ctx.client = client;
-      ctx.utility = utility;
-      return utility.makeOptions.apply(ctx);
+      Context ctx = utility().makeContext.apply(ctxmap, null);
+      ctx.client = client();
+      ctx.utility = utility();
+      return utility().makeOptions.apply(ctx);
     });
   }
 
   @Test
   public void makeRequestBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "makeRequest", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      ctx.options = client.optionsMap();
+    runsection("makeRequest", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      ctx.options = client().optionsMap();
 
-      utility.makeRequest.apply(ctx);
+      utility().makeRequest.apply(ctx);
 
-      // Update entry ctx for match checking.
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null) {
-        if (ctx.response != null) {
-          entryCtx.put("response", "exists");
-        }
-        if (ctx.result != null) {
-          entryCtx.put("result", "exists");
-        }
-      }
+      // Expose response/result existence for the match assertions.
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return null;
     });
@@ -445,25 +517,12 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeResponseBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "makeResponse", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      RunnerSupport.fixctx(ctx, client);
+    runsection("makeResponse", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
-      utility.makeResponse.apply(ctx);
+      utility().makeResponse.apply(ctx);
 
-      // Update entry ctx for match checking with result data.
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.result != null) {
-        entryCtx.put("result", fhMap(
-            "ok", ctx.result.ok,
-            "status", ctx.result.status,
-            "statusText", ctx.result.statusText,
-            "headers", ctx.result.headers,
-            "body", ctx.result.body));
-      }
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return null;
     });
@@ -471,8 +530,8 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeResultBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestFullCtx(client, utility);
     ctx.spec = new Spec(fhMap(
         "base", "http://localhost:8080",
@@ -497,8 +556,8 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeResultNoSpec() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestFullCtx(client, utility);
     ctx.spec = null;
     ctx.result = new Result(fhMap(
@@ -516,8 +575,8 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeResultNoResult() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
+    VoxgigSolardemoSDK client = client();
+    Utility utility = utility();
     Context ctx = makeTestFullCtx(client, utility);
     ctx.spec = new Spec(fhMap("step", "start"));
     ctx.result = null;
@@ -533,75 +592,101 @@ public class PrimaryUtilityTest {
 
   @Test
   public void makeSpecBasic() {
-    Map<String, Object> setupOpts = getSpec(primary(), "makeSpec", "DEF", "setup", "a");
-    SolardemoSDK specClient = SolardemoSDK.testSDK(null, setupOpts);
+    Map<String, Object> setupOpts =
+        RunnerSupport.getSpec(run().spec, "makeSpec", "DEF", "setup", "a");
+    VoxgigSolardemoSDK specClient = VoxgigSolardemoSDK.testSDK(null, setupOpts);
     Utility specUtility = specClient.getUtility();
 
-    runset(getSpec(primary(), "makeSpec", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, specClient, specUtility);
+    runsection("makeSpec", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], specClient, specUtility);
       ctx.options = specClient.optionsMap();
 
       specUtility.makeSpec.apply(ctx);
 
-      // Update entry ctx for match.
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.spec != null) {
-        entryCtx.put("spec", fhMap(
-            "base", ctx.spec.base,
-            "prefix", ctx.spec.prefix,
-            "suffix", ctx.spec.suffix,
-            "method", ctx.spec.method,
-            "params", ctx.spec.params,
-            "query", ctx.spec.query,
-            "headers", ctx.spec.headers,
-            "step", ctx.spec.step));
-      }
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return null;
     });
   }
 
+  // A minimal Entity: Context resolves the op through the Entity
+  // interface, and a literal {name: ...} map from the fixture is not one -
+  // entname would be "" and every lookup would miss, reporting
+  // point_no_points for all seven cases. TS reads the same field with
+  // getprop and accepts the plain map. (The go peer is plEntity.)
+  static final class PlEntity implements Entity {
+    private final String name;
+
+    PlEntity(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public Entity make() {
+      return new PlEntity(name);
+    }
+
+    @Override
+    public Object data(Object... args) {
+      return null;
+    }
+
+    @Override
+    public Object match(Object... args) {
+      return null;
+    }
+  }
+
+  // Corpus-driven, like go: TS returns the error AS the value; java throws
+  // SdkError. The corpus says `match: out: code` for both, so the error is
+  // normalised to a map carrying its code here rather than forking the
+  // fixture per language.
   @Test
   public void makePointBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    Context ctx = makeTestCtx(client, utility, null);
-    List<Object> parts = new ArrayList<>();
-    parts.add("items");
-    parts.add("{id}");
-    Map<String, Object> point = fhMap(
-        "parts", parts,
-        "args", fhMap("params", new ArrayList<>()),
-        "params", new ArrayList<>(),
-        "alias", new LinkedHashMap<>(),
-        "select", new LinkedHashMap<>(),
-        "active", true,
-        "transform", new LinkedHashMap<>());
-    ctx.op.points = new ArrayList<>(List.of(point));
+    runsection("makePoint", (args) -> {
+      Map<String, Object> ctxmap = Helpers.toMapAny(args[0]);
+      if (ctxmap == null) {
+        ctxmap = new LinkedHashMap<>();
+      }
 
-    utility.makePoint.apply(ctx);
-    assertNotNull(ctx.point, "expected point to be set");
+      Map<String, Object> em = Helpers.toMapAny(ctxmap.get("entity"));
+      if (em != null) {
+        String name = em.get("name") instanceof String ? (String) em.get("name") : "";
+        Map<String, Object> swapped = new LinkedHashMap<>(ctxmap);
+        swapped.put("entity", new PlEntity(name));
+        ctxmap = swapped;
+      }
+
+      Context ctx = OmniResolver.omniCtx(ctxmap, client(), utility());
+      try {
+        return utility().makePoint.apply(ctx);
+      }
+      catch (SdkError e) {
+        return fhMap("code", e.code);
+      }
+    });
   }
 
   @Test
   public void makeUrlBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "makeUrl", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
+    runsection("makeUrl", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
       if (ctx.result == null) {
         ctx.result = new Result(new LinkedHashMap<>());
       }
-      return utility.makeUrl.apply(ctx);
+      return utility().makeUrl.apply(ctx);
     });
   }
 
   @Test
   public void operatorBasic() {
-    runset(getSpec(primary(), "operator", "basic"), (entry) -> {
-      Map<String, Object> in = Helpers.toMapAny(entry.get("in"));
+    runsection("operator", (args) -> {
+      Map<String, Object> in = Helpers.toMapAny(args[0]);
       Operation op = new Operation(in == null ? new LinkedHashMap<>() : in);
       return fhMap(
           "entity", op.entity,
@@ -613,41 +698,18 @@ public class PrimaryUtilityTest {
 
   @Test
   public void paramBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "param", "basic"), (entry) -> {
-      List<Object> args = entry.get("args") instanceof List
-          ? (List<Object>) entry.get("args") : new ArrayList<>();
-      if (args.size() < 2) {
+    runsection("param", (args) -> {
+      if (args.length < 2) {
         return null;
       }
 
-      Map<String, Object> ctxmap = Helpers.toMapAny(args.get(0));
-      if (ctxmap == null) {
-        ctxmap = new LinkedHashMap<>();
-      }
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      Object paramdef = args.get(1);
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      Object paramdef = args[1];
 
-      Object result = utility.param.apply(ctx, paramdef);
+      Object result = utility().param.apply(ctx, paramdef);
 
-      // Copy spec alias back to entry ctx for matching.
-      Map<String, Object> matchSpec = Helpers.toMapAny(entry.get("match"));
-      if (matchSpec != null) {
-        Map<String, Object> ctxMatch = Helpers.toMapAny(matchSpec.get("ctx"));
-        if (ctxMatch != null) {
-          Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-          if (entryCtx == null) {
-            entryCtx = new LinkedHashMap<>();
-            entry.put("ctx", entryCtx);
-          }
-          Map<String, Object> specMatch = Helpers.toMapAny(ctxMatch.get("spec"));
-          if (specMatch != null && ctx.spec != null
-              && specMatch.get("alias") instanceof Map) {
-            entryCtx.put("spec", fhMap("alias", ctx.spec.alias));
-          }
-        }
-      }
+      // The spec alias mutation is what mark 80 asserts on.
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return result;
     });
@@ -655,106 +717,110 @@ public class PrimaryUtilityTest {
 
   @Test
   public void prepareAuthBasic() {
-    Map<String, Object> setupOpts = getSpec(primary(), "prepareAuth", "DEF", "setup", "a");
-    SolardemoSDK authClient = SolardemoSDK.testSDK(null, setupOpts);
+    Map<String, Object> setupOpts =
+        RunnerSupport.getSpec(run().spec, "prepareAuth", "DEF", "setup", "a");
+    VoxgigSolardemoSDK authClient = VoxgigSolardemoSDK.testSDK(null, setupOpts);
     Utility authUtility = authClient.getUtility();
 
-    runset(getSpec(primary(), "prepareAuth", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, authClient, authUtility);
-      RunnerSupport.fixctx(ctx, authClient);
+    // The corpus writes the credential as `headers.authorization`: a
+    // PLACEHOLDER each runner points at the container and name this API
+    // actually uses. PipelineTest.authCredential (same package) discovers
+    // both by running prepareAuth once.
+    PipelineTest.AuthCred cred = PipelineTest.authCredential();
+    assertNotNull(cred, "prepareAuth placed no credential in headers or query");
 
-      authUtility.prepareAuth.apply(ctx);
+    // An absent section is runsection's report to make.
+    Map<String, Object> section = Helpers.toMapAny(run().spec.get("prepareAuth"));
+    boolean swap = section != null
+        && (!"headers".equals(cred.where()) || !"authorization".equals(cred.name()));
+    Object original = swap ? section.get("basic") : null;
+    if (swap) {
+      section.put("basic", retargetAuth(original, cred));
+    }
 
-      // Update entry ctx for match.
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.spec != null) {
-        entryCtx.put("spec", fhMap("headers", ctx.spec.headers));
+    try {
+      runsection("prepareAuth", (args) -> {
+        Context ctx = OmniResolver.omniCtx(args[0], authClient, authUtility);
+
+        authUtility.prepareAuth.apply(ctx);
+
+        OmniResolver.omniSyncCtx(args[0], ctx);
+
+        return null;
+      });
+    }
+    finally {
+      if (swap) {
+        section.put("basic", original);
       }
-
-      return null;
-    });
+    }
   }
 
   @Test
   public void prepareBodyBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "prepareBody", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      RunnerSupport.fixctx(ctx, client);
-      return utility.prepareBody.apply(ctx);
+    runsection("prepareBody", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().prepareBody.apply(ctx);
     });
   }
 
   @Test
   public void prepareHeadersBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "prepareHeaders", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      return utility.prepareHeaders.apply(ctx);
+    runsection("prepareHeaders", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().prepareHeaders.apply(ctx);
     });
   }
 
   @Test
   public void prepareMethodBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "prepareMethod", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      return utility.prepareMethod.apply(ctx);
+    runsection("prepareMethod", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      // An op the API does not define resolves NO method; ts answers
+      // undefined there and java answers null - both are "no value" to
+      // the corpus.
+      String method = utility().prepareMethod.apply(ctx);
+      if (method == null || method.isEmpty()) {
+        return null;
+      }
+      return method;
     });
   }
 
   @Test
   public void prepareParamsBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "prepareParams", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      return utility.prepareParams.apply(ctx);
+    runsection("prepareParams", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().prepareParams.apply(ctx);
     });
   }
 
+  // Was two hand-written cases that had drifted out of the shared corpus
+  // (the preparePath fixture shipped as an empty `set: []`). Now driven by
+  // the corpus like every other section, so all ports assert the same
+  // separator/blank-segment behaviour.
   @Test
   public void preparePathBasic() {
-    // Was two hand-written cases that had drifted out of the shared corpus
-    // (the preparePath fixture shipped as an empty `set: []`).
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "preparePath", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      return utility.preparePath.apply(ctx);
+    runsection("preparePath", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().preparePath.apply(ctx);
     });
   }
 
   @Test
   public void prepareQueryBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "prepareQuery", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      return utility.prepareQuery.apply(ctx);
+    runsection("prepareQuery", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
+      return utility().prepareQuery.apply(ctx);
     });
   }
 
   @Test
   public void resultBasicBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "resultBasic", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
-      RunnerSupport.fixctx(ctx, client);
+    runsection("resultBasic", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
-      Result result = utility.resultBasic.apply(ctx);
+      Result result = utility().resultBasic.apply(ctx);
 
       Map<String, Object> out = fhMap(
           "status", result.status,
@@ -769,18 +835,12 @@ public class PrimaryUtilityTest {
 
   @Test
   public void resultBodyBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "resultBody", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
+    runsection("resultBody", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
-      utility.resultBody.apply(ctx);
+      utility().resultBody.apply(ctx);
 
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.result != null) {
-        entryCtx.put("result", fhMap("body", ctx.result.body));
-      }
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return null;
     });
@@ -788,18 +848,12 @@ public class PrimaryUtilityTest {
 
   @Test
   public void resultHeadersBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "resultHeaders", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
+    runsection("resultHeaders", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
-      utility.resultHeaders.apply(ctx);
+      utility().resultHeaders.apply(ctx);
 
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.result != null) {
-        entryCtx.put("result", fhMap("headers", ctx.result.headers));
-      }
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return null;
     });
@@ -807,22 +861,13 @@ public class PrimaryUtilityTest {
 
   @Test
   public void transformRequestBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "transformRequest", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
+    runsection("transformRequest", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
-      Object result = utility.transformRequest.apply(ctx);
+      Object result = utility().transformRequest.apply(ctx);
 
-      // Update entry ctx for match (step changed).
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.spec != null) {
-        Map<String, Object> specMap = Helpers.toMapAny(entryCtx.get("spec"));
-        if (specMap != null) {
-          specMap.put("step", ctx.spec.step);
-        }
-      }
+      // The step advance is what the match assertion reads.
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return result;
     });
@@ -830,22 +875,12 @@ public class PrimaryUtilityTest {
 
   @Test
   public void transformResponseBasic() {
-    SolardemoSDK client = client();
-    Utility utility = client.getUtility();
-    runset(getSpec(primary(), "transformResponse", "basic"), (entry) -> {
-      Map<String, Object> ctxmap = Helpers.toMapAny(entry.get("ctx"));
-      Context ctx = makeCtxFromMap(ctxmap, client, utility);
+    runsection("transformResponse", (args) -> {
+      Context ctx = OmniResolver.omniCtx(args[0], client(), utility());
 
-      Object result = utility.transformResponse.apply(ctx);
+      Object result = utility().transformResponse.apply(ctx);
 
-      // Update entry ctx for match (step changed).
-      Map<String, Object> entryCtx = Helpers.toMapAny(entry.get("ctx"));
-      if (entryCtx != null && ctx.spec != null) {
-        Map<String, Object> specMap = Helpers.toMapAny(entryCtx.get("spec"));
-        if (specMap != null) {
-          specMap.put("step", ctx.spec.step);
-        }
-      }
+      OmniResolver.omniSyncCtx(args[0], ctx);
 
       return result;
     });

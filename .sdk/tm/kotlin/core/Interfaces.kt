@@ -12,7 +12,7 @@ interface Entity {
 }
 
 /**
- * The full CRUD entity contract of the Solardemo SDK. Every generated
+ * The full CRUD entity contract of the VoxgigSolardemo SDK. Every generated
  * entity implements every operation; unsupported operations throw an
  * SdkError at runtime (see Helpers.unsupportedOp).
  */
@@ -38,7 +38,7 @@ interface SdkEntity : Entity {
 }
 
 /**
- * A Solardemo SDK feature. Hook methods are dispatched by name via the
+ * A VoxgigSolardemo SDK feature. Hook methods are dispatched by name via the
  * featureHook utility (reflectively, so features may also define extra
  * hooks beyond this interface).
  */

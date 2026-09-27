@@ -44,11 +44,11 @@
 
 import os
 
-from solardemo_sdk.core.spec import SolardemoSpec
-from solardemo_sdk.core.result import SolardemoResult
-from solardemo_sdk.core.response import SolardemoResponse
-from solardemo_sdk.core.error import SolardemoError
-from solardemo_sdk.utility.voxgig_struct import voxgig_struct as vs
+from voxgigsolardemo_sdk.core.spec import VoxgigSolardemoSpec
+from voxgigsolardemo_sdk.core.result import VoxgigSolardemoResult
+from voxgigsolardemo_sdk.core.response import VoxgigSolardemoResponse
+from voxgigsolardemo_sdk.core.error import VoxgigSolardemoError
+from voxgigsolardemo_sdk.utility.voxgig_struct import voxgig_struct as vs
 
 from test.voxgig_omni import (
     EXISTSMARK,
@@ -226,20 +226,20 @@ def _enrich(ctxmap, ctx):
 
     spec_map = ctxmap.get('spec')
     if isinstance(spec_map, dict):
-        ctx.spec = SolardemoSpec(spec_map)
+        ctx.spec = VoxgigSolardemoSpec(spec_map)
 
     res_map = ctxmap.get('result')
     if isinstance(res_map, dict):
-        ctx.result = SolardemoResult(res_map)
+        ctx.result = VoxgigSolardemoResult(res_map)
         err_map = res_map.get('err')
         if isinstance(err_map, dict):
             msg = err_map.get('message', '')
             if msg != '':
-                ctx.result.err = SolardemoError('', msg)
+                ctx.result.err = VoxgigSolardemoError('', msg)
 
     resp_map = ctxmap.get('response')
     if isinstance(resp_map, dict):
-        ctx.response = SolardemoResponse(resp_map)
+        ctx.response = VoxgigSolardemoResponse(resp_map)
         body = resp_map.get('body')
         if body is not None:
             body_copy = body

@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: prepare_headers
+// VoxgigSolardemo SDK utility: prepare_headers
 
-class SolardemoPrepareHeaders
+class VoxgigSolardemoPrepareHeaders
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         $options = $ctx->client->options_map();
         $headers = \Voxgig\Struct\Struct::getprop($options, 'headers');

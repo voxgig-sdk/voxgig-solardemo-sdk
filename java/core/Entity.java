@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 /** Minimal entity contract used by the result pipeline (list wrapping). */
 public interface Entity {

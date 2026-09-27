@@ -1,4 +1,4 @@
-# Solardemo SDK utility: transform_response
+# VoxgigSolardemo SDK utility: transform_response
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -22,10 +22,10 @@ $REGISTRY{transform_response} = sub {
   my $point = $ctx->{point};
   $spec->{step} = 'resform' if $spec;
   return undef if !$result || !$result->{ok};
-  my $transform = SolardemoHelpers::to_map(SolardemoHelpers::gp($point, 'transform'));
+  my $transform = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::gp($point, 'transform'));
   return undef unless $transform;
-  my $resform = SolardemoHelpers::gp($transform, 'res');
-  return undef unless SolardemoHelpers::rb_truthy($resform);
+  my $resform = VoxgigSolardemoHelpers::gp($transform, 'res');
+  return undef unless VoxgigSolardemoHelpers::rb_truthy($resform);
   my $resdata = Voxgig::Struct::transform({
     'ok' => Voxgig::Struct::jbool($result->{ok} ? 1 : 0),
     'status' => $result->{status},

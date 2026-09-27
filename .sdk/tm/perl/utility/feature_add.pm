@@ -1,9 +1,9 @@
-# Solardemo SDK utility: feature_add
+# VoxgigSolardemo SDK utility: feature_add
 
 use strict;
 use warnings;
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 

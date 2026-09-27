@@ -1,8 +1,8 @@
-# Solardemo Rust SDK
+# VoxgigSolardemo Rust SDK
 
 
 
-The Rust SDK for the Solardemo API — an entity-oriented client following idiomatic Rust conventions.
+The Rust SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Rust conventions.
 
 The SDK exposes the API as capitalised, semantic **Entities** — for example `client.moon(Value::Noval)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
@@ -15,16 +15,16 @@ keeps the cognitive load low.
 
 ## Install
 This crate is not yet published to crates.io. Depend on it from the GitHub
-release tag (`rust/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)) or
+release tag (`rust/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
 from a source checkout by adding it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 # From a source checkout:
-voxgig-solardemo-sdk = { path = "../rust" }
+voxgig-voxgig-solardemo-sdk = { path = "../rust" }
 
 # Or from the git release tag:
-# voxgig-solardemo-sdk = { git = "<repo-url>", tag = "rust/vX.Y.Z" }
+# voxgig-voxgig-solardemo-sdk = { git = "<repo-url>", tag = "rust/vX.Y.Z" }
 ```
 
 
@@ -36,9 +36,9 @@ loading a specific record.
 ### 1. Create a client
 
 ```rust
-use solardemo_sdk::{getp, jo, SolardemoSDK, Value};
+use voxgig_solardemo_sdk::{getp, jo, VoxgigSolardemoSDK, Value};
 
-let client = SolardemoSDK::new(Value::Noval);
+let client = VoxgigSolardemoSDK::new(Value::Noval);
 ```
 
 ### 2. List moon records
@@ -169,7 +169,7 @@ let moon = client.moon(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
 Override the base URL to reach a local or staging server:
 
 ```rust
-let client = SolardemoSDK::new(jo(vec![
+let client = VoxgigSolardemoSDK::new(jo(vec![
     ("base", Value::str("http://localhost:8080")),
 ]));
 ```
@@ -179,7 +179,7 @@ let client = SolardemoSDK::new(jo(vec![
 Create a `.env.local` file at the crate root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -191,12 +191,12 @@ cd rust && cargo test
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```rust
-use solardemo_sdk::{SolardemoSDK, Value};
+use voxgig_solardemo_sdk::{VoxgigSolardemoSDK, Value};
 
-let client = SolardemoSDK::new(options);
+let client = VoxgigSolardemoSDK::new(options);
 ```
 
 Creates a new SDK client. `options` is a `Value` map (`Value::Noval` for
@@ -213,7 +213,7 @@ none) carrying any of the following keys:
 ### test_sdk
 
 ```rust
-use solardemo_sdk::{test_sdk, Value};
+use voxgig_solardemo_sdk::{test_sdk, Value};
 
 let client = test_sdk(testopts, sdkopts);
 ```
@@ -221,14 +221,14 @@ let client = test_sdk(testopts, sdkopts);
 Creates a test-mode client with mock transport. Both arguments may be
 `Value::Noval`.
 
-### SolardemoSDK methods
+### VoxgigSolardemoSDK methods
 
 | Method | Signature | Description |
 | --- | --- | --- |
 | `options_map` | `() -> Value` | Deep copy of the current SDK options. |
 | `get_utility` | `() -> Rc<Utility>` | Copy of the SDK utility object. |
-| `prepare` | `(fetchargs: Value) -> Result<Value, SolardemoError>` | Build an HTTP request definition without sending. |
-| `direct` | `(fetchargs: Value) -> Result<Value, SolardemoError>` | Build and send an HTTP request. `Ok` is a result map (branch on `ok`). |
+| `prepare` | `(fetchargs: Value) -> Result<Value, VoxgigSolardemoError>` | Build an HTTP request definition without sending. |
+| `direct` | `(fetchargs: Value) -> Result<Value, VoxgigSolardemoError>` | Build and send an HTTP request. `Ok` is a result map (branch on `ok`). |
 | `moon` | `(entopts: Value) -> Rc<MoonEntity>` | Create a Moon entity instance. |
 | `planet` | `(entopts: Value) -> Rc<PlanetEntity>` | Create a Planet entity instance. |
 
@@ -238,11 +238,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch: Value, ctrl: Value) -> Result<Value, SolardemoError>` | Load a single entity by match criteria. |
-| `list` | `(reqmatch: Value, ctrl: Value) -> Result<Value, SolardemoError>` | List entities matching the criteria (Ok is a `Value::List`). |
-| `create` | `(reqdata: Value, ctrl: Value) -> Result<Value, SolardemoError>` | Create a new entity. |
-| `update` | `(reqdata: Value, ctrl: Value) -> Result<Value, SolardemoError>` | Update an existing entity. |
-| `remove` | `(reqmatch: Value, ctrl: Value) -> Result<Value, SolardemoError>` | Remove an entity. |
+| `load` | `(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Load a single entity by match criteria. |
+| `list` | `(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | List entities matching the criteria (Ok is a `Value::List`). |
+| `create` | `(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Create a new entity. |
+| `update` | `(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Update an existing entity. |
+| `remove` | `(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Remove an entity. |
 | `data` | `(args: Option<&Value>) -> Value` | Get entity data (pass `Some(&map)` to set). |
 | `matchv` | `(args: Option<&Value>) -> Value` | Get entity match criteria (pass `Some(&map)` to set). |
 | `make` | `() -> Rc<dyn Entity>` | Create a new instance with the same options. |
@@ -250,7 +250,7 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return `Result<Value, SolardemoError>` — the
+Entity operations return `Result<Value, VoxgigSolardemoError>` — the
 bare result data on `Ok` (a `Value::Map` for single-entity ops, a
 `Value::List` for `list`) and the branded error on `Err`.
 
@@ -403,7 +403,7 @@ let planet = client.planet(Value::Noval).create(jo(vec![
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -412,17 +412,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -463,7 +595,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -490,7 +630,7 @@ rust/
 └── utility/                     -- Utilities + the vendored voxgig struct port
 ```
 
-The public API is re-exported from the crate root, so `use solardemo_sdk::{...}`
+The public API is re-exported from the crate root, so `use voxgig_solardemo_sdk::{...}`
 reaches the SDK client, `Value`, and the `jo` / `ja` / `getp` helpers
 directly. Import entity or utility modules only when needed.
 

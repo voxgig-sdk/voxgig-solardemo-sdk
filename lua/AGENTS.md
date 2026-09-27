@@ -1,6 +1,6 @@
-# Solardemo Lua — Agent Guide
+# VoxgigSolardemo Lua — Agent Guide
 
-The Lua client for the Solardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Lua client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `lua/` directory.
@@ -27,7 +27,7 @@ make test
 
 | Source | Path | Edit when… |
 | --- | --- | --- |
-| Target definition | `.sdk/model/target/lua.aon` | deps, module, extension, phases change |
+| Target definition | `.sdk/model/target/lua.aontu` | deps, module, extension, phases change |
 | Templates | `.sdk/tm/lua/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
 | Components | `.sdk/src/cmp/lua/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
 
@@ -38,12 +38,20 @@ component.* After editing a component run `npm run build` before
 ## Features in this target
 
 Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aon`; customise
+default activation come from `.sdk/model/feature/<name>.aontu`; customise
 the runtime under `.sdk/tm/lua/feature/` and regenerate.
 
 | Feature | Runtime file | Active hooks |
 | --- | --- | --- |
-| **test** — In-memory mock transport for testing without a live server | `feature/test_feature.lua` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **debug** — Debug capture | `feature/debug_feature.lua` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `feature/idempotency_feature.lua` | `PreRequest` |
+| **metrics** — Metrics | `feature/metrics_feature.lua` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `feature/paging_feature.lua` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `feature/ratelimit_feature.lua` | — |
+| **retry** — Retry | `feature/retry_feature.lua` | — |
+| **secrets** — Secrets | `feature/secrets_feature.lua` | `PreSpec` |
+| **test** — Test transport | `feature/test_feature.lua` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `feature/timeout_feature.lua` | — |
 
 ---
 

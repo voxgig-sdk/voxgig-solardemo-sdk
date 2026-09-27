@@ -5,7 +5,7 @@
 using namespace sdk;
 
 static void exists_test_mode() {
-  auto testsdk = SolardemoSDK::testSDK();
+  auto testsdk = VoxgigSolardemoSDK::testSDK();
   ASSERT_NOTNULL(testsdk, "expected non-null SDK");
   ASSERT_EQ(testsdk->mode, std::string("test"), "expected test mode");
 }

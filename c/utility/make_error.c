@@ -28,7 +28,7 @@ voxgig_value* make_error_util(Context* ctx, PNError* err, PNError** out) {
 
   const char* errmsg = use->msg;
   char msgbuf[1024];
-  snprintf(msgbuf, sizeof(msgbuf), "SolardemoSDK: %s: %s", opname, errmsg);
+  snprintf(msgbuf, sizeof(msgbuf), "VoxgigSolardemoSDK: %s: %s", opname, errmsg);
   char* msg = clean_str(ctx, msgbuf);
 
   result->err = NULL;

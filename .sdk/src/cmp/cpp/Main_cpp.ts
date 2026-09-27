@@ -3,8 +3,10 @@ import * as Path from 'node:path'
 
 import {
   cmp, each,
-  File, Content, Copy, Folder, Fragment,
-  TEST_CONTROL_EXCLUDE
+  File, Copy, Folder, Fragment,
+  TEST_CONTROL_EXCLUDE,
+  pluginExcludes,
+  targetFeatures,
 } from '@voxgig/sdkgen'
 
 
@@ -20,11 +22,13 @@ import {
 
 
 import { Package } from './Package_cpp'
-import { Config } from './Config_cpp'
+import { Config, FeaturePlugins } from './Config_cpp'
+import { Schema } from './Schema_cpp'
 import { Gitignore } from './Gitignore_cpp'
 import { MainEntity } from './MainEntity_cpp'
 import { EntityBase } from './EntityBase_cpp'
 import { EntityTypes } from './EntityTypes_cpp'
+import { PrepareAuth } from './PrepareAuth_cpp'
 
 
 const Main = cmp(async function Main(props: any) {
@@ -34,15 +38,32 @@ const Main = cmp(async function Main(props: any) {
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
 
+  const feature = targetFeatures(model, target)
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const allfeature = getModelPath(model, `main.${KIT}.feature`,
+    { required: false, only_active: false }) || {}
+  const inactivePluginExcludes: RegExp[] = []
+  for (const fname of Object.keys(allfeature)) {
+    if (null != (feature as any)[fname]) continue
+    const groups = getModelPath(model, `main.${KIT}.feature.${fname}.plugin`,
+      { required: false, only_active: false }) || {}
+    for (const gname of Object.keys(groups)) {
+      for (const one of (groups[gname].path || [])) {
+        const pat = esc(String(one))
+        inactivePluginExcludes.push(new RegExp('(^|/)' +
+          pat.replace(/\\\/$/, '') + (/\/$/.test(String(one)) ? '/' : '$')))
+      }
+    }
+  }
+
   Package({ target })
 
   Gitignore({})
 
-  // Copy tm/cpp verbatim (with placeholder substitution). The tm src/ subtree
-  // only stages the per-feature custom-source dirs (target add), so exclude it.
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\//, TEST_CONTROL_EXCLUDE],
+    exclude: [/src\//, TEST_CONTROL_EXCLUDE,
+      ...pluginExcludes(model), ...inactivePluginExcludes],
     replace: {
       ...props.ctx$.stdrep,
     }
@@ -58,6 +79,8 @@ const Main = cmp(async function Main(props: any) {
   Folder({ name: 'core' }, () => {
 
     Config({ target })
+
+    Schema({ target })
 
     // core/client.hpp — the generated client class with entity accessors.
     File({ name: 'client.' + target.ext }, () => {
@@ -81,6 +104,14 @@ const Main = cmp(async function Main(props: any) {
         })
     })
   })
+
+  PrepareAuth({ target })
+
+  // feature/<name>/kinds.cpp — the plugin definitions an active
+  // plugin-bearing feature selected, and the Makefile's wiring gate for that
+  // feature's vendored payload (see Config_cpp). Nothing is emitted when no
+  // such feature is active.
+  FeaturePlugins({ target })
 
 })
 

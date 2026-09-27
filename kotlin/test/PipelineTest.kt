@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 // Direct unit tests for the operation-pipeline utilities. These drive the
 // error and edge branches (missing spec/response/result, 4xx handling,
@@ -11,29 +11,29 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Entity
-import voxgig.solardemosdk.core.Operation
-import voxgig.solardemosdk.core.SolardemoSDK
-import voxgig.solardemosdk.core.Response
-import voxgig.solardemosdk.core.Result
-import voxgig.solardemosdk.core.SdkError
-import voxgig.solardemosdk.core.Spec
-import voxgig.solardemosdk.core.Utility
-import voxgig.solardemosdk.feature.BaseFeature
-import voxgig.solardemosdk.utility.struct.Struct
-import voxgig.solardemosdk.sdktest.FeatureHarness.fhErrCode
-import voxgig.solardemosdk.sdktest.FeatureHarness.fhMap
-import voxgig.solardemosdk.sdktest.FeatureHarness.fhResponse
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Entity
+import voxgig.voxgigsolardemosdk.core.Operation
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.Response
+import voxgig.voxgigsolardemosdk.core.Result
+import voxgig.voxgigsolardemosdk.core.SdkError
+import voxgig.voxgigsolardemosdk.core.Spec
+import voxgig.voxgigsolardemosdk.core.Utility
+import voxgig.voxgigsolardemosdk.feature.BaseFeature
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhErrCode
+import voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhMap
+import voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhResponse
 
 @Suppress("UNCHECKED_CAST")
 class PipelineTest {
 
-  private fun plClient(sdkopts: MutableMap<String, Any?>?): SolardemoSDK {
-    return SolardemoSDK.testSDK(null, sdkopts)
+  private fun plClient(sdkopts: MutableMap<String, Any?>?): VoxgigSolardemoSDK {
+    return VoxgigSolardemoSDK.testSDK(null, sdkopts)
   }
 
-  private fun plCtx(client: SolardemoSDK, utility: Utility, ctrl: MutableMap<String, Any?>?): Context {
+  private fun plCtx(client: VoxgigSolardemoSDK, utility: Utility, ctrl: MutableMap<String, Any?>?): Context {
     val ctxmap = linkedMapOf<String, Any?>()
     ctxmap["opname"] = "load"
     ctxmap["client"] = client
@@ -464,7 +464,7 @@ class PipelineTest {
     return f
   }
 
-  private fun names(client: SolardemoSDK): String {
+  private fun names(client: VoxgigSolardemoSDK): String {
     val out = StringBuilder()
     for (i in client.features.indices) {
       if (i > 0) {

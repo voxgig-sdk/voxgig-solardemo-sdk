@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, List => JList, Map => JMap}
 import java.util.function.{IntConsumer, LongSupplier}

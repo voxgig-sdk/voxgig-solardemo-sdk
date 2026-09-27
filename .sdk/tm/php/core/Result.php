@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK result
+// VoxgigSolardemo SDK result
 
-class SolardemoResult
+class VoxgigSolardemoResult
 {
     public bool $ok;
     public int $status;

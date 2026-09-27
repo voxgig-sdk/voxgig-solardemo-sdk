@@ -1,4 +1,4 @@
-# Solardemo SDK context
+# VoxgigSolardemo SDK context
 
 require_relative '../utility/struct/voxgig_struct'
 require_relative 'control'
@@ -9,7 +9,7 @@ require_relative 'response'
 require_relative 'error'
 require_relative 'helpers'
 
-class SolardemoContext
+class VoxgigSolardemoContext
   attr_accessor :id, :out, :client, :utility, :ctrl, :meta, :config,
                 :entopts, :options, :entity, :shared, :opmap,
                 :data, :reqdata, :match, :reqmatch, :point,
@@ -20,59 +20,59 @@ class SolardemoContext
     @id = "C#{rand(10000000..99999999)}"
     @out = {}
 
-    @client = SolardemoHelpers.get_ctx_prop(ctxmap, "client") || basectx&.client
-    @utility = SolardemoHelpers.get_ctx_prop(ctxmap, "utility") || basectx&.utility
+    @client = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "client") || basectx&.client
+    @utility = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "utility") || basectx&.utility
 
-    @ctrl = SolardemoControl.new
-    ctrl_raw = SolardemoHelpers.get_ctx_prop(ctxmap, "ctrl")
+    @ctrl = VoxgigSolardemoControl.new
+    ctrl_raw = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "ctrl")
     if ctrl_raw.is_a?(Hash)
       @ctrl.throw_err = ctrl_raw["throw"] if ctrl_raw.key?("throw")
       @ctrl.explain = ctrl_raw["explain"] if ctrl_raw["explain"].is_a?(Hash)
       @ctrl.actor = ctrl_raw["actor"] if ctrl_raw.key?("actor")
       @ctrl.paging = ctrl_raw["paging"] if ctrl_raw["paging"].is_a?(Hash)
-    elsif basectx&.ctrl
+    elsif basectx&.ctrl && VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "opname").nil?
       @ctrl = basectx.ctrl
     end
 
-    m = SolardemoHelpers.get_ctx_prop(ctxmap, "meta")
+    m = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "meta")
     @meta = m.is_a?(Hash) ? m : (basectx&.meta || {})
 
-    cfg = SolardemoHelpers.get_ctx_prop(ctxmap, "config")
+    cfg = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "config")
     @config = cfg.is_a?(Hash) ? cfg : basectx&.config
 
-    eo = SolardemoHelpers.get_ctx_prop(ctxmap, "entopts")
+    eo = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "entopts")
     @entopts = eo.is_a?(Hash) ? eo : basectx&.entopts
 
-    o = SolardemoHelpers.get_ctx_prop(ctxmap, "options")
+    o = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "options")
     @options = o.is_a?(Hash) ? o : basectx&.options
 
-    e = SolardemoHelpers.get_ctx_prop(ctxmap, "entity")
+    e = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "entity")
     @entity = e || basectx&.entity
 
-    s = SolardemoHelpers.get_ctx_prop(ctxmap, "shared")
+    s = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "shared")
     @shared = s.is_a?(Hash) ? s : basectx&.shared
 
-    om = SolardemoHelpers.get_ctx_prop(ctxmap, "opmap")
+    om = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "opmap")
     @opmap = om.is_a?(Hash) ? om : (basectx&.opmap || {})
 
-    @data = SolardemoHelpers.to_map(SolardemoHelpers.get_ctx_prop(ctxmap, "data")) || {}
-    @reqdata = SolardemoHelpers.to_map(SolardemoHelpers.get_ctx_prop(ctxmap, "reqdata")) || {}
-    @match = SolardemoHelpers.to_map(SolardemoHelpers.get_ctx_prop(ctxmap, "match")) || {}
-    @reqmatch = SolardemoHelpers.to_map(SolardemoHelpers.get_ctx_prop(ctxmap, "reqmatch")) || {}
+    @data = VoxgigSolardemoHelpers.to_map(VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "data")) || {}
+    @reqdata = VoxgigSolardemoHelpers.to_map(VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "reqdata")) || {}
+    @match = VoxgigSolardemoHelpers.to_map(VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "match")) || {}
+    @reqmatch = VoxgigSolardemoHelpers.to_map(VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "reqmatch")) || {}
 
-    pt = SolardemoHelpers.get_ctx_prop(ctxmap, "point")
+    pt = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "point")
     @point = pt.is_a?(Hash) ? pt : basectx&.point
 
-    sp = SolardemoHelpers.get_ctx_prop(ctxmap, "spec")
-    @spec = sp.is_a?(SolardemoSpec) ? sp : basectx&.spec
+    sp = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "spec")
+    @spec = sp.is_a?(VoxgigSolardemoSpec) ? sp : basectx&.spec
 
-    r = SolardemoHelpers.get_ctx_prop(ctxmap, "result")
-    @result = r.is_a?(SolardemoResult) ? r : basectx&.result
+    r = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "result")
+    @result = r.is_a?(VoxgigSolardemoResult) ? r : basectx&.result
 
-    rp = SolardemoHelpers.get_ctx_prop(ctxmap, "response")
-    @response = rp.is_a?(SolardemoResponse) ? rp : basectx&.response
+    rp = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "response")
+    @response = rp.is_a?(VoxgigSolardemoResponse) ? rp : basectx&.response
 
-    opname = SolardemoHelpers.get_ctx_prop(ctxmap, "opname") || ""
+    opname = VoxgigSolardemoHelpers.get_ctx_prop(ctxmap, "opname") || ""
     @op = resolve_op(opname)
   end
 
@@ -84,7 +84,7 @@ class SolardemoContext
     entname = @entity&.respond_to?(:get_name) ? @entity.get_name : "_"
     cache_key = "#{entname}:#{opname}"
     return @opmap[cache_key] if @opmap[cache_key]
-    return SolardemoOperation.new({}) if opname.empty?
+    return VoxgigSolardemoOperation.new({}) if opname.empty?
 
     opcfg = VoxgigStruct.getpath(@config, "entity.#{entname}.op.#{opname}")
 
@@ -96,7 +96,7 @@ class SolardemoContext
       points = t if t.is_a?(Array)
     end
 
-    op = SolardemoOperation.new({
+    op = VoxgigSolardemoOperation.new({
       "entity" => entname,
       "name" => opname,
       "input" => input,
@@ -107,6 +107,6 @@ class SolardemoContext
   end
 
   def make_error(code, msg)
-    SolardemoError.new(code, msg, self)
+    VoxgigSolardemoError.new(code, msg, self)
   end
 end

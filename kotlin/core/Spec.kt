@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 /** The resolved HTTP request specification for one operation. */
 @Suppress("UNCHECKED_CAST")

@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 // Offline feature-test harness: drives features through a faithful miniature
 // of the real operation pipeline against a configurable mock transport — the
@@ -10,18 +10,18 @@ import java.nio.charset.StandardCharsets
 import java.util.TreeMap
 import java.util.function.Supplier
 
-import voxgig.solardemosdk.core.Config
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Feature
-import voxgig.solardemosdk.core.FetcherFn
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.core.Operation
-import voxgig.solardemosdk.core.SolardemoSDK
-import voxgig.solardemosdk.core.Response
-import voxgig.solardemosdk.core.Result
-import voxgig.solardemosdk.core.SdkError
-import voxgig.solardemosdk.core.Spec
-import voxgig.solardemosdk.core.Utility
+import voxgig.voxgigsolardemosdk.core.Config
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Feature
+import voxgig.voxgigsolardemosdk.core.FetcherFn
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.core.Operation
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.Response
+import voxgig.voxgigsolardemosdk.core.Result
+import voxgig.voxgigsolardemosdk.core.SdkError
+import voxgig.voxgigsolardemosdk.core.Spec
+import voxgig.voxgigsolardemosdk.core.Utility
 
 @Suppress("UNCHECKED_CAST")
 object FeatureHarness {
@@ -174,7 +174,7 @@ object FeatureHarness {
   // FhHarness wires features (in init order) to a mock transport and a mini
   // operation pipeline.
   class FhHarness {
-    lateinit var client: SolardemoSDK
+    lateinit var client: VoxgigSolardemoSDK
     lateinit var utility: Utility
     lateinit var rootctx: Context
     var base = "http://api.test"
@@ -288,7 +288,7 @@ object FeatureHarness {
 
   // fhMake constructs the harness.
   fun fhMake(server: FetcherFn?, vararg features: FhFeature): FhHarness {
-    val client = SolardemoSDK.testSDK()
+    val client = VoxgigSolardemoSDK.testSDK()
     client.features = mutableListOf()
 
     val utility = client.getUtility()

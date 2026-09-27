@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.{Iterator => JIterator, LinkedHashMap, Map => JMap}
 import java.util.function.Supplier
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // The processed outcome of one operation.
 class Result(resmap: JMap[String, Object]) {

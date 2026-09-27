@@ -1,10 +1,10 @@
-# Solardemo C SDK
+# VoxgigSolardemo C SDK
 
 
 
-The C SDK for the Solardemo API — an entity-oriented client following idiomatic C conventions (explicit structs, function-pointer vtables, and a trailing `PNError**` out-param for errors).
+The C SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic C conventions (explicit structs, function-pointer vtables, and a trailing `PNError**` out-param for errors).
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `solardemo_moon(client, NULL)` — each
+The SDK exposes the API as capitalised, semantic **Entities** — for example `voxgigsolardemo_moon(client, NULL)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 C has no central package registry — a release is the git tag
-(`c/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)). Build from a
+(`c/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)). Build from a
 source checkout with the bundled `Makefile`; the voxgig struct library is
 vendored under `utility/struct`, so there are no external dependencies to
 fetch:
@@ -43,7 +43,7 @@ loading a specific record.
 ```c
 #include "core/api.h"
 
-SolardemoSDK* client = solardemo_sdk_new(NULL);
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(NULL);
 PNError* err = NULL;
 ```
 
@@ -53,7 +53,7 @@ PNError* err = NULL;
 `err` after the call.
 
 ```c
-Entity* moon = solardemo_moon(client, NULL);
+Entity* moon = voxgigsolardemo_moon(client, NULL);
 voxgig_value* moons = moon->vt->list(moon, NULL, NULL, &err);
 if (err) {
     fprintf(stderr, "list failed: %s\n", err->msg);
@@ -70,7 +70,7 @@ Moon is nested under planet, so provide the `planet_id`.
 `load()` returns the bare record and sets `*err` on failure.
 
 ```c
-Entity* moon = solardemo_moon(client, NULL);
+Entity* moon = voxgigsolardemo_moon(client, NULL);
 voxgig_value* moon_rec = moon->vt->load(moon, cmap(2, "planet_id", v_str("example_planet_id"), "id", v_str("example_id")), NULL, &err);
 if (err) {
     fprintf(stderr, "load failed: %s\n", err->msg);
@@ -167,11 +167,11 @@ printf("%s\n", voxgig_to_json(getp(fetchdef, "headers")));
 Create a mock client for unit testing — no server required:
 
 ```c
-SolardemoSDK* client = test_sdk(NULL, NULL);
+VoxgigSolardemoSDK* client = test_sdk(NULL, NULL);
 PNError* err = NULL;
 
 // Entity ops return the bare record and set *err on failure.
-Entity* moon = solardemo_moon(client, NULL);
+Entity* moon = voxgigsolardemo_moon(client, NULL);
 voxgig_value* moon_rec = moon->vt->list(moon, NULL, NULL, &err);
 // moon_rec contains the mock response record
 ```
@@ -191,7 +191,7 @@ static voxgig_value* mock_fetch(void* ud, voxgig_value* args) {
         "json", json_thunk(cmap(1, "id", v_str("mock01"))));
 }
 
-SolardemoSDK* client = solardemo_sdk_new(cmap(2,
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(2,
     "base", v_str("http://localhost:8080"),
     "system", cmap(1, "fetch", vfn(mock_fetch, NULL))));
 ```
@@ -201,7 +201,7 @@ SolardemoSDK* client = solardemo_sdk_new(cmap(2,
 Override the base URL to reach a local or staging server:
 
 ```c
-SolardemoSDK* client = solardemo_sdk_new(cmap(1,
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(1,
     "base", v_str("http://localhost:8080")));
 ```
 
@@ -210,7 +210,7 @@ SolardemoSDK* client = solardemo_sdk_new(cmap(1,
 Create a `.env.local` file at the project root:
 
 ```
-SOLARDEMO_TEST_LIVE=TRUE
+VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
 Then run:
@@ -222,12 +222,12 @@ cd c && make test
 
 ## Reference
 
-### SolardemoSDK
+### VoxgigSolardemoSDK
 
 ```c
 #include "core/api.h"
 
-SolardemoSDK* client = solardemo_sdk_new(options);
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(options);
 ```
 
 Creates a new SDK client. `options` is a `voxgig_value*` map (`NULL` for
@@ -244,20 +244,20 @@ none) carrying any of the following keys:
 ### test_sdk
 
 ```c
-SolardemoSDK* client = test_sdk(testopts, sdkopts);
+VoxgigSolardemoSDK* client = test_sdk(testopts, sdkopts);
 ```
 
 Creates a test-mode client with mock transport. Both arguments may be
 `NULL`.
 
-### SolardemoSDK functions
+### VoxgigSolardemoSDK functions
 
 | Function | Signature | Description |
 | --- | --- | --- |
-| `sdk_prepare` | `(SolardemoSDK*, fetchargs, PNError**) -> voxgig_value*` | Build an HTTP request definition without sending. |
-| `sdk_direct` | `(SolardemoSDK*, fetchargs, PNError**) -> voxgig_value*` | Build and send an HTTP request. Returns a result map (branch on `ok`). |
-| `solardemo_moon` | `(SolardemoSDK*, entopts) -> Entity*` | Create a Moon entity instance. |
-| `solardemo_planet` | `(SolardemoSDK*, entopts) -> Entity*` | Create a Planet entity instance. |
+| `sdk_prepare` | `(VoxgigSolardemoSDK*, fetchargs, PNError**) -> voxgig_value*` | Build an HTTP request definition without sending. |
+| `sdk_direct` | `(VoxgigSolardemoSDK*, fetchargs, PNError**) -> voxgig_value*` | Build and send an HTTP request. Returns a result map (branch on `ok`). |
+| `voxgigsolardemo_moon` | `(VoxgigSolardemoSDK*, entopts) -> Entity*` | Create a Moon entity instance. |
+| `voxgigsolardemo_planet` | `(VoxgigSolardemoSDK*, entopts) -> Entity*` | Create a Planet entity instance. |
 
 ### Entity interface (vtable)
 
@@ -333,7 +333,7 @@ API path: `/api/planet/{planet_id}/forbid`
 
 ### Moon
 
-Create an instance: `Entity* moon = solardemo_moon(client, NULL);`
+Create an instance: `Entity* moon = voxgigsolardemo_moon(client, NULL);`
 
 #### Operations
 
@@ -358,21 +358,21 @@ Create an instance: `Entity* moon = solardemo_moon(client, NULL);`
 #### Example: Load
 
 ```c
-Entity* moon = solardemo_moon(client, NULL);
+Entity* moon = voxgigsolardemo_moon(client, NULL);
 voxgig_value* moon_rec = moon->vt->load(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
 ```
 
 #### Example: List
 
 ```c
-Entity* moon = solardemo_moon(client, NULL);
+Entity* moon = voxgigsolardemo_moon(client, NULL);
 voxgig_value* moons = moon->vt->list(moon, NULL, NULL, &err);
 ```
 
 #### Example: Create
 
 ```c
-Entity* moon = solardemo_moon(client, NULL);
+Entity* moon = voxgigsolardemo_moon(client, NULL);
 voxgig_value* moon_rec = moon->vt->create(moon, cmap(5,
     "planet_id", v_str("example_planet_id"),  // char*
     "diameter", v_num(1),  // double
@@ -385,7 +385,7 @@ voxgig_value* moon_rec = moon->vt->create(moon, cmap(5,
 
 ### Planet
 
-Create an instance: `Entity* planet = solardemo_planet(client, NULL);`
+Create an instance: `Entity* planet = voxgigsolardemo_planet(client, NULL);`
 
 #### Operations
 
@@ -412,21 +412,21 @@ Create an instance: `Entity* planet = solardemo_planet(client, NULL);`
 #### Example: Load
 
 ```c
-Entity* planet = solardemo_planet(client, NULL);
+Entity* planet = voxgigsolardemo_planet(client, NULL);
 voxgig_value* planet_rec = planet->vt->load(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
 ```
 
 #### Example: List
 
 ```c
-Entity* planet = solardemo_planet(client, NULL);
+Entity* planet = voxgigsolardemo_planet(client, NULL);
 voxgig_value* planets = planet->vt->list(planet, NULL, NULL, &err);
 ```
 
 #### Example: Create
 
 ```c
-Entity* planet = solardemo_planet(client, NULL);
+Entity* planet = voxgigsolardemo_planet(client, NULL);
 voxgig_value* planet_rec = planet->vt->create(planet, cmap(4,
     "diameter", v_num(1),  // double
     "id", v_str("example_id"),  // char*
@@ -437,7 +437,7 @@ voxgig_value* planet_rec = planet->vt->create(planet, cmap(4,
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -446,17 +446,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -497,7 +629,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.

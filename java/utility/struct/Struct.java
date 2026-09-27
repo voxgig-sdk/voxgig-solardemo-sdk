@@ -1,6 +1,7 @@
-// Vendored from github.com/voxgig/struct java/src/Struct.java — do not edit here;
-// upstream is the voxgig struct java port. Package adjusted for the Solardemo SDK.
-package voxgig.solardemosdk.utility.struct;
+// VENDORED: @voxgig/struct 0.1.1 (java/src/Struct.java)
+// Source: https://github.com/voxgig/struct @ 3a42881b1d26c75ebbed9f1897f0ba94cf3cf780  [tag: sdk-20260925-1316-0]
+// License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
+package voxgig.voxgigsolardemosdk.utility.struct;
 
 
 import java.net.URLEncoder;
@@ -2636,9 +2637,21 @@ public class Struct {
             setprop(pl, i, clone(childtm));
           }
           while (pl.size() > dpl.size()) pl.remove(pl.size() - 1);
-          inj.keyI = 0;
 
-          return getprop(inj.dparent, 0);
+          // NOTE: modifying inj! This extends the child value loop in inject
+          // to cover every cloned child.
+          for (int ckeyI = size(inj.keys); ckeyI < size(pl); ckeyI++) {
+            inj.keys.add(strkey(ckeyI));
+          }
+
+          // Restart the child value loop at the first element (the loop
+          // increments keyI on resume) so that the first element is also
+          // validated against the child template.
+          inj.keyI = -1;
+
+          // SKIP leaves the cloned child template in place at the first
+          // element so the resumed loop can validate it.
+          return SKIP;
         }
 
         return UNDEF;
@@ -2669,7 +2682,6 @@ public class Struct {
             slicedPath instanceof List<?> spl
                 ? new ArrayList<>((List<String>) spl)
                 : new ArrayList<>();
-        inj.key = strkey(getelem(inj.path, -1));
 
         Object tvalsRaw = slice(inj.parent, 1, null);
         List<Object> tvals =

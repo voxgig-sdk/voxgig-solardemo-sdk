@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_url
+# VoxgigSolardemo SDK utility: make_url
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -33,7 +33,7 @@ $REGISTRY{make_url} = sub {
   if ($param_items) {
     for my $item (@$param_items) {
       my ($key, $val) = @$item;
-      if (SolardemoHelpers::rb_truthy($val) && defined $key && !ref $key) {
+      if (VoxgigSolardemoHelpers::rb_truthy($val) && defined $key && !ref $key) {
         my $placeholder = '{' . $key . '}';
         my $encoded = Voxgig::Struct::escurl("$val");
         $url =~ s/\Q$placeholder\E/$encoded/g;
@@ -48,7 +48,7 @@ $REGISTRY{make_url} = sub {
   if ($query_items) {
     for my $item (@$query_items) {
       my ($key, $val) = @$item;
-      if (SolardemoHelpers::rb_truthy($val) && defined $key && !ref $key) {
+      if (VoxgigSolardemoHelpers::rb_truthy($val) && defined $key && !ref $key) {
         $url .= $qsep . Voxgig::Struct::escurl("$key") . '=' . Voxgig::Struct::escurl("$val");
         $qsep = '&';
         $resmatch->{$key} = $val;

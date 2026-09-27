@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{LinkedHashMap, Map => JMap}
-import voxgig.solardemosdk.core.{Context, FetcherFn, SdkClient}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.{Context, FetcherFn, SdkClient}
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // Public per-key aggregate. Tests read `f.ops.get(key).calls`, `.amount`.
 class CostBucket {

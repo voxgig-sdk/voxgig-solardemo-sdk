@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 /**
- * Shared client runtime for the Solardemo SDK. The generated
- * SolardemoSDK class extends this with the API-specific entity accessors;
+ * Shared client runtime for the VoxgigSolardemo SDK. The generated
+ * VoxgigSolardemoSDK class extends this with the API-specific entity accessors;
  * everything transport- and pipeline-related lives here so features and
  * utilities can reference a fixed type.
  */
@@ -202,7 +202,7 @@ public abstract class SdkClient {
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("ok", false);
     out.put("err", new SdkError(op + "_allow",
-        "SolardemoSDK: " + op + ": operation not allowed by"
+        "VoxgigSolardemoSDK: " + op + ": operation not allowed by"
         + " SDK option allow.op value: \""
         + (allow instanceof String ? allow : "") + "\"", null));
     return out;
@@ -258,7 +258,7 @@ public abstract class SdkClient {
           ? (String) m : "graphql error";
       res.put("ok", false);
       res.put("err", new SdkError("graphql_error",
-          "SolardemoSDK: graphql: " + msg, null));
+          "VoxgigSolardemoSDK: graphql: " + msg, null));
       res.put("graphql", errors);
     }
 

@@ -1,10 +1,10 @@
-name: solardemo_sdk
+name: voxgig_solardemo_sdk
 description: >-
   Unofficial generated dart SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.
 version: 0.1.0
-homepage: https://github.com/voxgig-sdk/solardemo-sdk
-repository: https://github.com/voxgig-sdk/solardemo-sdk
-issue_tracker: https://github.com/voxgig-sdk/solardemo-sdk/issues
+homepage: https://github.com/voxgig-sdk/voxgig-solardemo-sdk
+repository: https://github.com/voxgig-sdk/voxgig-solardemo-sdk
+issue_tracker: https://github.com/voxgig-sdk/voxgig-solardemo-sdk/issues
 topics:
   - voxgig
   - sdk

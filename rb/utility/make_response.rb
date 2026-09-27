@@ -1,5 +1,5 @@
-# Solardemo SDK utility: make_response
-module SolardemoUtilities
+# VoxgigSolardemo SDK utility: make_response
+module VoxgigSolardemoUtilities
   MakeResponse = ->(ctx) {
     return ctx.out["response"], nil if ctx.out["response"]
     utility = ctx.utility

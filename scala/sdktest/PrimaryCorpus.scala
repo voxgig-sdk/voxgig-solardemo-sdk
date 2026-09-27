@@ -11,7 +11,7 @@
 // built from each corpus entry and published back for `match` to read.
 
 import voxgig.struct.{clone as sclone, *}
-import voxgig.solardemosdk.core.*
+import voxgig.voxgigsolardemosdk.core.*
 
 import java.util.{ArrayList, LinkedHashMap, List as JList, Map as JMap}
 import scala.collection.mutable.{ArrayBuffer, LinkedHashMap as MLinkedHashMap}
@@ -47,7 +47,7 @@ object PrimaryCorpus {
     // Struct.UNDEF is the library's "no value" sentinel, not a value: an
     // unresolved transform path returns it, and without this it reached the
     // corpus as the string "java.lang.Object@..." instead of null.
-    case x if x eq voxgig.solardemosdk.utility.struct.Struct.UNDEF => VNull
+    case x if x eq voxgig.voxgigsolardemosdk.utility.struct.Struct.UNDEF => VNull
     case m: JMap[_, _] =>
       val out = MLinkedHashMap.empty[String, Value]
       m.asInstanceOf[JMap[String, Object]].asScala.foreach { case (k, x) => out.put(k, toValue(x)) }
@@ -97,7 +97,7 @@ object PrimaryCorpus {
 
   // ---- live context from a corpus map ------------------------------------
 
-  private def corpusCtx(client: SolardemoSDK, ctxmap: Value): Context = {
+  private def corpusCtx(client: VoxgigSolardemoSDK, ctxmap: Value): Context = {
     val utility = client.getUtility()
     val cm = new LinkedHashMap[String, Object]()
     // Only when the corpus names one: defaulting to "load" made the SDK report
@@ -214,7 +214,7 @@ object PrimaryCorpus {
   // rather than `run.set`: the group carries its parent, so a `basic` that
   // has gone missing out of a section this corpus carries FAILS instead of
   // being skipped past (OmniResolver decision 7).
-  private def runset(name: String, client: SolardemoSDK)(f: (Context, Seq[Value]) => Value): Unit = {
+  private def runset(name: String, client: VoxgigSolardemoSDK)(f: (Context, Seq[Value]) => Value): Unit = {
     val run = sectionRun(name)
     run.runsetargs(name, run.group("basic")) { args =>
       val ctxmap = argAt(args, 0)
@@ -231,9 +231,9 @@ object PrimaryCorpus {
     run.runsetargs(name, run.group("basic"))(f)
   }
 
-  private def clientFor(name: String, shared: SolardemoSDK): SolardemoSDK =
+  private def clientFor(name: String, shared: VoxgigSolardemoSDK): VoxgigSolardemoSDK =
     sectionSetup(sectionRun(name)) match {
-      case m @ VMap(_) => SolardemoSDK.testSDK(null, jmap(m))
+      case m @ VMap(_) => VoxgigSolardemoSDK.testSDK(null, jmap(m))
       case _           => shared
     }
 
@@ -242,7 +242,7 @@ object PrimaryCorpus {
     PACK = OmniResolver.makeRunner(ALL)
     REPORT = new OmniReport("PRIMARY CORPUS: ")
 
-    val sdk = SolardemoSDK.testSDK()
+    val sdk = VoxgigSolardemoSDK.testSDK()
     val u = sdk.getUtility()
 
     runset("done", sdk) { (c, _) => toValue(u.done(c)) }

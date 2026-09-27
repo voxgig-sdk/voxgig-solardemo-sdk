@@ -1,8 +1,8 @@
-# Solardemo Clojure SDK
+# VoxgigSolardemo Clojure SDK
 
 
 
-The Clojure SDK for the Solardemo API — an entity-oriented client
+The Clojure SDK for the VoxgigSolardemo API — an entity-oriented client
 following idiomatic Clojure conventions (plain functions, immutable data, and
 the vendored `voxgig.struct` value model).
 
@@ -17,13 +17,13 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to Clojars. Depend on it directly from the
-GitHub release tag (`clojure/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/solardemo-sdk/releases)),
+GitHub release tag (`clojure/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)),
 using a `tools.deps` git dependency:
 
 ```clojure
 ;; deps.edn
-{:deps {solardemo/sdk
-        {:git/url "https://github.com/voxgig-sdk/solardemo-sdk"
+{:deps {voxgigsolardemo/sdk
+        {:git/url "https://github.com/voxgig-sdk/voxgig-solardemo-sdk"
          :git/tag "clojure/vX.Y.Z"
          :git/sha "..."
          :deps/root "clojure"}}}
@@ -33,7 +33,7 @@ Or from a local source checkout:
 
 ```clojure
 ;; deps.edn
-{:deps {solardemo/sdk {:local/root "../clojure"}}}
+{:deps {voxgigsolardemo/sdk {:local/root "../clojure"}}}
 ```
 
 
@@ -434,7 +434,7 @@ Create an instance: `(def planet (api/planet client nil))`
 
 ## Features
 
-This SDK ships 1 optional features. Each is **inactive until you
+This SDK ships 9 optional features. Each is **inactive until you
 switch it on**, so an SDK you have not configured behaves exactly as if none of
 them existed — no retries, no cache, no logging, no measurable overhead.
 
@@ -443,17 +443,149 @@ above:
 
 | Feature | What it does |
 |---|---|
-| [`test`](#test) | In-memory mock transport for testing without a live server |
+| [`debug`](#debug) | Debug capture |
+| [`idempotency`](#idempotency) | Idempotency |
+| [`metrics`](#metrics) | Metrics |
+| [`paging`](#paging) | Paging |
+| [`ratelimit`](#ratelimit) | Rate limiting |
+| [`retry`](#retry) | Retry |
+| [`secrets`](#secrets) | Secrets |
+| [`test`](#test) | Test transport |
+| [`timeout`](#timeout) | Timeout |
+
+> **Order matters for `ratelimit`, `retry`, `secrets`, `timeout`.** These wrap the
+> transport, so each one wraps whatever is already installed: the order you
+> activate them in IS the nesting order. Activating them as an ordered list
+> rather than a map is what fixes that order.
+
+### debug
+
+Debug capture.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `max` | `100` |
+| `redact` | `['authorization', 'cookie', 'set-cookie', 'api-key', 'apikey', 'x-api-key', 'idempotency-key']` |
+
+Set `feature.debug.active` to enable it, then override any of the options above.
+
+### idempotency
+
+Idempotency.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `header` | `'Idempotency-Key'` |
+| `methods` | `['POST', 'PUT', 'PATCH', 'DELETE']` |
+| `ops` | `['create', 'update', 'remove']` |
+
+Set `feature.idempotency.active` to enable it, then override any of the options above.
+
+### metrics
+
+Metrics.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+
+Set `feature.metrics.active` to enable it, then override any of the options above.
+
+### paging
+
+Paging.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `afterVar` | `'after'` |
+| `cursorParam` | `'cursor'` |
+| `firstVar` | `'first'` |
+| `limitParam` | `'limit'` |
+| `pageParam` | `'page'` |
+| `startPage` | `1` |
+
+Set `feature.paging.active` to enable it, then override any of the options above.
+
+### ratelimit
+
+Rate limiting.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `burst` | `5` |
+| `rate` | `5` |
+
+Set `feature.ratelimit.active` to enable it, then override any of the options above.
+
+`ratelimit` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### retry
+
+Retry.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `factor` | `2` |
+| `maxDelay` | `2000` |
+| `minDelay` | `50` |
+| `retries` | `2` |
+| `statuses` | `[408, 425, 429, 500, 502, 503, 504]` |
+
+Set `feature.retry.active` to enable it, then override any of the options above.
+
+`retry` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
+
+### secrets
+
+Secrets.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `cache` | `true` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `name` | `'apikey'` |
+| `providers` | `[]` |
+
+Set `feature.secrets.active` to enable it, then override any of the options above.
+
+`secrets` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 ### test
 
-In-memory mock transport for testing without a live server.
+Test transport.
 
 | Option | Default |
 |---|---|
 | `active` | `false` |
 
 Set `feature.test.active` to enable it, then override any of the options above.
+
+### timeout
+
+Timeout.
+
+| Option | Default |
+|---|---|
+| `active` | `false` |
+| `ms` | `30000` |
+
+Set `feature.timeout.active` to enable it, then override any of the options above.
+
+`timeout` wraps the transport, so its position among the other
+transport features decides what it sees. A feature activated later wraps one
+activated earlier.
 
 
 ## Advanced
@@ -494,7 +626,15 @@ a function that receives the context.
 
 The SDK ships with built-in features:
 
-- **TestFeature**: In-memory mock transport for testing without a live server
+- **DebugFeature**: Debug capture
+- **IdempotencyFeature**: Idempotency
+- **MetricsFeature**: Metrics
+- **PagingFeature**: Paging
+- **RatelimitFeature**: Rate limiting
+- **RetryFeature**: Retry
+- **SecretsFeature**: Secrets
+- **TestFeature**: Test transport
+- **TimeoutFeature**: Timeout
 
 Features are initialized in order. Hooks fire in the order features
 were added, so later features can override earlier ones.
@@ -517,6 +657,7 @@ clojure/
 ├── src/sdk/api.clj        -- public API namespace (entity accessors)
 ├── src/sdk/client.clj     -- client constructors (make-sdk, test-sdk)
 ├── src/sdk/config.clj     -- generated configuration
+├── src/sdk/schema.clj     -- generated option + entity specs
 ├── src/sdk/core.clj       -- core types, context and pipeline
 ├── src/sdk/features.clj   -- feature factory
 ├── src/sdk/entity/        -- entity namespaces (one per entity)
@@ -525,7 +666,7 @@ clojure/
 ```
 
 Require `[sdk.api :as api]` for the public surface, and an entity
-namespace (e.g. `[sdk.entity.solardemo :as e-solardemo]`)
+namespace (e.g. `[sdk.entity.voxgigsolardemo :as e-voxgigsolardemo]`)
 only when you call its operations directly.
 
 ### Entity state

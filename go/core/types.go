@@ -29,14 +29,11 @@ type Entity interface {
 	Data(data ...any) any
 	Match(match ...any) any
 
-	// Every operation resolves to the entity; Remove additionally marks it.
-	// The instance keeps the data it held — a caller can still read what was
-	// deleted — but it is no longer a live record.
 	MarkDeleted()
 	Deleted() bool
 }
 
-type SolardemoEntity interface {
+type VoxgigSolardemoEntity interface {
 	Entity
 	Load(reqmatch map[string]any, ctrl map[string]any) (any, error)
 	List(reqmatch map[string]any, ctrl map[string]any) (any, error)

@@ -16,12 +16,12 @@ import type {
 } from '@voxgig/apidef'
 
 
-// Emits the two MSBuild project files (the C# twin of Package_go's go.mod):
-//   <Name>SDK.csproj       - the library, compiling everything except test/
-//   test/<Name>SDKTest.csproj - the xunit test project (mirrors the
-//                            voxgig/struct csharp two-csproj layout)
-// PackageReference entries come from collectDeps (feature + target deps);
-// the runtime itself is BCL-only.
+import {
+  KIT,
+  getModelPath,
+} from '@voxgig/apidef'
+
+
 const Package = cmp(async function Package(props: any) {
   const ctx$ = props.ctx$
   const target = props.target
@@ -44,6 +44,10 @@ const Package = cmp(async function Package(props: any) {
     ? `  <ItemGroup>\n${depRefs}\n  </ItemGroup>\n`
     : ''
 
+  const awsPlugin = getModelPath(model,
+    `main.${KIT}.feature.secrets.plugin.aws`, { required: false })
+  const vendorNoWarn = null == awsPlugin ? '' : ';CS8619'
+
   File({ name: Name + 'SDK.csproj' }, () => {
     Content(`<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -54,7 +58,7 @@ const Package = cmp(async function Package(props: any) {
     <AssemblyName>${Name}SDK</AssemblyName>
     <RootNamespace>${Name}Sdk</RootNamespace>
     <!-- Loose-object-model port: suppress repetitive nullability noise. -->
-    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS1591${vendorNoWarn}</NoWarn>
 
     <!-- NuGet package metadata (publication pending; see Makefile). -->
     <Version>${packageVersion(model, target.name)}</Version>

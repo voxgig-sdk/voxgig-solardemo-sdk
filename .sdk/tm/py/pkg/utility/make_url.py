@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_url
+# VoxgigSolardemo SDK utility: make_url
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs

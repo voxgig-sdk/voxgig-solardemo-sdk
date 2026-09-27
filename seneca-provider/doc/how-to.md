@@ -27,11 +27,11 @@ are listed in the [reference](reference.md).
 ## List the records of an entity
 
 Every resource this plugin covers is a Seneca entity under
-`provider/solardemo/`, so listing one is `list$`:
+`provider/voxgig-solardemo/`, so listing one is `list$`:
 
 ```js
 const planets = await seneca
-  .entity('provider/solardemo/planet')
+  .entity('provider/voxgig-solardemo/planet')
   .list$()
 ```
 
@@ -53,7 +53,7 @@ the parent's id; see [Work with nested entities](#work-with-nested-entities).
 
 ```js
 const planet = await seneca
-  .entity('provider/solardemo/planet')
+  .entity('provider/voxgig-solardemo/planet')
   .load$('planet0')
 ```
 
@@ -62,7 +62,7 @@ it does not throw, so test the value rather than wrapping the call:
 
 ```js
 const missing = await seneca
-  .entity('provider/solardemo/planet')
+  .entity('provider/voxgig-solardemo/planet')
   .load$('nosuch')
 
 if (null == missing) {
@@ -81,7 +81,7 @@ is a create:
 
 ```js
 const planet = await seneca
-  .entity('provider/solardemo/planet')
+  .entity('provider/voxgig-solardemo/planet')
   .make$({ diameter: 100, kind: 'kind0', name: 'name0' })
   .save$()
 
@@ -101,7 +101,7 @@ load, change, save:
 
 ```js
 const planet = await seneca
-  .entity('provider/solardemo/planet')
+  .entity('provider/voxgig-solardemo/planet')
   .load$('planet0')
 
 planet.diameter = 999
@@ -117,7 +117,7 @@ some merge, some replace.
 
 ```js
 await seneca
-  .entity('provider/solardemo/planet')
+  .entity('provider/voxgig-solardemo/planet')
   .remove$('planet0')
 ```
 
@@ -140,23 +140,23 @@ the provider requires those keys on every command.
 For reads the keys go in the query; for writes they go in the data:
 
 ```js
-await seneca.entity('provider/solardemo/moon').list$({ planet_id: 'planet0' })
+await seneca.entity('provider/voxgig-solardemo/moon').list$({ planet_id: 'planet0' })
 
-await seneca.entity('provider/solardemo/moon')
+await seneca.entity('provider/voxgig-solardemo/moon')
   .load$({ planet_id: 'planet0', id: 'moon0' })
 
-await seneca.entity('provider/solardemo/moon')
+await seneca.entity('provider/voxgig-solardemo/moon')
   .make$({ diameter: 100, kind: 'kind0', name: 'name0', planet_id: 'planet0' })
   .save$()
 
-await seneca.entity('provider/solardemo/moon')
+await seneca.entity('provider/voxgig-solardemo/moon')
   .remove$({ planet_id: 'planet0', id: 'moon0' })
 ```
 
 Leave a key out and the call throws at once, naming what is missing:
 
 ```
-@seneca/solardemo-provider: moon list: planet_id is required
+@seneca/voxgig-solardemo-provider: moon list: planet_id is required
 ```
 
 That is deliberate: without it the SDK would build half a URL and the
@@ -170,7 +170,7 @@ The SDK ships an in-memory mock transport. Turn it on with `test` and
 seed it with `testopts`:
 
 ```js
-.use('@seneca/solardemo-provider', {
+.use('@seneca/voxgig-solardemo-provider', {
   test: true,
   testopts: {
     entity: {
@@ -205,12 +205,12 @@ every entity this way.
 
 ## Point at a different server
 
-The `sdk` option is passed straight to the `SolardemoSDK`
+The `sdk` option is passed straight to the `VoxgigSolardemoSDK`
 constructor, so `base` chooses the host:
 
 ```js
-.use('@seneca/solardemo-provider', {
-  sdk: { base: 'https://solardemo.example.com' },
+.use('@seneca/voxgig-solardemo-provider', {
+  sdk: { base: 'https://voxgig-solardemo.example.com' },
 })
 ```
 
@@ -220,39 +220,28 @@ companion test server listens, so local development usually needs no
 
 ## Send an API key
 
-Credentials are not a plugin option: they come through the provider
-convention, so that every provider in an application is configured the
-same way. Declare the variable with `env` and set the key under this
-provider's name:
+The Solar System definition declares no authentication, so this plugin
+reads no key and adds no credential to any request. The `apikey` entry in
+the provider configuration is the convention's shape, and stays empty:
 
 ```js
-  .use('env', {
-    var: { $SOLARDEMO_APIKEY: String },
-  })
   .use('provider', {
     provider: {
-      solardemo: {
+      voxgig-solardemo: {
         keys: {
-          apikey: { value: '$SOLARDEMO_APIKEY' },
+          apikey: { value: '' },
         },
       },
     },
   })
 ```
 
-Every request then carries `authorization: Bearer <apikey>`. An absent
-or empty key adds no header at all, so an API that needs no credentials
-is configured in exactly the same shape with an empty value — which is
-why it is worth writing even when there is nothing to send. An
-application that later moves to an authenticated service then changes one
-value rather than its structure.
-
-For a different scheme, set the header yourself. Headers supplied through
-`sdk` win over the one the key would have set:
+To send a header the definition does not describe, supply it through
+`sdk`; it goes on every request as given:
 
 ```js
-.use('@seneca/solardemo-provider', {
-  sdk: { headers: { 'x-api-key': process.env.SOLARDEMO_APIKEY } },
+.use('@seneca/voxgig-solardemo-provider', {
+  sdk: { headers: { 'x-api-key': process.env.VOXGIG_SOLARDEMO_APIKEY } },
 })
 ```
 
@@ -263,15 +252,15 @@ unexpectedly:
 
 ```js
 const info = await seneca.post(
-  'sys:provider,provider:solardemo,get:info')
+  'sys:provider,provider:voxgig-solardemo,get:info')
 ```
 
 ```js
 {
   ok: true,
-  name: 'solardemo',
+  name: 'voxgig-solardemo',
   version: '0.1.0',
-  sdk: { name: '@voxgig-sdk/solardemo', version: '0.1.0' },
+  sdk: { name: '@voxgig-sdk/voxgig-solardemo-sdk', version: '0.1.0' },
 }
 ```
 
@@ -287,7 +276,7 @@ you need to read — take the configured SDK client out of the plugin's
 exports:
 
 ```js
-const sdk = seneca.export('SolardemoProvider/sdk')()
+const sdk = seneca.export('VoxgigSolardemoProvider/sdk')()
 ```
 
 The export is a function, so call it, and it only answers after
@@ -327,7 +316,7 @@ and body, before anything leaves the process.
 Raw data becomes a Seneca entity again through `data$`:
 
 ```js
-const ent = seneca.entity('provider/solardemo/planet').data$(res.data)
+const ent = seneca.entity('provider/voxgig-solardemo/planet').data$(res.data)
 ```
 
 ## Develop against a local SDK checkout
@@ -340,33 +329,40 @@ $ npm install
 ```
 
 If you are changing the SDK and this plugin together, point npm at a
-local checkout instead. Clone the SDK beside this repository, at the path
-this project expects, and build it — it does not commit its build output:
+local checkout instead. `make sdk-src` fetches the SDK this repository is
+generated from — the repository and tag in `sdk-pin.json` — into
+`.sdksrc/voxgig-solardemo-sdk`, then build it, because it does not commit its build
+output:
 
 ```sh
-$ git clone https://github.com/voxgig-sdk/solardemo-sdk.git \
-    ..
-$ cd ../ts
+$ make sdk-src
+$ cd .sdksrc/voxgig-solardemo-sdk/ts
 $ npm install && npm run build
+```
+
+Already have that checkout elsewhere? Point the same target at it:
+
+```sh
+$ make sdk-src SDK_SRC_FROM=../path/to/your/checkout
 ```
 
 Then link it in, without committing the change to `package.json`:
 
 ```sh
-$ npm install --no-save ../ts
+$ npm install --no-save .sdksrc/voxgig-solardemo-sdk/ts
 ```
 
 npm creates a symlink, so a rebuild of the SDK is picked up here with no
 reinstall:
 
 ```sh
-$ ls -l node_modules/@voxgig-sdk/solardemo
+$ ls -l node_modules/@voxgig-sdk/voxgig-solardemo-sdk
 ```
 
 To go back to the published SDK:
 
 ```sh
-$ rm -rf node_modules/@voxgig-sdk/solardemo package-lock.json && npm install
+$ rm -rf node_modules/@voxgig-sdk/voxgig-solardemo-sdk package-lock.json && npm install
 ```
 
 Removing the lockfile matters. npm will happily keep resolving to the
@@ -388,7 +384,7 @@ probe for a server first and skip cleanly when there is none, so a clean
 checkout is green on a machine that has never started one:
 
 ```
-﹣ planet-list # no solardemo server at http://localhost:8901
+﹣ planet-list # no voxgig-solardemo server at http://localhost:8901
 ```
 
 Coverage, and a single test by name:
@@ -401,10 +397,12 @@ $ TEST_PATTERN=planet-load npm run test-some
 ## Run the live tests against a server
 
 The companion test server ships only in the SDK's source repository, not
-in the published package. From the checkout beside this one:
+in the published package. `make sdk-src` fetches that source at the pinned
+tag; the server is in its `app` folder:
 
 ```sh
-$ cd ../app
+$ make sdk-src
+$ cd .sdksrc/voxgig-solardemo-sdk/app
 $ npm install && npm run build && npm start
 ```
 
@@ -418,7 +416,7 @@ $ npm test
 To target a server somewhere else:
 
 ```sh
-$ SOLARDEMO_TEST_BASE=http://localhost:9000 npm test
+$ VOXGIG_SOLARDEMO_TEST_BASE=http://localhost:9000 npm test
 ```
 
 The generated live tests only read, so a run leaves the server exactly as

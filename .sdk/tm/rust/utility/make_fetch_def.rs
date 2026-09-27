@@ -2,13 +2,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::setp;
 use crate::core::result::SdkResult;
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
 
-pub fn make_fetch_def_util(ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
+pub fn make_fetch_def_util(ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
     let spec = ctx.spec.borrow().clone().ok_or_else(|| {
         ctx.make_error("fetchdef_no_spec", "Expected context spec property to be defined.")
     })?;

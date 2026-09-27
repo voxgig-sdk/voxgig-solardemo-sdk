@@ -1,9 +1,9 @@
--- Solardemo SDK utility: make_error
+-- VoxgigSolardemo SDK utility: make_error
 
 local Operation = require("core.operation")
 local Result = require("core.result")
 local Control = require("core.control")
-local SolardemoError = require("core.error")
+local VoxgigSolardemoError = require("core.error")
 
 local function make_error_util(ctx, err)
   if ctx == nil then
@@ -42,7 +42,7 @@ local function make_error_util(ctx, err)
     errmsg = tostring(err)
   end
 
-  local msg = "SolardemoSDK: " .. opname .. ": " .. errmsg
+  local msg = "VoxgigSolardemoSDK: " .. opname .. ": " .. errmsg
   msg = ctx.utility.clean(ctx, msg)
 
   result.err = nil
@@ -53,7 +53,7 @@ local function make_error_util(ctx, err)
     ctx.ctrl.explain["err"] = { message = msg }
   end
 
-  local sdk_err = SolardemoError.new("", msg, ctx)
+  local sdk_err = VoxgigSolardemoError.new("", msg, ctx)
   sdk_err.result = ctx.utility.clean(ctx, result)
   sdk_err.spec = ctx.utility.clean(ctx, spec)
 
@@ -61,7 +61,7 @@ local function make_error_util(ctx, err)
   -- `err.status` instead of reaching into `err.result`.
   sdk_err.status = result.status or -1
 
-  if type(err) == "table" and getmetatable(err) == SolardemoError then
+  if type(err) == "table" and getmetatable(err) == VoxgigSolardemoError then
     sdk_err.code = err.code
   end
 

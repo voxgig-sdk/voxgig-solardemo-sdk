@@ -14,7 +14,7 @@
 import 'harness.dart';
 import 'omni.dart';
 
-import '../lib/ProjectNameSDK.dart';
+import '../lib/VoxgigSolardemoSDK.dart';
 
 // A minimal in-memory spec: no fixture file, no OMNI block (lenient v0, like
 // the shared corpus).
@@ -66,7 +66,7 @@ Future<dynamic> _incAsync(dynamic n) async {
 }
 
 Run _pack() {
-  final runner = makeRunner(_makespec(), ProjectNameSDK.test());
+  final runner = makeRunner(_makespec(), VoxgigSolardemoSDK.test());
   return runner('smoke');
 }
 

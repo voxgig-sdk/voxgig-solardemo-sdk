@@ -3,13 +3,13 @@ const { test, describe } = require('node:test')
 const { equal } = require('node:assert')
 
 
-const { SolardemoSDK } = require('..')
+const { VoxgigSolardemoSDK } = require('..')
 
 
 describe('exists', async () => {
 
   test('test-mode', async () => {
-    const testsdk = await SolardemoSDK.test()
+    const testsdk = await VoxgigSolardemoSDK.test()
     equal(null !== testsdk, true)
   })
 

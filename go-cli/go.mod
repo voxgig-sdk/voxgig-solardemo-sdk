@@ -1,8 +1,8 @@
-module github.com/voxgig-sdk/solardemo-sdk/go-cli
+module github.com/voxgig-sdk/voxgig-solardemo-sdk/go-cli
 
 go 1.24.7
 
-require github.com/voxgig-sdk/solardemo-sdk/go v0.0.0
+require github.com/voxgig-sdk/voxgig-solardemo-sdk/go v0.0.0
 require github.com/boru-lang/boru/eng/go v0.0.2-0.20260804163932-0d66b55c5110
 
 require (
@@ -12,4 +12,4 @@ require (
 	github.com/tabnas/parser/go v0.4.0 // indirect
 )
 
-replace github.com/voxgig-sdk/solardemo-sdk/go => ../go
+replace github.com/voxgig-sdk/voxgig-solardemo-sdk/go => ../go

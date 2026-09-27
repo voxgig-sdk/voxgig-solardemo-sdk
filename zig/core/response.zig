@@ -11,7 +11,7 @@ pub const Response = struct {
     headers: Value = .{ .null = {} },
     json: Value = .{ .null = {} },
     body: Value = .{ .null = {} },
-    err: ?*err.SolardemoError = null,
+    err: ?*err.VoxgigSolardemoError = null,
 
     pub fn make(resmap: Value) *Response {
         const r = h.A().create(Response) catch unreachable;

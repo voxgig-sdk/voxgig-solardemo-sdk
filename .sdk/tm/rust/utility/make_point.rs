@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{getp, getpath, to_map};
 use crate::core::types::OutVal;
 use crate::utility::voxgigstruct as vs;
@@ -15,12 +15,6 @@ fn parts_len(point: &Value) -> usize {
     }
 }
 
-// Does this point's path end in a parameter? A record route ends in the
-// record's identifier (/boards/{id}); a cross-reference that also returns
-// the entity ends in the relationship's name (/posts/{id}/author). That,
-// then fewest segments, is what tells the entity's own route from a
-// cross-reference. The same rule runs at generation time, in
-// helpers/opShape.ts — both sides must move together.
 fn terminal_param(point: &Value) -> bool {
     match getp(point, "parts") {
         Value::List(l) => {
@@ -34,7 +28,7 @@ fn terminal_param(point: &Value) -> bool {
     }
 }
 
-pub fn make_point_util(ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
+pub fn make_point_util(ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
     match ctx.out_get("point") {
         // A PrePoint feature hook (e.g. rbac) may short-circuit the
         // operation by storing an error here; surface it before any
@@ -127,12 +121,6 @@ pub fn make_point_util(ctx: &Rc<Context>) -> Result<Value, SolardemoError> {
         // so nothing matches — fall back to the entity's own route rather
         // than whichever point came last.
         if !matched {
-            // A request naming an action reaches here only because that
-            // action's own point failed its exist test, so it is unbuildable
-            // whatever we pick. Refuse it BEFORE choosing a fallback: the
-            // guard below compares the chosen point's $action and would wave
-            // the request through whenever the fallback lands on the action
-            // point itself.
             let unmatched_action = getp(&reqselector, "$action");
             if !unmatched_action.is_noval() {
                 return Err(ctx.make_error(

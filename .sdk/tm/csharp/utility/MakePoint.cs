@@ -1,8 +1,8 @@
-// Solardemo SDK utility: makePoint - endpoint resolution.
+// VoxgigSolardemo SDK utility: makePoint - endpoint resolution.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

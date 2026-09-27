@@ -1,17 +1,17 @@
 .PHONY: test build clean publish
 
 test:
-	dotnet test test/SolardemoSDKTest.csproj
+	dotnet test test/VoxgigSolardemoSDKTest.csproj
 
 build:
-	dotnet build SolardemoSDK.csproj
+	dotnet build VoxgigSolardemoSDK.csproj
 
 clean:
-	dotnet clean SolardemoSDK.csproj 2>/dev/null || true
+	dotnet clean VoxgigSolardemoSDK.csproj 2>/dev/null || true
 	rm -rf bin obj test/bin test/obj
 
 # --- Release: tag for NuGet ------------------------------------------------
-# NuGet publication is pending (see model/target/csharp.aon publish block);
+# NuGet publication is pending (see model/target/csharp.aontu publish block);
 # publishing a version currently means pushing the tag csharp/vX.Y.Z. When the
 # registry goes live, `dotnet pack` + `dotnet nuget push` slot in before the
 # tag (mirroring the voxgig/struct csharp Makefile). Run headless under the

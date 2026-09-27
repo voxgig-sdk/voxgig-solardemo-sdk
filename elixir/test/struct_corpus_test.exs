@@ -1,4 +1,4 @@
-# Solardemo SDK struct corpus test
+# VoxgigSolardemo SDK struct corpus test
 #
 # The struct corpus (.sdk/test/test.json -> "struct") drives the LIVE SDK's
 # vendored struct utilities through the VENDORED @voxgig/omni engine, via the
@@ -15,11 +15,11 @@
 # fixture that compiled to an empty `set`, would otherwise pass silently -
 # which is the one failure mode a shared oracle exists to prevent.
 
-defmodule Solardemo.StructCorpusTest do
+defmodule VoxgigSolardemo.StructCorpusTest do
   use ExUnit.Case
 
   alias Voxgig.Struct, as: S
-  alias Solardemo.Omni, as: O
+  alias VoxgigSolardemo.Omni, as: O
 
   # Groups this port cannot express, dropped ENTRY BY ENTRY rather than by
   # marking a whole group pending and losing the rest of it.
@@ -45,7 +45,7 @@ defmodule Solardemo.StructCorpusTest do
 
   setup_all do
     testfile = Path.join(File.cwd!(), "../.sdk/test/test.json")
-    runner = O.make_runner(testfile, Solardemo.test())
+    runner = O.make_runner(testfile, VoxgigSolardemo.test())
     {:ok, run: runner.("struct")}
   end
 

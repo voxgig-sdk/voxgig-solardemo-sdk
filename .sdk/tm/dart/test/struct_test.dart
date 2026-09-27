@@ -24,7 +24,7 @@
 import 'harness.dart';
 import 'omni.dart';
 
-import '../lib/ProjectNameSDK.dart';
+import '../lib/VoxgigSolardemoSDK.dart';
 import '../lib/utility/voxgig_struct.dart' as s;
 
 const TEST_JSON_FILE = '../.sdk/test/test.json';
@@ -33,7 +33,7 @@ Run? _runner;
 
 Run _run() {
   if (null == _runner) {
-    final make = makeRunner(TEST_JSON_FILE, ProjectNameSDK.test());
+    final make = makeRunner(TEST_JSON_FILE, VoxgigSolardemoSDK.test());
     final run = make('struct');
     ok(null != run.spec, 'struct section not found in ' + TEST_JSON_FILE);
     _runner = run;
@@ -186,7 +186,7 @@ void tests() {
   describe('struct', () {
 
     test('exists', (t) {
-      final u = ProjectNameSDK.test().utility().struct;
+      final u = VoxgigSolardemoSDK.test().utility().struct;
 
       const fns = [
         'clone', 'delprop', 'escre', 'escurl', 'filter',

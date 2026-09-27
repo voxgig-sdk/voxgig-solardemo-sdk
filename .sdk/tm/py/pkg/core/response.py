@@ -1,10 +1,10 @@
-# Solardemo SDK response
+# VoxgigSolardemo SDK response
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
 
 
-class SolardemoResponse:
+class VoxgigSolardemoResponse:
     def __init__(self, resmap=None):
         if resmap is None:
             resmap = {}

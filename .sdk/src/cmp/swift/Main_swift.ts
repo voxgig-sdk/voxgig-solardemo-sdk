@@ -1,11 +1,12 @@
 
 import * as Path from 'node:path'
 
-import { swiftTargetDir, swiftTestDir } from './utility_swift'
+import { swiftSecretsActive, swiftTargetDir, swiftTestDir } from './utility_swift'
 
 import {
   cmp, each,
   File, Content, Copy, Folder, Fragment,
+  pluginExcludes,
 } from '@voxgig/sdkgen'
 
 
@@ -22,6 +23,8 @@ import {
 
 import { Package } from './Package_swift'
 import { Config } from './Config_swift'
+import { Schema } from './Schema_swift'
+import { PrepareAuth } from './PrepareAuth_swift'
 import { Gitignore } from './Gitignore_swift'
 import { MainEntity } from './MainEntity_swift'
 import { SdkError } from './SdkError_swift'
@@ -36,23 +39,19 @@ const Main = cmp(async function Main(props: any) {
 
   const entity: ModelEntity = getModelPath(model, `main.${KIT}.entity`)
 
+  const secrets = swiftSecretsActive(model, target)
+  const secretsSourceExcludes: RegExp[] = secrets ? [] : [
+    /(^|\/)feature\/SecretsFeature\.swift$/,
+    /(^|\/)feature\/secrets\//,
+  ]
+  const secretsTestExcludes: RegExp[] = secrets ? [] : [
+    /(^|\/)feature\/secrets\//,
+  ]
+
   Package({ target })
 
   Gitignore({})
 
-  // Copy tm/swift files with replacements. `src/` holds only the per-feature
-  // extension folders (not shipped into the SDK output).
-  // THE COPIED TREE HAS TO CARRY THE API NAME TOO.
-  //
-  // Copy substitutes file CONTENTS, never path components, so a blanket copy
-  // of tm/swift landed the runtime in a directory literally called
-  // ProjectNameSDK. Package.swift papered over it with an explicit `path:`,
-  // so it compiled and every swift suite passed — while every published SDK
-  // shipped `Sources/ProjectNameSDK/`, and SwiftPM's own convention
-  // (Sources/<target>) was broken in all of them.
-  //
-  // Copy's `to` prop names the destination, so the two placeholder subtrees
-  // are copied explicitly and the rest of tm/swift blanket-copied as before.
   Copy({
     from: 'tm/' + target.name,
     exclude: [/src\//, /Sources\//, /Tests\//],
@@ -66,6 +65,7 @@ const Main = cmp(async function Main(props: any) {
     Copy({
       from: 'tm/' + target.name + '/Sources/ProjectNameSDK',
       to: swiftTargetDir(model),
+      exclude: [...secretsSourceExcludes, ...pluginExcludes(model)],
       replace: {
         ...props.ctx$.stdrep,
         ProjectName: model.const.Name,
@@ -77,6 +77,7 @@ const Main = cmp(async function Main(props: any) {
     Copy({
       from: 'tm/' + target.name + '/Tests/ProjectNameSDKTests',
       to: swiftTestDir(model),
+      exclude: secretsTestExcludes,
       replace: {
         ...props.ctx$.stdrep,
         ProjectName: model.const.Name,
@@ -126,12 +127,16 @@ const Main = cmp(async function Main(props: any) {
 
         Config({ target })
 
+        Schema({ target })
+
         SdkError({ target })
 
         EntityBase({ target })
       })
     })
   })
+
+  PrepareAuth({ target })
 
   // entity/<Name>Types.swift — documentary typed models (one struct per entity
   // + per op). Compiles with the SwiftPM target; nothing consumes it yet.

@@ -1,4 +1,4 @@
-// SolardemoSDK client (generated — mirrors the go/rust Main fragment).
+// VoxgigSolardemoSDK client (generated — mirrors the go/rust Main fragment).
 
 const std = @import("std");
 const vs = @import("voxgig-struct");
@@ -19,7 +19,7 @@ const Feature = types.Feature;
 const OpResult = types.OpResult;
 const Spec = spec_mod.Spec;
 
-pub const SolardemoSDK = struct {
+pub const VoxgigSolardemoSDK = struct {
     mode: []const u8 = "live",
     options: Value = .{ .null = {} },
     // NOT named `utility`, and NOT a name `zigVarName` can produce.
@@ -39,13 +39,29 @@ pub const SolardemoSDK = struct {
     features: std.ArrayList(Feature),
     rootctx: ?*Context = null,
 
-    pub fn new(options: Value) *SolardemoSDK {
-        const sdk = h.A().create(SolardemoSDK) catch unreachable;
+    pub fn new(options: Value) *VoxgigSolardemoSDK {
+        return new_with(options, &.{});
+    }
+
+    // The `extend` seam, in zig's spelling. go/ts/py read live Feature
+    // objects off `options.extend`; a zig Value is a CLOSED data union that
+    // cannot carry a Feature, so the extension list is a second argument
+    // instead - same meaning, same position in construction (added after the
+    // config-driven features, before any init runs).
+    //
+    // DELIBERATE DIVERGENCE: an extension whose NAME the config already
+    // installed is skipped. go adds it regardless and the kotlin/java suites
+    // work around the resulting double install (two transport wraps, two
+    // purchases) by probing the config first; here the seam itself keeps the
+    // set to one feature per name, so a suite can always hand in the feature
+    // it needs and hold in any generated tree.
+    pub fn new_with(options: Value, extend: []const Feature) *VoxgigSolardemoSDK {
+        const sdk = h.A().create(VoxgigSolardemoSDK) catch unreachable;
         sdk.* = .{
             .mode = "live",
             .options = h.vnull(),
             .sdkUtility = Utility.new(),
-            .features = std.ArrayList(Feature).init(h.A()),
+            .features = .empty,
             .rootctx = null,
         };
 
@@ -92,9 +108,18 @@ pub const SolardemoSDK = struct {
             }
         }
 
+        // Add extension features (see new_with).
+        for (extend) |f| {
+            var present = false;
+            for (sdk.features.items) |have| {
+                if (std.mem.eql(u8, have.name(), f.name())) present = true;
+            }
+            if (!present) sdk.sdkUtility.feature_add(rootctx, f);
+        }
+
         // Initialize features.
-        var snap = std.ArrayList(Feature).init(h.A());
-        for (sdk.features.items) |f| snap.append(f) catch {};
+        var snap: std.ArrayList(Feature) = .empty;
+        for (sdk.features.items) |f| snap.append(h.A(), f) catch {};
         for (snap.items) |f| sdk.sdkUtility.feature_init(rootctx, f);
 
         sdk.sdkUtility.feature_hook(rootctx, "PostConstruct");
@@ -102,19 +127,19 @@ pub const SolardemoSDK = struct {
         return sdk;
     }
 
-    pub fn options_map(self: *SolardemoSDK) Value {
+    pub fn options_map(self: *VoxgigSolardemoSDK) Value {
         return h.clone(self.options);
     }
 
-    pub fn get_utility(self: *SolardemoSDK) *Utility {
+    pub fn get_utility(self: *VoxgigSolardemoSDK) *Utility {
         return Utility.copy(self.sdkUtility);
     }
 
-    pub fn get_root_ctx(self: *SolardemoSDK) *Context {
+    pub fn get_root_ctx(self: *VoxgigSolardemoSDK) *Context {
         return self.rootctx orelse unreachable;
     }
 
-    pub fn prepare(self: *SolardemoSDK, fetchargs_in: Value) E!Value {
+    pub fn prepare(self: *VoxgigSolardemoSDK, fetchargs_in: Value) E!Value {
 
         const fetchargs: Value = switch (fetchargs_in) {
             .object => fetchargs_in,
@@ -180,14 +205,14 @@ pub const SolardemoSDK = struct {
     // Raw endpoint access is operator-controllable, like every entity op.
     // Blocking it means denying BOTH the 'direct' and 'graphql' tokens,
     // since either one reaches the same endpoint.
-    pub fn direct(self: *SolardemoSDK, fetchargs_in: Value) Value {
+    pub fn direct(self: *VoxgigSolardemoSDK, fetchargs_in: Value) Value {
         if (!self.op_allowed("direct")) return self.op_denied("direct");
 
         return self.raw_request(fetchargs_in);
     }
 
     // Is this raw-access op permitted by the SDK's allow.op option?
-    fn op_allowed(self: *SolardemoSDK, op: []const u8) bool {
+    fn op_allowed(self: *VoxgigSolardemoSDK, op: []const u8) bool {
         const allow: []const u8 = switch (h.getpath(&.{ "allow", "op" }, self.options)) {
             .string => |s| s,
             else => "",
@@ -195,13 +220,13 @@ pub const SolardemoSDK = struct {
         return std.mem.indexOf(u8, allow, op) != null;
     }
 
-    fn op_denied(self: *SolardemoSDK, op: []const u8) Value {
+    fn op_denied(self: *VoxgigSolardemoSDK, op: []const u8) Value {
         const allow: []const u8 = switch (h.getpath(&.{ "allow", "op" }, self.options)) {
             .string => |s| s,
             else => "",
         };
         const msg = std.fmt.allocPrint(h.A(),
-            "SolardemoSDK: {s}: operation not allowed by" ++
+            "VoxgigSolardemoSDK: {s}: operation not allowed by" ++
             " SDK option allow.op value: \"{s}\"", .{ op, allow }) catch "";
         return h.jo(&.{
             .{ "ok", h.vbool(false) },
@@ -213,7 +238,7 @@ pub const SolardemoSDK = struct {
     // its own allow.op token first. Private, rather than a flag on fetchargs:
     // a caller-supplied marker would let anyone opt straight back out of the
     // gate by passing it.
-    fn raw_request(self: *SolardemoSDK, fetchargs_in: Value) Value {
+    fn raw_request(self: *VoxgigSolardemoSDK, fetchargs_in: Value) Value {
 
         const fetchdef = self.prepare(fetchargs_in) catch {
             return h.jo(&.{
@@ -294,7 +319,7 @@ pub const SolardemoSDK = struct {
     // NOTE: like direct, this bypasses the feature pipeline — no retry,
     // ratelimit or paging features apply.
     pub fn graphql(
-        self: *SolardemoSDK, query: []const u8, variables: Value, ctrl: Value,
+        self: *VoxgigSolardemoSDK, query: []const u8, variables: Value, ctrl: Value,
     ) Value {
         if (!self.op_allowed("graphql")) return self.op_denied("graphql");
 
@@ -331,7 +356,7 @@ pub const SolardemoSDK = struct {
                 else => "graphql error",
             };
             const msg = std.fmt.allocPrint(h.A(),
-                "SolardemoSDK: graphql: {s}", .{m}) catch "";
+                "VoxgigSolardemoSDK: graphql: {s}", .{m}) catch "";
             h.setp(res, "ok", h.vbool(false));
             h.setp(res, "err", h.vstr(msg));
             h.setp(res, "graphql", errors);
@@ -353,7 +378,7 @@ pub const SolardemoSDK = struct {
 
 };
 
-pub fn test_sdk(testopts_in: Value, sdkopts_in: Value) *SolardemoSDK {
+pub fn test_sdk(testopts_in: Value, sdkopts_in: Value) *VoxgigSolardemoSDK {
     const sdkopts: Value = switch (sdkopts_in) {
         .object => h.clone(sdkopts_in),
         else => h.omap(),
@@ -369,7 +394,7 @@ pub fn test_sdk(testopts_in: Value, sdkopts_in: Value) *SolardemoSDK {
     // rebind to the return of setpath).
     h.setpath(sdkopts, &.{ "feature", "test" }, testopts);
 
-    const sdk = SolardemoSDK.new(sdkopts);
+    const sdk = VoxgigSolardemoSDK.new(sdkopts);
     sdk.mode = "test";
 
     return sdk;

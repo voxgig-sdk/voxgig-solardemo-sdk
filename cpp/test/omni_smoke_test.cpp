@@ -1,4 +1,4 @@
-// Solardemo SDK — smoke tests for the VENDORED omni runner itself
+// VoxgigSolardemo SDK — smoke tests for the VENDORED omni runner itself
 // (test/vendor/omni), driven through test/omni_resolver.hpp.
 //
 // A runner that cannot FAIL a bad entry would turn every corpus suite
@@ -65,7 +65,7 @@ static Value smokeInc(std::vector<Value>& args) {
 }
 
 static res::Run smokeRun() {
-  res::NamedRunner runner = res::makeRunnerSpec(smokeSpec(), SolardemoSDK::testSDK());
+  res::NamedRunner runner = res::makeRunnerSpec(smokeSpec(), VoxgigSolardemoSDK::testSDK());
   res::Run run = runner.runner("smoke", Value::undef());
   ASSERT_TRUE(run.spec.is_map(), "smoke spec section did not resolve");
   return run;

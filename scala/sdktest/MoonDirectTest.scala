@@ -6,11 +6,11 @@
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 import java.util.function.{BiFunction, Supplier}
 
-import voxgig.solardemosdk.core.{Helpers, SdkEntity, SolardemoSDK}
+import voxgig.voxgigsolardemosdk.core.{Helpers, SdkEntity, VoxgigSolardemoSDK}
 
 object MoonDirectTest {
 
-  private class DirectSetup(val client: SolardemoSDK, val calls: JList[JMap[String, Object]])
+  private class DirectSetup(val client: VoxgigSolardemoSDK, val calls: JList[JMap[String, Object]])
 
   private def directSetup(mockres: Object): DirectSetup = {
     val calls = new ArrayList[JMap[String, Object]]()
@@ -25,7 +25,7 @@ object MoonDirectTest {
           "headers" -> new LinkedHashMap[String, Object](),
           "json" -> js)
       }
-    val client = new SolardemoSDK(SdkTestSupport.om(
+    val client = new VoxgigSolardemoSDK(SdkTestSupport.om(
       "base" -> "http://localhost:8080",
       "system" -> SdkTestSupport.om("fetch" -> mockFetch)))
     new DirectSetup(client, calls)

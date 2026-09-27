@@ -1,4 +1,4 @@
-# Solardemo SDK feature test harness
+# VoxgigSolardemo SDK feature test harness
 #
 # Offline feature-test harness for the generated SDK.
 #
@@ -16,10 +16,10 @@ from urllib.parse import quote
 
 from projectname_sdk.config import shared_config
 from projectname_sdk.features import _make_feature
-from projectname_sdk.core.control import SolardemoControl
-from projectname_sdk.core.error import SolardemoError
-from projectname_sdk.core.result import SolardemoResult
-from projectname_sdk.core.spec import SolardemoSpec
+from projectname_sdk.core.control import VoxgigSolardemoControl
+from projectname_sdk.core.error import VoxgigSolardemoError
+from projectname_sdk.core.result import VoxgigSolardemoResult
+from projectname_sdk.core.spec import VoxgigSolardemoSpec
 
 
 # True when this SDK was generated with the named feature.
@@ -161,7 +161,7 @@ class _Ctx:
         self.client = client
         self.utility = utility
         self.out = {}
-        self.ctrl = ctrl if ctrl is not None else SolardemoControl()
+        self.ctrl = ctrl if ctrl is not None else VoxgigSolardemoControl()
         self.meta = {}
         self.op = op
         self.entity = entity
@@ -177,7 +177,7 @@ class _Ctx:
         self.shared = {}
 
     def make_error(self, code, msg):
-        return SolardemoError(code, msg, self)
+        return VoxgigSolardemoError(code, msg, self)
 
 
 # Construct a fake client wired with the given features (in init order) and
@@ -227,7 +227,7 @@ class Harness:
                 method(ctx)
 
     def _populate_result(self, ctx, response, fetch_err):
-        result = SolardemoResult({})
+        result = VoxgigSolardemoResult({})
         ctx.result = result
 
         if fetch_err is not None:
@@ -272,7 +272,7 @@ class Harness:
         ctx = _Ctx(self.client, self.utility,
                    op=_Op(opname, entity),
                    entity=_Entity(entity),
-                   ctrl=SolardemoControl(ctrl or {}))
+                   ctrl=VoxgigSolardemoControl(ctrl or {}))
 
         self.feature_hook(ctx, "PostConstructEntity")
 
@@ -288,7 +288,7 @@ class Harness:
                 merged = dict(self.headers)
                 for key, val in (headers or {}).items():
                     merged[key] = val
-                spec = SolardemoSpec({
+                spec = VoxgigSolardemoSpec({
                     "method": method,
                     "base": self.base,
                     "path": path if path is not None else "/" + entity,

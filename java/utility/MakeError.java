@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Result;
-import voxgig.solardemosdk.core.SdkError;
-import voxgig.solardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Result;
+import voxgig.voxgigsolardemosdk.core.SdkError;
+import voxgig.voxgigsolardemosdk.core.Spec;
 
 // makeError finalises a failed operation: wraps the causing error in an
 // SdkError carrying the cleaned result and spec, records it on ctx.ctrl,
@@ -40,7 +40,7 @@ final class MakeError {
     }
 
     String errmsg = err.getMessage() == null ? String.valueOf(err) : err.getMessage();
-    String msg = "SolardemoSDK: " + opname + ": " + errmsg;
+    String msg = "VoxgigSolardemoSDK: " + opname + ": " + errmsg;
     msg = (String) Clean.clean(ctx, msg);
 
     result.err = null;

@@ -1,4 +1,4 @@
-# Solardemo SDK pipeline test
+# VoxgigSolardemo SDK pipeline test
 #
 # Direct unit tests for the operation-pipeline utilities. The generated
 # entity tests exercise the happy path; these drive the error and edge
@@ -9,11 +9,11 @@
 
 require "minitest/autorun"
 require "json"
-require_relative "../Solardemo_sdk"
+require_relative "../VoxgigSolardemo_sdk"
 
 class PipelineTest < Minitest::Test
   def setup
-    @client = SolardemoSDK.test(nil, nil)
+    @client = VoxgigSolardemoSDK.test(nil, nil)
     @utility = @client.get_utility
   end
 
@@ -44,7 +44,7 @@ class PipelineTest < Minitest::Test
   def resp(status, data = nil, headers = nil)
     h = {}
     (headers || {}).each { |k, v| h[k.to_s.downcase] = v }
-    SolardemoResponse.new({
+    VoxgigSolardemoResponse.new({
       "status" => status,
       "statusText" => status < 400 ? "OK" : "ERR",
       "body" => "body",
@@ -54,7 +54,7 @@ class PipelineTest < Minitest::Test
   end
 
   def spec_of(map = {})
-    SolardemoSpec.new({ "step" => "s", "method" => "GET", "headers" => {} }.merge(map))
+    VoxgigSolardemoSpec.new({ "step" => "s", "method" => "GET", "headers" => {} }.merge(map))
   end
 
   # A utility view whose fetcher (or other member) is overridden.
@@ -166,14 +166,14 @@ class PipelineTest < Minitest::Test
     ctx = make_ctx
     ctx.spec = nil
     ctx.response = resp(200)
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     _, err = @utility.make_response.call(ctx)
     assert_equal "response_no_spec", err.code
 
     ctx = make_ctx
     ctx.spec = spec_of
     ctx.response = nil
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     _, err = @utility.make_response.call(ctx)
     assert_equal "response_no_response", err.code
 
@@ -189,7 +189,7 @@ class PipelineTest < Minitest::Test
     ctx = make_ctx
     ctx.spec = spec_of
     ctx.response = resp(404, nil, { "x-a" => "1" })
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     _, err = @utility.make_response.call(ctx)
     assert_nil err
     refute_nil ctx.result.err
@@ -202,7 +202,7 @@ class PipelineTest < Minitest::Test
     ctx = make_ctx
     ctx.spec = spec_of
     ctx.response = resp(200, { "v" => 1 })
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     _, err = @utility.make_response.call(ctx)
     assert_nil err
     assert_equal true, ctx.result.ok
@@ -214,7 +214,7 @@ class PipelineTest < Minitest::Test
     ctx.ctrl.explain = {}
     ctx.spec = spec_of
     ctx.response = resp(200, { "v" => 2 })
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     @utility.make_response.call(ctx)
     refute_nil ctx.ctrl.explain["result"]
   end
@@ -225,7 +225,7 @@ class PipelineTest < Minitest::Test
     ctx.out["response"] = preset
     ctx.spec = spec_of
     ctx.response = resp(200)
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     out, err = @utility.make_response.call(ctx)
     assert_nil err
     assert_equal preset, out
@@ -237,7 +237,7 @@ class PipelineTest < Minitest::Test
   def test_make_result_guards_missing_spec_and_result
     ctx = make_ctx
     ctx.spec = nil
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     _, err = @utility.make_result.call(ctx)
     assert_equal "result_no_spec", err.code
 
@@ -267,7 +267,7 @@ class PipelineTest < Minitest::Test
       "entity" => make_fake_entity(made),
     }, nil)
     ctx.spec = spec_of
-    ctx.result = SolardemoResult.new({
+    ctx.result = VoxgigSolardemoResult.new({
       "ok" => true, "resdata" => [{ "a" => 1 }, { "a" => 2 }],
     })
     result, err = @utility.make_result.call(ctx)
@@ -286,7 +286,7 @@ class PipelineTest < Minitest::Test
       "entity" => make_fake_entity(made),
     }, nil)
     ctx.spec = spec_of
-    ctx.result = SolardemoResult.new({ "ok" => true, "resdata" => [] })
+    ctx.result = VoxgigSolardemoResult.new({ "ok" => true, "resdata" => [] })
     result, err = @utility.make_result.call(ctx)
     assert_nil err
     assert_equal [], result.resdata
@@ -294,7 +294,7 @@ class PipelineTest < Minitest::Test
 
   def test_make_result_short_circuits_a_preset_result
     ctx = make_ctx
-    preset = SolardemoResult.new({ "ok" => true })
+    preset = VoxgigSolardemoResult.new({ "ok" => true })
     ctx.out["result"] = preset
     out, err = @utility.make_result.call(ctx)
     assert_nil err
@@ -316,7 +316,7 @@ class PipelineTest < Minitest::Test
   end
 
   def test_make_request_a_transport_error_tuple_lands_on_the_response
-    boom = SolardemoError.new("boom", "boom")
+    boom = VoxgigSolardemoError.new("boom", "boom")
     u = util_with(->(_c, _u, _f) { [nil, boom] })
     ctx = make_ctx(utility: u)
     ctx.spec = request_spec
@@ -360,7 +360,7 @@ class PipelineTest < Minitest::Test
 
   def test_make_request_a_fetchdef_error_surfaces_as_a_response_error
     u = @client.get_utility
-    u.make_fetch_def = ->(ctx) { [nil, SolardemoError.new("fetchdef_boom", "boom")] }
+    u.make_fetch_def = ->(ctx) { [nil, VoxgigSolardemoError.new("fetchdef_boom", "boom")] }
     ctx = make_ctx(utility: u)
     ctx.spec = request_spec
     response, err = u.make_request.call(ctx)
@@ -407,27 +407,27 @@ class PipelineTest < Minitest::Test
 
   def test_done_returns_resdata_on_success
     ctx = make_ctx
-    ctx.result = SolardemoResult.new({ "ok" => true, "resdata" => 42 })
+    ctx.result = VoxgigSolardemoResult.new({ "ok" => true, "resdata" => 42 })
     assert_equal 42, @utility.done.call(ctx)
   end
 
   def test_done_raises_the_error_when_not_ok
     ctx = make_ctx
-    ctx.result = SolardemoResult.new({ "ok" => false })
-    assert_raises(SolardemoError) { @utility.done.call(ctx) }
+    ctx.result = VoxgigSolardemoResult.new({ "ok" => false })
+    assert_raises(VoxgigSolardemoError) { @utility.done.call(ctx) }
   end
 
   def test_done_cleans_ctrl_explain_on_success
     ctx = make_ctx
     ctx.ctrl.explain = { "result" => { "err" => "x" } }
-    ctx.result = SolardemoResult.new({ "ok" => true, "resdata" => 7 })
+    ctx.result = VoxgigSolardemoResult.new({ "ok" => true, "resdata" => 7 })
     assert_equal 7, @utility.done.call(ctx)
   end
 
   def test_make_error_returns_resdata_when_throw_is_disabled
     ctx = make_ctx
     ctx.ctrl.throw_err = false
-    ctx.result = SolardemoResult.new({ "ok" => false, "resdata" => "fallback" })
+    ctx.result = VoxgigSolardemoResult.new({ "ok" => false, "resdata" => "fallback" })
     assert_equal "fallback", @utility.make_error.call(ctx, nil)
   end
 
@@ -435,14 +435,14 @@ class PipelineTest < Minitest::Test
     ctx = make_ctx
     ctx.ctrl.throw_err = false
     ctx.ctrl.explain = {}
-    ctx.result = SolardemoResult.new({ "ok" => false })
+    ctx.result = VoxgigSolardemoResult.new({ "ok" => false })
     @utility.make_error.call(ctx, nil)
     refute_nil ctx.ctrl.explain["err"]
   end
 
   def test_make_error_preserves_the_error_code
     ctx = make_ctx
-    err = assert_raises(SolardemoError) {
+    err = assert_raises(VoxgigSolardemoError) {
       @utility.make_error.call(ctx, ctx.make_error("rbac_denied", "denied"))
     }
     assert_equal "rbac_denied", err.code
@@ -452,22 +452,22 @@ class PipelineTest < Minitest::Test
   # === feature ordering ===
 
   def test_feature_add_appends_in_call_order
-    client = SolardemoSDK.test(nil, nil)
+    client = VoxgigSolardemoSDK.test(nil, nil)
     utility = client.get_utility
     ctx = utility.make_context.call({
       "opname" => "load", "client" => client, "utility" => utility,
     }, nil)
 
     client.features = []
-    a = SolardemoBaseFeature.new
-    b = SolardemoBaseFeature.new
+    a = VoxgigSolardemoBaseFeature.new
+    b = VoxgigSolardemoBaseFeature.new
     utility.feature_add.call(ctx, a)
     utility.feature_add.call(ctx, b)
     assert_equal [a, b], client.features
   end
 
   def named_feature(name)
-    f = SolardemoBaseFeature.new
+    f = VoxgigSolardemoBaseFeature.new
     f.name = name
     f
   end
@@ -475,7 +475,7 @@ class PipelineTest < Minitest::Test
   # `_options` on an extend-feature instance positions it relative to an
   # already-added feature (mirrors the ts featureAdd).
   def test_feature_add_ordering_before_after_replace
-    client = SolardemoSDK.test(nil, nil)
+    client = VoxgigSolardemoSDK.test(nil, nil)
     utility = client.get_utility
     ctx = utility.make_context.call({
       "opname" => "load", "client" => client, "utility" => utility,
@@ -513,52 +513,130 @@ class PipelineTest < Minitest::Test
 
   # === prepare_auth ===
 
-  def auth_ctx(options, headers)
-    ctx = SolardemoContext.new({
+  # A cookie credential as prepare_auth writes it: `<scheme>=K` for the probe
+  # key, with no scheme prefix and nothing else in the bag.
+  COOKIE_PAIR = /\A[^=;]+=K\z/
+
+  def auth_ctx(options, spec)
+    ctx = VoxgigSolardemoContext.new({
       "client" => OptClient.new(options),
       "utility" => @utility,
       "opname" => "load",
     }, nil)
-    ctx.spec = headers.nil? ? nil : SolardemoSpec.new({ "headers" => headers, "step" => "s" })
+    ctx.spec = spec
     ctx
   end
 
+  def auth_bags
+    VoxgigSolardemoSpec.new({ "headers" => {}, "query" => {}, "step" => "s" })
+  end
+
+  # A cookie credential rides the header bag, because a cookie IS a header.
+  def auth_bag(spec, where)
+    "query" == where ? spec.query : spec.headers
+  end
+
+  # `basic: false` is explicit: an HTTP Basic API's generated config carries
+  # `auth.basic: true`, and a client that merges it in takes a branch that
+  # needs a secret as well. With none supplied that branch deliberately writes
+  # nothing, which the probe would read as a public API.
+  def auth_block(prefix)
+    { "prefix" => prefix, "basic" => false }
+  end
+
+  # Run prepare_auth with both containers present and see which one the
+  # generated utility writes to, and under what name. nil means this SDK
+  # places no credential at all - a public API - which is a legitimate shape,
+  # and the tests below assert exactly that instead. `pair` is the `<scheme>=`
+  # lead-in of a COOKIE credential, which rides the header bag under the key
+  # `cookie` instead of taking a header of its own.
+  def auth_probe(options)
+    ctx = auth_ctx(options, auth_bags)
+    @utility.prepare_auth.call(ctx)
+    ["headers", "query"].each do |where|
+      bag = auth_bag(ctx.spec, where)
+      bag.each do |name, value|
+        pair = ""
+        if "headers" == where && "cookie" == name && value.is_a?(String) &&
+           COOKIE_PAIR.match?(value)
+          pair = value[0..-2]
+        end
+        return { "where" => where, "name" => name, "value" => value, "pair" => pair }
+      end
+    end
+    nil
+  end
+
+  def auth_credential
+    auth_probe({ "apikey" => "K", "auth" => auth_block("Bearer") })
+  end
+
+  # Every credential this SDK could possibly place: both credentials and Basic
+  # switched on, so whichever branch the API has, something lands unless the
+  # API is public.
+  def auth_any_credential
+    auth_probe({ "apikey" => "K", "secret" => "S",
+                 "auth" => { "prefix" => "Bearer", "basic" => true } })
+  end
+
+  def auth_placed(options, seed = nil)
+    cred = auth_credential
+    spec = auth_bags
+    # Seed what prepare_auth would have written: cred["pair"] is the
+    # "<scheme>=" lead-in for a cookie and "" for a header or query.
+    auth_bag(spec, cred["where"])[cred["name"]] = cred["pair"] + seed if !cred.nil? && !seed.nil?
+    ctx = auth_ctx(options, spec)
+    @utility.prepare_auth.call(ctx)
+    cred.nil? ? nil : auth_bag(ctx.spec, cred["where"])[cred["name"]]
+  end
+
   def test_prepare_auth_guards_a_missing_spec
-    ctx = auth_ctx({ "auth" => { "prefix" => "" }, "apikey" => "K" }, nil)
+    ctx = auth_ctx({ "auth" => auth_block(""), "apikey" => "K" }, nil)
     _, err = @utility.prepare_auth.call(ctx)
     assert_equal "auth_no_spec", err.code
   end
 
-  def test_prepare_auth_an_apikey_with_a_prefix_is_space_joined
-    ctx = auth_ctx({ "apikey" => "K", "auth" => { "prefix" => "Bearer" } }, {})
-    _, err = @utility.prepare_auth.call(ctx)
-    assert_nil err
-    assert_equal "Bearer K", ctx.spec.headers["authorization"]
+  # Without this the cases below cannot fail for an SDK whose credential the
+  # probe misses: every one of them takes the public-API path instead.
+  def test_prepare_auth_probe_finds_the_credential_this_sdk_places
+    assert_equal auth_credential.nil?, auth_any_credential.nil?
+  end
+
+  def test_prepare_auth_places_the_apikey_where_this_api_puts_it
+    cred = auth_credential
+    if cred.nil?
+      # A public API places nothing, and that is the whole assertion.
+      assert_nil auth_placed({ "apikey" => "K", "auth" => auth_block("Bearer") })
+      return
+    end
+    assert_includes ["headers", "query"], cred["where"]
+    if "" != cred["pair"]
+      # A cookie credential is a `<scheme>=<key>` pair, and the scheme name
+      # leaves no room for the option's prefix.
+      assert_match COOKIE_PAIR, cred["value"]
+      return
+    end
+    # A header credential is prefix-joined; a query credential is the raw
+    # key, because a query parameter has nowhere to put a scheme name.
+    assert_equal("query" == cred["where"] ? "K" : "Bearer K", cred["value"])
   end
 
   def test_prepare_auth_a_raw_apikey_goes_in_as_is
-    ctx = auth_ctx({ "apikey" => "K", "auth" => { "prefix" => "" } }, {})
-    @utility.prepare_auth.call(ctx)
-    assert_equal "K", ctx.spec.headers["authorization"]
+    cred = auth_credential
+    expected = cred.nil? ? nil : cred["pair"] + "K"
+    assert_equal expected, auth_placed({ "apikey" => "K", "auth" => auth_block("") })
   end
 
-  def test_prepare_auth_an_empty_apikey_drops_the_header
-    ctx = auth_ctx({ "apikey" => "", "auth" => { "prefix" => "Bearer" } },
-      { "authorization" => "stale" })
-    @utility.prepare_auth.call(ctx)
-    assert_nil ctx.spec.headers["authorization"]
+  def test_prepare_auth_an_empty_apikey_drops_the_credential
+    assert_nil auth_placed({ "apikey" => "", "auth" => auth_block("Bearer") }, "stale")
   end
 
-  def test_prepare_auth_a_public_api_drops_the_header
-    ctx = auth_ctx({ "apikey" => "K" }, { "authorization" => "stale" })
-    @utility.prepare_auth.call(ctx)
-    assert_nil ctx.spec.headers["authorization"]
+  def test_prepare_auth_a_public_api_drops_the_credential
+    assert_nil auth_placed({ "apikey" => "K" }, "stale")
   end
 
-  def test_prepare_auth_a_missing_apikey_option_drops_the_header
-    ctx = auth_ctx({ "auth" => { "prefix" => "Bearer" } }, { "authorization" => "stale" })
-    @utility.prepare_auth.call(ctx)
-    assert_nil ctx.spec.headers["authorization"]
+  def test_prepare_auth_a_missing_apikey_option_drops_the_credential
+    assert_nil auth_placed({ "auth" => auth_block("Bearer") }, "stale")
   end
 
 
@@ -566,18 +644,18 @@ class PipelineTest < Minitest::Test
 
   def test_result_headers_with_non_hash_headers_yields_an_empty_map
     ctx = make_ctx
-    ctx.response = SolardemoResponse.new({ "status" => 200 })
-    ctx.result = SolardemoResult.new({})
+    ctx.response = VoxgigSolardemoResponse.new({ "status" => 200 })
+    ctx.result = VoxgigSolardemoResult.new({})
     @utility.result_headers.call(ctx)
     assert_equal({}, ctx.result.headers)
   end
 
   def test_result_body_skips_parsing_when_the_body_is_absent
     ctx = make_ctx
-    ctx.response = SolardemoResponse.new({
+    ctx.response = VoxgigSolardemoResponse.new({
       "status" => 200, "json" => -> { { "a" => 1 } }, "body" => nil,
     })
-    ctx.result = SolardemoResult.new({})
+    ctx.result = VoxgigSolardemoResult.new({})
     @utility.result_body.call(ctx)
     assert_nil ctx.result.body
   end

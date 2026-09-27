@@ -1,4 +1,4 @@
-// Solardemo SDK — shared test runner SUPPORT (mirrors java
+// VoxgigSolardemo SDK — shared test runner SUPPORT (mirrors java
 // test/RunnerSupport.java): env overrides, sdk-test-control.json skips, the
 // ../.sdk/test/test.json loader, and Context construction from a test-entry
 // ctx map.
@@ -81,8 +81,8 @@ inline std::string getenv_local(const std::string& key) {
 }
 
 inline Value env_override(Value m) {
-  std::string live = getenv_local("SOLARDEMO_TEST_LIVE");
-  std::string over = getenv_local("SOLARDEMO_TEST_OVERRIDE");
+  std::string live = getenv_local("VOXGIG_SOLARDEMO_TEST_LIVE");
+  std::string over = getenv_local("VOXGIG_SOLARDEMO_TEST_OVERRIDE");
   if (live == "TRUE" || over == "TRUE") {
     if (m.is_map()) {
       for (const auto& k : Struct::keysof(m)) {
@@ -99,8 +99,8 @@ inline Value env_override(Value m) {
       }
     }
   }
-  std::string explain = getenv_local("SOLARDEMO_TEST_EXPLAIN");
-  if (!explain.empty()) map_put(m, "SOLARDEMO_TEST_EXPLAIN", Value(explain));
+  std::string explain = getenv_local("VOXGIG_SOLARDEMO_TEST_EXPLAIN");
+  if (!explain.empty()) map_put(m, "VOXGIG_SOLARDEMO_TEST_EXPLAIN", Value(explain));
   return m;
 }
 
@@ -165,7 +165,7 @@ inline Value get_spec(const Value& spec, std::initializer_list<std::string> keys
 // ---- Context construction from a JSON ctx map ------------------------
 
 struct EntityTestSetup {
-  std::shared_ptr<SolardemoSDK> client;
+  std::shared_ptr<VoxgigSolardemoSDK> client;
   Value data = Value::undef();
   Value idmap = Value::undef();
   Value env = Value::undef();
@@ -209,7 +209,7 @@ inline Entity* named_entity(const std::string& name) {
 }
 
 // makeCtxFromMap — build a Context from a test-entry ctx/args map.
-inline CtxPtr make_ctx_from_map(const Value& ctxmap_, std::shared_ptr<SolardemoSDK> client,
+inline CtxPtr make_ctx_from_map(const Value& ctxmap_, std::shared_ptr<VoxgigSolardemoSDK> client,
                                 UtilityPtr utility) {
   Value ctxmap = ctxmap_.is_map() ? ctxmap_ : vmap();
 
@@ -296,7 +296,7 @@ inline CtxPtr make_ctx_from_map(const Value& ctxmap_, std::shared_ptr<SolardemoS
   return ctx;
 }
 
-inline void fixctx(CtxPtr ctx, std::shared_ptr<SolardemoSDK> client) {
+inline void fixctx(CtxPtr ctx, std::shared_ptr<VoxgigSolardemoSDK> client) {
   if (ctx && ctx->client && !ctx->options.is_map() && client) {
     ctx->options = client->optionsMap();
   }

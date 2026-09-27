@@ -24,10 +24,34 @@ function zigVarName(name: string): string {
 }
 
 
-// The zig module identifier, e.g. solar_sdk (informational; the build module
-// is named "sdk").
 function zigModuleName(model: any): string {
-  return `${model.name}_sdk`.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+  const name = `${model.name}_sdk`.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+  return /^[0-9]/.test(name) ? '_' + name : name
+}
+
+
+function zigPackageFingerprint(name: string): string {
+  // CRC-32 (IEEE 802.3, reflected, poly 0xEDB88320) — the one zig's
+  // std.hash.Crc32 and zlib both compute.
+  let crc = 0xffffffff
+  for (let i = 0; i < name.length; i++) {
+    crc ^= name.charCodeAt(i) & 0xff
+    for (let b = 0; b < 8; b++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1))
+    }
+  }
+  const checksum = (crc ^ 0xffffffff) >>> 0
+
+  // FNV-1a 32-bit, folded into the 1..0xfffffffe zig accepts.
+  let fnv = 0x811c9dc5
+  for (let i = 0; i < name.length; i++) {
+    fnv ^= name.charCodeAt(i) & 0xff
+    fnv = Math.imul(fnv, 0x01000193) >>> 0
+  }
+  const id = (fnv % 0xfffffffd) + 1
+
+  const hex = (n: number) => n.toString(16).padStart(8, '0')
+  return `0x${hex(checksum)}${hex(id)}`
 }
 
 
@@ -76,29 +100,6 @@ function formatZigValue(val: any, indent: number = 0): string {
 }
 
 
-// Deep-remove meta keys (`foo$`) from a model subtree (twin of go's clean).
-// Emission-time normalisation of a model subtree (L0).
-//
-// Always drops jostraca's iteration metadata (`$`-suffixed keys: index$,
-// key$, val$). With `dropDefaults`, also drops keys whose value IS the
-// default the runtime already assumes when the key is absent, which is pure
-// payload — see CONFIG_DEFAULT.
-//
-// Rebuilds the tree rather than mutating during a walk. The previous
-// implementation walked a clone calling `delete p[k]`, but walk() assigns its
-// callback's result back over the child (`setprop(out, ckey, walk(...))`), so
-// the delete was undone on the way out and the helper silently did nothing.
-// Returning `undefined` from the callback does not fix it either: setprop
-// stores undefined rather than removing the key, which then emits as a null.
-//
-// `dropDefaults` is opt-in and must be passed ONLY for the entity subtree.
-// `active` means something different in feature config, where absent reads as
-// INACTIVE (see feature_init) — dropping `active: true` there would silently
-// disable the feature.
-// jostraca's iteration metadata, injected by each()/names() while it walks the
-// model. Listed explicitly rather than matched by trailing-dollar suffix: a
-// trailing dollar is not exclusive to jostraca -- Seneca uses entity$ as real
-// data -- so a blanket suffix match can silently drop a legitimate API field.
 const MODEL_META = ['index$', 'key$', 'val$']
 
 // Keys whose value IS the default the runtime already assumes when the key is
@@ -142,5 +143,6 @@ export {
   clean,
   formatZigValue,
   zigModuleName,
+  zigPackageFingerprint,
   zigVarName,
 }

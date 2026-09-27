@@ -1,19 +1,19 @@
-# Solardemo SDK context
+# VoxgigSolardemo SDK context
 
 from __future__ import annotations
 import random
 
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
-from projectname_sdk.core.control import SolardemoControl
-from projectname_sdk.core.operation import SolardemoOperation
-from projectname_sdk.core.spec import SolardemoSpec
-from projectname_sdk.core.result import SolardemoResult
-from projectname_sdk.core.response import SolardemoResponse
-from projectname_sdk.core.error import SolardemoError
+from projectname_sdk.core.control import VoxgigSolardemoControl
+from projectname_sdk.core.operation import VoxgigSolardemoOperation
+from projectname_sdk.core.spec import VoxgigSolardemoSpec
+from projectname_sdk.core.result import VoxgigSolardemoResult
+from projectname_sdk.core.response import VoxgigSolardemoResponse
+from projectname_sdk.core.error import VoxgigSolardemoError
 from projectname_sdk.core.helpers import get_ctx_prop, to_map
 
 
-class SolardemoContext:
+class VoxgigSolardemoContext:
     def __init__(self, ctxmap=None, basectx=None):
         self.id = "C" + str(random.randint(10000000, 99999999))
         self.out = {}
@@ -40,7 +40,7 @@ class SolardemoContext:
             self.utility = None
 
         # Ctrl
-        self.ctrl = SolardemoControl()
+        self.ctrl = VoxgigSolardemoControl()
         ctrl_raw = get_ctx_prop(ctxmap, "ctrl")
         if isinstance(ctrl_raw, dict):
             if ctrl_raw.get("throw_err") is not None:
@@ -53,7 +53,8 @@ class SolardemoContext:
                 self.ctrl.actor = ctrl_raw["actor"]
             if isinstance(ctrl_raw.get("paging"), dict):
                 self.ctrl.paging = ctrl_raw["paging"]
-        elif basectx is not None and basectx.ctrl is not None:
+        elif (basectx is not None and basectx.ctrl is not None
+              and get_ctx_prop(ctxmap, "opname") is None):
             self.ctrl = basectx.ctrl
 
         # Meta
@@ -137,7 +138,7 @@ class SolardemoContext:
 
         # Spec
         sp = get_ctx_prop(ctxmap, "spec")
-        if isinstance(sp, SolardemoSpec):
+        if isinstance(sp, VoxgigSolardemoSpec):
             self.spec = sp
         elif basectx is not None:
             self.spec = basectx.spec
@@ -146,7 +147,7 @@ class SolardemoContext:
 
         # Result
         r = get_ctx_prop(ctxmap, "result")
-        if isinstance(r, SolardemoResult):
+        if isinstance(r, VoxgigSolardemoResult):
             self.result = r
         elif basectx is not None:
             self.result = basectx.result
@@ -155,7 +156,7 @@ class SolardemoContext:
 
         # Response
         rp = get_ctx_prop(ctxmap, "response")
-        if isinstance(rp, SolardemoResponse):
+        if isinstance(rp, VoxgigSolardemoResponse):
             self.response = rp
         elif basectx is not None:
             self.response = basectx.response
@@ -180,7 +181,7 @@ class SolardemoContext:
             return self.opmap[cache_key]
 
         if opname == "":
-            return SolardemoOperation({})
+            return VoxgigSolardemoOperation({})
 
         opcfg = vs.getpath(self.config, "entity." + entname + ".op." + opname)
 
@@ -194,7 +195,7 @@ class SolardemoContext:
             if isinstance(t, list):
                 points = t
 
-        op = SolardemoOperation({
+        op = VoxgigSolardemoOperation({
             "entity": entname,
             "name": opname,
             "input": inpt,
@@ -205,4 +206,4 @@ class SolardemoContext:
         return op
 
     def make_error(self, code, msg):
-        return SolardemoError(code, msg, self)
+        return VoxgigSolardemoError(code, msg, self)

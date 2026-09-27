@@ -6,12 +6,12 @@
 
 import 'harness.dart';
 
-import '../lib/SolardemoSDK.dart';
+import '../lib/VoxgigSolardemoSDK.dart';
 
 void tests() {
   describe('netsim', () {
     test('offline simulation fails the request', (t) async {
-      final sdk = SolardemoSDK.test({
+      final sdk = VoxgigSolardemoSDK.test({
         'net': {'offline': true}
       });
       final res = await sdk.direct({'path': '/ping'});
@@ -19,7 +19,7 @@ void tests() {
     });
 
     test('failStatus simulation surfaces the error status', (t) async {
-      final sdk = SolardemoSDK.test({
+      final sdk = VoxgigSolardemoSDK.test({
         'net': {'failTimes': 1, 'failStatus': 503}
       });
       final res = await sdk.direct({'path': '/ping'});
@@ -29,7 +29,7 @@ void tests() {
 
     test('latency simulation delays the request', (t) async {
       const delay = 60;
-      final sdk = SolardemoSDK.test({
+      final sdk = VoxgigSolardemoSDK.test({
         'net': {'latency': delay}
       });
       final start = DateTime.now().millisecondsSinceEpoch;
@@ -41,7 +41,7 @@ void tests() {
     });
 
     test('a plain test SDK still works with no net simulation', (t) async {
-      final sdk = SolardemoSDK.test();
+      final sdk = VoxgigSolardemoSDK.test();
       equal(true, null != sdk);
     });
   });

@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_request
+# VoxgigSolardemo SDK utility: make_request
 
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/response.pm"));
 require(Cwd::abs_path("$__dir/../core/result.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -22,8 +22,8 @@ $REGISTRY{make_request} = sub {
 
   my $spec = $ctx->{spec};
   my $utility = $ctx->{utility};
-  my $response = SolardemoResponse->new({});
-  my $result = SolardemoResult->new({});
+  my $response = VoxgigSolardemoResponse->new({});
+  my $result = VoxgigSolardemoResult->new({});
   $ctx->{result} = $result;
 
   return (undef, $ctx->make_error('request_no_spec',
@@ -47,12 +47,12 @@ $REGISTRY{make_request} = sub {
     $response->{err} = $fetch_err;
   }
   elsif (!defined $fetched) {
-    $response = SolardemoResponse->new({
+    $response = VoxgigSolardemoResponse->new({
       'err' => $ctx->make_error('request_no_response', 'response: undefined'),
     });
   }
   elsif (Voxgig::Struct::ismap($fetched)) {
-    $response = SolardemoResponse->new($fetched);
+    $response = VoxgigSolardemoResponse->new($fetched);
   }
   else {
     $response->{err} = $ctx->make_error('request_invalid_response', 'response: invalid type');

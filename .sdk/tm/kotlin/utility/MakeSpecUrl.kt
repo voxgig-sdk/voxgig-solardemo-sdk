@@ -8,6 +8,12 @@ import KOTLINPACKAGE.utility.struct.Struct
 @Suppress("UNCHECKED_CAST")
 fun makeSpec(ctx: Context): Spec {
   val outSpec = ctx.out["spec"]
+  // A PreSpec feature hook (e.g. validate) may short-circuit the operation by
+  // storing an error here; surface it before the request is built, the same
+  // way makePoint surfaces out["point"].
+  if (outSpec is RuntimeException) {
+    throw outSpec
+  }
   if (outSpec is Spec) {
     ctx.spec = outSpec
     return outSpec
@@ -34,17 +40,20 @@ fun makeSpec(ctx: Context): Spec {
   val spec = Spec(specmap)
   ctx.spec = spec
 
-  spec.method = utility.prepareMethod(ctx)
+  // null-safe: an op outside the convention resolves NO method (see
+  // prepareMethod), which the allow list can never contain.
+  val method = utility.prepareMethod(ctx)
 
   val allowMethodRaw = Struct.getpath(options, listOf("allow", "method"))
   val allowMethod = if (allowMethodRaw is String) allowMethodRaw else ""
-  if (!allowMethod.contains(spec.method)) {
+  if (method == null || "" == method || !allowMethod.contains(method)) {
     throw ctx.makeError(
       "spec_method_allow",
-      "Method \"" + spec.method +
+      "Method \"" + (method ?: "") +
         "\" not allowed by SDK option allow.method value: \"" + allowMethod + "\"",
     )
   }
+  spec.method = method
 
   spec.params = utility.prepareParams(ctx)
   spec.query = utility.prepareQuery(ctx)

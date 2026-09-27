@@ -1,4 +1,4 @@
-;; ProjectName SDK omni runner smoke test.
+;; VoxgigSolardemo SDK omni runner smoke test.
 ;;
 ;; Smoke tests for the VENDORED omni runner itself: a runner that cannot FAIL a
 ;; bad entry would turn every corpus suite vacuously green, so the failure

@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 import java.util.function.BiFunction
 import java.util.function.Supplier
@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.core.SolardemoSDK
-import voxgig.solardemosdk.utility.Json
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.utility.Json
 
 @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE")
 class PlanetDirectTest {
@@ -130,7 +130,7 @@ class PlanetDirectTest {
     }
 
     class DirectSetup {
-      lateinit var client: SolardemoSDK
+      lateinit var client: VoxgigSolardemoSDK
       var calls: MutableList<MutableMap<String, Any?>> = mutableListOf()
       var live: Boolean = false
       var idmap: MutableMap<String, Any?> = linkedMapOf()
@@ -142,22 +142,22 @@ class PlanetDirectTest {
       val calls = mutableListOf<MutableMap<String, Any?>>()
 
       val envm = linkedMapOf<String, Any?>()
-      envm["SOLARDEMO_TEST_PLANET_ENTID"] = linkedMapOf<String, Any?>()
-      envm["SOLARDEMO_TEST_LIVE"] = "FALSE"
+      envm["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"] = linkedMapOf<String, Any?>()
+      envm["VOXGIG_SOLARDEMO_TEST_LIVE"] = "FALSE"
       val env = RunnerSupport.envOverride(envm)
 
-      val live = "TRUE" == env["SOLARDEMO_TEST_LIVE"]
+      val live = "TRUE" == env["VOXGIG_SOLARDEMO_TEST_LIVE"]
 
       val setup = DirectSetup()
       setup.calls = calls
 
       if (live) {
         val mergedOpts = linkedMapOf<String, Any?>()
-        setup.client = SolardemoSDK(mergedOpts)
+        setup.client = VoxgigSolardemoSDK(mergedOpts)
         setup.live = true
 
         var idmap: MutableMap<String, Any?> = linkedMapOf()
-        val entidRaw = env["SOLARDEMO_TEST_PLANET_ENTID"]
+        val entidRaw = env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"]
         if (entidRaw is String && entidRaw.startsWith("{")) {
           val parsed = Helpers.toMapAny(Json.parseOrNull(entidRaw))
           if (parsed != null) {
@@ -180,7 +180,7 @@ class PlanetDirectTest {
             "json", Supplier<Any?> { mockdata })
       }
 
-      setup.client = SolardemoSDK(jm(
+      setup.client = VoxgigSolardemoSDK(jm(
           "base", "http://localhost:8080",
           "system", jm("fetch", mockFetch)))
       setup.live = false

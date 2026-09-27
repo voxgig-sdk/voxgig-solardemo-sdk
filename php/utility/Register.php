@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility registration
+// VoxgigSolardemo SDK utility registration
 
 require_once __DIR__ . '/../core/UtilityType.php';
 require_once __DIR__ . '/Clean.php';
@@ -35,36 +35,36 @@ require_once __DIR__ . '/ResultHeaders.php';
 require_once __DIR__ . '/TransformRequest.php';
 require_once __DIR__ . '/TransformResponse.php';
 
-SolardemoUtility::setRegistrar(function (SolardemoUtility $u): void {
-    $u->clean = [SolardemoClean::class, 'call'];
-    $u->done = [SolardemoDone::class, 'call'];
-    $u->make_error = [SolardemoMakeError::class, 'call'];
-    $u->feature_add = [SolardemoFeatureAdd::class, 'call'];
-    $u->feature_hook = [SolardemoFeatureHook::class, 'call'];
-    $u->feature_init = [SolardemoFeatureInit::class, 'call'];
-    $u->fetcher = [SolardemoFetcher::class, 'call'];
-    $u->make_fetch_def = [SolardemoMakeFetchDef::class, 'call'];
-    $u->make_context = [SolardemoMakeContext::class, 'call'];
-    $u->make_options = [SolardemoMakeOptions::class, 'call'];
-    $u->make_request = [SolardemoMakeRequest::class, 'call'];
-    $u->make_response = [SolardemoMakeResponse::class, 'call'];
-    $u->make_result = [SolardemoMakeResult::class, 'call'];
-    $u->make_point = [SolardemoMakePoint::class, 'call'];
-    $u->make_spec = [SolardemoMakeSpec::class, 'call'];
-    $u->make_url = [SolardemoMakeUrl::class, 'call'];
-    $u->param = [SolardemoParam::class, 'call'];
-    $u->prepare_auth = [SolardemoPrepareAuth::class, 'call'];
-    $u->prepare_body = [SolardemoPrepareBody::class, 'call'];
-    $u->prepare_headers = [SolardemoPrepareHeaders::class, 'call'];
-    $u->prepare_method = [SolardemoPrepareMethod::class, 'call'];
-    $u->prepare_params = [SolardemoPrepareParams::class, 'call'];
-    $u->prepare_path = [SolardemoPreparePath::class, 'call'];
-    $u->prepare_query = [SolardemoPrepareQuery::class, 'call'];
-    $u->graphql_body = [SolardemoGraphql::class, 'body'];
-    $u->graphql_errors = [SolardemoGraphql::class, 'errors'];
-    $u->result_basic = [SolardemoResultBasic::class, 'call'];
-    $u->result_body = [SolardemoResultBody::class, 'call'];
-    $u->result_headers = [SolardemoResultHeaders::class, 'call'];
-    $u->transform_request = [SolardemoTransformRequest::class, 'call'];
-    $u->transform_response = [SolardemoTransformResponse::class, 'call'];
+VoxgigSolardemoUtility::setRegistrar(function (VoxgigSolardemoUtility $u): void {
+    $u->clean = [VoxgigSolardemoClean::class, 'call'];
+    $u->done = [VoxgigSolardemoDone::class, 'call'];
+    $u->make_error = [VoxgigSolardemoMakeError::class, 'call'];
+    $u->feature_add = [VoxgigSolardemoFeatureAdd::class, 'call'];
+    $u->feature_hook = [VoxgigSolardemoFeatureHook::class, 'call'];
+    $u->feature_init = [VoxgigSolardemoFeatureInit::class, 'call'];
+    $u->fetcher = [VoxgigSolardemoFetcher::class, 'call'];
+    $u->make_fetch_def = [VoxgigSolardemoMakeFetchDef::class, 'call'];
+    $u->make_context = [VoxgigSolardemoMakeContext::class, 'call'];
+    $u->make_options = [VoxgigSolardemoMakeOptions::class, 'call'];
+    $u->make_request = [VoxgigSolardemoMakeRequest::class, 'call'];
+    $u->make_response = [VoxgigSolardemoMakeResponse::class, 'call'];
+    $u->make_result = [VoxgigSolardemoMakeResult::class, 'call'];
+    $u->make_point = [VoxgigSolardemoMakePoint::class, 'call'];
+    $u->make_spec = [VoxgigSolardemoMakeSpec::class, 'call'];
+    $u->make_url = [VoxgigSolardemoMakeUrl::class, 'call'];
+    $u->param = [VoxgigSolardemoParam::class, 'call'];
+    $u->prepare_auth = [VoxgigSolardemoPrepareAuth::class, 'call'];
+    $u->prepare_body = [VoxgigSolardemoPrepareBody::class, 'call'];
+    $u->prepare_headers = [VoxgigSolardemoPrepareHeaders::class, 'call'];
+    $u->prepare_method = [VoxgigSolardemoPrepareMethod::class, 'call'];
+    $u->prepare_params = [VoxgigSolardemoPrepareParams::class, 'call'];
+    $u->prepare_path = [VoxgigSolardemoPreparePath::class, 'call'];
+    $u->prepare_query = [VoxgigSolardemoPrepareQuery::class, 'call'];
+    $u->graphql_body = [VoxgigSolardemoGraphql::class, 'body'];
+    $u->graphql_errors = [VoxgigSolardemoGraphql::class, 'errors'];
+    $u->result_basic = [VoxgigSolardemoResultBasic::class, 'call'];
+    $u->result_body = [VoxgigSolardemoResultBody::class, 'call'];
+    $u->result_headers = [VoxgigSolardemoResultHeaders::class, 'call'];
+    $u->transform_request = [VoxgigSolardemoTransformRequest::class, 'call'];
+    $u->transform_response = [VoxgigSolardemoTransformResponse::class, 'call'];
 });

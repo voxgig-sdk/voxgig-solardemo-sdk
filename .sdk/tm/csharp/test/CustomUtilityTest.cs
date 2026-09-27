@@ -3,9 +3,9 @@
 
 using Xunit;
 
-using SolardemoSdk;
+using VoxgigSolardemoSdk;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class CustomUtilityTest
 {
@@ -31,7 +31,7 @@ public class CustomUtilityTest
             utilityOpt[name] = Util(name.ToUpperInvariant());
         }
 
-        var client = SolardemoSDK.TestSDK(null, new Dictionary<string, object?>
+        var client = VoxgigSolardemoSDK.TestSDK(null, new Dictionary<string, object?>
         {
             ["apikey"] = "APIKEY01",
             ["utility"] = utilityOpt,
@@ -89,7 +89,7 @@ public class CustomUtilityTest
         // client is not live", so a REQUIRED OpenAPI server variable resolves
         // to a deterministic test-<name> instead of failing construction. It
         // installs no transport, so the override under test still stands.
-        var client = new SolardemoSDK(new Dictionary<string, object?>
+        var client = new VoxgigSolardemoSDK(new Dictionary<string, object?>
         {
             ["test"] = new Dictionary<string, object?> { ["active"] = true },
             ["utility"] = new Dictionary<string, object?> { ["fetcher"] = scripted },
@@ -131,7 +131,7 @@ public class CustomUtilityTest
         // client is not live", so a REQUIRED OpenAPI server variable resolves
         // to a deterministic test-<name> instead of failing construction. It
         // installs no transport, so the override under test still stands.
-        var client = new SolardemoSDK(new Dictionary<string, object?>
+        var client = new VoxgigSolardemoSDK(new Dictionary<string, object?>
         {
             ["test"] = new Dictionary<string, object?> { ["active"] = true },
             ["utility"] = new Dictionary<string, object?> { ["fetcher"] = scripted },
@@ -155,7 +155,7 @@ public class CustomUtilityTest
         // client is not live", so a REQUIRED OpenAPI server variable resolves
         // to a deterministic test-<name> instead of failing construction. It
         // installs no transport, so the override under test still stands.
-        var client = new SolardemoSDK(new Dictionary<string, object?>
+        var client = new VoxgigSolardemoSDK(new Dictionary<string, object?>
         {
             ["test"] = new Dictionary<string, object?> { ["active"] = true },
             ["utility"] = new Dictionary<string, object?>

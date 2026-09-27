@@ -1,4 +1,4 @@
--- Solardemo SDK utility registration
+-- VoxgigSolardemo SDK utility registration
 
 local Utility = require("core.utility_type")
 

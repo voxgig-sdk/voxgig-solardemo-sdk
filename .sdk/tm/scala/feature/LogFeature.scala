@@ -28,7 +28,7 @@ class LogFeature extends BaseFeature("log", "0.0.1", true) {
             case "error" => level = Level.SEVERE
             case _ =>
           }
-          this.logger = Logger.getLogger("SolardemoSDK.log")
+          this.logger = Logger.getLogger("VoxgigSolardemoSDK.log")
           this.logger.setLevel(level)
       }
     }

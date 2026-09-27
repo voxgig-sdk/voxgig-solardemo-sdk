@@ -1,19 +1,19 @@
-# Solardemo SDK feature test
+# VoxgigSolardemo SDK feature test
 #
 # Behavioural tests for the enterprise features shipped with this SDK. Each
 # block runs only when its feature is present (has_feature?), driving the real
 # generated feature module through the offline mini-pipeline in
-# Solardemo.FeatureHarness — the same hook order and short-circuit rules as
+# VoxgigSolardemo.FeatureHarness — the same hook order and short-circuit rules as
 # the generated entity operations — against a configurable mock transport.
 # All timing goes through the harness's injectable virtual clock, so the suite
 # is deterministic.
 
-defmodule Solardemo.FeatureTest do
+defmodule VoxgigSolardemo.FeatureTest do
   use ExUnit.Case
 
   alias Voxgig.Struct, as: S
-  alias Solardemo.Helpers, as: H
-  alias Solardemo.FeatureHarness, as: FH
+  alias VoxgigSolardemo.Helpers, as: H
+  alias VoxgigSolardemo.FeatureHarness, as: FH
 
   # ---- helpers -------------------------------------------------------------
 
@@ -214,7 +214,7 @@ defmodule Solardemo.FeatureTest do
       {server, calls} =
         FH.recording_server(fn n, _fd ->
           if n < 3,
-            do: {nil, Solardemo.Error.new("boom", "boom")},
+            do: {nil, VoxgigSolardemo.Error.new("boom", "boom")},
             else: {FH.make_response(200, H.deep(%{"ok" => true})), nil}
         end)
 
@@ -231,7 +231,7 @@ defmodule Solardemo.FeatureTest do
   test "retry exhausted transport error surfaces" do
     if has?("retry") do
       clock = FH.make_clock()
-      {server, calls} = FH.recording_server(fn _n, _fd -> {nil, Solardemo.Error.new("boom", "boom")} end)
+      {server, calls} = FH.recording_server(fn _n, _fd -> {nil, VoxgigSolardemo.Error.new("boom", "boom")} end)
 
       h =
         harness([fspec("retry", %{"retries" => 2, "minDelay" => 1, "jitter" => false, "sleep" => FH.clock_sleep(clock)})],

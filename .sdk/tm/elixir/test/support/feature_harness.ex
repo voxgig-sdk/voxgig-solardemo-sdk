@@ -1,18 +1,18 @@
-# Solardemo SDK feature test harness
+# VoxgigSolardemo SDK feature test harness
 #
 # Offline harness that drives each feature through a faithful miniature of
 # the real operation pipeline against a configurable mock transport — same
 # hook order and short-circuit rules as the generated op runner, no live
 # server. Everything is a vendored-struct node, exactly like the SDK.
 
-defmodule Solardemo.FeatureHarness do
+defmodule VoxgigSolardemo.FeatureHarness do
   alias Voxgig.Struct, as: S
-  alias Solardemo.Helpers, as: H
-  alias Solardemo.{Control, Spec, Result, Context, Features}
+  alias VoxgigSolardemo.Helpers, as: H
+  alias VoxgigSolardemo.{Control, Spec, Result, Context, Features}
 
   # True when this SDK was generated with the named feature.
   def has_feature(name) do
-    feature = S.getprop(Solardemo.Config.make_config(), "feature")
+    feature = S.getprop(VoxgigSolardemo.Config.make_config(), "feature")
     S.ismap(feature) and S.getprop(feature, name) != nil
   end
 

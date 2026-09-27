@@ -13,6 +13,8 @@ import {
   each,
   isAuthActive,
   isConfigData,
+  resolveAuthIn,
+  resolveAuthName,
   resolveAuthPrefix,
   serverVariables,
   targetFeatures,
@@ -33,6 +35,43 @@ import {
 } from './utility_lua'
 
 
+function pluginRequires(feature: any): { locals: string[], defs: Record<string, string[]> } {
+  const bypath: Record<string, { local: string, syms: string[] }> = {}
+  const defs: Record<string, string[]> = {}
+
+  each(feature, (f: any) => {
+    const syms: string[] = []
+
+    each(f.plugin, (plugin: any) => {
+      // Filter on `active` HERE rather than trusting the feature object to
+      // arrive filtered: getting it wrong in this direction emits a
+      // require for a module the plugin trim just deleted - an SDK that
+      // does not load, rather than one that merely carries too much.
+      if (false === plugin.active || null == plugin.active) return
+
+      for (const [sym, one] of Object.entries(plugin.def?.lua || {})) {
+        const path = String(one)
+        const local = path.replace(/^.*\//, '').replace(/\.lua$/, '')
+        const entry = (bypath[path] = bypath[path] || { local: 'plugin_' + local, syms: [] })
+        entry.syms.push(sym)
+        syms.push(entry.local + '.' + sym)
+      }
+    })
+
+    if (0 < syms.length) {
+      defs[f.name] = syms.sort()
+    }
+  })
+
+  const locals = Object.keys(bypath).sort().map((path: string) => {
+    const mod = path.replace(/\.lua$/, '').replace(/\//g, '.')
+    return `local ${bypath[path].local} = require("${mod}")`
+  })
+
+  return { locals, defs }
+}
+
+
 const Config = cmp(async function Config(props: any) {
   const ctx$ = props.ctx$
   const target = props.target
@@ -40,41 +79,32 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  // Gated by the applicability tags, so this target never imports or
-  // registers a feature it has no source for. One rule, one place:
-  // helpers/applicability.
   const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
   const authActive = isAuthActive(model)
-  // config.auth.prefix override -> spec-derived info.security.prefix -> 'Bearer'
   const authPrefix = resolveAuthPrefix(model)
 
   let baseUrl = ''
   try { baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`) } catch (_e) { }
 
-  // Templated server URL: emit the spec's server-variable defaults so the
-  // runtime can substitute {name} placeholders in base (see make_options).
   const svars = serverVariables(model)
   const serverBlock = 0 === svars.length ? '' :
     '      server = {\n' +
     svars.map((v: any) => `        [${JSON.stringify(v.name)}] = ${JSON.stringify(v.dflt)},\n`).join('') +
     '      },\n'
 
+  const authIn = resolveAuthIn(model)
+  const authName = resolveAuthName(model)
   const authBlock = authActive
     ? `      auth = {
-        prefix = "${authPrefix}",
+        prefix = "${authPrefix}",${'header' === authIn ? '' : `
+        ["in"] = "${authIn}",`}${'Authorization' === authName ? '' : `
+        name = "${authName}",`}
       },\n`
     : ''
 
-  // The same config as an OBJECT, built by the shared helper so this target's
-  // literal and the data that replaces it above the threshold are the same
-  // config by construction. The JSON is what the threshold is measured on -
-  // emitted source size varies by language, the model does not. Passing the
-  // target name opts this target into the main slug/version/target identity
-  // fields (station descriptor v1 reads all three) - the literal branch
-  // below emits them too, so the two representations cannot diverge.
   const { def: configDef, json: configJson } = configDefinition(model, target.name)
   const asData = isConfigData(configJson, configReprSetting(model))
 
@@ -84,18 +114,6 @@ const Config = cmp(async function Config(props: any) {
 
 `)
 
-    // ABOVE THE THRESHOLD: emit the model as DATA.
-    //
-    // A table constructor makes the Lua parser emit a SETTABLE per entry and
-    // the VM run them all on every load; a long-bracket string is one token,
-    // and dkjson's decoder builds the table from it.
-    //
-    // dkjson is already a runtime dependency - `utility/fetcher.lua` decodes
-    // every HTTP response with it - so this adds nothing to the SDK.
-    //
-    // Null handling agrees between the branches by construction: dkjson maps
-    // JSON null to nil, and assigning nil to a table key removes it, which is
-    // exactly what the literal branch does when `formatLuaTable` emits `nil`.
     if (asData) {
       Content(`local json = require("dkjson")
 
@@ -184,6 +202,34 @@ end
 
 
 return make_config
+`)
+  })
+
+  const plugins = pluginRequires(feature)
+
+  File({ name: 'config_plugins.' + target.ext }, () => {
+    Content(`-- ${model.const.Name} SDK feature plugin definitions
+--
+-- The sekreto plugin DEFINITIONS the model selected per feature, required
+-- below from the modules the catalogue's active \`plugin.def\` entries
+-- declare. Handed to each feature (secrets builds its Sekreto with them):
+-- a provider kind not listed here is unknown to this SDK - the four
+-- built-in kinds (env, memory, dotenv, file) come with the core and never
+-- appear here.
+${0 < plugins.locals.length ? '\n' + plugins.locals.join('\n') + '\n' : ''}
+
+local FEATURE_PLUGINS = {
+${Object.keys(plugins.defs).sort().map((fname: string) =>
+  `  ["${fname}"] = {\n` +
+  plugins.defs[fname].map((sym: string) => `    ${sym},\n`).join('') +
+  `  },\n`).join('')}}
+
+
+-- The definitions list for one feature's chain; empty when the model
+-- selected no plugin group for it.
+return function(name)
+  return FEATURE_PLUGINS[name] or {}
+end
 `)
   })
 

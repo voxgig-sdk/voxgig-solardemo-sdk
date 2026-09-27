@@ -5,8 +5,8 @@ import java.util.function.Supplier
 import KOTLINPACKAGE.utility.struct.Struct
 
 /**
- * Shared client runtime for the Solardemo SDK. The generated
- * SolardemoSDK class extends this with the API-specific entity accessors;
+ * Shared client runtime for the VoxgigSolardemo SDK. The generated
+ * VoxgigSolardemoSDK class extends this with the API-specific entity accessors;
  * everything transport- and pipeline-related lives here so features and
  * utilities can reference a fixed type.
  */
@@ -183,7 +183,7 @@ abstract class SdkClient(sdkopts: MutableMap<String, Any?>?) {
     val out = linkedMapOf<String, Any?>()
     out["ok"] = false
     out["err"] = SdkError(op + "_allow",
-      "SolardemoSDK: " + op + ": operation not allowed by" +
+      "VoxgigSolardemoSDK: " + op + ": operation not allowed by" +
         " SDK option allow.op value: \"" + (allow ?: "") + "\"", null)
     return out
   }
@@ -232,7 +232,7 @@ abstract class SdkClient(sdkopts: MutableMap<String, Any?>?) {
       val msg = if (m.isNullOrEmpty()) "graphql error" else m
       res["ok"] = false
       res["err"] = SdkError("graphql_error",
-        "SolardemoSDK: graphql: " + msg, null)
+        "VoxgigSolardemoSDK: graphql: " + msg, null)
       res["graphql"] = errors
     }
 

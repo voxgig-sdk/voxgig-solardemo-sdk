@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,9 +14,9 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import voxgig.solardemosdk.core.Helpers;
-import voxgig.solardemosdk.core.SolardemoSDK;
-import voxgig.solardemosdk.utility.Json;
+import voxgig.voxgigsolardemosdk.core.Helpers;
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.utility.Json;
 
 @SuppressWarnings({"unchecked", "unused"})
 public class MoonDirectTest {
@@ -46,7 +46,7 @@ public class MoonDirectTest {
             "live test needs " + liveKey + " via *_ENTID env var (synthetic IDs only)");
       }
     }
-    SolardemoSDK client = setup.client;
+    VoxgigSolardemoSDK client = setup.client;
 
     Map<String, Object> params = new LinkedHashMap<>();
     if (setup.live) {
@@ -106,7 +106,7 @@ public class MoonDirectTest {
             "live test needs " + liveKey + " via *_ENTID env var (synthetic IDs only)");
       }
     }
-    SolardemoSDK client = setup.client;
+    VoxgigSolardemoSDK client = setup.client;
 
     Map<String, Object> params = new LinkedHashMap<>();
     Map<String, Object> query = new LinkedHashMap<>();
@@ -175,7 +175,7 @@ public class MoonDirectTest {
   }
 
   static class DirectSetup {
-    SolardemoSDK client;
+    VoxgigSolardemoSDK client;
     List<Map<String, Object>> calls;
     boolean live;
     Map<String, Object> idmap;
@@ -187,11 +187,11 @@ public class MoonDirectTest {
     final List<Map<String, Object>> calls = new ArrayList<>();
 
     Map<String, Object> envm = new LinkedHashMap<>();
-    envm.put("SOLARDEMO_TEST_MOON_ENTID", new LinkedHashMap<>());
-    envm.put("SOLARDEMO_TEST_LIVE", "FALSE");
+    envm.put("VOXGIG_SOLARDEMO_TEST_MOON_ENTID", new LinkedHashMap<>());
+    envm.put("VOXGIG_SOLARDEMO_TEST_LIVE", "FALSE");
     Map<String, Object> env = RunnerSupport.envOverride(envm);
 
-    boolean live = "TRUE".equals(env.get("SOLARDEMO_TEST_LIVE"));
+    boolean live = "TRUE".equals(env.get("VOXGIG_SOLARDEMO_TEST_LIVE"));
 
     DirectSetup setup = new DirectSetup();
     setup.calls = calls;
@@ -201,11 +201,11 @@ public class MoonDirectTest {
       // client; the generated fields below overwrite anything they name.
       Map<String, Object> mergedOpts =
           new LinkedHashMap<>(RunnerSupport.liveClientOptions());
-      setup.client = new SolardemoSDK(mergedOpts);
+      setup.client = new VoxgigSolardemoSDK(mergedOpts);
       setup.live = true;
 
       Map<String, Object> idmap = new LinkedHashMap<>();
-      Object entidRaw = env.get("SOLARDEMO_TEST_MOON_ENTID");
+      Object entidRaw = env.get("VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
       if (entidRaw instanceof String && ((String) entidRaw).startsWith("{")) {
         Map<String, Object> parsed = Helpers.toMapAny(Json.parseOrNull((String) entidRaw));
         if (parsed != null) {
@@ -230,7 +230,7 @@ public class MoonDirectTest {
               "json", (Supplier<Object>) () -> mockdata);
         };
 
-    setup.client = new SolardemoSDK(jm(
+    setup.client = new VoxgigSolardemoSDK(jm(
         "base", "http://localhost:8080",
         "system", jm("fetch", mockFetch)));
     setup.live = false;

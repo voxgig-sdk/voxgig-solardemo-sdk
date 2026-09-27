@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_fetch_def
+# VoxgigSolardemo SDK utility: make_fetch_def
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
@@ -10,9 +10,9 @@ def make_fetch_def_util(ctx):
         return None, ctx.make_error("fetchdef_no_spec",
             "Expected context spec property to be defined.")
 
-    from projectname_sdk.core.result import SolardemoResult
+    from projectname_sdk.core.result import VoxgigSolardemoResult
     if ctx.result is None:
-        ctx.result = SolardemoResult({})
+        ctx.result = VoxgigSolardemoResult({})
 
     spec.step = "prepare"
 

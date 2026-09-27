@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_spec
+// VoxgigSolardemo SDK utility: make_spec
 
 require_once __DIR__ . '/Graphql.php';
 
 require_once __DIR__ . '/../core/Spec.php';
 
-class SolardemoMakeSpec
+class VoxgigSolardemoMakeSpec
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         if (isset($ctx->out['spec'])) {
             $ctx->spec = $ctx->out['spec'];
@@ -32,18 +32,25 @@ class SolardemoMakeSpec
             }
         }
 
-        $ctx->spec = new SolardemoSpec([
+        $ctx->spec = new VoxgigSolardemoSpec([
             'base' => $base, 'prefix' => $prefix, 'parts' => $parts,
             'suffix' => $suffix, 'step' => 'start',
         ]);
 
-        $ctx->spec->method = ($utility->prepare_method)($ctx);
+        // prepare_method answers null for an op name outside the convention
+        // (mirrors the ts reference, where methodMap[key] is undefined) -
+        // which then fails the allow check below, never a TypeError and
+        // never a silently-allowed empty method.
+        $method = ($utility->prepare_method)($ctx);
 
         $allow_method = \Voxgig\Struct\Struct::getpath($options, 'allow.method') ?? '';
-        if (strpos($allow_method, $ctx->spec->method) === false) {
+        if (!is_string($method) || '' === $method
+            || strpos($allow_method, $method) === false) {
+            $shown = is_string($method) ? $method : '';
             return [null, $ctx->make_error('spec_method_allow',
-                "Method \"{$ctx->spec->method}\" not allowed by SDK option allow.method value: \"{$allow_method}\"")];
+                "Method \"{$shown}\" not allowed by SDK option allow.method value: \"{$allow_method}\"")];
         }
+        $ctx->spec->method = $method;
 
         $ctx->spec->params = ($utility->prepare_params)($ctx);
         $ctx->spec->query = ($utility->prepare_query)($ctx);
@@ -61,7 +68,7 @@ class SolardemoMakeSpec
             // the query string. Those same values are bound as operation
             // variables, so leaving them would send /graphql?id=i1.
             $ctx->spec->query = [];
-            $ctx->spec->headers['content-type'] = SolardemoGraphql::CONTENT_TYPE;
+            $ctx->spec->headers['content-type'] = VoxgigSolardemoGraphql::CONTENT_TYPE;
         } else {
             $ctx->spec->body = ($utility->prepare_body)($ctx);
             $ctx->spec->path = ($utility->prepare_path)($ctx);

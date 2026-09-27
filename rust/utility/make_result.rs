@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::setp;
 use crate::core::result::SdkResult;
 use crate::core::types::OutVal;
@@ -10,7 +10,7 @@ use crate::utility::voxgigstruct::Value;
 
 pub fn make_result_util(
     ctx: &Rc<Context>,
-) -> Result<Rc<RefCell<SdkResult>>, SolardemoError> {
+) -> Result<Rc<RefCell<SdkResult>>, VoxgigSolardemoError> {
     if let Some(OutVal::Result(res)) = ctx.out_get("result") {
         return Ok(res);
     }

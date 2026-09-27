@@ -1,5 +1,5 @@
 {
-  "name": "@voxgig-sdk/solardemo-js",
+  "name": "@voxgig-sdk/voxgig-solardemo-sdk-js",
   "version": "0.1.0",
   "description": "Unofficial generated JavaScript SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
   "keywords": [
@@ -8,20 +8,21 @@
     "generated-sdk",
     "openapi",
     "api-client",
-    "solardemo"
+    "voxgig-solardemo"
   ],
-  "homepage": "https://github.com/voxgig-sdk/solardemo-sdk#readme",
+  "homepage": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/voxgig-sdk/solardemo-sdk.git"
+    "url": "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git"
   },
   "bugs": {
-    "url": "https://github.com/voxgig-sdk/solardemo-sdk/issues"
+    "url": "https://github.com/voxgig-sdk/voxgig-solardemo-sdk/issues"
   },
-  "main": "src/SolardemoSDK.js",
+  "main": "src/VoxgigSolardemoSDK.js",
   "type": "commonjs",
   "files": [
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "test": "node --test 'test/**/*.test.js'",

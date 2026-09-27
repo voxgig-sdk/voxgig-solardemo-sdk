@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 
-import JAVAPACKAGE.core.SolardemoSDK;
+import JAVAPACKAGE.core.VoxgigSolardemoSDK;
 
 public class ExistsTest {
 
   @Test
   public void testMode() {
-    SolardemoSDK testsdk = SolardemoSDK.testSDK();
+    VoxgigSolardemoSDK testsdk = VoxgigSolardemoSDK.testSDK();
     assertNotNull(testsdk, "expected non-nil SDK");
   }
 }

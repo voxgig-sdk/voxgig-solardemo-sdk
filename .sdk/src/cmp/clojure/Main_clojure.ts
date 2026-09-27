@@ -2,6 +2,7 @@
 import {
   cmp, each,
   File, Content, Copy, Folder,
+  pluginExcludes,
 } from '@voxgig/sdkgen'
 
 
@@ -16,10 +17,16 @@ import {
 } from '@voxgig/apidef'
 
 
+import { extraFeatures } from './featureextra_clojure'
 import { Package } from './Package_clojure'
 import { Config } from './Config_clojure'
+import { Schema } from './Schema_clojure'
 import { Gitignore } from './Gitignore_clojure'
 import { MainEntity } from './MainEntity_clojure'
+import { PrepareAuth } from './PrepareAuth_clojure'
+
+
+const CONTAINED = ['secrets']
 
 
 const Main = cmp(async function Main(props: any) {
@@ -33,21 +40,27 @@ const Main = cmp(async function Main(props: any) {
 
   Gitignore({})
 
-  // Copy tm/clojure verbatim (runtime under src/, the test suite under test/,
-  // Makefile/LICENSE/VERSION). The feature-add scaffolding under src/feature
-  // is excluded — the clojure target does not use per-feature custom source.
+  const featureGate = extraFeatures(model, target).map((f: any) => f.name)
+  const containerExcludes = CONTAINED
+    .filter((name: string) => !featureGate.includes(name))
+    .flatMap((name: string) => [
+      new RegExp('(^|/)feature/' + name + '/'),
+      new RegExp('(^|/)test/sdk/test/feature/' + name + '\\.clj$'),
+    ])
+
   Copy({
     from: 'tm/' + target.name,
-    exclude: [/src\/feature\//],
+    exclude: [/src\/feature\//, ...containerExcludes, ...pluginExcludes(model)],
     replace: {
       ...props.ctx$.stdrep,
     }
   })
 
-  // Generated config namespace (src/sdk/config.clj).
   Folder({ name: 'src' }, () => {
     Folder({ name: 'sdk' }, () => {
       Config({ target })
+      Schema({ target })
+      PrepareAuth({ target })
     })
   })
 

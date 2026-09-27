@@ -1,6 +1,6 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
-import voxgig.solardemosdk.core.Utility
+import voxgig.voxgigsolardemosdk.core.Utility
 
 /** Wires the utility implementations onto a Utility instance. */
 object Register {

@@ -12,7 +12,7 @@
 import 'harness.dart';
 import 'omni.dart';
 
-import '../lib/SolardemoSDK.dart';
+import '../lib/VoxgigSolardemoSDK.dart';
 import '../lib/Point.dart';
 import '../lib/utility/ErrUtility.dart';
 import '../lib/utility/voxgig_struct.dart' as vs;
@@ -29,7 +29,7 @@ Future<void>? _setupF;
 
 Future<void> _setup() {
   return _setupF ??= () async {
-    final runner = makeRunner(TEST_JSON_FILE, SolardemoSDK.test());
+    final runner = makeRunner(TEST_JSON_FILE, VoxgigSolardemoSDK.test());
     final run = runner('primary');
 
     _run = run;
@@ -118,7 +118,7 @@ void tests() {
     test('auth-basic', (t) async {
       await _setup();
       final sdkopts = vs.getpath(_spec, 'prepareAuth.DEF.setup.a') ?? {};
-      final authClient = SolardemoSDK.test({}, sdkopts);
+      final authClient = VoxgigSolardemoSDK.test({}, sdkopts);
       await _sec('prepareAuth.basic', (dynamic ctx) {
         ctx.client = authClient;
         _fixctx(ctx);
@@ -189,7 +189,7 @@ void tests() {
     test('spec-basic', (t) async {
       await _setup();
       final sdkopts = vs.getpath(_spec, 'makeSpec.DEF.setup.a') ?? {};
-      final specClient = SolardemoSDK.test({}, sdkopts);
+      final specClient = VoxgigSolardemoSDK.test({}, sdkopts);
       await _sec('makeSpec.basic', (dynamic ctx) {
         ctx.client = specClient;
         ctx.options = specClient.options();
@@ -249,7 +249,7 @@ void tests() {
             'json': () => {'id': 'res01'},
             'body': 'present',
           };
-      final reqClient = SolardemoSDK({
+      final reqClient = VoxgigSolardemoSDK({
         'system': {'fetch': mockFetch}
       });
       final reqUtility = reqClient.utility();
@@ -363,7 +363,7 @@ void tests() {
     test('fetcher-live', (t) async {
       await _setup();
       final calls = <Map<String, dynamic>>[];
-      final liveClient = SolardemoSDK({
+      final liveClient = VoxgigSolardemoSDK({
         'system': {
           'fetch': (dynamic url, dynamic init) async {
             calls.add({'url': url, 'init': init});
@@ -386,7 +386,7 @@ void tests() {
 
     test('fetcher-blocked-test-mode', (t) async {
       await _setup();
-      final blockedClient = SolardemoSDK({
+      final blockedClient = VoxgigSolardemoSDK({
         'system': {'fetch': (dynamic url, dynamic init) async => {}}
       });
       blockedClient.mode = 'test';

@@ -1,6 +1,6 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 /** A resolved entity operation (name, input kind, endpoint definitions). */
 @Suppress("UNCHECKED_CAST")

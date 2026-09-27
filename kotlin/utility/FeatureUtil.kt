@@ -1,13 +1,13 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Feature
-import voxgig.solardemosdk.core.FeaturePlacement
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Feature
+import voxgig.voxgigsolardemosdk.core.FeaturePlacement
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // featureAdd appends a feature to the client's feature list. A feature that
 // implements FeaturePlacement (every BaseFeature does, via the addOpts

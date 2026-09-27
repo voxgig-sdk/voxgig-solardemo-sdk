@@ -2,17 +2,20 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TestFeature = void 0;
 exports.ownIdField = ownIdField;
+exports.mintId = mintId;
 const BaseFeature_1 = require("../base/BaseFeature");
 const S_NOT_FOUND = 'Not found';
-// Which param is entity X's own identifier, as opposed to a parent key —
-// the load op's canonical point's LAST path segment, by construction (a
-// route addresses parents first, the record last). Mirrors recordKey in
-// sdkgen's Main_seneca-provider.ts; written again here because a template
-// ships standalone, outside that package. A renamed id (e.g. Airtable's
-// record_id) needs its own seeded field: matching only ever happens
-// against the API's real param names, never a bare 'id' the API itself
-// does not use.
+// The `%04x%04x%04x%04x` every other target mints, so the id's shape does not
+// depend on which language answered.
+function mintId() {
+    let out = '';
+    for (let i = 0; i < 4; i++) {
+        out += ((Math.random() * 0x10000) | 0).toString(16).padStart(4, '0');
+    }
+    return out;
+}
 function ownIdField(config, getpath, entityName) {
+    let fallback = '';
     for (const opname of ['load', 'remove', 'update']) {
         const points = getpath(config, ['entity', entityName, 'op', opname, 'points']) || [];
         const canonical = points.filter((pt) => null == (pt && pt.select && pt.select['$action']));
@@ -27,17 +30,6 @@ function ownIdField(config, getpath, entityName) {
                 best = pt;
         }
         const parts = (best && best.parts) || [];
-        // THE LAST PART, not the last param anywhere in the path. A record route
-        // ENDS in its key: /orgs/{org}/private-registries/{secret_name} does,
-        // /orgs/{org}/private-registries/public-key does not. Reading the last
-        // param wherever it fell returned `{org}` for that second path — a PARENT
-        // reference — and the seeding walk then stamped the record's own key over
-        // org_id, destroying the ORG01 the fixture set and the test looks up from
-        // idmap. github's private_registry failed its update with a 404 that named
-        // nothing to do with orgs.
-        //
-        // A point that does not end in a param says nothing about this entity's
-        // key, so move on to the next op rather than guess from it.
         const lastPart = 0 < parts.length ? String(parts[parts.length - 1]) : '';
         if (lastPart.startsWith('{'))
             return lastPart.slice(1, -1);
@@ -48,6 +40,20 @@ function ownIdField(config, getpath, entityName) {
         const reqdQuery = query.filter((q) => false !== q.reqd);
         if (1 === reqdQuery.length)
             return String(reqdQuery[0].name);
+        // The last path parameter of a literal-terminal route is remembered as
+        // a LAST RESORT, but not returned yet — see below.
+        if ('' === fallback) {
+            for (let i = parts.length - 1; 0 <= i; i--) {
+                const part = String(parts[i]);
+                if (part.startsWith('{')) {
+                    fallback = part.slice(1, -1);
+                    break;
+                }
+            }
+        }
+    }
+    if ('' !== fallback) {
+        return fallback;
     }
     return 'id';
 }
@@ -89,22 +95,11 @@ class TestFeature extends BaseFeature_1.BaseFeature {
             const select = struct.select;
             const delprop = struct.delprop;
             const getdef = struct.getdef;
-            // Shape the mock payload the way the real API would, so the op's
-            // response transform recovers the entity from it. A point carrying
-            // `transform.res: \`body.item\`` describes an API that answers
-            // `{item: {...}}`; handing back the bare entity means the transform
-            // unwraps a property that is not there and the caller gets undefined.
-            // The mock has to agree with the model, or it only ever simulates APIs
-            // whose responses happen to be unwrapped.
             function envelope(data) {
                 const restf = getprop(getprop(ctx.point, 'transform', {}), 'res');
                 if (null == data || 'string' !== typeof restf) {
                     return data;
                 }
-                // Rebuild whatever nesting the op's response transform unwraps, so
-                // the mock agrees with the model. Multi-segment on purpose: GraphQL
-                // ops unwrap `body.data.<field>` (and `body.data.<field>.<entity>`
-                // for mutation payloads), not just a single envelope property.
                 const m = restf.match(/^`body\.(.+)`$/);
                 if (null == m) {
                     return data;
@@ -170,6 +165,7 @@ class TestFeature extends BaseFeature_1.BaseFeature {
                 const found = select(entmap, args);
                 const ent = getelem(found, 0);
                 if (null == ent) {
+                    // update miss: 404, never another record
                     return respond(404, undefined, { statusText: S_NOT_FOUND });
                 }
                 else {
@@ -194,10 +190,7 @@ class TestFeature extends BaseFeature_1.BaseFeature {
                 const args = self.buildArgs(ctx, op, ctx.reqdata);
                 let id = param(ctx, 'id');
                 if (null == id) {
-                    id = ((1e4 * Math.random() | 0).toString(16) +
-                        (1e4 * Math.random() | 0).toString(16) +
-                        (1e4 * Math.random() | 0).toString(16) +
-                        (1e4 * Math.random() | 0).toString(16)).padEnd(16, '0');
+                    id = mintId();
                 }
                 const ent = clone(ctx.reqdata);
                 setprop(ent, 'id', id);
@@ -214,6 +207,7 @@ class TestFeature extends BaseFeature_1.BaseFeature {
                 const out = clone(ent);
                 return respond(200, out);
             }
+            return respond(404, undefined, { statusText: 'Unknown operation' });
         }
         // Optional network behaviour simulation over the mock transport. Enable
         // per test via `SDK.test({ net: { latency, failTimes, ... } })`. When
@@ -315,13 +309,43 @@ class TestFeature extends BaseFeature_1.BaseFeature {
         const reqd = [...(reqdParams || []), ...(reqdQuery || [])];
         const qand = [];
         const q = { '`$AND`': qand };
-        for (let k of keysof(args)) {
+        const idfrom = getpath(ctx.config, [
+            'entity', getprop(ctx.entity, 'name'), 'id', 'from'
+        ]) || {};
+        const nest = (path, value) => {
+            const keys = String(path).split('.');
+            let out = value;
+            for (let i = keys.length - 1; 0 <= i; i--) {
+                out = { [keys[i]]: out };
+            }
+            return out;
+        };
+        const match = ctx.match || {};
+        const names = [...keysof(args)];
+        if (null == getprop(args, 'id')) {
+            for (const part of (getpath(ctx.config, [
+                'entity', getprop(ctx.entity, 'name'), 'id', 'parts'
+            ]) || [])) {
+                const pname = String(part);
+                if (!names.includes(pname) && null != getprop(match, pname)) {
+                    names.push(pname);
+                }
+            }
+        }
+        for (let k of names) {
             if ('id' === k || !isempty(select(reqd, k))) {
                 const v = param(ctx, k);
                 const ka = getprop(op.alias, k);
                 let qor = [{ [k]: v }];
                 if (null != ka) {
                     qor.push({ [ka]: v });
+                }
+                // An ALTERNATIVE, never a replacement: the parameter name still
+                // matches a record that happens to carry it flat, so a seed written
+                // either way is found. `$OR` is what makes that safe.
+                const kf = getprop(idfrom, k);
+                if (null != kf && k !== kf) {
+                    qor.push(nest(kf, v));
                 }
                 qor = { '`$OR`': qor };
                 qand.push(qor);

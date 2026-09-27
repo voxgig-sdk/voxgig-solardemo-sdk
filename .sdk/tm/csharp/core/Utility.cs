@@ -1,8 +1,8 @@
-// Solardemo SDK - utility object: the pluggable set of pipeline functions.
+// VoxgigSolardemo SDK - utility object: the pluggable set of pipeline functions.
 // Every pipeline step is a delegate field so features (and custom utilities)
 // can wrap or replace behaviour per client instance.
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Utility
 {

@@ -1,4 +1,4 @@
-# Solardemo SDK test runner
+# VoxgigSolardemo SDK test runner
 
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoTestRunner;
+package VoxgigSolardemoTestRunner;
 
 my $DIR = $__dir;
 
@@ -114,7 +114,7 @@ sub load_test_control {
 sub is_control_skipped {
   my ($kind, $name, $mode) = @_;
   my $ctrl = load_test_control();
-  my $skip = SolardemoHelpers::gpath($ctrl, "test.skip.$mode") || {};
+  my $skip = VoxgigSolardemoHelpers::gpath($ctrl, "test.skip.$mode") || {};
   my $items = $skip->{$kind} || [];
   for my $item (@{ Voxgig::Struct::islist($items) ? $items : [] }) {
     next unless Voxgig::Struct::ismap($item);
@@ -150,7 +150,7 @@ my %LIVE_RESERVED = map { $_ => 1 }
 
 sub live_client_options {
   my $ctrl = load_test_control();
-  my $opts = SolardemoHelpers::gpath($ctrl, 'test.client.options');
+  my $opts = VoxgigSolardemoHelpers::gpath($ctrl, 'test.client.options');
   return {} unless Voxgig::Struct::ismap($opts);
   my %out;
   for my $k (keys %$opts) {
@@ -162,7 +162,7 @@ sub live_client_options {
 # Per-test live pacing delay (ms); default 500.
 sub live_delay_ms {
   my $ctrl = load_test_control();
-  my $v = SolardemoHelpers::gpath($ctrl, 'test.live.delayMs');
+  my $v = VoxgigSolardemoHelpers::gpath($ctrl, 'test.live.delayMs');
   return $v if defined $v && !ref $v && $v =~ /^[0-9]+$/;
   return 500;
 }

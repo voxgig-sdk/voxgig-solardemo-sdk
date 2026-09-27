@@ -1,9 +1,9 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 /** A transport-level response (thin wrapper over the fetcher's map shape). */
 public class Response {

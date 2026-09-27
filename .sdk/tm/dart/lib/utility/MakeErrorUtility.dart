@@ -1,4 +1,4 @@
-import '../SolardemoError.dart';
+import '../VoxgigSolardemoError.dart';
 import '../Result.dart';
 
 import 'CleanUtility.dart';
@@ -20,15 +20,15 @@ dynamic makeError(dynamic ctx, [dynamic err]) {
   // TODO: project name should come from config
   // avoids spurious changes between template and generated utility
   // applies for all utility files
-  final msg = 'SolardemoSDK: ' + opname.toString() + ': ' + errmsg(err);
+  final msg = 'VoxgigSolardemoSDK: ' + opname.toString() + ': ' + errmsg(err);
 
-  SolardemoError sdkerr;
-  if (err is SolardemoError) {
+  VoxgigSolardemoError sdkerr;
+  if (err is VoxgigSolardemoError) {
     sdkerr = err;
     sdkerr.message = clean(ctx, msg);
   } else {
     final code = errcode(err);
-    sdkerr = SolardemoError('' == code ? 'unknown' : code, clean(ctx, msg), ctx);
+    sdkerr = VoxgigSolardemoError('' == code ? 'unknown' : code, clean(ctx, msg), ctx);
   }
 
   if (null != result.err) {

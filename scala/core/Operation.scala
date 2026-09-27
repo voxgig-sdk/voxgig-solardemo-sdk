@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.{ArrayList, List => JList, Map => JMap}
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // A resolved entity operation (name, input kind, endpoint definitions).
 class Operation(opmap: JMap[String, Object]) {

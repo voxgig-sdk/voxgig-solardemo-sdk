@@ -1,4 +1,4 @@
-// Minimal C test harness for the Solardemo SDK test binaries. Each test
+// Minimal C test harness for the VoxgigSolardemo SDK test binaries. Each test
 // file #includes this and "api.h", runs checks via CHECK/CHECK_EQ_STR/etc.,
 // and ends its main() with TEST_SUMMARY(name) which prints a
 // "<name>: N checks, M failed" line and returns non-zero on any failure.

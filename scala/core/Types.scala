@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 // Shared function-value type aliases for the pipeline utility fields.
 // Mirrors the @FunctionalInterface set in the java donor's Utility class,

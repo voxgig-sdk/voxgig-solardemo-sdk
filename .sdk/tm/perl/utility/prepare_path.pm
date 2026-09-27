@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_path
+# VoxgigSolardemo SDK utility: prepare_path
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -20,7 +20,7 @@ $REGISTRY{prepare_path} = sub {
   my $point = $ctx->{point};
   my $parts = [];
   if ($point) {
-    my $p = SolardemoHelpers::gp($point, 'parts');
+    my $p = VoxgigSolardemoHelpers::gp($point, 'parts');
     $parts = $p if Voxgig::Struct::islist($p);
   }
   return Voxgig::Struct::join($parts, '/', 1);

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK context
+// VoxgigSolardemo SDK context
 
 require_once __DIR__ . '/Control.php';
 require_once __DIR__ . '/Operation.php';
@@ -11,13 +11,13 @@ require_once __DIR__ . '/Response.php';
 require_once __DIR__ . '/Error.php';
 require_once __DIR__ . '/Helpers.php';
 
-class SolardemoContext
+class VoxgigSolardemoContext
 {
     public string $id;
     public array $out;
     public mixed $client;
-    public ?SolardemoUtility $utility;
-    public SolardemoControl $ctrl;
+    public ?VoxgigSolardemoUtility $utility;
+    public VoxgigSolardemoControl $ctrl;
     public array $meta;
     public ?array $config;
     public ?array $entopts;
@@ -30,21 +30,21 @@ class SolardemoContext
     public array $match;
     public array $reqmatch;
     public ?array $point;
-    public ?SolardemoSpec $spec;
-    public ?SolardemoResult $result;
-    public ?SolardemoResponse $response;
-    public SolardemoOperation $op;
+    public ?VoxgigSolardemoSpec $spec;
+    public ?VoxgigSolardemoResult $result;
+    public ?VoxgigSolardemoResponse $response;
+    public VoxgigSolardemoOperation $op;
 
     public function __construct(array $ctxmap = [], ?self $basectx = null)
     {
         $this->id = 'C' . random_int(10000000, 99999999);
         $this->out = [];
 
-        $this->client = SolardemoHelpers::get_ctx_prop($ctxmap, 'client') ?? ($basectx ? $basectx->client : null);
-        $this->utility = SolardemoHelpers::get_ctx_prop($ctxmap, 'utility') ?? ($basectx ? $basectx->utility : null);
+        $this->client = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'client') ?? ($basectx ? $basectx->client : null);
+        $this->utility = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'utility') ?? ($basectx ? $basectx->utility : null);
 
-        $this->ctrl = new SolardemoControl();
-        $ctrl_raw = SolardemoHelpers::get_ctx_prop($ctxmap, 'ctrl');
+        $this->ctrl = new VoxgigSolardemoControl();
+        $ctrl_raw = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'ctrl');
         if (is_array($ctrl_raw)) {
             if (array_key_exists('throw', $ctrl_raw)) {
                 $this->ctrl->throw_err = $ctrl_raw['throw'];
@@ -55,53 +55,57 @@ class SolardemoContext
             if (array_key_exists('actor', $ctrl_raw)) {
                 $this->ctrl->actor = $ctrl_raw['actor'];
             }
-        } elseif ($basectx !== null && $basectx->ctrl !== null) {
+            if (isset($ctrl_raw['paging']) && is_array($ctrl_raw['paging'])) {
+                $this->ctrl->paging = $ctrl_raw['paging'];
+            }
+        } elseif ($basectx !== null && $basectx->ctrl !== null
+            && VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, "opname") === null) {
             $this->ctrl = $basectx->ctrl;
         }
 
-        $m = SolardemoHelpers::get_ctx_prop($ctxmap, 'meta');
+        $m = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'meta');
         $this->meta = is_array($m) ? $m : ($basectx ? $basectx->meta ?? [] : []);
 
-        $cfg = SolardemoHelpers::get_ctx_prop($ctxmap, 'config');
+        $cfg = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'config');
         $this->config = is_array($cfg) ? $cfg : ($basectx ? $basectx->config : null);
 
-        $eo = SolardemoHelpers::get_ctx_prop($ctxmap, 'entopts');
+        $eo = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'entopts');
         $this->entopts = is_array($eo) ? $eo : ($basectx ? $basectx->entopts : null);
 
-        $o = SolardemoHelpers::get_ctx_prop($ctxmap, 'options');
+        $o = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'options');
         $this->options = is_array($o) ? $o : ($basectx ? $basectx->options : null);
 
-        $e = SolardemoHelpers::get_ctx_prop($ctxmap, 'entity');
+        $e = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'entity');
         $this->entity = $e ?? ($basectx ? $basectx->entity : null);
 
-        $s = SolardemoHelpers::get_ctx_prop($ctxmap, 'shared');
+        $s = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'shared');
         $this->shared = is_array($s) ? $s : ($basectx ? $basectx->shared : null);
 
-        $om = SolardemoHelpers::get_ctx_prop($ctxmap, 'opmap');
+        $om = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'opmap');
         $this->opmap = is_array($om) ? $om : ($basectx ? $basectx->opmap ?? [] : []);
 
-        $this->data = SolardemoHelpers::to_map(SolardemoHelpers::get_ctx_prop($ctxmap, 'data')) ?? [];
-        $this->reqdata = SolardemoHelpers::to_map(SolardemoHelpers::get_ctx_prop($ctxmap, 'reqdata')) ?? [];
-        $this->match = SolardemoHelpers::to_map(SolardemoHelpers::get_ctx_prop($ctxmap, 'match')) ?? [];
-        $this->reqmatch = SolardemoHelpers::to_map(SolardemoHelpers::get_ctx_prop($ctxmap, 'reqmatch')) ?? [];
+        $this->data = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'data')) ?? [];
+        $this->reqdata = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'reqdata')) ?? [];
+        $this->match = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'match')) ?? [];
+        $this->reqmatch = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'reqmatch')) ?? [];
 
-        $pt = SolardemoHelpers::get_ctx_prop($ctxmap, 'point');
+        $pt = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'point');
         $this->point = is_array($pt) ? $pt : ($basectx ? $basectx->point : null);
 
-        $sp = SolardemoHelpers::get_ctx_prop($ctxmap, 'spec');
-        $this->spec = ($sp instanceof SolardemoSpec) ? $sp : ($basectx ? $basectx->spec : null);
+        $sp = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'spec');
+        $this->spec = ($sp instanceof VoxgigSolardemoSpec) ? $sp : ($basectx ? $basectx->spec : null);
 
-        $r = SolardemoHelpers::get_ctx_prop($ctxmap, 'result');
-        $this->result = ($r instanceof SolardemoResult) ? $r : ($basectx ? $basectx->result : null);
+        $r = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'result');
+        $this->result = ($r instanceof VoxgigSolardemoResult) ? $r : ($basectx ? $basectx->result : null);
 
-        $rp = SolardemoHelpers::get_ctx_prop($ctxmap, 'response');
-        $this->response = ($rp instanceof SolardemoResponse) ? $rp : ($basectx ? $basectx->response : null);
+        $rp = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'response');
+        $this->response = ($rp instanceof VoxgigSolardemoResponse) ? $rp : ($basectx ? $basectx->response : null);
 
-        $opname = SolardemoHelpers::get_ctx_prop($ctxmap, 'opname') ?? '';
+        $opname = VoxgigSolardemoHelpers::get_ctx_prop($ctxmap, 'opname') ?? '';
         $this->op = $this->resolve_op($opname);
     }
 
-    public function resolve_op(string $opname): SolardemoOperation
+    public function resolve_op(string $opname): VoxgigSolardemoOperation
     {
         // Cache key is `<entity>:<opname>` so two entities with the same op
         // (e.g. both have a "list") get distinct cached Operations. Keying
@@ -116,7 +120,7 @@ class SolardemoContext
             return $this->opmap[$cacheKey];
         }
         if ($opname === '') {
-            return new SolardemoOperation([]);
+            return new VoxgigSolardemoOperation([]);
         }
 
         $opcfg = \Voxgig\Struct\Struct::getpath($this->config, "entity.{$entname}.op.{$opname}");
@@ -131,7 +135,7 @@ class SolardemoContext
             }
         }
 
-        $op = new SolardemoOperation([
+        $op = new VoxgigSolardemoOperation([
             'entity' => $entname,
             'name' => $opname,
             'input' => $input,
@@ -141,8 +145,8 @@ class SolardemoContext
         return $op;
     }
 
-    public function make_error(string $code, string $msg): SolardemoError
+    public function make_error(string $code, string $msg): VoxgigSolardemoError
     {
-        return new SolardemoError($code, $msg, $this);
+        return new VoxgigSolardemoError($code, $msg, $this);
     }
 }

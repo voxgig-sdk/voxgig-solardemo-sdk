@@ -17,7 +17,7 @@ pub const SdkResult = struct {
     status_text: []const u8 = "",
     headers: Value,
     body: Value = .{ .null = {} },
-    err: ?*err.SolardemoError = null,
+    err: ?*err.VoxgigSolardemoError = null,
     resdata: Value = .{ .null = {} },
     resmatch: Value = .{ .null = {} },
 

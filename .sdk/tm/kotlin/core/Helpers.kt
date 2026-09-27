@@ -1,6 +1,6 @@
 package KOTLINPACKAGE.core
 
-/** Small shared conversions used across the Solardemo SDK runtime. */
+/** Small shared conversions used across the VoxgigSolardemo SDK runtime. */
 object Helpers {
 
   // unsupportedOp is thrown by entity stub methods for operations the

@@ -1,6 +1,6 @@
-package voxgig.solardemosdk.sdktest;
+package voxgig.voxgigsolardemosdk.sdktest;
 
-// Solardemo SDK feature corpus test
+// VoxgigSolardemo SDK feature corpus test
 //
 // Feature behaviour, driven by the SHARED corpus.
 //
@@ -34,11 +34,11 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
-import voxgig.solardemosdk.core.Entity;
-import voxgig.solardemosdk.core.Feature;
-import voxgig.solardemosdk.core.SolardemoSDK;
-import voxgig.solardemosdk.core.SdkError;
-import voxgig.solardemosdk.core.Utility;
+import voxgig.voxgigsolardemosdk.core.Entity;
+import voxgig.voxgigsolardemosdk.core.Feature;
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.core.SdkError;
+import voxgig.voxgigsolardemosdk.core.Utility;
 
 @SuppressWarnings({"unchecked"})
 public class FeatureCorpusTest {
@@ -124,7 +124,7 @@ public class FeatureCorpusTest {
    * transport: 'base' and REPLACES the transport, so a client in test mode
    * would shadow the script.
    */
-  private static SolardemoSDK buildClient(Map<String, Object> kase) {
+  private static VoxgigSolardemoSDK buildClient(Map<String, Object> kase) {
     Map<String, Object> utility = new LinkedHashMap<>();
     utility.put("fetcher", scriptedFetcher(kase.get("res")));
 
@@ -140,7 +140,7 @@ public class FeatureCorpusTest {
     if (kase.get("feature") != null) {
       opts.put("feature", kase.get("feature"));
     }
-    return new SolardemoSDK(opts);
+    return new VoxgigSolardemoSDK(opts);
   }
 
   /**
@@ -150,7 +150,7 @@ public class FeatureCorpusTest {
    * common - so the runner finds them here. An entity accessor is a client
    * method taking one Map and returning something that answers getName().
    */
-  private static List<Op> candidates(SolardemoSDK client) {
+  private static List<Op> candidates(VoxgigSolardemoSDK client) {
     Map<String, Object[]> found = new TreeMap<>();
 
     for (Method m : client.getClass().getMethods()) {
@@ -201,7 +201,7 @@ public class FeatureCorpusTest {
     return out;
   }
 
-  private static Object invoke(SolardemoSDK client, Op op, Map<String, Object> ctrl)
+  private static Object invoke(VoxgigSolardemoSDK client, Op op, Map<String, Object> ctrl)
       throws Exception {
     Object ent = op.accessor.invoke(client, new Object[] {null});
     try {
@@ -340,7 +340,7 @@ public class FeatureCorpusTest {
    * <p>Named, not typed: a project that trimmed the feature has no such class,
    * and a runner that referred to one would not compile there.
    */
-  private static Object record(SolardemoSDK client, String name) {
+  private static Object record(VoxgigSolardemoSDK client, String name) {
     for (Feature f : client.features) {
       if (name.equals(f.getName())) {
         return f;
@@ -402,9 +402,12 @@ public class FeatureCorpusTest {
 
       // Probed by ACTIVATING it: the feature defaults to inactive, so an idle
       // client never builds it and its absence says nothing.
-      SolardemoSDK probe = buildClient(Map.of("feature",
+      VoxgigSolardemoSDK probe = buildClient(Map.of("feature",
           List.of(Map.of("name", name, "active", true))));
       if (null == record(probe, name)) {
+        // The one line every runner prints for an inert section.
+        System.err.println(String.format(
+            "feature.%s: inert (this SDK does not generate the feature)", name));
         continue;
       }
 
@@ -427,7 +430,7 @@ public class FeatureCorpusTest {
         }
         Map<String, Object> kase = (Map<String, Object>) resolve(rawCase, tokens);
 
-        SolardemoSDK client = buildClient(kase);
+        VoxgigSolardemoSDK client = buildClient(kase);
         String label = String.valueOf(kase.get("name"));
 
         List<Object> steps = kase.get("op") instanceof List

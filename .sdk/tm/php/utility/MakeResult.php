@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK utility: make_result
+// VoxgigSolardemo SDK utility: make_result
 
-class SolardemoMakeResult
+class VoxgigSolardemoMakeResult
 {
-    public static function call(SolardemoContext $ctx): array
+    public static function call(VoxgigSolardemoContext $ctx): array
     {
         if (isset($ctx->out['result'])) {
             return [$ctx->out['result'], null];

@@ -12,7 +12,7 @@
 // and PrimaryCorpus.scala — so no emitted call site moved and there is no
 // orphan file for `doctor prune` to delete. It is the Scala peer of
 // tm/java/test/OmniResolver.java, tm/rust/tests/omni_resolver/mod.rs and
-// tm/swift/Tests/ProjectNameSDKTests/OmniResolver.swift.
+// tm/swift/Tests/VoxgigSolardemoSDKTests/OmniResolver.swift.
 //
 // Lives in the DEFAULT package alongside SdkTestMain / Runner /
 // SdkTestSupport, which is where scala-cli's generated test mains live.

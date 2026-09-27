@@ -1,6 +1,6 @@
 import { inspect } from 'node:util';
-import { SolardemoSDK } from './SolardemoSDK';
-import { SolardemoError } from './SolardemoError';
+import { VoxgigSolardemoSDK } from './VoxgigSolardemoSDK';
+import { VoxgigSolardemoError } from './VoxgigSolardemoError';
 import { Utility } from './utility/Utility';
 import { Operation } from './Operation';
 import { Response } from './Response';
@@ -12,7 +12,7 @@ declare class Context {
     current: WeakMap<String, any>;
     ctrl: Record<string, any>;
     meta: Record<string, any>;
-    client: SolardemoSDK;
+    client: VoxgigSolardemoSDK;
     utility: Utility;
     op: Operation;
     point: any;
@@ -31,7 +31,7 @@ declare class Context {
     shared: WeakMap<String, any>;
     constructor(ctxmap: Record<string, any>, basectx?: Context);
     resolveOp(opname: string): Operation;
-    error(code: string, msg: string): SolardemoError;
+    error(code: string, msg: string): VoxgigSolardemoError;
     toJSON(): {
         id: string;
         op: Operation;

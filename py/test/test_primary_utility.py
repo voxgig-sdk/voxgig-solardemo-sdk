@@ -1,4 +1,4 @@
-# Solardemo SDK primary utility test
+# VoxgigSolardemo SDK primary utility test
 #
 # Corpus sections run through the vendored omni runner, via the resolver
 # in test/omni.py (struct-runner shape over native voxgig_omni). The
@@ -18,12 +18,12 @@
 
 import pytest
 
-from solardemo_sdk import SolardemoSDK
-from solardemo_sdk.core.spec import SolardemoSpec
-from solardemo_sdk.core.result import SolardemoResult
-from solardemo_sdk.core.operation import SolardemoOperation
-from solardemo_sdk.core.error import SolardemoError
-from solardemo_sdk.feature.base_feature import SolardemoBaseFeature
+from voxgigsolardemo_sdk import VoxgigSolardemoSDK
+from voxgigsolardemo_sdk.core.spec import VoxgigSolardemoSpec
+from voxgigsolardemo_sdk.core.result import VoxgigSolardemoResult
+from voxgigsolardemo_sdk.core.operation import VoxgigSolardemoOperation
+from voxgigsolardemo_sdk.core.error import VoxgigSolardemoError
+from voxgigsolardemo_sdk.feature.base_feature import VoxgigSolardemoBaseFeature
 
 from test.omni import makeRunner
 
@@ -33,7 +33,7 @@ from test.omni import makeRunner
 TEST_JSON_FILE = '../../.sdk/test/test.json'
 
 
-_runner = makeRunner(TEST_JSON_FILE, SolardemoSDK.test(None, None))
+_runner = makeRunner(TEST_JSON_FILE, VoxgigSolardemoSDK.test(None, None))
 _run = _runner('primary')
 
 spec = _run['spec']
@@ -47,8 +47,65 @@ client = _run['client']['sdk']
 utility = client._utility
 
 
+def _auth_bag(spec_obj, where):
+    # A cookie credential rides the header bag, because a cookie IS a header.
+    return spec_obj.query if "query" == where else spec_obj.headers
+
+
+class _AuthProbeClient:
+    """Minimal stand-in so the probe below controls the apikey: the suite's
+    own client carries whatever options a project configured, and an empty
+    apikey places no credential to find."""
+
+    def options_map(self):
+        # `basic: False`: a Basic API's config defaults it true, and the branch
+        # it selects needs a secret, so the probe would find nothing.
+        return {"apikey": "PROBE", "auth": {"prefix": "", "basic": False}}
+
+
+def _auth_credential():
+    """Which container the generated prepare_auth writes the credential
+    into, and under what name. The name is the API's OWN scheme name, so it
+    is discovered by running prepare_auth once rather than assumed."""
+    ctx = _make_test_ctx(client, utility)
+    ctx.client = _AuthProbeClient()
+    ctx.spec = VoxgigSolardemoSpec({"headers": {}, "query": {}})
+    try:
+        utility.prepare_auth(ctx)
+    except Exception:
+        return None
+    for where in ("headers", "query"):
+        bag = _auth_bag(ctx.spec, where)
+        for name in bag:
+            return {"where": where, "name": name}
+    return None
+
+
+def _retarget_auth(node, cred):
+    """Rename the corpus's `headers` bag to the real container, and the
+    `authorization` key inside it to the real credential name. Applied only
+    to the prepareAuth section, so real header assertions elsewhere are
+    untouched."""
+    if isinstance(node, list):
+        return [_retarget_auth(n, cred) for n in node]
+    if not isinstance(node, dict):
+        return node
+    out = {}
+    for key in node:
+        if "headers" == key:
+            bag = {}
+            inner = node[key] if isinstance(node[key], dict) else {}
+            for bagkey in inner:
+                name = cred["name"] if "authorization" == bagkey else bagkey
+                bag[name] = _retarget_auth(inner[bagkey], cred)
+            out[cred["where"]] = bag
+        else:
+            out[key] = _retarget_auth(node[key], cred)
+    return out
+
+
 # Sections deliberately left empty in the shared corpus
-# (.sdk/test/primary/<name>.aon carries a PENDING header). Everything else
+# (.sdk/test/primary/<name>.aontu carries a PENDING header). Everything else
 # MUST contribute cases.
 PENDING = {
     'fetcher', 'makeFetchDef', 'makeResult',
@@ -91,7 +148,7 @@ def _err_from_map(m):
     if msg == "":
         return None
     code = m.get("code", "")
-    return SolardemoError(code, msg)
+    return VoxgigSolardemoError(code, msg)
 
 
 def _make_test_ctx(client, utility, overrides=None):
@@ -125,7 +182,7 @@ def _make_test_full_ctx(client, utility):
 class TestPrimaryUtility:
 
     def test_exists(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
 
         assert utility.clean is not None
@@ -159,7 +216,7 @@ class TestPrimaryUtility:
         assert utility.transform_response is not None
 
     def test_clean_basic(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_ctx(client, utility)
         val = {"key": "secret123", "name": "test"}
@@ -179,11 +236,11 @@ class TestPrimaryUtility:
         runsection('makeError', subject)
 
     def test_make_error_no_throw(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_full_ctx(client, utility)
         ctx.ctrl.throw_err = False
-        ctx.result = SolardemoResult({
+        ctx.result = VoxgigSolardemoResult({
             "ok": False,
             "resdata": {"id": "safe01"},
         })
@@ -195,24 +252,24 @@ class TestPrimaryUtility:
         assert out["id"] == "safe01"
 
     def test_feature_add_basic(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_ctx(client, utility)
         start_len = len(client.features)
 
-        feature = SolardemoBaseFeature()
+        feature = VoxgigSolardemoBaseFeature()
         utility.feature_add(ctx, feature)
 
         assert len(client.features) == start_len + 1
 
     def test_feature_hook_basic(self):
-        hook_client = SolardemoSDK.test(None, None)
+        hook_client = VoxgigSolardemoSDK.test(None, None)
         hook_utility = hook_client._utility
         ctx = _make_test_ctx(hook_client, hook_utility)
 
         state = {"called": False}
 
-        class TestHookFeature(SolardemoBaseFeature):
+        class TestHookFeature(VoxgigSolardemoBaseFeature):
             def TestHook(self, ctx):
                 state["called"] = True
 
@@ -223,7 +280,7 @@ class TestPrimaryUtility:
         assert state["called"] is True
 
     def test_feature_init_basic(self):
-        init_client = SolardemoSDK.test(None, None)
+        init_client = VoxgigSolardemoSDK.test(None, None)
         init_utility = init_client._utility
         ctx = _make_test_ctx(init_client, init_utility)
         ctx.options["feature"] = {
@@ -232,7 +289,7 @@ class TestPrimaryUtility:
 
         state = {"called": False}
 
-        class TestInitFeature(SolardemoBaseFeature):
+        class TestInitFeature(VoxgigSolardemoBaseFeature):
             def __init__(self):
                 super().__init__()
                 self.name = "initfeat"
@@ -246,7 +303,7 @@ class TestPrimaryUtility:
         assert state["called"] is True
 
     def test_feature_init_inactive(self):
-        init_client = SolardemoSDK.test(None, None)
+        init_client = VoxgigSolardemoSDK.test(None, None)
         init_utility = init_client._utility
         ctx = _make_test_ctx(init_client, init_utility)
         ctx.options["feature"] = {
@@ -255,7 +312,7 @@ class TestPrimaryUtility:
 
         state = {"called": False}
 
-        class TestInitFeatureInactive(SolardemoBaseFeature):
+        class TestInitFeatureInactive(VoxgigSolardemoBaseFeature):
             def __init__(self):
                 super().__init__()
                 self.name = "nofeat"
@@ -275,7 +332,7 @@ class TestPrimaryUtility:
             calls.append({"url": url, "init": fetchdef})
             return {"status": 200, "statusText": "OK"}, None
 
-        live_client = SolardemoSDK({
+        live_client = VoxgigSolardemoSDK({
             # Concrete base: a live construction must satisfy any server
             # variables a templated base URL declares; a literal base
             # sidesteps the requirement.
@@ -301,7 +358,7 @@ class TestPrimaryUtility:
         def mock_fetch(url, fetchdef):
             return {}, None
 
-        blocked_client = SolardemoSDK({
+        blocked_client = VoxgigSolardemoSDK({
             "base": "http://localhost:8080",
             "system": {
                 "fetch": mock_fetch,
@@ -339,10 +396,10 @@ class TestPrimaryUtility:
         runsection('makeContext', subject)
 
     def test_make_fetch_def_basic(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_full_ctx(client, utility)
-        ctx.spec = SolardemoSpec({
+        ctx.spec = VoxgigSolardemoSpec({
             "base": "http://localhost:8080",
             "prefix": "/api",
             "path": "items/{id}",
@@ -353,7 +410,7 @@ class TestPrimaryUtility:
             "method": "GET",
             "step": "start",
         })
-        ctx.result = SolardemoResult({})
+        ctx.result = VoxgigSolardemoResult({})
 
         fetchdef, err = utility.make_fetch_def(ctx)
         assert err is None
@@ -364,10 +421,10 @@ class TestPrimaryUtility:
         assert fetchdef.get("body") is None
 
     def test_make_fetch_def_with_body(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_full_ctx(client, utility)
-        ctx.spec = SolardemoSpec({
+        ctx.spec = VoxgigSolardemoSpec({
             "base": "http://localhost:8080",
             "prefix": "",
             "path": "items",
@@ -379,7 +436,7 @@ class TestPrimaryUtility:
             "step": "start",
             "body": {"name": "test"},
         })
-        ctx.result = SolardemoResult({})
+        ctx.result = VoxgigSolardemoResult({})
 
         fetchdef, err = utility.make_fetch_def(ctx)
         assert err is None
@@ -411,10 +468,10 @@ class TestPrimaryUtility:
                    lambda ctx: _unwrap(utility.make_response(ctx)))
 
     def test_make_result_basic(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_full_ctx(client, utility)
-        ctx.spec = SolardemoSpec({
+        ctx.spec = VoxgigSolardemoSpec({
             "base": "http://localhost:8080",
             "prefix": "/api",
             "path": "items/{id}",
@@ -425,7 +482,7 @@ class TestPrimaryUtility:
             "method": "GET",
             "step": "start",
         })
-        ctx.result = SolardemoResult({
+        ctx.result = VoxgigSolardemoResult({
             "ok": True,
             "status": 200,
             "statusText": "OK",
@@ -438,11 +495,11 @@ class TestPrimaryUtility:
         assert result.status == 200
 
     def test_make_result_no_spec(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_full_ctx(client, utility)
         ctx.spec = None
-        ctx.result = SolardemoResult({
+        ctx.result = VoxgigSolardemoResult({
             "ok": True,
             "status": 200,
             "statusText": "OK",
@@ -453,10 +510,10 @@ class TestPrimaryUtility:
         assert err is not None
 
     def test_make_result_no_result(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_full_ctx(client, utility)
-        ctx.spec = SolardemoSpec({"step": "start"})
+        ctx.spec = VoxgigSolardemoSpec({"step": "start"})
         ctx.result = None
 
         _, err = utility.make_result(ctx)
@@ -464,7 +521,7 @@ class TestPrimaryUtility:
 
     def test_make_spec_basic(self):
         setup = spec.get('makeSpec', {}).get('DEF', {}).get('setup', {})
-        spec_client = SolardemoSDK.test(None, setup.get('a') or {})
+        spec_client = VoxgigSolardemoSDK.test(None, setup.get('a') or {})
 
         def subject(ctx):
             ctx.client = spec_client
@@ -487,7 +544,7 @@ class TestPrimaryUtility:
         runsection('makePoint', subject)
 
     def test_make_point_single(self):
-        client = SolardemoSDK.test(None, None)
+        client = VoxgigSolardemoSDK.test(None, None)
         utility = client._utility
         ctx = _make_test_ctx(client, utility)
         point = {
@@ -508,7 +565,7 @@ class TestPrimaryUtility:
     def test_make_url_basic(self):
         def subject(ctx):
             if ctx.result is None:
-                ctx.result = SolardemoResult({})
+                ctx.result = VoxgigSolardemoResult({})
             return _unwrap(utility.make_url(ctx))
 
         runsection('makeUrl', subject)
@@ -517,7 +574,7 @@ class TestPrimaryUtility:
         def subject(vin):
             if not isinstance(vin, dict):
                 vin = {}
-            op = SolardemoOperation(vin)
+            op = VoxgigSolardemoOperation(vin)
             return {
                 "entity": op.entity,
                 "name": op.name,
@@ -532,13 +589,31 @@ class TestPrimaryUtility:
 
     def test_prepare_auth_basic(self):
         setup = spec.get('prepareAuth', {}).get('DEF', {}).get('setup', {})
-        auth_client = SolardemoSDK.test(None, setup.get('a') or {})
+        auth_client = VoxgigSolardemoSDK.test(None, setup.get('a') or {})
 
         def subject(ctx):
             ctx.client = auth_client
             return _unwrap(utility.prepare_auth(ctx))
 
-        runsection('prepareAuth', subject)
+        # The corpus writes the credential as `headers.authorization`: a
+        # PLACEHOLDER each runner points at the container and name this API
+        # actually uses.
+        cred = _auth_credential()
+        assert cred is not None, \
+            'prepare_auth placed no credential in headers or query'
+
+        # An absent section is runsection's report to make.
+        section = spec.get('prepareAuth') if isinstance(spec, dict) else None
+        swap = isinstance(section, dict) and (
+            'headers' != cred['where'] or 'authorization' != cred['name'])
+        original = section['basic'] if swap else None
+        if swap:
+            section['basic'] = _retarget_auth(original, cred)
+        try:
+            runsection('prepareAuth', subject)
+        finally:
+            if swap:
+                section['basic'] = original
 
     def test_prepare_body_basic(self):
         runsection('prepareBody', lambda ctx: utility.prepare_body(ctx))

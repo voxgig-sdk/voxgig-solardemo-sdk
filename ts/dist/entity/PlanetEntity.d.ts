@@ -1,9 +1,9 @@
-import { SolardemoEntityBase } from '../SolardemoEntityBase';
-import type { SolardemoSDK } from '../SolardemoSDK';
+import { VoxgigSolardemoEntityBase } from '../VoxgigSolardemoEntityBase';
+import type { VoxgigSolardemoSDK } from '../VoxgigSolardemoSDK';
 import type { Control } from '../types';
-import type { Planet, PlanetLoadMatch, PlanetListMatch, PlanetCreateData, PlanetUpdateData, PlanetRemoveMatch } from '../SolardemoTypes';
-declare class PlanetEntity extends SolardemoEntityBase<Planet> {
-    constructor(client: SolardemoSDK, entopts: any);
+import type { Planet, PlanetLoadMatch, PlanetListMatch, PlanetCreateData, PlanetUpdateData, PlanetRemoveMatch } from '../VoxgigSolardemoTypes';
+declare class PlanetEntity extends VoxgigSolardemoEntityBase<Planet> {
+    constructor(client: VoxgigSolardemoSDK, entopts: any);
     make(this: PlanetEntity): PlanetEntity;
     load(this: any, reqmatch?: PlanetLoadMatch, ctrl?: Control): Promise<PlanetEntity>;
     list(this: any, reqmatch?: PlanetListMatch, ctrl?: Control): Promise<PlanetEntity[]>;

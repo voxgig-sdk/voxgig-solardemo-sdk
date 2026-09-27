@@ -3,9 +3,9 @@
 import json
 import pytest
 
-from solardemo_sdk.utility.voxgig_struct import voxgig_struct as vs
-from solardemo_sdk import SolardemoSDK
-from solardemo_sdk.core import helpers
+from voxgigsolardemo_sdk.utility.voxgig_struct import voxgig_struct as vs
+from voxgigsolardemo_sdk import VoxgigSolardemoSDK
+from voxgigsolardemo_sdk.core import helpers
 from test import runner
 
 
@@ -118,11 +118,11 @@ def _moon_direct_setup(mockres):
     calls = []
 
     env = runner.env_override({
-        "SOLARDEMO_TEST_MOON_ENTID": {},
-        "SOLARDEMO_TEST_LIVE": "FALSE",
+        "VOXGIG_SOLARDEMO_TEST_MOON_ENTID": {},
+        "VOXGIG_SOLARDEMO_TEST_LIVE": "FALSE",
     })
 
-    live = env.get("SOLARDEMO_TEST_LIVE") == "TRUE"
+    live = env.get("VOXGIG_SOLARDEMO_TEST_LIVE") == "TRUE"
 
     if live:
         # sdk-test-control.json's test.client.options seeds the live
@@ -130,7 +130,7 @@ def _moon_direct_setup(mockres):
         merged_opts = dict(runner.live_client_options())
         merged_opts.update({
         })
-        client = SolardemoSDK(merged_opts)
+        client = VoxgigSolardemoSDK(merged_opts)
         return {
             "client": client,
             "calls": calls,
@@ -148,7 +148,7 @@ def _moon_direct_setup(mockres):
             "body": "mock",
         }, None
 
-    client = SolardemoSDK({
+    client = VoxgigSolardemoSDK({
         "base": "http://localhost:8080",
         "system": {
             "fetch": mock_fetch,

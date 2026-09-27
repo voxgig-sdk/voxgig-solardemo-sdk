@@ -19,6 +19,9 @@ const result_mod = @import("result.zig");
 const operation_mod = @import("operation.zig");
 const jsonparse = @import("../utility/jsonparse.zig");
 const sdk = @import("sdk.zig");
+// The GENERATED option spec make_options validates against. A leaf module
+// (it imports only helpers and jsonparse), so this closes no cycle.
+const schema = @import("schema.zig");
 
 const Value = h.Value;
 const Context = ctxmod.Context;
@@ -200,10 +203,10 @@ pub fn make_error_util(ctx: *Context) E!Value {
     };
     result.ok = false;
 
-    const the_err: *err.SolardemoError = in_err orelse (result.err orelse ctx.make_error("unknown", "unknown error"));
+    const the_err: *err.VoxgigSolardemoError = in_err orelse (result.err orelse ctx.make_error("unknown", "unknown error"));
 
     const errmsg = the_err.msg;
-    const msg0 = fmt("SolardemoSDK: {s}: {s}", .{ opname, errmsg });
+    const msg0 = fmt("VoxgigSolardemoSDK: {s}: {s}", .{ opname, errmsg });
     const msg = clean_str(ctx, msg0);
 
     result.err = null;
@@ -215,7 +218,7 @@ pub fn make_error_util(ctx: *Context) E!Value {
         h.setp(c.explain, "err", h.jo(&.{.{ "message", h.vstr(msg) }}));
     }
 
-    const sdk_err = err.SolardemoError.make("", msg);
+    const sdk_err = err.VoxgigSolardemoError.make("", msg);
     sdk_err.code = the_err.code;
     sdk_err.result = clean_util(ctx, result.to_value());
     sdk_err.spec = clean_util(ctx, spec_val);
@@ -252,11 +255,11 @@ pub fn feature_add_util(ctx: *Context, f: Feature) void {
             while (i < feats.items.len) : (i += 1) {
                 const nm = feats.items[i].name();
                 if (before.len != 0 and std.mem.eql(u8, before, nm)) {
-                    feats.insert(i, f) catch {};
+                    feats.insert(h.A(), i, f) catch {};
                     return;
                 }
                 if (after.len != 0 and std.mem.eql(u8, after, nm)) {
-                    feats.insert(i + 1, f) catch {};
+                    feats.insert(h.A(), i + 1, f) catch {};
                     return;
                 }
                 if (replace.len != 0 and std.mem.eql(u8, replace, nm)) {
@@ -266,14 +269,14 @@ pub fn feature_add_util(ctx: *Context, f: Feature) void {
             }
         }
     }
-    client.features.append(f) catch {};
+    client.features.append(h.A(), f) catch {};
 }
 
 pub fn feature_hook_util(ctx: *Context, name: []const u8) void {
     const client = ctx.client orelse return;
     // Snapshot so a hook that mutates the feature set is safe to iterate.
-    var snap = std.ArrayList(Feature).init(h.A());
-    for (client.features.items) |f| snap.append(f) catch {};
+    var snap: std.ArrayList(Feature) = .empty;
+    for (client.features.items) |f| snap.append(h.A(), f) catch {};
     for (snap.items) |f| f.dispatch(name, ctx);
 }
 
@@ -367,39 +370,18 @@ pub fn make_options_util(ctx: *Context) Value {
         else => h.omap(),
     };
 
-    const optspec = h.jo(&.{
-        .{ "apikey", h.vstr("") },
-        .{ "base", h.vstr("http://localhost:8000") },
-        .{ "prefix", h.vstr("") },
-        .{ "suffix", h.vstr("") },
-        .{ "auth", h.jo(&.{ .{ "prefix", h.vstr("") }, .{ "basic", h.vbool(false) } }) },
-        .{ "headers", h.jo(&.{.{ "`$CHILD`", h.vstr("`$STRING`") }}) },
-        .{ "allow", h.jo(&.{
-            .{ "method", h.vstr("GET,PUT,POST,PATCH,DELETE,OPTIONS") },
-            .{ "op", h.vstr("create,update,load,list,remove,command,direct,graphql") },
-        }) },
-        .{ "entity", h.jo(&.{.{ "`$CHILD`", h.jo(&.{
-            .{ "`$OPEN`", h.vbool(true) },
-            .{ "active", h.vbool(false) },
-            .{ "alias", h.omap() },
-        }) }}) },
-        .{ "feature", h.jo(&.{.{ "`$CHILD`", h.jo(&.{
-            .{ "`$OPEN`", h.vbool(true) },
-            .{ "active", h.vbool(false) },
-        }) }}) },
-        .{ "utility", h.omap() },
-        .{ "system", h.omap() },
-        .{ "test", h.jo(&.{
-            .{ "active", h.vbool(false) },
-            .{ "entity", h.jo(&.{.{ "`$OPEN`", h.vbool(true) }}) },
-        }) },
-        .{ "clean", h.jo(&.{.{ "keys", h.vstr("key,token,id") }}) },
-        // Server-variable values for a templated base URL (OpenAPI server
-        // variables): {name} placeholders in "base" are substituted from this
-        // map at construction. Spec defaults arrive via the generated config;
-        // user values override them. Mirrors go's make_options optspec.
-        .{ "server", h.jo(&.{.{ "`$CHILD`", h.vstr("") }}) },
-    });
+    // THE OPTION SPEC IS GENERATED, NOT WRITTEN HERE.
+    //
+    // Built from the model: `main.kit.optspec` for the standard options, plus
+    // one entry per feature this target carries, from that feature's own
+    // `config.options` / `config.optspec`. Editing this file to add an option
+    // would put it back where it was - one of twenty hand-maintained copies of
+    // a schema nothing cross-checked - so add it to the model instead and
+    // every ported target validates it.
+    //
+    // Parsed once and shared: make_options validates AGAINST the spec and
+    // writes into the options, never into the spec.
+    const optspec = schema.shared_optspec();
 
     // Preserve system.fetch before merge/validate (validation strips it).
     const sys_fetch = h.getpath(&.{ "system", "fetch" }, opts);
@@ -441,11 +423,11 @@ pub fn make_options_util(ctx: *Context) Value {
                     else => "SDK",
                 };
 
-                var out = std.ArrayList(u8).init(h.A());
+                var out: std.ArrayList(u8) = .empty;
                 var i: usize = 0;
                 while (i < base.len) {
                     if ('{' != base[i]) {
-                        out.append(base[i]) catch {};
+                        out.append(h.A(), base[i]) catch {};
                         i += 1;
                         continue;
                     }
@@ -454,7 +436,7 @@ pub fn make_options_util(ctx: *Context) Value {
                         j += 1;
                     }
                     if (j >= base.len or '}' != base[j] or j == i + 1) {
-                        out.append(base[i]) catch {};
+                        out.append(h.A(), base[i]) catch {};
                         i += 1;
                         continue;
                     }
@@ -465,8 +447,8 @@ pub fn make_options_util(ctx: *Context) Value {
                     };
                     if (0 == val.len) {
                         if (testmode) {
-                            out.appendSlice("test-") catch {};
-                            out.appendSlice(name) catch {};
+                            out.appendSlice(h.A(), "test-") catch {};
+                            out.appendSlice(h.A(), name) catch {};
                         } else {
                             std.debug.panic(
                                 "{s}: the server variable '{s}' is required: the API " ++
@@ -476,11 +458,11 @@ pub fn make_options_util(ctx: *Context) Value {
                             );
                         }
                     } else {
-                        out.appendSlice(val) catch {};
+                        out.appendSlice(h.A(), val) catch {};
                     }
                     i = j + 1;
                 }
-                h.setp(opts, "base", h.vstr(out.toOwnedSlice() catch base));
+                h.setp(opts, "base", h.vstr(out.toOwnedSlice(h.A()) catch base));
             }
         },
         else => {},
@@ -502,11 +484,11 @@ pub fn make_options_util(ctx: *Context) Value {
         else => "key,token,id",
     };
 
-    var parts = std.ArrayList([]const u8).init(h.A());
+    var parts: std.ArrayList([]const u8) = .empty;
     var it = std.mem.splitScalar(u8, clean_keys, ',');
     while (it.next()) |p| {
         const t = std.mem.trim(u8, p, " \t");
-        if (t.len != 0) parts.append(h.esc_re(t)) catch {};
+        if (t.len != 0) parts.append(h.A(), h.esc_re(t)) catch {};
     }
     const keyre = std.mem.join(h.A(), "|", parts.items) catch "";
 
@@ -516,9 +498,9 @@ pub fn make_options_util(ctx: *Context) Value {
     if (feature_order.array.data.items.len == 0) {
         const fmapv = h.getp(opts, "feature");
         if (fmapv == .object) {
-            var names = std.ArrayList([]const u8).init(h.A());
+            var names: std.ArrayList([]const u8) = .empty;
             var nit = fmapv.object.iterator();
-            while (nit.next()) |kv| names.append(kv.key_ptr.*) catch {};
+            while (nit.next()) |kv| names.append(h.A(), kv.key_ptr.*) catch {};
             std.mem.sort([]const u8, names.items, {}, mo_str_less);
             var has_test = false;
             for (names.items) |nm| {
@@ -700,6 +682,11 @@ pub fn make_point_util(ctx: *Context) E!Value {
 pub fn make_spec_util(ctx: *Context) E!*Spec {
     if (ctx.out_get("spec")) |ov| {
         switch (ov) {
+            // A PreSpec feature hook (e.g. validate) may short-circuit the
+            // operation by storing an error here; surface it before the
+            // request is built, the same way make_point surfaces
+            // out["point"].
+            .err => |e| return ctx.fail_err(e),
             .spec => |sp| {
                 ctx.spec = sp;
                 return sp;
@@ -1059,7 +1046,7 @@ pub fn prepare_headers_util(ctx: *Context) Value {
     if (h.is_noval(headers)) return h.omap();
 
     return switch (h.clone(headers)) {
-        .object => |_| h.clone(headers),
+        .object => h.clone(headers),
         else => h.omap(),
     };
 }
@@ -1133,7 +1120,7 @@ pub fn prepare_query_util(ctx: *Context) Value {
                     }
                 }
             }
-            if (!h.is_noval(val) and !contained) h.setp(out, key, val);
+            if (!h.is_noval(val) and !std.mem.eql(u8, key, "$action") and !contained) h.setp(out, key, val);
         }
     }
     return out;
@@ -1308,50 +1295,31 @@ pub fn graphql_errors_util(ctx: *Context) bool {
     return true;
 }
 
-const HEADER_AUTH = "authorization";
-const OPTION_APIKEY = "apikey";
-const NOT_FOUND = "__NOTFOUND__";
+// prepare_auth IS GENERATED (src/cmp/zig/PrepareAuth_zig.ts), not templated.
+//
+// WHERE THE CREDENTIAL GOES IS A FACT ABOUT THE API. apidef resolves the
+// security scheme's `in` and `name` into main.kit.info.security - joplin's
+// says `in: "query", name: "token"` - and this file could hold only one
+// answer, which was `const HEADER_AUTH = "authorization"`. So an
+// apiKey-in-query API was sent a header it does not read and never sent the
+// query parameter it does. Header, query and cookie need three different
+// bodies; a component emits the one this API uses and nothing else.
+//
+// RE-EXPORTED, NOT REWIRED. Every caller keeps naming the same symbol:
+// `Utility.prepare_auth` above, `make_spec_util`'s unqualified
+// `try prepare_auth_util(ctx)`, and `sdk.utilmod.prepare_auth_util` - the
+// path root.zig publishes and test/primary_utility_test.zig drives the
+// shared corpus's `prepareAuth` section through. A file-scope const bound to
+// the generated function is the whole of the binding change.
+pub const prepare_auth_util = @import("prepare_auth.zig").prepare_auth_util;
 
-pub fn prepare_auth_util(ctx: *Context) E!*Spec {
-    const spec = ctx.spec orelse return ctx.fail("auth_no_spec", "Expected context spec property to be defined.");
-
-    const headers = spec.headers;
-    const options: Value = if (ctx.client) |client| client.options_map() else ctx.options;
-
-    const auth = h.getp(options, "auth");
-    if (h.is_noval(auth)) {
-        h.del_prop(headers, h.vstr(HEADER_AUTH));
-        return spec;
-    }
-
-    const apikey = vs.getprop(h.A(), options, h.vstr(OPTION_APIKEY), h.vstr(NOT_FOUND)) catch h.vstr(NOT_FOUND);
-
-    const skip = switch (apikey) {
-        .null => true,
-        .string => |s| std.mem.eql(u8, s, NOT_FOUND) or s.len == 0,
-        else => false,
-    };
-
-    if (skip) {
-        h.del_prop(headers, h.vstr(HEADER_AUTH));
-    } else {
-        const auth_prefix: []const u8 = switch (h.getpath(&.{ "auth", "prefix" }, options)) {
-            .string => |s| s,
-            else => "",
-        };
-        const apikey_val: []const u8 = switch (apikey) {
-            .string => |s| s,
-            else => "",
-        };
-        if (auth_prefix.len == 0) {
-            h.setp(headers, HEADER_AUTH, h.vstr(apikey_val));
-        } else {
-            h.setp(headers, HEADER_AUTH, h.vstr(fmt("{s} {s}", .{ auth_prefix, apikey_val })));
-        }
-    }
-
-    return spec;
-}
+// The two comptime FACTS the generated file decided: where this SDK puts its
+// credential ("header" | "query" | "cookie" | "none"), and whether the scheme
+// is genuine HTTP Basic. Re-exported on the same path as the function, so
+// test/pipeline_test.zig can reach both as `sdk.utilmod.<name>` and skip the
+// header-shape cases on an SDK that has no header credential to assert on.
+pub const prepare_auth_placement = @import("prepare_auth.zig").PLACEMENT;
+pub const prepare_auth_basic = @import("prepare_auth.zig").BASIC;
 
 pub fn result_basic_util(ctx: *Context) ?*SdkResult {
     const response = ctx.response;
@@ -1407,6 +1375,20 @@ pub fn result_body_util(ctx: *Context) ?*SdkResult {
     return result;
 }
 
+// `$action` selects the point (see make_point_util); it is never an API
+// field, so the body is a copy without it. The caller's map is left untouched.
+fn strip_action(reqdata: Value) Value {
+    if (reqdata != .object) return reqdata;
+    if (reqdata.object.get("$action") == null) return reqdata;
+    const body = h.omap();
+    var it = reqdata.object.iterator();
+    while (it.next()) |kv| {
+        const key = kv.key_ptr.*;
+        if (!std.mem.eql(u8, key, "$action")) h.setp(body, key, kv.value_ptr.*);
+    }
+    return body;
+}
+
 pub fn transform_request_util(ctx: *Context) Value {
     const spec = ctx.spec;
     const point = ctx.point;
@@ -1414,13 +1396,16 @@ pub fn transform_request_util(ctx: *Context) Value {
     if (spec) |sp| sp.step = "reqform";
 
     const transform = h.to_map(h.getp(point, "transform"));
-    if (h.is_noval(transform)) return ctx.reqdata;
+    if (h.is_noval(transform)) return strip_action(ctx.reqdata);
 
     const reqform = h.getp(transform, "req");
-    if (h.is_noval(reqform)) return ctx.reqdata;
+    if (h.is_noval(reqform)) return strip_action(ctx.reqdata);
 
     const store = h.jo(&.{.{ "reqdata", ctx.reqdata }});
-    return vs.transform(h.A(), store, reqform) catch ctx.reqdata;
+    // transform now reports collected injection errors beside the value; .out
+    // is what it used to return on its own, errors or not.
+    const tres = vs.transform(h.A(), store, reqform) catch return strip_action(ctx.reqdata);
+    return strip_action(tres.out);
 }
 
 pub fn transform_response_util(ctx: *Context) Value {
@@ -1449,7 +1434,8 @@ pub fn transform_response_util(ctx: *Context) Value {
         .{ "resmatch", res.resmatch },
     });
 
-    const resdata = vs.transform(h.A(), store, resform) catch return h.vnull();
+    const tres = vs.transform(h.A(), store, resform) catch return h.vnull();
+    const resdata = tres.out;
     res.resdata = resdata;
     return resdata;
 }

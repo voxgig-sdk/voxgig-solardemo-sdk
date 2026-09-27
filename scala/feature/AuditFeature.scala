@@ -1,7 +1,7 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
-import voxgig.solardemosdk.core.{Context, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, SdkClient}
 
 // Audit trail. Emits a structured record for every operation — who (actor),
 // what (entity + op), the outcome, and a correlation id — suitable for

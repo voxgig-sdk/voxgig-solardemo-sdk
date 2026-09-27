@@ -13,7 +13,10 @@ import {
   each,
   isAuthActive,
   isConfigData,
+  isHttpBasicAuth,
   rawStringLiteral,
+  resolveAuthIn,
+  resolveAuthName,
   resolveAuthPrefix,
   serverVariables,
   targetFeatures,
@@ -33,6 +36,51 @@ import {
 } from './utility_rb'
 
 
+function rbPlugins(model: any, feature: any) {
+  const bypath: Record<string, string[]> = {}
+  const defs: Record<string, string[]> = {}
+  let declared = false
+
+  each(feature, (f: any) => {
+    // `only_active: false`, and this is the whole subtlety: the feature
+    // object a component is handed has ALREADY been filtered, so asking it
+    // whether a catalogue EXISTS answers no as soon as every group is off.
+    // (Same trap helpers/featureSource documents one level down.)
+    const all = getModelPath(model, `main.${KIT}.feature.${f.name}.plugin`,
+      { required: false, only_active: false }) || {}
+
+    if (0 < Object.keys(all).length) {
+      declared = true
+    }
+
+    const syms: string[] = []
+
+    each(f.plugin, (plugin: any) => {
+      // Filter on `active` HERE rather than trusting the feature object to
+      // arrive filtered: getting it wrong in this direction emits a require
+      // for a module the plugin trim just deleted - an SDK that does not
+      // load, rather than one that merely carries too much.
+      if (false === plugin.active || null == plugin.active) return
+
+      for (const [sym, one] of Object.entries(plugin.def?.rb || {})) {
+        const path = String(one)
+        ; (bypath[path] = bypath[path] || []).push(sym)
+        syms.push(sym)
+      }
+    })
+
+    if (0 < syms.length) {
+      defs[f.name] = syms.sort()
+    }
+  })
+
+  const requires = Object.keys(bypath).sort().map(
+    (path: string) => `require_relative '${path.replace(/\.rb$/, '')}'`)
+
+  return { requires, defs, declared }
+}
+
+
 const Config = cmp(async function Config(props: any) {
   const ctx$ = props.ctx$
   const target = props.target
@@ -40,16 +88,15 @@ const Config = cmp(async function Config(props: any) {
   const model: Model = ctx$.model
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  // Gated by the applicability tags, so this target never imports or
-  // registers a feature it has no source for. One rule, one place:
-  // helpers/applicability.
   const feature = targetFeatures(model, target)
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
   const authActive = isAuthActive(model)
-  // config.auth.prefix override -> spec-derived info.security.prefix -> 'Bearer'
   const authPrefix = resolveAuthPrefix(model)
+  const authBasic = isHttpBasicAuth(model)
+  const authIn = resolveAuthIn(model)
+  const authName = resolveAuthName(model)
 
   let baseUrl = ''
   try { baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`) } catch (_e) { }
@@ -66,26 +113,41 @@ const Config = cmp(async function Config(props: any) {
 
   const authBlock = authActive
     ? `        "auth" => {
-          "prefix" => "${authPrefix}",
+          "prefix" => "${authPrefix}",${authBasic ? `
+          "basic" => true,` : ''}${'header' === authIn ? '' : `
+          "in" => "${authIn}",`}${'Authorization' === authName ? '' : `
+          "name" => "${authName}",`}
         },\n`
     : ''
 
-  // The same config as an OBJECT, built by the shared helper so this target's
-  // literal and the data that replaces it above the threshold are the same
-  // config by construction. The JSON is what the threshold is measured on -
-  // emitted source size varies by language, the model does not.
-  // Passing the target name opts in to the main slug/version/target identity
-  // fields (station descriptor inputs) - the literal path below emits them
-  // too, keeping data and literal reps in step.
   const { def: configDef, json: configJson } = configDefinition(model, target.name)
   const asData = isConfigData(configJson, configReprSetting(model))
+
+  const { requires, defs, declared } = rbPlugins(model, feature)
+
+  const pluginRequireBlock = 0 === requires.length ? '' :
+    '\n' + requires.join('\n') + '\n'
+
+  const featurePluginsBlock = !declared ? '' :
+    `  # The sekreto plugin DEFINITIONS the model selected per feature,
+  # required above from the modules the catalogue's active \`plugin.def\`
+  # entries declare. Handed to each feature (secrets builds its Sekreto
+  # with them): a provider kind not listed here is unknown to this SDK.
+  FEATURE_PLUGINS = {
+` +
+    Object.keys(defs).sort().map((fname: string) =>
+      `    "${fname}" => [${defs[fname].join(', ')}],\n`).join('') +
+    `  }.freeze
+
+
+`
 
   File({ name: 'config.' + target.ext }, () => {
 
     Content(`# ${model.const.Name} SDK configuration
-${asData ? "\nrequire 'json'\n" : ''}
+${asData ? "\nrequire 'json'\n" : ''}${pluginRequireBlock}
 module ${model.const.Name}Config
-  # Return the process-wide config, built once on first use. The SDK reads
+${featurePluginsBlock}  # Return the process-wide config, built once on first use. The SDK reads
   # the config on every request and never writes to it, so one instance is
   # shared by every client rather than rebuilt per client.
   #
@@ -98,17 +160,6 @@ module ${model.const.Name}Config
 
 `)
 
-    // ABOVE THE THRESHOLD: emit the model as DATA.
-    //
-    // A hash literal makes the Ruby parser build a node per entry and the VM
-    // execute an instruction per entry on every load. A string constant is one
-    // token, and `JSON.parse` (a C extension) builds the hash far faster.
-    //
-    // `JSON.parse` yields exactly what the literal did - String keys, Integer
-    // for whole numbers, true/false/nil - so make_config's result is unchanged.
-    //
-    // A SINGLE-quoted literal, so the JSON survives verbatim: a double-quoted
-    // Ruby string would interpolate any `#{` the model happens to contain.
     if (asData) {
       Content(`  # THE API MODEL, EMBEDDED AS DATA (sdkgen rung L1).
   #

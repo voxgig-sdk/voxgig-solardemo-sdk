@@ -1,4 +1,4 @@
-// Solardemo SDK — documentation csharp-examples PRESENCE + STRUCTURE gate.
+// VoxgigSolardemo SDK — documentation csharp-examples PRESENCE + STRUCTURE gate.
 //
 // GUARANTEE (see ReadmeExamplesTest_csharp.ts for why this is a structure gate
 // and not an execute gate): every csharp example in the docs is accounted for.
@@ -19,7 +19,7 @@ using System.Runtime.CompilerServices;
 
 using Xunit;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class ReadmeExamplesTest
 {

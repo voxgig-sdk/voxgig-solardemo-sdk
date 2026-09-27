@@ -1,8 +1,8 @@
-// Solardemo SDK utility: featureAdd.
+// VoxgigSolardemo SDK utility: featureAdd.
 
-using SolardemoSdk.Feature;
+using VoxgigSolardemoSdk.Feature;
 
-namespace SolardemoSdk.Util;
+namespace VoxgigSolardemoSdk.Util;
 
 public static partial class SdkUtility
 {

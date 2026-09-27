@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Feature;
-import voxgig.solardemosdk.core.SdkClient;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Feature;
+import voxgig.voxgigsolardemosdk.core.SdkClient;
 
 // featureHook dispatches a named hook to every feature on the client, in
 // order. Dispatch is reflective (like the go donor) so features may define

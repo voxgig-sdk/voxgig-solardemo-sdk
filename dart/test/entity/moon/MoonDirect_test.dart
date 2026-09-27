@@ -5,12 +5,12 @@ import 'dart:convert';
 import '../../harness.dart';
 import '../../utility.dart';
 
-import '../../../lib/SolardemoSDK.dart';
+import '../../../lib/VoxgigSolardemoSDK.dart';
 
 void tests() {
   describe('MoonDirect', () {
     test('direct-exists', (t) async {
-      final sdk = SolardemoSDK({
+      final sdk = VoxgigSolardemoSDK({
         'system': {
           'fetch': (dynamic url, dynamic init) async => <String, dynamic>{}
         }
@@ -152,20 +152,20 @@ Map<String, dynamic> directSetup([dynamic mockres]) {
   final calls = <Map<String, dynamic>>[];
 
   final env = envOverride({
-    'SOLARDEMO_TEST_MOON_ENTID': <String, dynamic>{},
-    'SOLARDEMO_TEST_LIVE': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_MOON_ENTID': <String, dynamic>{},
+    'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
   });
 
-  final live = 'TRUE' == env['SOLARDEMO_TEST_LIVE'];
+  final live = 'TRUE' == env['VOXGIG_SOLARDEMO_TEST_LIVE'];
 
   if (live) {
     // Spread FIRST, so the generated fields below win: sdk-test-control.json's
     // test.client.options adds to the live client, it does not redirect it.
-    final client = SolardemoSDK(<String, dynamic>{
+    final client = VoxgigSolardemoSDK(<String, dynamic>{
       ...liveClientOptions(),
     });
 
-    dynamic idmap = env['SOLARDEMO_TEST_MOON_ENTID'];
+    dynamic idmap = env['VOXGIG_SOLARDEMO_TEST_MOON_ENTID'];
     if (idmap is String && idmap.startsWith('{')) {
       idmap = jsonDecode(idmap);
     }
@@ -183,7 +183,7 @@ Map<String, dynamic> directSetup([dynamic mockres]) {
     };
   }
 
-  final client = SolardemoSDK({
+  final client = VoxgigSolardemoSDK({
     'base': 'http://localhost:8080',
     'system': {'fetch': mockFetch},
   });

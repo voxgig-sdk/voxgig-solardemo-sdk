@@ -6,7 +6,10 @@ import {
   configDefinition,
   configReprSetting,
   each,
+  isAuthActive,
   isConfigData,
+  resolveAuthIn,
+  resolveAuthName,
   targetFeatures,
 } from '@voxgig/sdkgen'
 
@@ -39,18 +42,58 @@ const Config = cmp(async function Config(props: any) {
   // helpers/applicability.
   const feature = targetFeatures(model, target)
 
-  // The same config as an OBJECT, built by the shared helper so this target's
-  // literal and the data that replaces it above the threshold are the same
-  // config by construction. The JSON is what the threshold is measured on -
-  // emitted source size varies by language, the model does not.
-  //
-  // Passing target.name opts this target into main.slug / main.version /
-  // main.target (the three station descriptor fields, station design §4):
-  // both reps flow from this one call - the literal via formatCsMap(configDef)
-  // and the data rep via csStringLiteral(configJson) - so they cannot
-  // disagree on identity (mirrors Config_ts's #MainMeta block).
-  const { def: configDef, json: configJson } = configDefinition(model, target.name)
+  const { def: configDef, json: baseJson } = configDefinition(model, target.name)
+
+  const authIn = resolveAuthIn(model)
+  const authName = resolveAuthName(model)
+  let configJson = baseJson
+
+  if (isAuthActive(model) && null != configDef.options && null != configDef.options.auth) {
+    let changed = false
+    if ('header' !== authIn) {
+      configDef.options.auth.in = authIn
+      changed = true
+    }
+    if ('Authorization' !== authName) {
+      configDef.options.auth.name = authName
+      changed = true
+    }
+    if (changed) {
+      configJson = JSON.stringify(configDef)
+    }
+  }
+
   const asData = isConfigData(configJson, configReprSetting(model))
+
+  const featurePlugins: Record<string, string[]> = {}
+
+  each(feature, (f: any) => {
+    const syms: string[] = []
+    each(f.plugin, (plugin: any) => {
+      // Filter on `active` HERE rather than trusting the feature object to
+      // arrive filtered (see Config_go: getting this wrong emits a
+      // reference to a file the plugin trim has just deleted, and the SDK
+      // does not compile).
+      if (false === plugin.active || null == plugin.active) return
+      for (const sym of Object.keys(plugin.def?.csharp || {})) {
+        syms.push(sym)
+      }
+    })
+    if (0 < syms.length) {
+      featurePlugins[f.name] = syms.sort()
+    }
+  })
+
+  const featurePluginCases = Object.keys(featurePlugins).sort()
+    .map((fname: string) =>
+      `            case ${JSON.stringify(fname)}:
+                return new List<object?>
+                {
+` + featurePlugins[fname]
+        .map((sym: string) => `                    global::Voxgig.Sekreto.Plugins.${sym},
+`).join('') +
+      `                };
+`).join('')
 
   File({ name: 'Config.' + target.ext }, () => {
 
@@ -63,18 +106,6 @@ public static class SdkConfig
 {
 `)
 
-    // ABOVE THE THRESHOLD: emit the model as DATA.
-    //
-    // A composite Dictionary literal is a single expression the C# compiler
-    // must bind, type and lower node by node, and every entry becomes IL the
-    // JIT executes on first call. A string constant is one token, and
-    // System.Text.Json builds the same dictionary from it far faster.
-    //
-    // JSON.stringify output is ALMOST a valid C# string literal: every escape
-    // it emits (\\", \\\\, \\b, \\f, \\n, \\r, \\t, \\uXXXX) means the same thing in C#,
-    // and it never emits \\/ or \\0, neither of which C# would accept. What it
-    // does leave raw is U+0085/U+2028/U+2029, which C# counts as line
-    // terminators and forbids inside a quoted literal - hence csStringLiteral.
     if (asData) {
       Content(`    // THE API MODEL, EMBEDDED AS DATA (sdkgen rung L1).
     //
@@ -162,16 +193,6 @@ public static class SdkConfig
 `)
     }
 
-    // SHARED CONFIG (sdkgen rung L2).
-    //
-    // The SDK reads the config on every request and never writes to it, so one
-    // instance is shared by every client rather than rebuilt per client. Above
-    // the size threshold MakeConfig re-parses the whole embedded JSON, so this
-    // is the difference between parsing the model once per process and once
-    // per client.
-    //
-    // Lazy<T> defaults to ExecutionAndPublication, so concurrent first calls
-    // build it exactly once - the C# twin of go's sync.Once.
     Content(`
     private static readonly Lazy<Dictionary<string, object?>> SharedConfigVal =
         new(MakeConfig);
@@ -183,6 +204,17 @@ public static class SdkConfig
     public static Dictionary<string, object?> SharedConfig()
     {
         return SharedConfigVal.Value;
+    }
+`)
+
+    Content(`
+    public static List<object?> FeaturePlugins(string name)
+    {
+        switch (name)
+        {
+${featurePluginCases}            default:
+                return new List<object?>();
+        }
     }
 `)
 

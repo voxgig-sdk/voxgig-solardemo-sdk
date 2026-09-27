@@ -1,4 +1,4 @@
-package voxgig.solardemosdk.sdktest
+package voxgig.voxgigsolardemosdk.sdktest
 
 // Network-behaviour simulation over the offline mock transport. The `test`
 // feature accepts an optional `net` config so unit tests can exercise slow,
@@ -11,21 +11,21 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-import voxgig.solardemosdk.core.SolardemoSDK
-import voxgig.solardemosdk.sdktest.FeatureHarness.fhMap
+import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.sdktest.FeatureHarness.fhMap
 
 class NetsimTest {
 
   @Test
   fun offlineSimulationFailsRequest() {
-    val client = SolardemoSDK.testSDK(fhMap("net", fhMap("offline", true)), null)
+    val client = VoxgigSolardemoSDK.testSDK(fhMap("net", fhMap("offline", true)), null)
     val res = client.direct(fhMap("path", "/ping"))
     assertEquals(false, res["ok"], "offline network must fail the call: $res")
   }
 
   @Test
   fun failstatusSimulationSurfacesStatus() {
-    val client = SolardemoSDK.testSDK(fhMap("net", fhMap("failTimes", 1, "failStatus", 503)), null)
+    val client = VoxgigSolardemoSDK.testSDK(fhMap("net", fhMap("failTimes", 1, "failStatus", 503)), null)
     val res = client.direct(fhMap("path", "/ping"))
     assertEquals(false, res["ok"], "expected failed call: $res")
     assertEquals(503, res["status"], "expected simulated 503")
@@ -34,7 +34,7 @@ class NetsimTest {
   @Test
   fun latencySimulationDelaysRequest() {
     val delay = 60
-    val client = SolardemoSDK.testSDK(fhMap("net", fhMap("latency", delay)), null)
+    val client = VoxgigSolardemoSDK.testSDK(fhMap("net", fhMap("latency", delay)), null)
     val start = System.currentTimeMillis()
     client.direct(fhMap("path", "/ping"))
     val elapsed = System.currentTimeMillis() - start
@@ -44,7 +44,7 @@ class NetsimTest {
 
   @Test
   fun plainTestSdkWorksWithoutNet() {
-    val client = SolardemoSDK.testSDK()
+    val client = VoxgigSolardemoSDK.testSDK()
     assertNotNull(client, "expected a client")
   }
 }

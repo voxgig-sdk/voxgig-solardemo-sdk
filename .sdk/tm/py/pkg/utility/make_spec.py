@@ -1,8 +1,8 @@
-# Solardemo SDK utility: make_spec
+# VoxgigSolardemo SDK utility: make_spec
 
 from __future__ import annotations
 from projectname_sdk.utility.voxgig_struct import voxgig_struct as vs
-from projectname_sdk.core.spec import SolardemoSpec
+from projectname_sdk.core.spec import VoxgigSolardemoSpec
 from projectname_sdk.utility.graphql import GRAPHQL_CONTENT_TYPE
 
 
@@ -40,7 +40,7 @@ def make_spec_util(ctx):
         if isinstance(pt, list):
             parts = pt
 
-    ctx.spec = SolardemoSpec({
+    ctx.spec = VoxgigSolardemoSpec({
         "base": base,
         "prefix": prefix,
         "parts": parts,

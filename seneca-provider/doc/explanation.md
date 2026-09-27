@@ -1,6 +1,6 @@
 # Explanation
 
-This document discusses why `@seneca/solardemo-provider` is built the way it is.
+This document discusses why `@seneca/voxgig-solardemo-provider` is built the way it is.
 It does not tell you how to do anything — for that see the
 [tutorial](tutorial.md) and the [how-to guides](how-to.md), and for the exact
 patterns, entities and options, the [reference](reference.md). The whole set is
@@ -18,7 +18,7 @@ The payoff is uniformity. An application reading from Solar System, a
 payment processor and a CRM uses one access pattern for all three:
 
 ```js
-await seneca.entity('provider/solardemo/planet').list$()
+await seneca.entity('provider/voxgig-solardemo/planet').list$()
 await seneca.entity('provider/stripe/charge').list$()
 ```
 
@@ -32,7 +32,7 @@ calls without any special support for HTTP.
 The convention is more than a naming scheme. `@seneca/provider` exports
 `provider/entityBuilder`, and this plugin hands it exactly one thing: a map
 from entity name to a small set of cmd actions. Recognising the
-`provider/solardemo/` canon, registering the `role:entity` messages
+`provider/voxgig-solardemo/` canon, registering the `role:entity` messages
 that sit behind `list$`, `load$`, `save$` and `remove$`, and turning
 whatever an action returns into an entity of the right canon — none of that is
 written here. It arrives with the convention.
@@ -183,11 +183,12 @@ will be wrong on such an API, and the remedy is to read the id back from what
 `save$` returns rather than to guess it beforehand.
 
 
-## Credentials, whether or not the API needs them
+## Credentials, for an API that declares none
 
-At startup the plugin asks `@seneca/provider` for the keymap of
-`solardemo` and sends the `apikey` as a bearer token when one is
-configured.
+The Solar System definition declares no authentication, so the plugin
+plumbs no credential: it does not ask `@seneca/provider` for a keymap at
+startup, and adds nothing to a request. The SDK's own auth stage is empty
+for such a definition, so a key handed to it could not reach the wire.
 
 The key is *optional*. Absent, unconfigured and empty all mean "send no
 header", and none of them is an error. For an API that needs no credential this
@@ -201,7 +202,7 @@ would force every user to invent a fake one.
 
 ## Depending on a published SDK
 
-The SDK is an ordinary published dependency: `@voxgig-sdk/solardemo` at
+The SDK is an ordinary published dependency: `@voxgig-sdk/voxgig-solardemo-sdk` at
 `^0.1.0`, resolved by npm like anything else.
 
 The alternative is vendoring — copying the generated client into this
@@ -224,7 +225,7 @@ rather than as a surprise in production.
 
 The distinction that does survive is between the SDK and its **test server**.
 The SDK is published; the server is not, and ships only in
-[the SDK's source repository](https://github.com/voxgig-sdk/solardemo-sdk). So the offline tests need
+[the SDK's source repository](https://github.com/voxgig-sdk/voxgig-solardemo-sdk). So the offline tests need
 nothing but `npm install`, while the live tests need a clone. That asymmetry
 is why the live tests probe for the server and skip rather than fail: the common
 case is a contributor who has the dependency but not the repository.
@@ -243,9 +244,10 @@ edit: the edit will not survive. The next generation run overwrites this
 repository, without a merge and without a warning. A fix applied here is a fix
 that has to be applied again, silently, forever.
 
-The source of truth is the SDK project's model — `..` from
-here, if both are checked out — together with the sdkgen component that emits
-this target. A change to *what* the API offers belongs in the model; a change to
+The source of truth is the SDK project's model — the repository and tag named
+in `sdk-pin.json`, which `make sdk-src` fetches to `.sdksrc/voxgig-solardemo-sdk` —
+together with the sdkgen component that emits this target. A change to *what*
+the API offers belongs in the model; a change to
 *how* the provider expresses it belongs in the component. Both are versioned,
 both regenerate every provider built this way rather than just this one, and
 both are where a fix is worth making. See
@@ -260,7 +262,7 @@ The **offline** tests use the SDK's own mock transport, reached through this
 plugin's own options:
 
 ```js
-.use('@seneca/solardemo-provider', {
+.use('@seneca/voxgig-solardemo-provider', {
   test: true,
   testopts: { entity: { planet: { 'planet0': { ... } } } },
 })
@@ -268,7 +270,7 @@ plugin's own options:
 
 This is better than the usual provider-testing compromise. Rather than checking
 only that the plugin loads and answers
-`sys:provider,provider:solardemo,get:info`, the tests exercise the
+`sys:provider,provider:voxgig-solardemo,get:info`, the tests exercise the
 entity commands themselves — list, load, the not-found answer, the nested-entity rules —
 through the real code path, from a Seneca entity call down to the transport and
 back. The only thing replaced is the socket. And because the mock belongs to the

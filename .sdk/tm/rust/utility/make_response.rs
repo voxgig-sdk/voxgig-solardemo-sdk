@@ -2,14 +2,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::core::context::Context;
-use crate::core::error::SolardemoError;
+use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::setp;
 use crate::core::response::Response;
 use crate::core::types::OutVal;
 
 pub fn make_response_util(
     ctx: &Rc<Context>,
-) -> Result<Rc<RefCell<Response>>, SolardemoError> {
+) -> Result<Rc<RefCell<Response>>, VoxgigSolardemoError> {
     if let Some(OutVal::Response(resp)) = ctx.out_get("response") {
         return Ok(resp);
     }

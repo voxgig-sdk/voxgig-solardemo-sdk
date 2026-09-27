@@ -1,4 +1,4 @@
-# Solardemo SDK entity stream() test
+# VoxgigSolardemo SDK entity stream() test
 #
 # Exercises the generated entity stream(action, args, callopts) method. stream
 # runs an op through the full pipeline and returns a lazy Elixir Stream over
@@ -8,22 +8,22 @@
 # API-agnostic: discovers a top-level list entity from the config (a list op
 # point with no required params) and seeds it via the test mock.
 
-defmodule Solardemo.StreamTest do
+defmodule VoxgigSolardemo.StreamTest do
   use ExUnit.Case
 
   alias Voxgig.Struct, as: S
-  alias Solardemo.Helpers, as: H
+  alias VoxgigSolardemo.Helpers, as: H
 
   # True when this SDK was generated with the named feature.
   defp has_feature?(name) do
-    f = S.getprop(Solardemo.Config.make_config(), "feature")
+    f = S.getprop(VoxgigSolardemo.Config.make_config(), "feature")
     S.ismap(f) and S.getprop(f, name) != nil
   end
 
   # Discover an entity whose `list` op has a point with no required params, so
   # the seeded list needs no path parameters.
   defp find_list_entity do
-    config = Solardemo.Config.make_config()
+    config = VoxgigSolardemo.Config.make_config()
     entities = H.or_(H.to_map(S.getprop(config, "entity")), S.jm([]))
 
     Enum.find_value(S.keysof(entities), fn name ->
@@ -62,8 +62,8 @@ defmodule Solardemo.StreamTest do
     ])
   end
 
-  defp entity(sdk, name), do: apply(Solardemo, String.to_atom(name), [sdk, nil])
-  defp entmod(name), do: Module.concat([Solardemo.Entity, Macro.camelize(name)])
+  defp entity(sdk, name), do: apply(VoxgigSolardemo, String.to_atom(name), [sdk, nil])
+  defp entmod(name), do: Module.concat([VoxgigSolardemo.Entity, Macro.camelize(name)])
 
   defp do_stream(sdk, name, callopts) do
     apply(entmod(name), :stream, [entity(sdk, name), "list", S.jm([]), callopts])
@@ -78,13 +78,13 @@ defmodule Solardemo.StreamTest do
       assert true
     else
       # Fallback (no streaming feature): materialised items.
-      sdk = Solardemo.test(S.jm(["entity", seed(name)]), nil)
+      sdk = VoxgigSolardemo.test(S.jm(["entity", seed(name)]), nil)
       items = do_stream(sdk, name, nil)
       assert length(items) == 3
       assert S.ismap(hd(items))
 
       # signal cancels iteration between yields.
-      sdk2 = Solardemo.test(S.jm(["entity", seed(name)]), nil)
+      sdk2 = VoxgigSolardemo.test(S.jm(["entity", seed(name)]), nil)
       counter = :counters.new(1, [])
 
       sig = fn ->
@@ -98,7 +98,7 @@ defmodule Solardemo.StreamTest do
       if has_feature?("streaming") do
         # Streaming feature active: yields from the streaming iterator.
         ssdk =
-          Solardemo.test(
+          VoxgigSolardemo.test(
             S.jm(["entity", seed(name)]),
             S.jm(["feature", S.jm(["streaming", S.jm(["active", true])])])
           )
@@ -107,7 +107,7 @@ defmodule Solardemo.StreamTest do
 
         # chunkSize groups items into batches: 3 items / 2 -> 2 batches.
         csdk =
-          Solardemo.test(
+          VoxgigSolardemo.test(
             S.jm(["entity", seed(name)]),
             S.jm(["feature", S.jm(["streaming", S.jm(["active", true, "chunkSize", 2])])])
           )

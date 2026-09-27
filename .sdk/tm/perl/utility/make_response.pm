@@ -1,9 +1,9 @@
-# Solardemo SDK utility: make_response
+# VoxgigSolardemo SDK utility: make_response
 
 use strict;
 use warnings;
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 

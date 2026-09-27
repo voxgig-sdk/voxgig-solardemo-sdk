@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.feature
+package voxgig.voxgigsolardemosdk.feature
 
 import java.util.{Map => JMap}
 import java.util.logging.{Level, Logger}
-import voxgig.solardemosdk.core.{Context, SdkClient}
+import voxgig.voxgigsolardemosdk.core.{Context, SdkClient}
 
 // Hook logging via java.util.logging (JDK built-in; zero dependencies).
 class LogFeature extends BaseFeature("log", "0.0.1", true) {
@@ -28,7 +28,7 @@ class LogFeature extends BaseFeature("log", "0.0.1", true) {
             case "error" => level = Level.SEVERE
             case _ =>
           }
-          this.logger = Logger.getLogger("SolardemoSDK.log")
+          this.logger = Logger.getLogger("VoxgigSolardemoSDK.log")
           this.logger.setLevel(level)
       }
     }

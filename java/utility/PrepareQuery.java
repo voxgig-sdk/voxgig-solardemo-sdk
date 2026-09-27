@@ -1,12 +1,12 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.utility.struct.Struct;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 @SuppressWarnings({"unchecked"})
 final class PrepareQuery {
@@ -35,7 +35,7 @@ final class PrepareQuery {
     for (List<Object> item : Struct.items(reqmatch)) {
       String key = item.get(0) instanceof String ? (String) item.get(0) : "";
       Object val = item.get(1);
-      if (val != null && !containsStr(params, key)) {
+      if (val != null && !"$action".equals(key) && !containsStr(params, key)) {
         out.put(key, val);
       }
     }

@@ -1,4 +1,4 @@
-# Solardemo SDK utility: clean
-module SolardemoUtilities
+# VoxgigSolardemo SDK utility: clean
+module VoxgigSolardemoUtilities
   Clean = ->(ctx, val) { val }
 end

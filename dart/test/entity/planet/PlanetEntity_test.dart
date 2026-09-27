@@ -6,13 +6,13 @@ import 'dart:io';
 import '../../harness.dart';
 import '../../utility.dart';
 
-import '../../../lib/SolardemoSDK.dart';
+import '../../../lib/VoxgigSolardemoSDK.dart';
 import '../../../lib/utility/voxgig_struct.dart' as vs;
 
 void tests() {
   describe('PlanetEntity', () {
     test('instance', (t) async {
-      final testsdk = SolardemoSDK.test();
+      final testsdk = VoxgigSolardemoSDK.test();
       final ent = testsdk.Planet();
       ok(null != ent);
     });
@@ -38,7 +38,7 @@ test('stream', (t) async {
         };
       }
 
-      final testsdk = SolardemoSDK.test(seed, sdkopts);
+      final testsdk = VoxgigSolardemoSDK.test(seed, sdkopts);
       final ent = testsdk.Planet();
 
       final seen = [];
@@ -49,7 +49,7 @@ test('stream', (t) async {
 
       // Fallback: with streaming inactive, stream() still yields both items
       // from the materialised result.
-      final plainsdk = SolardemoSDK.test(seed);
+      final plainsdk = VoxgigSolardemoSDK.test(seed);
       final plainent = plainsdk.Planet();
       final seen2 = [];
       await for (final item in plainent.stream('list', <String, dynamic>{})) {
@@ -61,7 +61,7 @@ test('stream', (t) async {
 
     test('basic', (t) async {
 
-      final live = 'TRUE' == Platform.environment['SOLARDEMO_TEST_LIVE'];
+      final live = 'TRUE' == Platform.environment['VOXGIG_SOLARDEMO_TEST_LIVE'];
       for (final op in ['create', 'list', 'update', 'load', 'remove']) {
         if (maybeSkipControl(t, 'entityOp', 'planet.' + op, live)) {
           return;
@@ -73,7 +73,7 @@ test('stream', (t) async {
       // fixture (entity TestData.json). Those don't exist on the live API.
       // Skip live runs unless the user provided a real ENTID env override.
       if (true == setup['syntheticOnly']) {
-        t.skip('live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_PLANET_ENTID JSON to run live');
+        t.skip('live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live');
         return;
       }
       final client = setup['client'];
@@ -156,7 +156,7 @@ Map<String, dynamic> basicSetup([dynamic extra]) {
 
   options['entity'] = entityData['existing'];
 
-  var client = SolardemoSDK.test(options, extra);
+  var client = VoxgigSolardemoSDK.test(options, extra);
   final struct = client.utility().struct;
   final merge = struct.merge;
   final transform = struct.transform;
@@ -178,22 +178,22 @@ Map<String, dynamic> basicSetup([dynamic extra]) {
   // override those synthetic IDs reach the live API and 4xx. Surface this
   // to the test so it can skip rather than fail.
   final idmapEnvVal =
-      Platform.environment['SOLARDEMO_TEST_PLANET_ENTID'];
+      Platform.environment['VOXGIG_SOLARDEMO_TEST_PLANET_ENTID'];
   final idmapOverridden =
       null != idmapEnvVal && idmapEnvVal.trim().startsWith('{');
 
   final env = envOverride({
-    'SOLARDEMO_TEST_PLANET_ENTID': idmap,
-    'SOLARDEMO_TEST_LIVE': 'FALSE',
-    'SOLARDEMO_TEST_EXPLAIN': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_PLANET_ENTID': idmap,
+    'VOXGIG_SOLARDEMO_TEST_LIVE': 'FALSE',
+    'VOXGIG_SOLARDEMO_TEST_EXPLAIN': 'FALSE',
   });
 
-  idmap = env['SOLARDEMO_TEST_PLANET_ENTID'];
+  idmap = env['VOXGIG_SOLARDEMO_TEST_PLANET_ENTID'];
 
-  final live = 'TRUE' == env['SOLARDEMO_TEST_LIVE'];
+  final live = 'TRUE' == env['VOXGIG_SOLARDEMO_TEST_LIVE'];
 
   if (live) {
-    client = SolardemoSDK(merge([
+    client = VoxgigSolardemoSDK(merge([
       // FIRST, so the generated fields below win: sdk-test-control.json's
       // test.client.options adds to the live client, it does not redirect it.
       liveClientOptions(),
@@ -214,7 +214,7 @@ Map<String, dynamic> basicSetup([dynamic extra]) {
     'client': client,
     'struct': struct,
     'data': entityData,
-    'explain': 'TRUE' == env['SOLARDEMO_TEST_EXPLAIN'],
+    'explain': 'TRUE' == env['VOXGIG_SOLARDEMO_TEST_EXPLAIN'],
     'live': live,
     'syntheticOnly': live && !idmapOverridden,
     'now': DateTime.now().millisecondsSinceEpoch,

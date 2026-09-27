@@ -1,4 +1,4 @@
-# Solardemo SDK Planet entity
+# VoxgigSolardemo SDK Planet entity
 
 require_relative '../utility/struct/voxgig_struct'
 require_relative '../core/helpers'
@@ -53,7 +53,7 @@ class PlanetEntity
 
   def data_set(args)
     if args
-      @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
+      @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
       @_utility.feature_hook.call(@_entctx, "SetData")
     end
   end
@@ -66,7 +66,7 @@ class PlanetEntity
 
   def match_set(args)
     if args
-      @_match = SolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
+      @_match = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
       @_utility.feature_hook.call(@_entctx, "SetMatch")
     end
   end
@@ -177,7 +177,7 @@ class PlanetEntity
   #   optional — an entity with no id-like key loads with no match (nil is treated
   #   as an empty match, so client.Planet.load works with no args).
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Planet, Hash] the loaded Planet; raises SolardemoError on failure
+  # @return [Planet, Hash] the loaded Planet; raises VoxgigSolardemoError on failure
   def load(reqmatch = nil, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -192,7 +192,7 @@ class PlanetEntity
       if ctx.result
         @_match = ctx.result.resmatch if ctx.result.resmatch
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end
@@ -206,7 +206,7 @@ class PlanetEntity
   # @param reqmatch [PlanetListMatch, Hash, nil] match filter (any subset of
   #   Planet fields); defaults to nil, treated as an empty match that lists all.
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Array<Planet>, Array] the matching Planet items; raises SolardemoError on failure
+  # @return [Array<Planet>, Array] the matching Planet items; raises VoxgigSolardemoError on failure
   def list(reqmatch = nil, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -243,7 +243,7 @@ class PlanetEntity
   #
   # @param reqdata [PlanetCreateData, Hash, nil] body data
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Planet, Hash] the created Planet; raises SolardemoError on failure
+  # @return [Planet, Hash] the created Planet; raises VoxgigSolardemoError on failure
   def create(reqdata, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -257,7 +257,7 @@ class PlanetEntity
     _run_op(ctx) do
       if ctx.result
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end
@@ -270,7 +270,7 @@ class PlanetEntity
   #
   # @param reqdata [PlanetUpdateData, Hash, nil] body data
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Planet, Hash] the updated Planet; raises SolardemoError on failure
+  # @return [Planet, Hash] the updated Planet; raises VoxgigSolardemoError on failure
   def update(reqdata, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -285,7 +285,7 @@ class PlanetEntity
       if ctx.result
         @_match = ctx.result.resmatch if ctx.result.resmatch
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end
@@ -298,7 +298,7 @@ class PlanetEntity
   #
   # @param reqmatch [PlanetRemoveMatch, Hash, nil] match criteria (id/query fields)
   # @param ctrl [Object, nil] optional per-call control
-  # @return [Planet, Hash] the removed Planet; raises SolardemoError on failure
+  # @return [Planet, Hash] the removed Planet; raises VoxgigSolardemoError on failure
   def remove(reqmatch = nil, ctrl = nil)
     utility = @_utility
     ctx = utility.make_context.call({
@@ -313,7 +313,7 @@ class PlanetEntity
       if ctx.result
         @_match = ctx.result.resmatch if ctx.result.resmatch
         if ctx.result.resdata
-          @_data = SolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
+          @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(ctx.result.resdata)) || {}
         end
       end
     end

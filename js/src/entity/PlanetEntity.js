@@ -1,11 +1,11 @@
 
 const { inspect } = require('node:util')
 
-const { SolardemoEntityBase } = require('../SolardemoEntityBase')
+const { VoxgigSolardemoEntityBase } = require('../VoxgigSolardemoEntityBase')
 
 
 // TODO: needs Entity superclass
-class PlanetEntity extends SolardemoEntityBase {
+class PlanetEntity extends VoxgigSolardemoEntityBase {
 
   constructor(client, entopts) {
     super(client, entopts)

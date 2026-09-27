@@ -1,13 +1,3 @@
-// Shared SDK test SUPPORT: the helpers the generated entity/direct tests and
-// the corpus call sites share — env loading, the sdk-test-control.json skip
-// and pacing machinery, corpus access, entity-data conversion, ctx
-// construction from a JSON test entry, and the fh* feature-test harness
-// (mirrors tm/go/test/testsupport_test.go plus the fh* harness from
-// tm/go/test/feature_test.go). Each test binary includes it with
-// `mod common;`.
-//
-// The corpus ENGINE half of this file was retired by the vendor-tag rollout:
-// see the note where it used to be, and tests/omni_resolver/mod.rs.
 
 #![allow(dead_code)]
 
@@ -21,7 +11,7 @@ use RUSTCRATE::core::helpers::{
 use RUSTCRATE::utility::voxgigstruct as vs;
 use RUSTCRATE::{
     json_parse, test_sdk, Context, CtxSpec, FeatureRef, FetcherFn, Operation, OutVal,
-    ProjectNameError, ProjectNameSDK, Response, SdkResult, Spec, Utility, Value,
+    VoxgigSolardemoError, VoxgigSolardemoSDK, Response, SdkResult, Spec, Utility, Value,
 };
 
 pub const NULLMARK: &str = "__NULL__";
@@ -40,7 +30,6 @@ pub fn read_json(path: &PathBuf) -> Value {
     json_parse(&txt).unwrap_or_else(|e| panic!("failed to parse {:?}: {}", path, e))
 }
 
-/// The shared test spec ../.sdk/test/test.json.
 pub fn load_test_spec() -> Value {
     let mut p = manifest_dir();
     p.push("..");
@@ -100,22 +89,6 @@ pub fn is_control_skipped(kind: &str, name: &str, mode: &str) -> (bool, String) 
     (false, String::new())
 }
 
-/// Extra SDK options every LIVE client is constructed with, read from
-/// sdk-test-control.json `test.client.options`.
-///
-/// The generated live client knows two things: the base URL (from the spec)
-/// and the credential (from the environment). Everything else about how a
-/// particular API wants to be talked to - which features to switch on, and
-/// with what settings - is a property of THAT API, known to the project and
-/// to nothing in the toolchain.
-///
-/// Merged UNDER the generated fields, so the suite's own base/apikey/server
-/// values win: this ADDS to the live client, it does not redirect it.
-///
-/// Reserved fields are stripped HERE rather than at each merge site: the
-/// generated map only names a field when the model calls for one, so a
-/// "base" in this block would face no competing value and would silently
-/// redirect the whole suite - credential included - to another host.
 pub const LIVE_RESERVED: [&str; 6] =
     ["base", "prefix", "suffix", "server", "apikey", "secret"];
 
@@ -203,7 +176,7 @@ pub fn env_override(m: Value) -> Value {
 // ---- entity test setup ---------------------------------------------------------
 
 pub struct EntityTestSetup {
-    pub client: Rc<ProjectNameSDK>,
+    pub client: Rc<VoxgigSolardemoSDK>,
     pub data: Value,
     pub idmap: Value,
     pub env: Value,
@@ -240,21 +213,13 @@ pub fn json_normalize(v: &Value) -> Value {
     }
 }
 
-// The corpus ENGINE that used to live here — `runset` / `runset_named`
-// (the entry loop) and `match_deep` / `match_string` (the match engine) —
-// is superseded by the vendored @voxgig/omni runner, driven through the
-// adapter in tests/omni_resolver/mod.rs (vendor-tag rollout, Decision 4).
-// This file keeps its SUPPORT half under its own name — env loading, the
-// sdk-test-control skip/pacing machinery, corpus and entity-data access,
-// ctx construction from a JSON entry, and the fh feature harness — so the
-// emitted call sites did not move.
 
 // ---- ctx construction from JSON test entries --------------------------------------
 
 /// makeCtxFromMap: create a Context from a JSON test entry's ctx or args map.
 pub fn make_ctx_from_map(
     ctxmap: &Value,
-    client: &Rc<ProjectNameSDK>,
+    client: &Rc<VoxgigSolardemoSDK>,
     utility: &Rc<Utility>,
 ) -> Rc<Context> {
     let ctxmap = match ctxmap {
@@ -312,7 +277,7 @@ pub fn make_ctx_from_map(
         let result = Rc::new(RefCell::new(SdkResult::new(&res_map)));
         if let Value::Map(_) = getp(&res_map, "err") {
             if let Some(msg) = get_str(&getp(&res_map, "err"), "message") {
-                result.borrow_mut().err = Some(ProjectNameError::new("", &msg));
+                result.borrow_mut().err = Some(VoxgigSolardemoError::new("", &msg));
             }
         }
         *ctx.result.borrow_mut() = Some(result);
@@ -339,20 +304,20 @@ pub fn make_ctx_from_map(
     ctx
 }
 
-pub fn fixctx(ctx: &Rc<Context>, client: &Rc<ProjectNameSDK>) {
+pub fn fixctx(ctx: &Rc<Context>, client: &Rc<VoxgigSolardemoSDK>) {
     if ctx.options.borrow().is_noval() {
         *ctx.options.borrow_mut() = client.options_map();
     }
 }
 
 /// An error from a JSON map like {"message": "...", "code": "..."}.
-pub fn err_from_map(m: &Value) -> Option<ProjectNameError> {
+pub fn err_from_map(m: &Value) -> Option<VoxgigSolardemoError> {
     let msg = get_str(m, "message").unwrap_or_default();
     if msg.is_empty() {
         return None;
     }
     let code = get_str(m, "code").unwrap_or_default();
-    Some(ProjectNameError::new(&code, &msg))
+    Some(VoxgigSolardemoError::new(&code, &msg))
 }
 
 // ---- fh harness (mirrors go feature_test.go) ---------------------------------------
@@ -434,7 +399,7 @@ pub fn fh_response(status: i64, data: Value, headers: Value) -> Value {
 
 /// A mock transport recording every call, replying via an optional reply
 /// closure (default: 200 with a call counter). Returns (fetcher, calls).
-pub type FhReply = Rc<dyn Fn(i64, &Value) -> Result<Value, ProjectNameError>>;
+pub type FhReply = Rc<dyn Fn(i64, &Value) -> Result<Value, VoxgigSolardemoError>>;
 
 pub fn fh_recorder(reply: Option<FhReply>) -> (FetcherFn, Rc<RefCell<Vec<Value>>>) {
     let calls: Rc<RefCell<Vec<Value>>> = Rc::new(RefCell::new(Vec::new()));
@@ -479,7 +444,7 @@ pub fn rec_url(calls: &Rc<RefCell<Vec<Value>>>, i: usize) -> String {
 /// fhHarness: features (in init order) wired to a mock transport and a
 /// mini operation pipeline.
 pub struct FhHarness {
-    pub client: Rc<ProjectNameSDK>,
+    pub client: Rc<VoxgigSolardemoSDK>,
     pub utility: Rc<Utility>,
     pub rootctx: Rc<Context>,
     pub base: String,
@@ -558,7 +523,7 @@ impl Default for FhOpSpec {
 pub struct FhOpResult {
     pub ok: bool,
     pub data: Value,
-    pub err: Option<ProjectNameError>,
+    pub err: Option<VoxgigSolardemoError>,
     pub result: Option<Rc<RefCell<SdkResult>>>,
     pub ctx: Rc<Context>,
 }
@@ -606,7 +571,7 @@ pub fn fh_build_url(spec: &Rc<RefCell<Spec>>) -> String {
     url
 }
 
-fn fh_populate_result(ctx: &Rc<Context>, fetched: &Result<Value, ProjectNameError>) {
+fn fh_populate_result(ctx: &Rc<Context>, fetched: &Result<Value, VoxgigSolardemoError>) {
     let result = Rc::new(RefCell::new(SdkResult::new(&Value::empty_map())));
     *ctx.result.borrow_mut() = Some(result.clone());
 
@@ -740,7 +705,7 @@ impl FhHarness {
             }
         }
 
-        let fetched: Result<Value, ProjectNameError> = match ctx.out_get("request") {
+        let fetched: Result<Value, VoxgigSolardemoError> = match ctx.out_get("request") {
             Some(OutVal::Val(v)) if !v.is_noval() => Ok(v),
             _ => self.utility.fetch(&ctx, &url, &fetchdef),
         };
@@ -783,7 +748,7 @@ impl FhHarness {
         self.fail(ctx, err)
     }
 
-    fn fail(&self, ctx: Rc<Context>, err: ProjectNameError) -> FhOpResult {
+    fn fail(&self, ctx: Rc<Context>, err: VoxgigSolardemoError) -> FhOpResult {
         {
             let ctrl = ctx.ctrl.borrow().clone();
             ctrl.borrow_mut().err = Some(err.clone());
@@ -801,7 +766,7 @@ impl FhHarness {
 }
 
 /// fhErrCode: extract the SDK error code, "" otherwise.
-pub fn fh_err_code(err: &Option<ProjectNameError>) -> String {
+pub fn fh_err_code(err: &Option<VoxgigSolardemoError>) -> String {
     err.as_ref().map(|e| e.code.clone()).unwrap_or_default()
 }
 

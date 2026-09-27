@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_error
+# VoxgigSolardemo SDK utility: make_error
 
 use strict;
 use warnings;
@@ -14,29 +14,29 @@ require(Cwd::abs_path("$__dir/../core/operation.pm"));
 require(Cwd::abs_path("$__dir/../core/result.pm"));
 require(Cwd::abs_path("$__dir/../core/error.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
 $REGISTRY{make_error} = sub {
   my ($ctx, $err) = @_;
   if (!defined $ctx) {
-    $ctx = SolardemoContext->new({}, undef);
+    $ctx = VoxgigSolardemoContext->new({}, undef);
   }
-  my $op = $ctx->{op} || SolardemoOperation->new({});
+  my $op = $ctx->{op} || VoxgigSolardemoOperation->new({});
   my $opname = $op->{name};
   $opname = 'unknown operation' if !defined $opname || '' eq $opname || '_' eq $opname;
 
-  my $result = $ctx->{result} || SolardemoResult->new({});
+  my $result = $ctx->{result} || VoxgigSolardemoResult->new({});
   $result->{ok} = 0;
 
   $err = $result->{err} if !defined $err;
   $err = $ctx->make_error('unknown', 'unknown error') if !defined $err;
 
-  my $errmsg = (Scalar::Util::blessed($err) && $err->isa('SolardemoError'))
+  my $errmsg = (Scalar::Util::blessed($err) && $err->isa('VoxgigSolardemoError'))
     ? $err->{msg} : "$err";
   $errmsg =~ s/\s+\z//;
-  my $msg = "SolardemoSDK: $opname: $errmsg";
+  my $msg = "VoxgigSolardemoSDK: $opname: $errmsg";
   $msg = $ctx->{utility}{clean}->($ctx, $msg);
 
   $result->{err} = undef;
@@ -46,11 +46,11 @@ $REGISTRY{make_error} = sub {
     $ctx->{ctrl}{explain}{err} = { 'message' => $msg };
   }
 
-  my $sdk_err = SolardemoError->new('', $msg, $ctx);
+  my $sdk_err = VoxgigSolardemoError->new('', $msg, $ctx);
   $sdk_err->{result} = $ctx->{utility}{clean}->($ctx, $result);
   $sdk_err->{spec} = $ctx->{utility}{clean}->($ctx, $spec);
   $sdk_err->{code} = $err->{code}
-    if Scalar::Util::blessed($err) && $err->isa('SolardemoError');
+    if Scalar::Util::blessed($err) && $err->isa('VoxgigSolardemoError');
 
   $ctx->{ctrl}{err} = $sdk_err;
 

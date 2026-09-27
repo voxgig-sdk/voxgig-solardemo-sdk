@@ -6,7 +6,7 @@ const Value = h.Value;
 
 pub const Control = struct {
     throw: ?bool = null,
-    err: ?*err.SolardemoError = null,
+    err: ?*err.VoxgigSolardemoError = null,
     // explain / paging are Value maps when supplied (.null otherwise). They
     // are the caller's own maps (reference-shared), so recorded entries are
     // visible to the caller after the operation completes.

@@ -1,13 +1,13 @@
-# Solardemo SDK Planet entity
+# VoxgigSolardemo SDK Planet entity
 #
 # Per-entity module. Generic construction/data/match operations delegate to
 # EntityBase; each active op (load/list/create/update/remove) builds a ctx
-# and drives it through Solardemo.Pipeline.run_op.
+# and drives it through VoxgigSolardemo.Pipeline.run_op.
 
-defmodule Solardemo.Entity.Planet do
+defmodule VoxgigSolardemo.Entity.Planet do
   alias Voxgig.Struct, as: S
-  alias Solardemo.Helpers, as: H
-  alias Solardemo.{EntityBase, Context, Pipeline}
+  alias VoxgigSolardemo.Helpers, as: H
+  alias VoxgigSolardemo.{EntityBase, Context, Pipeline}
 
   def new(client, entopts \\ nil) do
     EntityBase.construct(__MODULE__, client, "planet", entopts)
@@ -26,10 +26,10 @@ defmodule Solardemo.Entity.Planet do
     do: EntityBase.stream(ent, action, args, callopts)
 
   
-  # Returns the planet entity map (Solardemo.Types.planet/0) on
+  # Returns the planet entity map (VoxgigSolardemo.Types.planet/0) on
   # success; pipeline errors surface as the error value built by
   # Utility.make_error (shape is utility-configurable), hence term().
-  @spec load(map(), Solardemo.Types.planet_load_match() | nil, map() | nil) :: term()
+  @spec load(map(), VoxgigSolardemo.Types.planet_load_match() | nil, map() | nil) :: term()
   def load(ent, reqmatch \\ nil, ctrl \\ nil) do
     reqmatch = if reqmatch == nil, do: S.jm([]), else: reqmatch
 
@@ -63,10 +63,10 @@ defmodule Solardemo.Entity.Planet do
 
 
   
-  # Returns a list of planet entity maps (Solardemo.Types.planet/0)
+  # Returns a list of planet entity maps (VoxgigSolardemo.Types.planet/0)
   # on success; pipeline errors surface as the error value built by
   # Utility.make_error (shape is utility-configurable), hence term().
-  @spec list(map(), Solardemo.Types.planet_list_match() | nil, map() | nil) :: term()
+  @spec list(map(), VoxgigSolardemo.Types.planet_list_match() | nil, map() | nil) :: term()
   def list(ent, reqmatch \\ nil, ctrl \\ nil) do
     reqmatch = if reqmatch == nil, do: S.jm([]), else: reqmatch
 
@@ -98,10 +98,10 @@ defmodule Solardemo.Entity.Planet do
 
 
   
-  # Returns the created planet entity map (Solardemo.Types.planet/0)
+  # Returns the created planet entity map (VoxgigSolardemo.Types.planet/0)
   # on success; pipeline errors surface as the error value built by
   # Utility.make_error (shape is utility-configurable), hence term().
-  @spec create(map(), Solardemo.Types.planet_create_data() | nil, map() | nil) :: term()
+  @spec create(map(), VoxgigSolardemo.Types.planet_create_data() | nil, map() | nil) :: term()
   def create(ent, reqdata, ctrl \\ nil) do
     ctx =
       Context.new(
@@ -131,10 +131,10 @@ defmodule Solardemo.Entity.Planet do
 
 
   
-  # Returns the updated planet entity map (Solardemo.Types.planet/0)
+  # Returns the updated planet entity map (VoxgigSolardemo.Types.planet/0)
   # on success; pipeline errors surface as the error value built by
   # Utility.make_error (shape is utility-configurable), hence term().
-  @spec update(map(), Solardemo.Types.planet_update_data() | nil, map() | nil) :: term()
+  @spec update(map(), VoxgigSolardemo.Types.planet_update_data() | nil, map() | nil) :: term()
   def update(ent, reqdata, ctrl \\ nil) do
     ctx =
       Context.new(
@@ -166,10 +166,10 @@ defmodule Solardemo.Entity.Planet do
 
 
   
-  # Returns the removed planet entity map (Solardemo.Types.planet/0)
+  # Returns the removed planet entity map (VoxgigSolardemo.Types.planet/0)
   # on success; pipeline errors surface as the error value built by
   # Utility.make_error (shape is utility-configurable), hence term().
-  @spec remove(map(), Solardemo.Types.planet_remove_match() | nil, map() | nil) :: term()
+  @spec remove(map(), VoxgigSolardemo.Types.planet_remove_match() | nil, map() | nil) :: term()
   def remove(ent, reqmatch \\ nil, ctrl \\ nil) do
     reqmatch = if reqmatch == nil, do: S.jm([]), else: reqmatch
 

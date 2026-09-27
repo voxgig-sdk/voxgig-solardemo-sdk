@@ -16,7 +16,7 @@ import KOTLINPACKAGE.core.Feature
 import KOTLINPACKAGE.core.FetcherFn
 import KOTLINPACKAGE.core.Helpers
 import KOTLINPACKAGE.core.Operation
-import KOTLINPACKAGE.core.SolardemoSDK
+import KOTLINPACKAGE.core.VoxgigSolardemoSDK
 import KOTLINPACKAGE.core.Response
 import KOTLINPACKAGE.core.Result
 import KOTLINPACKAGE.core.SdkError
@@ -174,7 +174,7 @@ object FeatureHarness {
   // FhHarness wires features (in init order) to a mock transport and a mini
   // operation pipeline.
   class FhHarness {
-    lateinit var client: SolardemoSDK
+    lateinit var client: VoxgigSolardemoSDK
     lateinit var utility: Utility
     lateinit var rootctx: Context
     var base = "http://api.test"
@@ -288,7 +288,7 @@ object FeatureHarness {
 
   // fhMake constructs the harness.
   fun fhMake(server: FetcherFn?, vararg features: FhFeature): FhHarness {
-    val client = SolardemoSDK.testSDK()
+    val client = VoxgigSolardemoSDK.testSDK()
     client.features = mutableListOf()
 
     val utility = client.getUtility()

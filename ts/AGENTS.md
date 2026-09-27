@@ -1,6 +1,6 @@
-# Solardemo TypeScript — Agent Guide
+# VoxgigSolardemo TypeScript — Agent Guide
 
-The TypeScript client for the Solardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The TypeScript client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `ts/` directory.
@@ -27,7 +27,7 @@ make test
 
 | Source | Path | Edit when… |
 | --- | --- | --- |
-| Target definition | `.sdk/model/target/ts.aon` | deps, module, extension, phases change |
+| Target definition | `.sdk/model/target/ts.aontu` | deps, module, extension, phases change |
 | Templates | `.sdk/tm/ts/` | the file is the **same for every API** (runtime, transport, base classes) — copied verbatim with placeholder substitution |
 | Components | `.sdk/src/cmp/ts/` | the file's shape **depends on the API** (entities, constructor, README, tests) — TypeScript that walks the model |
 
@@ -37,8 +37,15 @@ component.* After editing a component run `npm run build` before
 
 ## Features in this target
 
-- [`secrets`](./src/feature/secrets/AGENTS.md) — Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
-- [`test`](./src/feature/test/AGENTS.md) — In-memory mock transport for testing without a live server
+- [`debug`](./src/feature/debug/AGENTS.md) — Debug capture
+- [`idempotency`](./src/feature/idempotency/AGENTS.md) — Idempotency
+- [`metrics`](./src/feature/metrics/AGENTS.md) — Metrics
+- [`paging`](./src/feature/paging/AGENTS.md) — Paging
+- [`ratelimit`](./src/feature/ratelimit/AGENTS.md) — Rate limiting
+- [`retry`](./src/feature/retry/AGENTS.md) — Retry
+- [`secrets`](./src/feature/secrets/AGENTS.md) — Secrets
+- [`test`](./src/feature/test/AGENTS.md) — Test transport
+- [`timeout`](./src/feature/timeout/AGENTS.md) — Timeout
 
 Each feature's runtime and its own guide live in `src/feature/<name>/`.
 

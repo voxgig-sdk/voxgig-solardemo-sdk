@@ -1,4 +1,4 @@
-# Solardemo SDK utility: feature_init
+# VoxgigSolardemo SDK utility: feature_init
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -20,13 +20,13 @@ $REGISTRY{feature_init} = sub {
   my $fname = $f->get_name;
   my $fopts = {};
   if ($ctx->{options}) {
-    my $feature_opts = SolardemoHelpers::gp($ctx->{options}, 'feature');
+    my $feature_opts = VoxgigSolardemoHelpers::gp($ctx->{options}, 'feature');
     if (Voxgig::Struct::ismap($feature_opts)) {
-      my $fo = SolardemoHelpers::gp($feature_opts, $fname);
+      my $fo = VoxgigSolardemoHelpers::gp($feature_opts, $fname);
       $fopts = $fo if Voxgig::Struct::ismap($fo);
     }
   }
-  $f->init($ctx, $fopts) if SolardemoHelpers::is_true($fopts->{active});
+  $f->init($ctx, $fopts) if VoxgigSolardemoHelpers::is_true($fopts->{active});
   return;
 };
 

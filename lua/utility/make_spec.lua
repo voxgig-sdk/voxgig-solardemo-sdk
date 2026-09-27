@@ -1,4 +1,4 @@
--- Solardemo SDK utility: make_spec
+-- VoxgigSolardemo SDK utility: make_spec
 
 local vs = require("utility.struct.struct")
 local graphql = require("utility.graphql")
@@ -6,7 +6,14 @@ local Spec = require("core.spec")
 
 local function make_spec_util(ctx)
   if ctx.out["spec"] ~= nil then
-    ctx.spec = ctx.out["spec"]
+    local preset = ctx.out["spec"]
+    -- PreSpec short-circuit: a feature (e.g. validate) may place an SDK
+    -- error in ctx.out["spec"] to abort the operation before the request is
+    -- built. The same seam make_point offers one stage earlier.
+    if type(preset) == "table" and preset.is_sdk_error == true then
+      return nil, preset
+    end
+    ctx.spec = preset
     return ctx.spec, nil
   end
 

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/voxgig-sdk/solardemo-sdk/go"
-	"github.com/voxgig-sdk/solardemo-sdk/go/core"
+	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
+	"github.com/voxgig-sdk/voxgig-solardemo-sdk/go/core"
 
-	vs "github.com/voxgig-sdk/solardemo-sdk/go/utility/struct"
+	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 )
 
 func TestPlanetEntity(t *testing.T) {
@@ -93,7 +93,7 @@ func TestPlanetEntity(t *testing.T) {
 		// The basic flow consumes synthetic IDs from the fixture. In live mode
 		// without an *_ENTID env override, those IDs hit the live API and 4xx.
 		if setup.syntheticOnly {
-			t.Skip("live entity test uses synthetic IDs from fixture — set SOLARDEMO_TEST_PLANET_ENTID JSON to run live")
+			t.Skip("live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live")
 			return
 		}
 		client := setup.client
@@ -238,21 +238,21 @@ func planetBasicSetup(extra map[string]any) *entityTestSetup {
 	// Detect ENTID env override before envOverride consumes it. When live
 	// mode is on without a real override, the basic test runs against synthetic
 	// IDs from the fixture and 4xx's. Surface this so the test can skip.
-	entidEnvRaw := os.Getenv("SOLARDEMO_TEST_PLANET_ENTID")
+	entidEnvRaw := os.Getenv("VOXGIG_SOLARDEMO_TEST_PLANET_ENTID")
 	idmapOverridden := entidEnvRaw != "" && strings.HasPrefix(strings.TrimSpace(entidEnvRaw), "{")
 
 	env := envOverride(map[string]any{
-		"SOLARDEMO_TEST_PLANET_ENTID": idmap,
-		"SOLARDEMO_TEST_LIVE":      "FALSE",
-		"SOLARDEMO_TEST_EXPLAIN":   "FALSE",
+		"VOXGIG_SOLARDEMO_TEST_PLANET_ENTID": idmap,
+		"VOXGIG_SOLARDEMO_TEST_LIVE":      "FALSE",
+		"VOXGIG_SOLARDEMO_TEST_EXPLAIN":   "FALSE",
 	})
 
-	idmapResolved := core.ToMapAny(env["SOLARDEMO_TEST_PLANET_ENTID"])
+	idmapResolved := core.ToMapAny(env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"])
 	if idmapResolved == nil {
 		idmapResolved = core.ToMapAny(idmap)
 	}
 
-	if env["SOLARDEMO_TEST_LIVE"] == "TRUE" {
+	if env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE" {
 		// An empty map, not a nil one: Merge returns nil when its last entry
 		// is nil, and BasicSetup is normally called with no extras - so a
 		// bare nil silently discarded the apikey and server values below.
@@ -270,16 +270,16 @@ func planetBasicSetup(extra map[string]any) *entityTestSetup {
 			},
 			extraOpts,
 		})
-		client = sdk.NewSolardemoSDK(core.ToMapAny(mergedOpts))
+		client = sdk.NewVoxgigSolardemoSDK(core.ToMapAny(mergedOpts))
 	}
 
-	live := env["SOLARDEMO_TEST_LIVE"] == "TRUE"
+	live := env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"
 	return &entityTestSetup{
 		client:        client,
 		data:          entityData,
 		idmap:         idmapResolved,
 		env:           env,
-		explain:       env["SOLARDEMO_TEST_EXPLAIN"] == "TRUE",
+		explain:       env["VOXGIG_SOLARDEMO_TEST_EXPLAIN"] == "TRUE",
 		live:          live,
 		syntheticOnly: live && !idmapOverridden,
 		now:           time.Now().UnixMilli(),

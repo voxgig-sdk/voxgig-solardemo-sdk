@@ -1,9 +1,9 @@
-# Solardemo SDK spec
+# VoxgigSolardemo SDK spec
 
 use strict;
 use warnings;
 
-package SolardemoSpec;
+package VoxgigSolardemoSpec;
 
 sub new {
   my ($class, $specmap) = @_;

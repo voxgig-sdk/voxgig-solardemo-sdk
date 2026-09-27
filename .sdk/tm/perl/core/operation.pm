@@ -1,4 +1,4 @@
-# Solardemo SDK operation
+# VoxgigSolardemo SDK operation
 
 use strict;
 use warnings;
@@ -11,28 +11,28 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/helpers.pm"));
 
-package SolardemoOperation;
+package VoxgigSolardemoOperation;
 
 sub new {
   my ($class, $opmap) = @_;
   $opmap = {} unless defined $opmap;
 
-  my $e = SolardemoHelpers::gp($opmap, 'entity');
+  my $e = VoxgigSolardemoHelpers::gp($opmap, 'entity');
   my $entity = (defined $e && !ref $e && $e ne '') ? $e : '_';
 
-  my $n = SolardemoHelpers::gp($opmap, 'name');
+  my $n = VoxgigSolardemoHelpers::gp($opmap, 'name');
   my $name = (defined $n && !ref $n && $n ne '') ? $n : '_';
 
-  my $i = SolardemoHelpers::gp($opmap, 'input');
+  my $i = VoxgigSolardemoHelpers::gp($opmap, 'input');
   my $input = (defined $i && !ref $i && $i ne '') ? $i : '_';
 
   my $points = [];
-  my $raw_points = SolardemoHelpers::gp($opmap, 'points');
+  my $raw_points = VoxgigSolardemoHelpers::gp($opmap, 'points');
   if (Voxgig::Struct::islist($raw_points)) {
     push @$points, grep { Voxgig::Struct::ismap($_) } @$raw_points;
   }
 
-  my $raw_alias = SolardemoHelpers::gp($opmap, 'alias');
+  my $raw_alias = VoxgigSolardemoHelpers::gp($opmap, 'alias');
   my $alias = Voxgig::Struct::ismap($raw_alias) ? $raw_alias : undef;
 
   return bless {

@@ -1,4 +1,4 @@
-# Solardemo Data — paging drain tests.
+# VoxgigSolardemo Data — paging drain tests.
 #
 # Driven with a fake client rather than the SDK: the drain loop's contract is
 # with the paging state the SDK's paging feature publishes on the client

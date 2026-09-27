@@ -1,6 +1,6 @@
-# solardemo-cli
+# voxgig-solardemo-cli
 
-boru-driven command-line client **and** interactive REPL for the Solardemo
+boru-driven command-line client **and** interactive REPL for the VoxgigSolardemo
 SDK. Each command line is parsed as a single [boru](https://github.com/boru-lang/boru)
 expression and evaluated against the live API; run it with no arguments to drop
 into a REPL. Built on `github.com/boru-lang/boru/eng/go` and the sibling Go SDK
@@ -9,29 +9,29 @@ at `../go`.
 ## Examples
 
 ```sh
-# 1. Build a native binary (-> dist/<os>-<arch>/solardemo-cli)
+# 1. Build a native binary (-> dist/<os>-<arch>/voxgig-solardemo-cli)
 make build
 
 # 2. See usage (words, entities, env vars)
-./solardemo-cli --help
+./voxgig-solardemo-cli --help
 
 # 3. Provide credentials once, via the environment
-export SOLARDEMO_APIKEY=sk_live_xxx
+export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx
 
 # 4. Each command line is ONE boru expression, run against the API:
-./solardemo-cli list moon
-./solardemo-cli load 1 moon            # {id:1} shorthand
-./solardemo-cli load '{id:1}' moon       # explicit match map
-./solardemo-cli update '{name:"x"}' moon
-./solardemo-cli list planet
+./voxgig-solardemo-cli list moon
+./voxgig-solardemo-cli load 1 moon            # {id:1} shorthand
+./voxgig-solardemo-cli load '{id:1}' moon       # explicit match map
+./voxgig-solardemo-cli update '{name:"x"}' moon
+./voxgig-solardemo-cli list planet
 
 # 5. Override the API base URL for a single call
-SOLARDEMO_BASE=https://api.example.com ./solardemo-cli list moon
+VOXGIG_SOLARDEMO_BASE=https://api.example.com ./voxgig-solardemo-cli list moon
 
 # 6. No arguments -> interactive REPL
-./solardemo-cli
-solardemo> list moon
-solardemo> /quit
+./voxgig-solardemo-cli
+voxgig-solardemo> list moon
+voxgig-solardemo> /quit
 ```
 
 > The rest of this guide follows the [Diátaxis](https://diataxis.fr) framework:
@@ -43,20 +43,20 @@ solardemo> /quit
 1. **Build the binary.** From this `go-cli/` directory:
 
    ```sh
-   make build          # -> dist/<os>-<arch>/solardemo-cli
+   make build          # -> dist/<os>-<arch>/voxgig-solardemo-cli
    ```
 
 2. **Set your API key** (read from the environment):
 
    ```sh
-   export SOLARDEMO_APIKEY=sk_live_xxx
+   export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx
    ```
 
 3. **Run a query.** Evaluate an boru expression against the API (or run with no
    arguments to open the REPL):
 
    ```sh
-   ./dist/*/solardemo-cli list moon
+   ./dist/*/voxgig-solardemo-cli list moon
    ```
 
 4. **Go interactive.** Run the binary with no arguments to open the REPL, then
@@ -69,7 +69,7 @@ That is the whole loop: *build → set key → evaluate boru expressions*.
 ### List the records of an entity
 
 ```sh
-./solardemo-cli list moon
+./voxgig-solardemo-cli list moon
 ```
 
 `list <entity>` returns the first page of records. `<entity>` is a bareword —
@@ -78,8 +78,8 @@ it is auto-quoted as an boru atom, so no quotes are needed.
 ### Load a single record
 
 ```sh
-./solardemo-cli load 1 moon          # scalar shorthand for {id:1}
-./solardemo-cli load '{id:1}' moon     # explicit match map
+./voxgig-solardemo-cli load 1 moon          # scalar shorthand for {id:1}
+./voxgig-solardemo-cli load '{id:1}' moon     # explicit match map
 ```
 
 The query is either a **scalar** (`1`, treated as `{id:1}`) or a **match map**
@@ -88,7 +88,7 @@ The query is either a **scalar** (`1`, treated as `{id:1}`) or a **match map**
 ### Update a record
 
 ```sh
-./solardemo-cli update '{id:1,name:"new"}' moon
+./voxgig-solardemo-cli update '{id:1,name:"new"}' moon
 ```
 
 The match map carries both the selector and the new field values; the updated
@@ -99,23 +99,23 @@ record is printed back.
 Configuration is read from the environment — nothing is written to disk:
 
 ```sh
-export SOLARDEMO_APIKEY=sk_live_xxx            # API key
-export SOLARDEMO_BASE=https://api.example.com  # optional: override the API base URL
-./solardemo-cli list moon
+export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx            # API key
+export VOXGIG_SOLARDEMO_BASE=https://api.example.com  # optional: override the API base URL
+./voxgig-solardemo-cli list moon
 ```
 
 Both are injectable by a secrets vault, so the key never has to be typed inline.
 
 ### Explore interactively with the REPL
 
-Run with no arguments to open a REPL (prompt `solardemo>`). Each line is
+Run with no arguments to open a REPL (prompt `voxgig-solardemo>`). Each line is
 evaluated as its own boru expression:
 
 ```text
-$ ./solardemo-cli
-solardemo> list moon
-solardemo> /help
-solardemo> /quit
+$ ./voxgig-solardemo-cli
+voxgig-solardemo> list moon
+voxgig-solardemo> /help
+voxgig-solardemo> /quit
 ```
 
 ### Cross-compile release binaries
@@ -150,8 +150,8 @@ The CLI registers these boru words, each bound to the SDK:
 
 | Variable | Purpose |
 |----------|---------|
-| `SOLARDEMO_APIKEY` | API key sent with every request. |
-| `SOLARDEMO_BASE` | Optional override of the API base URL. |
+| `VOXGIG_SOLARDEMO_APIKEY` | API key sent with every request. |
+| `VOXGIG_SOLARDEMO_BASE` | Optional override of the API base URL. |
 
 Unset variables fall back to the SDK's built-in defaults.
 
@@ -177,7 +177,7 @@ Meta-commands use the `/` prefix (everything else on a line is evaluated as boru
 
 | Target | Result |
 |--------|--------|
-| `make build` | Native binary at `dist/<os>-<arch>/solardemo-cli`. |
+| `make build` | Native binary at `dist/<os>-<arch>/voxgig-solardemo-cli`. |
 | `make build-all` | linux/darwin/windows x amd64/arm64, each under its own `dist/<os>-<arch>/`. |
 | `make clean` | Remove `dist/` and any stray binaries. |
 
@@ -193,7 +193,7 @@ moon planet
 
 The whole command line is one [boru](https://github.com/boru-lang/boru) expression,
 not a fixed `verb --flag` grammar. That means the same binary works one-shot
-(`./solardemo-cli <expr>`) and interactively (the REPL), and expressions compose the
+(`./voxgig-solardemo-cli <expr>`) and interactively (the REPL), and expressions compose the
 same way in both. `list` / `load` / `update` are ordinary boru *words* bound to
 the SDK — adding SDK operations is adding words, not re-parsing flags.
 

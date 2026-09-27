@@ -5,6 +5,8 @@ import {
   cmp,
   configDefinition,
   each,
+  resolveAuthIn,
+  resolveAuthName,
   targetFeatures,
 } from '@voxgig/sdkgen'
 
@@ -27,22 +29,45 @@ const Config = cmp(async function Config(props: any) {
 
   const model: Model = ctx$.model
 
-  // Gated by the applicability tags, so this target never imports or
-  // registers a feature it has no source for. One rule, one place:
-  // helpers/applicability.
   const feature = targetFeatures(model, target)
 
-  // The config as data, built by the shared helper so every target embeds
-  // the same model by construction. Passing target.name opts this target
-  // into main.slug / main.version / main.target (the three station
-  // descriptor identity fields, station design §4); swift has only the
-  // JSON-literal rep, so that one call covers every rep this target emits.
-  const { json } = configDefinition(model, target.name)
+  const { def } = configDefinition(model, target.name)
 
-  // Model-data defaults may carry the ProjectName placeholder (e.g. the
-  // clienttrack clientName); resolve it to the API name so the embedded JSON
-  // matches the token-replaced runtime.
+  const authIn = resolveAuthIn(model)
+  const authName = resolveAuthName(model)
+  const authOpt: any = (def as any)?.options?.auth
+  if (null != authOpt) {
+    if ('header' !== authIn) authOpt.in = authIn
+    if ('Authorization' !== authName) authOpt.name = authName
+  }
+
+  const json = JSON.stringify(def)
+
   const configJson = json.replace(/ProjectName/g, model.const.Name)
+
+  const featurePlugins: Record<string, string[]> = {}
+  each(feature, (f: any) => {
+    const syms: string[] = []
+    each(f.plugin, (plugin: any) => {
+      if (false === plugin.active || null == plugin.active) return
+      for (const sym of Object.keys(plugin.def?.swift || {})) {
+        syms.push(sym)
+      }
+    })
+    if (0 < syms.length) {
+      featurePlugins[f.name] = syms.sort()
+    }
+  })
+
+  const pluginImport = 0 === Object.keys(featurePlugins).length ? '' :
+    '\nimport SekretoPlugins\n'
+
+  const featurePluginsBlock = 0 === Object.keys(featurePlugins).length ?
+    '  private static let featurePluginsVal: [String: [Any]] = [:]\n' :
+    '  private static let featurePluginsVal: [String: [Any]] = [\n' +
+    Object.keys(featurePlugins).sort().map((fname: string) =>
+      `    "${fname}": [${featurePlugins[fname].join(', ')}],\n`).join('') +
+    '  ]\n'
 
   File({ name: 'Config.' + target.ext }, () => {
 
@@ -50,7 +75,7 @@ const Config = cmp(async function Config(props: any) {
 // factory. GENERATED from the API model - do not edit by hand.
 
 import Foundation
-
+${pluginImport}
 public enum SdkConfig {
   public static func makeConfig() -> VMap {
     let json = #"""
@@ -90,6 +115,16 @@ ${configJson}
 
     Content(`    default: return BaseFeature()
     }
+  }
+
+  // The plugin definitions the model selected per feature, as [Any] so a
+  // feature can consume them without core naming the plugin module's
+  // types. Empty when no active feature declares active plugin groups for
+  // this target.
+${featurePluginsBlock}
+  // featurePlugins is the definitions list for one feature's chain.
+  public static func featurePlugins(_ name: String) -> [Any] {
+    return featurePluginsVal[name] ?? []
   }
 }
 `)

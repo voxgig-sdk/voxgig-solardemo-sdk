@@ -1,4 +1,4 @@
-# Solardemo Data — credential discovery tests.
+# VoxgigSolardemo Data — credential discovery tests.
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-from solardemo_data import auth
-from solardemo_data.auth import resolve, from_env, missing_token_message, missing_base_message, NOT_FOUND
+from voxgigsolardemo_data import auth
+from voxgigsolardemo_data.auth import resolve, from_env, missing_token_message, missing_base_message, NOT_FOUND
 
 
 class TestResolve:

@@ -1,8 +1,8 @@
-// Solardemo SDK - operation result.
+// VoxgigSolardemo SDK - operation result.
 
 using Voxgig.Struct;
 
-namespace SolardemoSdk;
+namespace VoxgigSolardemoSdk;
 
 public class Result
 {

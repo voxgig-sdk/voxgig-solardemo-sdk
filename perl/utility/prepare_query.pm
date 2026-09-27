@@ -1,4 +1,4 @@
-# Solardemo SDK utility: prepare_query
+# VoxgigSolardemo SDK utility: prepare_query
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -21,7 +21,7 @@ $REGISTRY{prepare_query} = sub {
   my $reqmatch = $ctx->{reqmatch} || {};
   my $params = [];
   if ($point) {
-    my $p = SolardemoHelpers::gp($point, 'params');
+    my $p = VoxgigSolardemoHelpers::gp($point, 'params');
     $params = $p if Voxgig::Struct::islist($p);
   }
   my $out = {};
@@ -29,7 +29,8 @@ $REGISTRY{prepare_query} = sub {
   if ($items) {
     for my $item (@$items) {
       my ($key, $val) = @$item;
-      next unless SolardemoHelpers::rb_truthy($val) && defined $key && !ref $key;
+      next unless VoxgigSolardemoHelpers::rb_truthy($val) && defined $key && !ref $key;
+      next if '$action' eq $key;
       next if grep { defined $_ && !ref $_ && $_ eq $key } @$params;
       $out->{$key} = $val;
     }

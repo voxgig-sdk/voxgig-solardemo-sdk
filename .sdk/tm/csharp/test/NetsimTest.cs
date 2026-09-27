@@ -9,16 +9,16 @@ using System.Diagnostics;
 
 using Xunit;
 
-using SolardemoSdk;
+using VoxgigSolardemoSdk;
 
-namespace SolardemoSdk.Test;
+namespace VoxgigSolardemoSdk.Test;
 
 public class NetsimTest
 {
     [Fact]
     public void OfflineSimulationFailsRequest()
     {
-        var client = SolardemoSDK.TestSDK(new Dictionary<string, object?>
+        var client = VoxgigSolardemoSDK.TestSDK(new Dictionary<string, object?>
         {
             ["net"] = new Dictionary<string, object?> { ["offline"] = true },
         }, null);
@@ -29,7 +29,7 @@ public class NetsimTest
     [Fact]
     public void FailstatusSimulationSurfacesStatus()
     {
-        var client = SolardemoSDK.TestSDK(new Dictionary<string, object?>
+        var client = VoxgigSolardemoSDK.TestSDK(new Dictionary<string, object?>
         {
             ["net"] = new Dictionary<string, object?>
             {
@@ -46,7 +46,7 @@ public class NetsimTest
     public void LatencySimulationDelaysRequest()
     {
         var delay = 60;
-        var client = SolardemoSDK.TestSDK(new Dictionary<string, object?>
+        var client = VoxgigSolardemoSDK.TestSDK(new Dictionary<string, object?>
         {
             ["net"] = new Dictionary<string, object?> { ["latency"] = delay },
         }, null);
@@ -61,7 +61,7 @@ public class NetsimTest
     [Fact]
     public void PlainTestSdkWorksWithoutNet()
     {
-        var client = SolardemoSDK.TestSDK(null, null);
+        var client = VoxgigSolardemoSDK.TestSDK(null, null);
         Assert.NotNull(client);
     }
 }

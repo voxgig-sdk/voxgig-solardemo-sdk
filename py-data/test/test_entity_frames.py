@@ -9,8 +9,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from solardemo_sdk import SolardemoSDK
-from solardemo_data.entity_frames import EntityFrames
+from voxgigsolardemo_sdk import VoxgigSolardemoSDK
+from voxgigsolardemo_data.entity_frames import EntityFrames
 
 FRAME_ACCESSORS = [
     "moons",
@@ -53,8 +53,8 @@ class TestAccessorSurface:
 class TestFramesAgainstTestMode:
 
     def _client(self):
-        from solardemo_data import SolardemoData
-        return SolardemoData(SolardemoSDK.test(None, None))
+        from voxgigsolardemo_data import VoxgigSolardemoData
+        return VoxgigSolardemoData(VoxgigSolardemoSDK.test(None, None))
 
     def test_first_frame_accessor_returns_a_dataframe(self):
         ad = self._client()

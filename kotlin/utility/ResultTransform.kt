@@ -1,10 +1,10 @@
-package voxgig.solardemosdk.utility
+package voxgig.voxgigsolardemosdk.utility
 
-import voxgig.solardemosdk.core.Context
-import voxgig.solardemosdk.core.Helpers
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.core.Context
+import voxgig.voxgigsolardemosdk.core.Helpers
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
-fun resultBasic(ctx: Context): voxgig.solardemosdk.core.Result {
+fun resultBasic(ctx: Context): voxgig.voxgigsolardemosdk.core.Result {
   val response = ctx.response
   val result = ctx.result
 
@@ -29,7 +29,7 @@ fun resultBasic(ctx: Context): voxgig.solardemosdk.core.Result {
   return result!!
 }
 
-fun resultBody(ctx: Context): voxgig.solardemosdk.core.Result {
+fun resultBody(ctx: Context): voxgig.voxgigsolardemosdk.core.Result {
   val response = ctx.response
   val result = ctx.result
 
@@ -42,7 +42,7 @@ fun resultBody(ctx: Context): voxgig.solardemosdk.core.Result {
   return result!!
 }
 
-fun resultHeaders(ctx: Context): voxgig.solardemosdk.core.Result {
+fun resultHeaders(ctx: Context): voxgig.voxgigsolardemosdk.core.Result {
   val response = ctx.response
   val result = ctx.result
 
@@ -58,21 +58,36 @@ fun resultHeaders(ctx: Context): voxgig.solardemosdk.core.Result {
   return result!!
 }
 
+// `$action` selects the point (see makePoint); it is never an API field, so
+// the body is a copy without it. The caller's map is left untouched.
+private fun stripAction(reqdata: Any?): Any? {
+  if (reqdata !is Map<*, *> || !reqdata.containsKey("\$action")) {
+    return reqdata
+  }
+  val body = linkedMapOf<String, Any?>()
+  for ((k, v) in reqdata) {
+    if ("\$action" != k) {
+      body[k.toString()] = v
+    }
+  }
+  return body
+}
+
 fun transformRequest(ctx: Context): Any? {
   if (ctx.spec != null) {
     ctx.spec!!.step = "reqform"
   }
 
   val transform = Helpers.toMapAny(Struct.getprop(ctx.point, "transform"))
-    ?: return ctx.reqdata
+    ?: return stripAction(ctx.reqdata)
 
   val reqform = Struct.getprop(transform, "req", null)
-    ?: return ctx.reqdata
+    ?: return stripAction(ctx.reqdata)
 
   val data = linkedMapOf<String, Any?>()
   data["reqdata"] = ctx.reqdata
 
-  return Struct.transform(data, reqform)
+  return stripAction(Struct.transform(data, reqform))
 }
 
 fun transformResponse(ctx: Context): Any? {

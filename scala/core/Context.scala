@@ -1,8 +1,8 @@
-package voxgig.solardemosdk.core
+package voxgig.voxgigsolardemosdk.core
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 import java.util.concurrent.ThreadLocalRandom
-import voxgig.solardemosdk.utility.struct.Struct
+import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // Per-operation context threaded through the pipeline and feature hooks.
 class Context(ctxmap: JMap[String, Object], basectx: Context) {
@@ -51,7 +51,8 @@ class Context(ctxmap: JMap[String, Object], basectx: Context) {
         case c: Control => ctrl = c
         case _ =>
       }
-    } else if (basectx != null && basectx.ctrl != null) {
+    } else if (basectx != null && basectx.ctrl != null
+        && Helpers.getCtxProp(ctxmap, "opname") == null) {
       ctrl = basectx.ctrl
     }
 

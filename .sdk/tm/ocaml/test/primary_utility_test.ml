@@ -1,4 +1,4 @@
-(* ProjectName SDK primary-utility corpus.
+(* VoxgigSolardemo SDK primary-utility corpus.
  *
  * Drives the SHARED language-neutral corpus (.sdk/test/test.json -> "primary")
  * through this SDK's request-shaping utilities, so the cases cannot drift from

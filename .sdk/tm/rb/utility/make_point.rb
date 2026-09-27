@@ -1,15 +1,15 @@
-# Solardemo SDK utility: make_point
+# VoxgigSolardemo SDK utility: make_point
 require_relative 'struct/voxgig_struct'
 require_relative '../core/helpers'
 require_relative '../core/error'
-module SolardemoUtilities
+module VoxgigSolardemoUtilities
   MakePoint = ->(ctx) {
     if ctx.out["point"]
       preset = ctx.out["point"]
       # A feature may short-circuit endpoint resolution by placing an error
       # in ctx.out["point"] (e.g. an rbac denial): surface it as the error
       # tuple slot so the operation fails before any network use.
-      return nil, preset if preset.is_a?(SolardemoError)
+      return nil, preset if preset.is_a?(VoxgigSolardemoError)
       ctx.point = preset
       return ctx.point, nil
     end
@@ -37,7 +37,7 @@ module SolardemoUtilities
       point = nil
       matched = false
       op.points.each do |p|
-        select_def = SolardemoHelpers.to_map(VoxgigStruct.getprop(p, "select"))
+        select_def = VoxgigSolardemoHelpers.to_map(VoxgigStruct.getprop(p, "select"))
         found = true
 
         if selector && select_def
@@ -106,7 +106,7 @@ module SolardemoUtilities
       if reqselector
         req_action = VoxgigStruct.getprop(reqselector, "$action")
         if req_action && point
-          point_select = SolardemoHelpers.to_map(VoxgigStruct.getprop(point, "select"))
+          point_select = VoxgigSolardemoHelpers.to_map(VoxgigStruct.getprop(point, "select"))
           point_action = VoxgigStruct.getprop(point_select, "$action")
           if req_action != point_action
             return nil, ctx.make_error("point_action_invalid",

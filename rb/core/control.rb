@@ -1,6 +1,6 @@
-# Solardemo SDK control
+# VoxgigSolardemo SDK control
 
-class SolardemoControl
+class VoxgigSolardemoControl
   attr_accessor :throw_err, :err, :explain, :actor, :paging
 
   def initialize(opts = {})

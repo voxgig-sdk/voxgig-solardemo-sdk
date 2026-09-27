@@ -1,4 +1,4 @@
-/- ProjectName SDK primary utility corpus.
+/- VoxgigSolardemo SDK primary utility corpus.
 
    Drives the SHARED language-neutral corpus (.sdk/test/test.json, section
    `primary`) — the same fixtures every other target executes — through this

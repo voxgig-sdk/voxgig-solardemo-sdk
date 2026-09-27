@@ -5,7 +5,7 @@
 
 import unittest
 
-from projectname_sdk import SolardemoSDK
+from projectname_sdk import VoxgigSolardemoSDK
 
 from test.omni import OmniError, makeRunner
 
@@ -45,7 +45,7 @@ def inc(n):
 class TestOmniSmoke(unittest.TestCase):
 
     def _pack(self):
-        runner = makeRunner(SPEC, SolardemoSDK.test(None, None))
+        runner = makeRunner(SPEC, VoxgigSolardemoSDK.test(None, None))
         return runner('smoke')
 
     def test_runset_passes_a_correct_subject(self):

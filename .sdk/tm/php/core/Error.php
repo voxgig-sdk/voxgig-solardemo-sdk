@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK error
+// VoxgigSolardemo SDK error
 
-class SolardemoError extends \Exception
+class VoxgigSolardemoError extends \Exception
 {
     public bool $is_sdk_error;
     public string $sdk;
@@ -28,7 +28,7 @@ class SolardemoError extends \Exception
     {
         parent::__construct($msg);
         $this->is_sdk_error = true;
-        $this->sdk = 'Solardemo';
+        $this->sdk = 'VoxgigSolardemo';
         $this->sdk_code = $code;
         $this->msg = $msg;
         $this->ctx = $ctx;

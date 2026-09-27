@@ -1,13 +1,13 @@
-package voxgig.solardemosdk.utility;
+package voxgig.voxgigsolardemosdk.utility;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import voxgig.solardemosdk.core.Context;
-import voxgig.solardemosdk.core.Response;
-import voxgig.solardemosdk.core.Result;
-import voxgig.solardemosdk.core.Spec;
-import voxgig.solardemosdk.core.Utility;
+import voxgig.voxgigsolardemosdk.core.Context;
+import voxgig.voxgigsolardemosdk.core.Response;
+import voxgig.voxgigsolardemosdk.core.Result;
+import voxgig.voxgigsolardemosdk.core.Spec;
+import voxgig.voxgigsolardemosdk.core.Utility;
 
 @SuppressWarnings({"unchecked"})
 final class MakeRequest {

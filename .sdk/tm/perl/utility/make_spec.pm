@@ -1,4 +1,4 @@
-# Solardemo SDK utility: make_spec
+# VoxgigSolardemo SDK utility: make_spec
 
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
 require(Cwd::abs_path("$__dir/../core/spec.pm"));
 
-package SolardemoUtilities;
+package VoxgigSolardemoUtilities;
 
 our %REGISTRY;
 
@@ -28,25 +28,25 @@ $REGISTRY{make_spec} = sub {
   my $options = $ctx->{options};
   my $utility = $ctx->{utility};
 
-  my $base = SolardemoHelpers::gp($options, 'base');
+  my $base = VoxgigSolardemoHelpers::gp($options, 'base');
   $base = '' unless defined $base;
-  my $prefix = SolardemoHelpers::gp($options, 'prefix');
+  my $prefix = VoxgigSolardemoHelpers::gp($options, 'prefix');
   $prefix = '' unless defined $prefix;
-  my $suffix = SolardemoHelpers::gp($options, 'suffix');
+  my $suffix = VoxgigSolardemoHelpers::gp($options, 'suffix');
   $suffix = '' unless defined $suffix;
 
   my $parts = [];
-  $parts = SolardemoHelpers::gp($point, 'parts') if $point;
+  $parts = VoxgigSolardemoHelpers::gp($point, 'parts') if $point;
   $parts = [] unless Voxgig::Struct::islist($parts);
 
-  $ctx->{spec} = SolardemoSpec->new({
+  $ctx->{spec} = VoxgigSolardemoSpec->new({
     'base' => $base, 'prefix' => $prefix, 'parts' => $parts,
     'suffix' => $suffix, 'step' => 'start',
   });
 
   $ctx->{spec}{method} = $utility->{prepare_method}->($ctx);
 
-  my $allow_method = SolardemoHelpers::gpath($options, 'allow.method');
+  my $allow_method = VoxgigSolardemoHelpers::gpath($options, 'allow.method');
   $allow_method = '' unless defined $allow_method && !ref $allow_method;
   unless (index($allow_method, $ctx->{spec}{method}) >= 0) {
     return (undef, $ctx->make_error('spec_method_allow',
@@ -57,7 +57,7 @@ $REGISTRY{make_spec} = sub {
   $ctx->{spec}{query} = $utility->{prepare_query}->($ctx);
   $ctx->{spec}{headers} = $utility->{prepare_headers}->($ctx);
 
-  my $pkind = SolardemoHelpers::gp($ctx->{point}, 'kind');
+  my $pkind = VoxgigSolardemoHelpers::gp($ctx->{point}, 'kind');
   if (defined $pkind && 'graphql' eq $pkind) {
     # GraphQL addresses one endpoint: no path parts, no query string, and
     # the body carries the operation. prepare_body is skipped deliberately
@@ -70,7 +70,7 @@ $REGISTRY{make_spec} = sub {
     # leaving them would send /graphql?id=i1.
     $ctx->{spec}{query} = {};
     $ctx->{spec}{headers}{'content-type'} =
-      $SolardemoUtilities::GRAPHQL_CONTENT_TYPE;
+      $VoxgigSolardemoUtilities::GRAPHQL_CONTENT_TYPE;
   }
   else {
     $ctx->{spec}{body} = $utility->{prepare_body}->($ctx);

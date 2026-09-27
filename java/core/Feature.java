@@ -1,9 +1,9 @@
-package voxgig.solardemosdk.core;
+package voxgig.voxgigsolardemosdk.core;
 
 import java.util.Map;
 
 /**
- * A Solardemo SDK feature. Hook methods are dispatched by name via the
+ * A VoxgigSolardemo SDK feature. Hook methods are dispatched by name via the
  * featureHook utility (reflectively, so features may also define extra
  * hooks beyond this interface).
  */

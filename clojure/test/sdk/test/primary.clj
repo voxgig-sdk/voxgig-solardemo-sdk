@@ -1,4 +1,4 @@
-;; Solardemo SDK primary utility tests — the utility object exposes every
+;; VoxgigSolardemo SDK primary utility tests — the utility object exposes every
 ;; pipeline member and the vendored struct library, and a few core behaviours.
 (ns sdk.test.primary
   (:require [sdk.core :as core]

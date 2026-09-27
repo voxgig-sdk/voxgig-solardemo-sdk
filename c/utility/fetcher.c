@@ -25,7 +25,7 @@ voxgig_value* fetcher_util(Fetcher* self, Context* ctx, const char* fullurl,
   (void)self;
   *err = NULL;
 
-  SolardemoSDK* client = ctx->client;
+  VoxgigSolardemoSDK* client = ctx->client;
   if (!client) {
     *err = context_make_error(ctx, "fetch_no_client", "Expected context client.");
     return NULL;

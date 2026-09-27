@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK test feature
+// VoxgigSolardemo SDK test feature
 
 require_once __DIR__ . '/BaseFeature.php';
 require_once __DIR__ . '/../utility/Param.php';
 
-class SolardemoTestFeature extends SolardemoBaseFeature
+class VoxgigSolardemoTestFeature extends VoxgigSolardemoBaseFeature
 {
     private mixed $client;
     private ?array $options;
@@ -23,7 +23,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
         $this->_netcalls = 0;
     }
 
-    public function init(SolardemoContext $ctx, array $options): void
+    public function init(VoxgigSolardemoContext $ctx, array $options): void
     {
         $this->client = $ctx->client;
         $this->options = $options;
@@ -35,8 +35,8 @@ class SolardemoTestFeature extends SolardemoBaseFeature
 
         $this->client->mode = 'test';
 
-        // Ensure entity ids are correct.
-        \Voxgig\Struct\Struct::walk($entity_data, function ($key, $val, $parent, $path) {
+        // Ensure entity ids are correct (walk is by value: keep its result).
+        $entity_data = \Voxgig\Struct\Struct::walk($entity_data, function ($key, $val, $parent, $path) {
             if (count($path) === 2 && is_array($val) && $key !== null) {
                 $val['id'] = $key;
             }
@@ -47,7 +47,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
         $entity = new \stdClass();
         $entity->data = $entity_data;
 
-        $test_fetcher = function (SolardemoContext $fctx, string $_fullurl, array $_fetchdef) use ($entity): array {
+        $test_fetcher = function (VoxgigSolardemoContext $fctx, string $_fullurl, array $_fetchdef) use ($entity): array {
             // Shape the mock payload the way the real API would, so the op's
             // response transform recovers the entity from it. A point carrying
             // transform.res of `body.item` describes an API that answers
@@ -103,9 +103,8 @@ class SolardemoTestFeature extends SolardemoBaseFeature
 
             // PHP-portable equivalent of TS buildArgs+select: a flat-key
             // filter that matches by exact-equality on each provided key,
-            // with alias fallback. Empty match matches all entries — load
-            // with empty match returns the first fixture entry (or last
-            // create), list returns all entries.
+            // with alias fallback. An empty match matches every entry, as an
+            // empty `$AND` does in select; a non-empty miss matches nothing.
             $find_first = function (array $entmap, $match, $alias) {
                 if (!is_array($match) || empty($match)) {
                     foreach ($entmap as $e) {
@@ -158,6 +157,23 @@ class SolardemoTestFeature extends SolardemoBaseFeature
 
             $alias = is_object($op) ? ($op->alias ?? null) : \Voxgig\Struct\Struct::getprop($op, 'alias');
 
+            // Every op filters through buildArgs, which keeps `id` and the
+            // point's required params and drops the rest. find_first/find_all
+            // take a flat map, so take the primary key of each $OR clause;
+            // they do their own alias fallback.
+            $query_match = function ($args) use ($fctx, $op) {
+                $flat = [];
+                foreach (($this->buildArgs($fctx, $op, $args)['$AND'] ?? []) as $clause) {
+                    $ors = $clause['$OR'] ?? [];
+                    if (is_array($ors) && count($ors) > 0 && is_array($ors[0])) {
+                        foreach ($ors[0] as $lk => $lv) {
+                            $flat[$lk] = $lv;
+                        }
+                    }
+                }
+                return $flat;
+            };
+
             // For single-entity ops (load, remove) with an empty explicit
             // match, fall back to the id the entity client already knows from a
             // prior create/load (carried in $fctx->match / $fctx->data). This
@@ -176,7 +192,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
             };
 
             if ($op->name === 'load') {
-                $ent = $find_first($entmap, $resolve_match($fctx->reqmatch), $alias);
+                $ent = $find_first($entmap, $query_match($resolve_match($fctx->reqmatch)), $alias);
                 if ($ent === null) {
                     return $respond(404, null, ['statusText' => 'Not found']);
                 }
@@ -185,37 +201,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
                 return $respond(200, $out);
 
             } elseif ($op->name === 'list') {
-                // FILTER THE MATCH THE WAY THE TS MOCK DOES.
-                //
-                // This branch used the whole of reqmatch, while load goes
-                // through resolve_match and the TS mock runs every op through
-                // buildArgs — which keeps `id` and the point's REQUIRED params
-                // and drops the rest. buildArgs is right here in this file and
-                // its docblock says it mirrors the TS one; list simply did not
-                // call it.
-                //
-                // So a match key that is neither `id` nor a required route
-                // param matched NOTHING in php and was IGNORED in ts. trello's
-                // board_star lists on `board_id`, which is not a field of that
-                // entity (id, pos, member_id, id_board) and not a route param:
-                // php returned an empty list and BoardStarEntityTest failed on
-                // an assertion that ts, js and every other port passed.
-                //
-                // buildArgs returns a struct query; find_all takes a flat map,
-                // so take the primary key of each $OR clause. find_all already
-                // does its own alias fallback, which is what the second $OR
-                // element carries.
-                $listargs = $this->buildArgs($fctx, $op, $fctx->reqmatch);
-                $listmatch = [];
-                foreach (($listargs['$AND'] ?? []) as $clause) {
-                    $ors = $clause['$OR'] ?? [];
-                    if (is_array($ors) && count($ors) > 0 && is_array($ors[0])) {
-                        foreach ($ors[0] as $lk => $lv) {
-                            $listmatch[$lk] = $lv;
-                        }
-                    }
-                }
-                $found = $find_all($entmap, $listmatch, $alias);
+                $found = $find_all($entmap, $query_match($fctx->reqmatch), $alias);
                 $cleaned = [];
                 foreach ($found as $e) {
                     if (is_array($e)) unset($e['$KEY']);
@@ -245,14 +231,13 @@ class SolardemoTestFeature extends SolardemoBaseFeature
                 if (empty($update_match)) {
                     $update_match = $resolve_match([]);
                 }
-                $ent = $find_first($entmap, $update_match, $alias);
+                $ent = $find_first($entmap, $query_match($update_match), $alias);
                 if ($ent === null) {
+                    // update miss: 404, never another record
                     return $respond(404, null, ['statusText' => 'Not found']);
                 }
                 if (is_array($fctx->reqdata)) {
-                    foreach ($fctx->reqdata as $k => $v) {
-                        $ent[$k] = $v;
-                    }
+                    $ent = \Voxgig\Struct\Struct::merge([$ent, $fctx->reqdata]);
                 }
                 $id = is_array($ent) ? ($ent['id'] ?? null) : null;
                 if ($id !== null) {
@@ -264,7 +249,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
                 return $respond(200, $out);
 
             } elseif ($op->name === 'remove') {
-                $ent = $find_first($entmap, $resolve_match($fctx->reqmatch), $alias);
+                $ent = $find_first($entmap, $query_match($resolve_match($fctx->reqmatch)), $alias);
                 // Remove only the first matched entity. If nothing matches,
                 // succeed as a no-op rather than erroring.
                 $id = is_array($ent) ? ($ent['id'] ?? null) : null;
@@ -275,7 +260,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
                 return $respond(200, null);
 
             } elseif ($op->name === 'create') {
-                $id = SolardemoParam::call($fctx, 'id');
+                $id = VoxgigSolardemoParam::call($fctx, 'id');
                 if ($id === null || $id === '__UNDEFINED__') {
                     $id = sprintf('%04x%04x%04x%04x',
                         random_int(0, 0xFFFF), random_int(0, 0xFFFF),
@@ -345,7 +330,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
             usleep((int)($ms * 1000));
         };
 
-        return function (SolardemoContext $fctx, string $url, array $fetchdef) use ($net, $inner, $pick_latency, $sleep): array {
+        return function (VoxgigSolardemoContext $fctx, string $url, array $fetchdef) use ($net, $inner, $pick_latency, $sleep): array {
             $this->_netcalls++;
             $call = $this->_netcalls;
 
@@ -383,7 +368,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
      * current operation point, emit a `$OR` clause matching the key (and
      * its alias, if any) against the supplied value.
      */
-    public function buildArgs(SolardemoContext $ctx, $op, $args): array
+    public function buildArgs(VoxgigSolardemoContext $ctx, $op, $args): array
     {
         // If args is empty/missing, return an empty $AND so select() matches
         // every entry — the TS test feature relies on this for empty-match
@@ -464,7 +449,7 @@ class SolardemoTestFeature extends SolardemoBaseFeature
             $is_id = ($k === 'id');
             $in_reqd = in_array($k, $reqd_names, true);
             if ($is_id || $in_reqd) {
-                $v = SolardemoParam::call($ctx, $k);
+                $v = VoxgigSolardemoParam::call($ctx, $k);
                 $ka = \Voxgig\Struct\Struct::getprop($alias, $k);
 
                 $qor = [[$k => $v]];

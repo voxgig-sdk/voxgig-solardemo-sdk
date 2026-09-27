@@ -1,7 +1,7 @@
 (* JSON text -> voxgig struct value.
  *
  * A dependency-free reader, so the SDK can parse JSON with no opam packages -
- * the same position every other target is in (elixir's Solardemo.Json,
+ * the same position every other target is in (elixir's VoxgigSolardemo.Json,
  * clojure's sdk.core/json-parse, the json_parse in c/rust/zig).
  *
  * It lives in the RUNTIME rather than the test tree because the generated

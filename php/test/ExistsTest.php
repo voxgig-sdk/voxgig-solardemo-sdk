@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK exists test
+// VoxgigSolardemo SDK exists test
 
-require_once __DIR__ . '/../solardemo_sdk.php';
+require_once __DIR__ . '/../voxgigsolardemo_sdk.php';
 
 use PHPUnit\Framework\TestCase;
 
@@ -11,7 +11,7 @@ class ExistsTest extends TestCase
 {
     public function test_create_test_sdk(): void
     {
-        $testsdk = SolardemoSDK::test(null, null);
+        $testsdk = VoxgigSolardemoSDK::test(null, null);
         $this->assertNotNull($testsdk);
     }
 }

@@ -34,8 +34,8 @@ String resolveTestPath(String rel) {
 Map<String, dynamic> envOverride(Map<String, dynamic> m) {
   final env = Platform.environment;
 
-  if ('TRUE' == env['SOLARDEMO_TEST_LIVE'] ||
-      'TRUE' == env['SOLARDEMO_TEST_OVERRIDE']) {
+  if ('TRUE' == env['VOXGIG_SOLARDEMO_TEST_LIVE'] ||
+      'TRUE' == env['VOXGIG_SOLARDEMO_TEST_OVERRIDE']) {
     for (final k in m.keys.toList()) {
       var envval = env[k];
       if (null != envval) {
@@ -45,8 +45,8 @@ Map<String, dynamic> envOverride(Map<String, dynamic> m) {
     }
   }
 
-  m['SOLARDEMO_TEST_EXPLAIN'] =
-      env['SOLARDEMO_TEST_EXPLAIN'] ?? m['SOLARDEMO_TEST_EXPLAIN'];
+  m['VOXGIG_SOLARDEMO_TEST_EXPLAIN'] =
+      env['VOXGIG_SOLARDEMO_TEST_EXPLAIN'] ?? m['VOXGIG_SOLARDEMO_TEST_EXPLAIN'];
 
   return m;
 }

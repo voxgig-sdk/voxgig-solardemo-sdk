@@ -40,7 +40,7 @@ final class MakeError {
     }
 
     String errmsg = err.getMessage() == null ? String.valueOf(err) : err.getMessage();
-    String msg = "SolardemoSDK: " + opname + ": " + errmsg;
+    String msg = "VoxgigSolardemoSDK: " + opname + ": " + errmsg;
     msg = (String) Clean.clean(ctx, msg);
 
     result.err = null;

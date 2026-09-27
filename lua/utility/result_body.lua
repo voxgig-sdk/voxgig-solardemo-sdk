@@ -1,4 +1,4 @@
--- Solardemo SDK utility: result_body
+-- VoxgigSolardemo SDK utility: result_body
 
 local function result_body_util(ctx)
   local response = ctx.response

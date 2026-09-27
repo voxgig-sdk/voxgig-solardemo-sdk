@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// Solardemo SDK base feature
+// VoxgigSolardemo SDK base feature
 
-class SolardemoBaseFeature
+class VoxgigSolardemoBaseFeature
 {
     public string $version;
     public string $name;
@@ -26,18 +26,18 @@ class SolardemoBaseFeature
     public function get_name(): string { return $this->name; }
     public function get_active(): bool { return $this->active; }
 
-    public function init(SolardemoContext $ctx, array $options): void {}
-    public function PostConstruct(SolardemoContext $ctx): void {}
-    public function PostConstructEntity(SolardemoContext $ctx): void {}
-    public function SetData(SolardemoContext $ctx): void {}
-    public function GetData(SolardemoContext $ctx): void {}
-    public function GetMatch(SolardemoContext $ctx): void {}
-    public function SetMatch(SolardemoContext $ctx): void {}
-    public function PrePoint(SolardemoContext $ctx): void {}
-    public function PreSpec(SolardemoContext $ctx): void {}
-    public function PreRequest(SolardemoContext $ctx): void {}
-    public function PreResponse(SolardemoContext $ctx): void {}
-    public function PreResult(SolardemoContext $ctx): void {}
-    public function PreDone(SolardemoContext $ctx): void {}
-    public function PreUnexpected(SolardemoContext $ctx): void {}
+    public function init(VoxgigSolardemoContext $ctx, array $options): void {}
+    public function PostConstruct(VoxgigSolardemoContext $ctx): void {}
+    public function PostConstructEntity(VoxgigSolardemoContext $ctx): void {}
+    public function SetData(VoxgigSolardemoContext $ctx): void {}
+    public function GetData(VoxgigSolardemoContext $ctx): void {}
+    public function GetMatch(VoxgigSolardemoContext $ctx): void {}
+    public function SetMatch(VoxgigSolardemoContext $ctx): void {}
+    public function PrePoint(VoxgigSolardemoContext $ctx): void {}
+    public function PreSpec(VoxgigSolardemoContext $ctx): void {}
+    public function PreRequest(VoxgigSolardemoContext $ctx): void {}
+    public function PreResponse(VoxgigSolardemoContext $ctx): void {}
+    public function PreResult(VoxgigSolardemoContext $ctx): void {}
+    public function PreDone(VoxgigSolardemoContext $ctx): void {}
+    public function PreUnexpected(VoxgigSolardemoContext $ctx): void {}
 }

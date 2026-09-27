@@ -1,4 +1,4 @@
--- Solardemo SDK Planet entity
+-- VoxgigSolardemo SDK Planet entity
 
 local vs = require("utility.struct.struct")
 local helpers = require("core.helpers")

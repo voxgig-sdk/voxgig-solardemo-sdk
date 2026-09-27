@@ -1,13 +1,13 @@
--- Solardemo SDK error
+-- VoxgigSolardemo SDK error
 
-local SolardemoError = {}
-SolardemoError.__index = SolardemoError
+local VoxgigSolardemoError = {}
+VoxgigSolardemoError.__index = VoxgigSolardemoError
 
 
-function SolardemoError.new(code, msg, ctx)
-  local self = setmetatable({}, SolardemoError)
+function VoxgigSolardemoError.new(code, msg, ctx)
+  local self = setmetatable({}, VoxgigSolardemoError)
   self.is_sdk_error = true
-  self.sdk = "Solardemo"
+  self.sdk = "VoxgigSolardemo"
   self.code = code or ""
   self.msg = msg or ""
   self.ctx = ctx
@@ -17,14 +17,14 @@ function SolardemoError.new(code, msg, ctx)
 end
 
 
-function SolardemoError:error()
+function VoxgigSolardemoError:error()
   return self.msg
 end
 
 
-function SolardemoError:__tostring()
+function VoxgigSolardemoError:__tostring()
   return self.msg
 end
 
 
-return SolardemoError
+return VoxgigSolardemoError

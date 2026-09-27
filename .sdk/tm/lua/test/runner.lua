@@ -1,4 +1,4 @@
--- Solardemo SDK test runner
+-- VoxgigSolardemo SDK test runner
 
 local json = require("dkjson")
 local vs = require("utility.struct.struct")

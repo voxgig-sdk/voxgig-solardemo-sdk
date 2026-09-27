@@ -4,7 +4,7 @@ const Pkg = require('../package.json')
 
 const messages = {
   print: false,
-  pattern: 'sys:provider,provider:solardemo',
+  pattern: 'sys:provider,provider:voxgig-solardemo',
   allow: { missing: true },
 
   calls: [
@@ -12,7 +12,7 @@ const messages = {
       pattern: 'get:info',
       out: {
         ok: true,
-        name: 'solardemo',
+        name: 'voxgig-solardemo',
         version: Pkg.version,
       },
     },

@@ -94,7 +94,7 @@ static voxgig_value* corpus_json_thunk(void* ud, voxgig_value* args) {
   return ud ? (voxgig_value*)ud : v_undef();
 }
 
-static Context* corpus_ctx(SolardemoSDK* cl, voxgig_value* ctxmap) {
+static Context* corpus_ctx(VoxgigSolardemoSDK* cl, voxgig_value* ctxmap) {
   CtxSpec cs;
   memset(&cs, 0, sizeof(cs));
   /* Only when the corpus names one: defaulting to "load" made the SDK report
@@ -181,7 +181,7 @@ typedef voxgig_value* (*argfn)(voxgig_value* args, char** err);
 typedef struct psubj {
   ctxfn cf;
   argfn af;
-  SolardemoSDK* cl;
+  VoxgigSolardemoSDK* cl;
 } psubj;
 
 /* The omni subject: omni values in, omni value (or error message) out. */
@@ -222,9 +222,9 @@ static omni_result primary_call(omni_pool* pool, omni_json** args, size_t nargs,
 /* A section may carry its own client setup at DEF.setup.a — makeSpec and
  * prepareAuth read defaults off the CLIENT, not off ctx.options, so those
  * two cannot be driven with the shared client. */
-static SolardemoSDK* SHARED = NULL;
+static VoxgigSolardemoSDK* SHARED = NULL;
 
-static SolardemoSDK* client_for(omni_json* spec) {
+static VoxgigSolardemoSDK* client_for(omni_json* spec) {
   omni_json* setup = omni_map_get(omni_map_get(omni_map_get(spec, "DEF"), "setup"), "a");
   if (omni_ismap(setup)) {
     return test_sdk(v_undef(), omnivx_tovx(setup));
