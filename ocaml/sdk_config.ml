@@ -134,6 +134,7 @@ let make_config () : value =
           ("ms", (Num (30000.))) ]));
         ("optspec", (jo [
           ("clearTimer", (Str "`$FUNCTION`"));
+          ("now", (Str "`$FUNCTION`"));
           ("setTimer", (Str "`$FUNCTION`")) ]));
         ("strict", (Bool false));
         ("transport", (Str "wrap")) ])) ]));
@@ -214,7 +215,10 @@ let make_config () : value =
                       ("reqd", (Bool true)) ]) ])) ]));
                 ("select", (jo [
                   ("exist", (ja [
-                    (Str "planet_id") ])) ])) ]) ])) ]));
+                    (Str "planet_id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ]));
           ("list", (jo [
             ("input", (Str "data"));
             ("name", (Str "list"));
@@ -251,7 +255,10 @@ let make_config () : value =
                       ("reqd", (Bool true)) ]) ])) ]));
                 ("select", (jo [
                   ("exist", (ja [
-                    (Str "planet_id") ])) ])) ]) ])) ]));
+                    (Str "planet_id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ]));
           ("load", (jo [
             ("input", (Str "data"));
             ("name", (Str "load"));
@@ -300,7 +307,10 @@ let make_config () : value =
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id");
-                    (Str "planet_id") ])) ])) ]) ])) ]));
+                    (Str "planet_id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ]));
           ("remove", (jo [
             ("input", (Str "data"));
             ("name", (Str "remove"));
@@ -398,7 +408,10 @@ let make_config () : value =
                 ("select", (jo [
                   ("exist", (ja [
                     (Str "id");
-                    (Str "planet_id") ])) ])) ]) ])) ])) ]));
+                    (Str "planet_id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ])) ]));
         ("relations", (jo [
           ("ancestors", (ja [
             (ja [
@@ -488,7 +501,10 @@ let make_config () : value =
                 ("select", (jo [
                   ("$action", (Str "forbid"));
                   ("exist", (ja [
-                    (Str "id") ])) ])) ]);
+                    (Str "id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]);
               (jo [
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
@@ -524,7 +540,10 @@ let make_config () : value =
                 ("select", (jo [
                   ("$action", (Str "terraform"));
                   ("exist", (ja [
-                    (Str "id") ])) ])) ]);
+                    (Str "id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]);
               (jo [
                 ("kind", (Str "http"));
                 ("method", (Str "POST"));
@@ -542,7 +561,10 @@ let make_config () : value =
                   ("req", (Str "`reqdata`"));
                   ("res", (Str "`body`")) ]));
                 ("args", (empty_map ()));
-                ("select", (empty_map ())) ]) ])) ]));
+                ("select", (empty_map ()));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ]));
           ("list", (jo [
             ("input", (Str "data"));
             ("name", (Str "list"));
@@ -564,7 +586,10 @@ let make_config () : value =
                   ("req", (Str "`reqdata`"));
                   ("res", (Str "`body`")) ]));
                 ("args", (empty_map ()));
-                ("select", (empty_map ())) ]) ])) ]));
+                ("select", (empty_map ()));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ]));
           ("load", (jo [
             ("input", (Str "data"));
             ("name", (Str "load"));
@@ -600,7 +625,10 @@ let make_config () : value =
                       ("reqd", (Bool true)) ]) ])) ]));
                 ("select", (jo [
                   ("exist", (ja [
-                    (Str "id") ])) ])) ]) ])) ]));
+                    (Str "id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ]));
           ("remove", (jo [
             ("input", (Str "data"));
             ("name", (Str "remove"));
@@ -672,7 +700,10 @@ let make_config () : value =
                       ("reqd", (Bool true)) ]) ])) ]));
                 ("select", (jo [
                   ("exist", (ja [
-                    (Str "id") ])) ])) ]) ])) ])) ]));
+                    (Str "id") ])) ]));
+                ("response", (jo [
+                  ("kind", (Str "json"));
+                  ("media", (Str "application/json")) ])) ]) ])) ])) ]));
         ("relations", (jo [
           ("ancestors", (empty_list ())) ])) ])) ])) ])
 

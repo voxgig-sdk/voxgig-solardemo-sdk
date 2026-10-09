@@ -11,10 +11,106 @@ use Cwd ();
 use VoxgigSolardemoSDK;
 require(Cwd::abs_path("$FindBin::Bin/runner.pm"));
 
+# main.kit.test.live.strict is true (the default is true): a live
+# request that fails, or a live test missing an input it needs,
+# fails the test.
+# An account with no record for a test to read skips it either way.
+use constant LIVE_STRICT => 1;
+
 {
   my $testsdk = VoxgigSolardemoSDK->test(undef, undef);
   my $ent = $testsdk->Planet(undef);
   ok(defined $ent, 'planet: create instance');
+}
+
+{
+  package VoxgigSolardemoEntityTestPlanetFailHook;
+  our @ISA = ('VoxgigSolardemoBaseFeature');
+
+  sub new {
+    my ($class) = @_;
+    my $self = VoxgigSolardemoBaseFeature::new($class);
+    $self->{name} = 'failhook';
+    $self->{unexpected} = 0;
+    return $self;
+  }
+
+  sub init { }
+  sub PreSpec { die "planet hook failed\n" }
+  sub PreUnexpected { $_[0]->{unexpected}++; return }
+}
+
+{
+  my $offline = { net => { offline => 1 } };
+  my $died = !eval {
+    my $next = VoxgigSolardemoSDK->test($offline, undef)->Planet(undef)->stream('list', undef, undef);
+    1 while defined $next->();
+    1;
+  };
+  like($died ? "$@" : '', qr/offline/, 'planet: a failed stream raises');
+
+  ok(eval {
+    my $next = VoxgigSolardemoSDK->test($offline, undef)->Planet(undef)
+      ->stream('list', undef, { ctrl => { throw => 0 } });
+    1 while defined $next->();
+    1;
+  }, 'planet: under throw false a failed stream ends');
+
+  if (VoxgigSolardemoConfig::shared_config()->{feature}{rbac}) {
+    my $denied = VoxgigSolardemoSDK->test(undef, { feature => { rbac => { active => 1, deny => 1 } } });
+    my $denyerr = eval {
+      my $next = $denied->Planet(undef)->stream('list', undef, undef);
+      1 while defined $next->();
+      undef;
+    } // $@;
+    is(ref $denyerr ? $denyerr->{code} : undef, 'rbac_denied',
+      'planet: a denied stream raises');
+  }
+}
+
+{
+  my $explain = {};
+  my $ctrl = { explain => $explain };
+  my $next = VoxgigSolardemoSDK->test(undef, undef)->Planet(undef)
+    ->stream('list', undef, { ctrl => $ctrl });
+  1 while defined $next->();
+  is_deeply([sort keys %$ctrl], ['explain'], 'planet: the stream leaves the caller ctrl');
+  ok($explain == $ctrl->{explain} && 0 < keys %$explain,
+    'planet: the caller explain record is filled');
+}
+
+{
+  my $hook = VoxgigSolardemoEntityTestPlanetFailHook->new;
+  my $client = VoxgigSolardemoSDK->new({ feature => { test => { active => 1 } }, extend => [$hook] });
+
+  my $err = eval { $client->Planet(undef)->list(undef, undef); undef } // $@;
+  like("$err", qr/hook failed/, 'planet: a dying hook fails the operation');
+  ok(0 < $hook->{unexpected}, 'planet: PreUnexpected fired');
+
+  my $fired = $hook->{unexpected};
+  my $out = eval { $client->Planet(undef)->list(undef, { throw => 0 }) };
+  ok(!$@ && !defined $out, 'planet: under throw false the call returns undef');
+  ok($fired < $hook->{unexpected}, 'planet: PreUnexpected fired under throw false');
+}
+
+{
+  my $seed = { entity => { 'planet' => { l1 => { id => 'l1' }, l2 => { id => 'l2' } } } };
+  my $items = VoxgigSolardemoSDK->test($seed, undef)->Planet(undef)->list(undef, undef);
+  # list resolves to one entity per record; data_get reads the record.
+  is(scalar(@$items), 2, 'planet: list answers each seeded record');
+  my $entities = grep {
+    Scalar::Util::blessed($_) && $_->can('data_get') && Voxgig::Struct::ismap($_->data_get)
+  } @$items;
+  is($entities, 2, 'planet: each listed item is an entity carrying its record');
+}
+
+SKIP: {
+  skip('feature not present in this SDK: validate', 1)
+    unless VoxgigSolardemoConfig::shared_config()->{feature}{validate};
+  my $client = VoxgigSolardemoSDK->test(undef, { feature => { validate => { active => 1 } } });
+  my $err = eval { $client->Planet(undef)->list({ 'diameter' => 'x' }, undef); undef } // $@;
+  is(ref $err ? $err->{code} : undef, 'validate_failed',
+    'planet: an invalid request fails with validate_failed');
 }
 
 BASIC_FLOW: {
@@ -29,13 +125,6 @@ BASIC_FLOW: {
       pass('planet: basic flow skipped via sdk-test-control.json');
       last BASIC_FLOW;
     }
-  }
-  # The basic flow consumes synthetic IDs from the fixture. In live mode
-  # without an *_ENTID env override, those IDs hit the live API and 4xx.
-  if ($setup->{synthetic_only}) {
-    note('live entity test uses synthetic IDs from fixture - set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live');
-    pass('planet: basic flow skipped (synthetic IDs only)');
-    last BASIC_FLOW;
   }
   my $client = $setup->{client};
   my %V;
@@ -133,10 +222,8 @@ sub planet_basic_setup {
     }
   );
 
-  # Detect ENTID env override before env_override consumes it. When live
-  # mode is on without a real override, the basic test runs against
-  # synthetic IDs from the fixture and 4xx's. Surface this so the test can
-  # skip.
+  # Whether *_ENTID supplied the idmap, read before env_override consumes
+  # it: without it, the ids a live flow binds are the fixture's synthetic ones.
   my $entid_env_raw = $ENV{'VOXGIG_SOLARDEMO_TEST_PLANET_ENTID'};
   my $idmap_overridden = (defined $entid_env_raw && $entid_env_raw =~ /^\s*\{/) ? 1 : 0;
 

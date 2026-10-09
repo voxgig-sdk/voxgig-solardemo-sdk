@@ -6,18 +6,29 @@ import java.nio.file.Paths
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 
+import voxgig.voxgigsolardemosdk.core.Config
+import voxgig.voxgigsolardemosdk.core.Context
 import voxgig.voxgigsolardemosdk.core.Helpers
 import voxgig.voxgigsolardemosdk.core.SdkEntity
+import voxgig.voxgigsolardemosdk.core.SdkError
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.feature.BaseFeature
 import voxgig.voxgigsolardemosdk.utility.Json
 import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE", "UNUSED_VALUE")
 class MoonEntityTest {
+
+  // main.kit.test.live.strict is true (the default is true): a live
+  // request that fails, or a live test missing an input it needs,
+  // fails the test.
+  // An account with no record for a test to read skips it either way.
+  private val LIVE_STRICT = true
 
   @Test
   fun instance() {
@@ -38,10 +49,13 @@ class MoonEntityTest {
         if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
       )
     }
-    Assumptions.assumeFalse(
-      setup.syntheticOnly,
-      "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live",
-    )
+    if (setup.live) {
+      for (liveKey in arrayOf<String>("planet01")) {
+        if (setup.syntheticOnly || setup.idmap?.get(liveKey) == null) {
+          RunnerSupport.liveMiss(LIVE_STRICT, "Live entity test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
+        }
+      }
+    }
     val client = setup.client
 
     // CREATE
@@ -89,6 +103,7 @@ class MoonEntityTest {
     // LOAD
     val moonRef01MatchDt0 = linkedMapOf<String, Any?>()
     moonRef01MatchDt0["id"] = moonRef01Data["id"]
+    moonRef01MatchDt0["planet_id"] = setup.idmap?.get("planet_id") ?: setup.idmap?.get("planet01")
     val moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null)
     val moonRef01DataDt0LoadResult = Helpers.toMapAny(if (moonRef01DataDt0Loaded is SdkEntity) moonRef01DataDt0Loaded.data() else moonRef01DataDt0Loaded) ?: linkedMapOf()
     assertNotNull(moonRef01DataDt0LoadResult, "expected load result to be a map")
@@ -98,6 +113,7 @@ class MoonEntityTest {
     // REMOVE
     val moonRef01MatchRm0 = linkedMapOf<String, Any?>()
     moonRef01MatchRm0["id"] = moonRef01Data["id"]
+    moonRef01MatchRm0["planet_id"] = setup.idmap?.get("planet_id") ?: setup.idmap?.get("planet01")
     moonRef01Ent.remove(moonRef01MatchRm0, null)
 
     // LIST
@@ -116,37 +132,21 @@ class MoonEntityTest {
 
   }
 
+  private fun hasFeature(name: String): Boolean {
+    val fm = Helpers.toMapAny(Config.sharedConfig()["feature"])
+    return fm != null && fm[name] != null
+  }
+
   @Test
-  fun stream() {
-    val streamingActive = linkedMapOf<String, Any?>(
+  fun validate() {
+    Assumptions.assumeTrue(hasFeature("validate"), "feature not present in this SDK: validate")
+    val client = VoxgigSolardemoSDK.testSDK(null, linkedMapOf<String, Any?>(
       "feature" to linkedMapOf<String, Any?>(
-        "streaming" to linkedMapOf<String, Any?>("active" to true),
-      ),
-    )
-    val setup = moonBasicSetup(streamingActive)
-    Assumptions.assumeFalse(
-      setup.live,
-      "stream test streams the seeded fixture data (unit mode only)",
-    )
-
-    val ent = setup.client.moon(null)
-    val match = linkedMapOf<String, Any?>()
-
-    // Materialised list result for the same op.
-    val listedResult = ent.list(match, null)
-    val listed = (listedResult as? List<Any?>) ?: emptyList<Any?>()
-
-    // stream("list") yields items via the streaming feature's iterator.
-    val streamed = ent.stream("list", match, null).toList()
-    assertTrue(streamed.size > 0, "expected stream to yield items")
-    assertEquals(listed.size, streamed.size, "expected stream to match list count")
-
-    // Fallback: with streaming inactive, stream still yields the materialised
-    // items.
-    val setup2 = moonBasicSetup(null)
-    val ent2 = setup2.client.moon(null)
-    val streamed2 = ent2.stream("list", match, null).toList()
-    assertEquals(listed.size, streamed2.size, "expected fallback stream to match list")
+        "validate" to linkedMapOf<String, Any?>("active" to true))))
+    val err = assertThrows(SdkError::class.java) {
+      client.moon(null).list(linkedMapOf<String, Any?>("planet_id" to 1), null)
+    }
+    assertEquals("validate_failed", err.code)
   }
 
   companion object {
@@ -181,7 +181,7 @@ class MoonEntityTest {
           "\"`\$VAL`\": [\"`\$FORMAT`\", \"upper\", \"`\$COPY`\"]" +
           "}]}"))
 
-      // Detect ENTID env override before envOverride consumes it.
+      // Whether *_ENTID supplied the idmap, read before envOverride consumes it.
       val entidEnvRaw = RunnerSupport.getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
       val idmapOverridden = entidEnvRaw != null && entidEnvRaw.trim().startsWith("{")
 

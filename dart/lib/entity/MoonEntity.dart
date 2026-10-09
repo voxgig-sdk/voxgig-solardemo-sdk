@@ -18,7 +18,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
 
   /// Load a Moon by match (see MoonLoadMatch in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the entity, whose record `data()` reads.
   Future<dynamic> load([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -124,13 +124,19 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       // operations return ENTITIES".
       return (null != ctx.result && true == ctx.result.ok) ? this : out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -144,7 +150,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
 
   /// List Moon entities by match (see MoonListMatch in
-  /// VoxgigSolardemoTypes.dart). Returns a list of Moon entity instances.
+  /// VoxgigSolardemoTypes.dart). Returns a list of entities, one per record.
   Future<dynamic> list([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -238,13 +244,19 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
       return done(ctx);
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -258,7 +270,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
 
   /// Create a Moon (see MoonCreateData in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the created entity.
   Future<dynamic> create([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -360,13 +372,19 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       // operations return ENTITIES".
       return (null != ctx.result && true == ctx.result.ok) ? this : out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -380,7 +398,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
 
   /// Update a Moon (see MoonUpdateData in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the updated entity.
   Future<dynamic> update([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -486,13 +504,19 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       // operations return ENTITIES".
       return (null != ctx.result && true == ctx.result.ok) ? this : out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -505,8 +529,9 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
 
 
+
   /// Remove a Moon by match (see MoonRemoveMatch in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Moon).
+  /// VoxgigSolardemoTypes.dart). Returns the entity, marked as deleted.
   Future<dynamic> remove([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -618,13 +643,19 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
       return out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;

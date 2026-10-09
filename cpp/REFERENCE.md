@@ -102,12 +102,12 @@ auto moon = client->moon();
 
 ### Operations
 
-#### `create(reqdata, ctrl) -> Value`
+#### `create(reqdata, ctrl) -> SdkEntityPtr`
 
-Create a new entity with the given data. Returns the created entity data and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```cpp
-Value result = client->moon()->create(vmap({
+SdkEntityPtr result = client->moon()->create(vmap({
     {"planet_id", Value("example_planet_id")},  // std::string
     {"diameter", Value(1)},  // double
     {"id", Value("example_id")},  // std::string
@@ -116,39 +116,41 @@ Value result = client->moon()->create(vmap({
 }), Value::undef());
 ```
 
-#### `list(reqmatch, ctrl) -> Value`
+#### `list(reqmatch, ctrl) -> std::vector<SdkEntityPtr>`
 
-List entities matching the given criteria. The match is optional — pass `Value::undef()` to list all records. Returns a Value list and throws on error.
+List entities matching the given criteria. The match is optional — pass `Value::undef()` to list all records. Returns one entity per record and throws on error.
 
 ```cpp
-Value results = client->moon()->list(Value::undef(), Value::undef());
-for (const auto& moon : *results.as_list()) {
-  std::cout << Struct::jsonify(moon) << std::endl;
+std::vector<SdkEntityPtr> results = client->moon()->list(vmap({{"planet_id", Value("example")}}), Value::undef());
+for (const auto& moon : results) {
+  std::cout << Struct::jsonify(moon->data()) << std::endl;
 }
 ```
 
-#### `load(reqmatch, ctrl) -> Value`
+#### `load(reqmatch, ctrl) -> SdkEntityPtr`
 
-Load a single entity matching the given criteria. Returns the entity data and throws on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and throws on error.
 
 ```cpp
-Value result = client->moon()->load(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+SdkEntityPtr result = client->moon()->load(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
-#### `remove(reqmatch, ctrl) -> Value`
+#### `remove(reqmatch, ctrl) -> SdkEntityPtr`
 
-Remove the entity matching the given criteria. Throws on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
 
 ```cpp
-Value result = client->moon()->remove(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+SdkEntityPtr result = client->moon()->remove(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
-#### `update(reqdata, ctrl) -> Value`
+#### `update(reqdata, ctrl) -> SdkEntityPtr`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and throws on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and throws on error.
 
 ```cpp
-Value result = client->moon()->update(vmap({
+SdkEntityPtr result = client->moon()->update(vmap({
     {"id", Value("moon_id")},
     {"planet_id", Value("planet_id")},
     // Fields to update
@@ -196,12 +198,12 @@ auto planet = client->planet();
 
 ### Operations
 
-#### `create(reqdata, ctrl) -> Value`
+#### `create(reqdata, ctrl) -> SdkEntityPtr`
 
-Create a new entity with the given data. Returns the created entity data and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```cpp
-Value result = client->planet()->create(vmap({
+SdkEntityPtr result = client->planet()->create(vmap({
     {"diameter", Value(1)},  // double
     {"id", Value("example_id")},  // std::string
     {"kind", Value("example_kind")},  // std::string
@@ -209,39 +211,41 @@ Value result = client->planet()->create(vmap({
 }), Value::undef());
 ```
 
-#### `list(reqmatch, ctrl) -> Value`
+#### `list(reqmatch, ctrl) -> std::vector<SdkEntityPtr>`
 
-List entities matching the given criteria. The match is optional — pass `Value::undef()` to list all records. Returns a Value list and throws on error.
+List entities matching the given criteria. The match is optional — pass `Value::undef()` to list all records. Returns one entity per record and throws on error.
 
 ```cpp
-Value results = client->planet()->list(Value::undef(), Value::undef());
-for (const auto& planet : *results.as_list()) {
-  std::cout << Struct::jsonify(planet) << std::endl;
+std::vector<SdkEntityPtr> results = client->planet()->list(Value::undef(), Value::undef());
+for (const auto& planet : results) {
+  std::cout << Struct::jsonify(planet->data()) << std::endl;
 }
 ```
 
-#### `load(reqmatch, ctrl) -> Value`
+#### `load(reqmatch, ctrl) -> SdkEntityPtr`
 
-Load a single entity matching the given criteria. Returns the entity data and throws on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and throws on error.
 
 ```cpp
-Value result = client->planet()->load(vmap({{"id", Value("planet_id")}}), Value::undef());
+SdkEntityPtr result = client->planet()->load(vmap({{"id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
-#### `remove(reqmatch, ctrl) -> Value`
+#### `remove(reqmatch, ctrl) -> SdkEntityPtr`
 
-Remove the entity matching the given criteria. Throws on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
 
 ```cpp
-Value result = client->planet()->remove(vmap({{"id", Value("planet_id")}}), Value::undef());
+SdkEntityPtr result = client->planet()->remove(vmap({{"id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
-#### `update(reqdata, ctrl) -> Value`
+#### `update(reqdata, ctrl) -> SdkEntityPtr`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and throws on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and throws on error.
 
 ```cpp
-Value result = client->planet()->update(vmap({
+SdkEntityPtr result = client->planet()->update(vmap({
     {"id", Value("planet_id")},
     // Fields to update
 }), Value::undef());
@@ -585,6 +589,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

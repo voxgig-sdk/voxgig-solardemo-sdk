@@ -62,7 +62,7 @@ int main(void) {
     voxgig_value* mockres = cmap(1, "id", v_str("direct01"));
     VoxgigSolardemoSDK* sdk = planet_direct_setup(mockres);
     voxgig_value* params = v_map();
-    setp(params, "undefined", v_str("direct01"));
+    setp(params, "id", v_str("direct01"));
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
       "path", v_str("api/planet/{id}"),

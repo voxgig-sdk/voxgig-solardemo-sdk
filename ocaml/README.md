@@ -17,7 +17,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to the opam registry. Install it from the
-GitHub release tag (`ocaml/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases))
+GitHub release tag (`ocaml/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags))
 or from a source checkout. The SDK is dependency-free and compiles with the
 stock `ocamlc` — no opam packages, no dune:
 
@@ -36,6 +36,7 @@ loading a specific record.
 ```ocaml
 open Voxgig_struct
 open Sdk_helpers
+open Sdk_types
 
 let client = Sdk_client.make0 ()
 ```
@@ -47,7 +48,7 @@ record with `e_data_get`.
 
 ```ocaml
 (try
-   let moons = (Sdk_client.moon client Noval).e_list (empty_map ()) Noval in
+   let moons = (Sdk_client.moon client Noval).e_list (jo [("planet_id", (Str "example"))]) Noval in
    List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) moons
  with Sdk_error.E err -> Printf.eprintf "list failed: %s\n" (Sdk_error.message err))
 ```
@@ -73,10 +74,10 @@ let created = (Sdk_client.moon client Noval).e_create (jo [("planet_id", (Str "e
 print_endline (stringify (created.e_data_get ()));
 
 (* Update *)
-ignore ((Sdk_client.moon client Noval).e_update (jo [("id", (getp created "id")); ("planet_id", (Str "example_planet_id")); ("diameter", (Num 1.))]) Noval);
+ignore ((Sdk_client.moon client Noval).e_update (jo [("id", (getp (created.e_data_get ()) "id")); ("planet_id", (Str "example_planet_id")); ("diameter", (Num 1.))]) Noval);
 
 (* Remove — resolves to the entity, marked deleted; it keeps its data *)
-let removed = (Sdk_client.moon client Noval).e_remove (jo [("id", (getp created "id")); ("planet_id", (Str "example_planet_id"))]) Noval in
+let removed = (Sdk_client.moon client Noval).e_remove (jo [("id", (getp (created.e_data_get ()) "id")); ("planet_id", (Str "example_planet_id"))]) Noval in
 Printf.printf "deleted: %b\n" removed.e_deleted
 ```
 
@@ -87,15 +88,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -104,8 +106,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -155,8 +157,8 @@ Create a mock client for unit testing — no server required:
 let () =
   let client = Sdk_client.test () in
   (* Entity ops resolve to the ENTITY (list: one per record) and raise on error. *)
-  let moons = (Sdk_client.moon client Noval).e_list (empty_map ()) Noval in
-  List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) moons  (* the mock records *)
+  let planets = (Sdk_client.planet client Noval).e_list (empty_map ()) Noval in
+  List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) planets  (* the mock records *)
 ```
 
 ### Use a custom fetch function
@@ -196,6 +198,7 @@ cd ocaml && make test
 ```ocaml
 open Voxgig_struct
 open Sdk_helpers
+open Sdk_types
 
 let client = Sdk_client.make options
 ```
@@ -343,7 +346,7 @@ let moon_data = moon.e_data_get ()
 
 ```ocaml
 (* One ENTITY per record. *)
-let moons = (Sdk_client.moon client Noval).e_list (empty_map ()) Noval
+let moons = (Sdk_client.moon client Noval).e_list (jo [("planet_id", (Str "example"))]) Noval
 let moon_datas = List.map (fun e -> e.e_data_get ()) moons
 ```
 
@@ -661,11 +664,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

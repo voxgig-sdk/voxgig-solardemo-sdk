@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 This crate is not yet published to crates.io. Depend on it from the GitHub
-release tag (`rust/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
+release tag (`rust/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or
 from a source checkout by adding it to your `Cargo.toml`:
 
 ```toml
@@ -36,23 +36,21 @@ loading a specific record.
 ### 1. Create a client
 
 ```rust
-use voxgig_solardemo_sdk::{getp, jo, VoxgigSolardemoSDK, Value};
+use voxgig_solardemo_sdk::{getp, jo, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Entity, Value};
 
 let client = VoxgigSolardemoSDK::new(Value::Noval);
 ```
 
 ### 2. List moon records
 
-`list()` returns a `Value::List` of records and returns `Err` on
-failure — match on the `Result`.
+`list()` returns one entity per record, and `Err` on failure — match on
+the `Result`. `data(None)` reads an entity's record.
 
 ```rust
-match client.moon(Value::Noval).list(Value::Noval, Value::Noval) {
+match client.moon(Value::Noval).list(jo(vec![("planet_id", Value::str("example"))]), Value::Noval) {
     Ok(moons) => {
-        if let Value::List(items) = &moons {
-            for moon in items.borrow().iter() {
-                println!("{:?}", moon);
-            }
+        for moon in &moons {
+            println!("{:?}", moon.data(None));
         }
     }
     Err(err) => eprintln!("list failed: {}", err),
@@ -62,11 +60,12 @@ match client.moon(Value::Noval).list(Value::Noval, Value::Noval) {
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`load()` returns the bare record and returns `Err` on failure.
+`load()` returns the entity, and `Err` on failure; `data(None)` reads its
+record.
 
 ```rust
 match client.moon(Value::Noval).load(jo(vec![("planet_id", Value::str("example_planet_id")), ("id", Value::str("example_id"))]), Value::Noval) {
-    Ok(moon) => println!("{:?}", moon),
+    Ok(moon) => println!("{:?}", moon.data(None)),
     Err(err) => eprintln!("load failed: {}", err),
 }
 ```
@@ -74,14 +73,14 @@ match client.moon(Value::Noval).load(jo(vec![("planet_id", Value::str("example_p
 ### 4. Create, update, and remove
 
 ```rust
-// Create — returns the bare created record
+// Create — returns the created entity
 let created = client.moon(Value::Noval).create(jo(vec![("planet_id", Value::str("example_planet_id")), ("diameter", Value::Num(1.0)), ("id", Value::str("example_id")), ("kind", Value::str("example_kind")), ("name", Value::str("example_name"))]), Value::Noval).unwrap();
 
 // Update
-client.moon(Value::Noval).update(jo(vec![("id", getp(&created, "id")), ("planet_id", Value::str("example_planet_id")), ("diameter", Value::Num(1.0))]), Value::Noval).unwrap();
+client.moon(Value::Noval).update(jo(vec![("id", getp(&created.data(None), "id")), ("planet_id", Value::str("example_planet_id")), ("diameter", Value::Num(1.0))]), Value::Noval).unwrap();
 
 // Remove
-client.moon(Value::Noval).remove(jo(vec![("id", getp(&created, "id")), ("planet_id", Value::str("example_planet_id"))]), Value::Noval).unwrap();
+client.moon(Value::Noval).remove(jo(vec![("id", getp(&created.data(None), "id")), ("planet_id", Value::str("example_planet_id"))]), Value::Noval).unwrap();
 ```
 
 
@@ -91,15 +90,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -108,8 +108,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -157,11 +157,14 @@ println!("{:?}", getp(&fetchdef, "headers"));
 Create a mock client for unit testing — no server required:
 
 ```rust
+use voxgig_solardemo_sdk::{jo, test_sdk, VoxgigSolardemoEntity, Entity, Value};
+
 let client = test_sdk(Value::Noval, Value::Noval);
 
-// Entity ops return the bare record on Ok and Err on failure.
-let moon = client.moon(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
-// moon contains the mock response record
+// list returns one entity per mock record on Ok, and Err on failure.
+for planet in client.planet(Value::Noval).list(Value::Noval, Value::Noval).unwrap() {
+    println!("{:?}", planet.data(None));
+}
 ```
 
 ### Point at a different server
@@ -238,11 +241,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Load a single entity by match criteria. |
-| `list` | `(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | List entities matching the criteria (Ok is a `Value::List`). |
-| `create` | `(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Create a new entity. |
-| `update` | `(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Update an existing entity. |
-| `remove` | `(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>` | Remove an entity. |
+| `load` | `(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>` | Load a single entity by match criteria. |
+| `list` | `(reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError>` | List entities matching the criteria, one per record. |
+| `create` | `(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>` | Create a new entity. |
+| `update` | `(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>` | Update an existing entity. |
+| `remove` | `(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>` | Remove an entity, which is returned marked as deleted. |
 | `data` | `(args: Option<&Value>) -> Value` | Get entity data (pass `Some(&map)` to set). |
 | `matchv` | `(args: Option<&Value>) -> Value` | Get entity match criteria (pass `Some(&map)` to set). |
 | `make` | `() -> Rc<dyn Entity>` | Create a new instance with the same options. |
@@ -250,9 +253,11 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return `Result<Value, VoxgigSolardemoError>` — the
-bare result data on `Ok` (a `Value::Map` for single-entity ops, a
-`Value::List` for `list`) and the branded error on `Err`.
+Entity operations return the entity on `Ok`, and `list` a `Vec` of
+entities, one per record; `data(None)` reads an entity's record. `Err` is
+the branded error. The operations are methods of the
+`VoxgigSolardemoEntity` trait and `data` of the `Entity` trait, so
+import both.
 
 The `direct()` escape hatch resolves to `Ok` even on a non-2xx response —
 it returns a result `Value::Map` you branch on via `getp(&result, "ok")`:
@@ -311,11 +316,11 @@ Create an instance: `let moon = client.moon(Value::Noval);`
 
 | Method | Description |
 | --- | --- |
-| `create(reqdata, ctrl)` | Create a new entity with the given data. |
-| `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. |
-| `load(reqmatch, ctrl)` | Load a single entity by match criteria. |
-| `remove(reqmatch, ctrl)` | Remove the matching entity. |
-| `update(reqdata, ctrl)` | Update an existing entity. |
+| `create(reqdata, ctrl)` | Create a new entity with the given data. `Ok` is the entity. |
+| `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. `Ok` is a `Vec` of entities, one per record. |
+| `load(reqmatch, ctrl)` | Load a single entity by match criteria. `Ok` is the entity. |
+| `remove(reqmatch, ctrl)` | Remove the matching entity. `Ok` is the entity, marked as deleted. |
+| `update(reqdata, ctrl)` | Update an existing entity. `Ok` is the entity. |
 
 #### Fields
 
@@ -331,12 +336,16 @@ Create an instance: `let moon = client.moon(Value::Noval);`
 
 ```rust
 let moon = client.moon(Value::Noval).load(jo(vec![("id", Value::str("moon_id")), ("planet_id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", moon.data(None));
 ```
 
 #### Example: List
 
 ```rust
-let moons = client.moon(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
+let moons = client.moon(Value::Noval).list(jo(vec![("planet_id", Value::str("example"))]), Value::Noval).unwrap();
+for moon in &moons {
+    println!("{:?}", moon.data(None));
+}
 ```
 
 #### Example: Create
@@ -360,11 +369,11 @@ Create an instance: `let planet = client.planet(Value::Noval);`
 
 | Method | Description |
 | --- | --- |
-| `create(reqdata, ctrl)` | Create a new entity with the given data. |
-| `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. |
-| `load(reqmatch, ctrl)` | Load a single entity by match criteria. |
-| `remove(reqmatch, ctrl)` | Remove the matching entity. |
-| `update(reqdata, ctrl)` | Update an existing entity. |
+| `create(reqdata, ctrl)` | Create a new entity with the given data. `Ok` is the entity. |
+| `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. `Ok` is a `Vec` of entities, one per record. |
+| `load(reqmatch, ctrl)` | Load a single entity by match criteria. `Ok` is the entity. |
+| `remove(reqmatch, ctrl)` | Remove the matching entity. `Ok` is the entity, marked as deleted. |
+| `update(reqdata, ctrl)` | Update an existing entity. `Ok` is the entity. |
 
 #### Fields
 
@@ -382,12 +391,16 @@ Create an instance: `let planet = client.planet(Value::Noval);`
 
 ```rust
 let planet = client.planet(Value::Noval).load(jo(vec![("id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", planet.data(None));
 ```
 
 #### Example: List
 
 ```rust
 let planets = client.planet(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
+for planet in &planets {
+    println!("{:?}", planet.data(None));
+}
 ```
 
 #### Example: Create
@@ -641,11 +654,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

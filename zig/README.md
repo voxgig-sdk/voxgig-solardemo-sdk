@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 Zig has no central package registry, so this package is distributed as a
-git tag (`zig/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)). Add it to
+git tag (`zig/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)). Add it to
 your `build.zig.zon` dependencies, or build from a source checkout:
 
 ```bash
@@ -52,12 +52,16 @@ const client = sdk.VoxgigSolardemoSDK.new(h.vnull());
 
 ### 2. List moon records
 
-`list()` returns an `OpResult` whose `.ok` is a `Value` array —
-`switch` on it.
+`list()`'s `.ok` is a slice of entities, one per record — `switch` on
+it. `asEntity().data(null)` reads an entity's record.
 
 ```zig
-switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |moons| std.debug.print("{s}\n", .{h.stringify(moons)}),
+switch (client.moon(h.vnull()).list(h.jo(&.{.{ "planet_id", h.vstr("example") }}), h.vnull())) {
+    .ok => |moons| {
+        for (moons) |moon| {
+            std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
@@ -65,11 +69,12 @@ switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`load()`'s `.ok` carries the bare record.
+`load()`'s `.ok` carries the entity; `asEntity().data(null)` reads its
+record.
 
 ```zig
 switch (client.moon(h.vnull()).load(h.jo(&.{.{ "planet_id", h.vstr("example_planet_id") }, .{ "id", h.vstr("example_id") }}), h.vnull())) {
-    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon)}),
+    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))}),
     .err => |e| std.debug.print("load failed: {s}\n", .{e.msg}),
 }
 ```
@@ -77,21 +82,21 @@ switch (client.moon(h.vnull()).load(h.jo(&.{.{ "planet_id", h.vstr("example_plan
 ### 4. Create, update, and remove
 
 ```zig
-// Create — .ok carries the created record
+// Create — .ok carries the created entity
 switch (client.moon(h.vnull()).create(h.jo(&.{.{ "planet_id", h.vstr("example_planet_id") }, .{ "diameter", h.vnum(1) }, .{ "id", h.vstr("example_id") }, .{ "kind", h.vstr("example_kind") }, .{ "name", h.vstr("example_name") }}), h.vnull())) {
-    .ok => |created| std.debug.print("{s}\n", .{h.stringify(created)}),
+    .ok => |created| std.debug.print("{s}\n", .{h.stringify(created.asEntity().data(null))}),
     .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 
 // Update
 switch (client.moon(h.vnull()).update(h.jo(&.{.{ "id", h.vstr("example_id") }, .{ "planet_id", h.vstr("example_planet_id") }, .{ "diameter", h.vnum(1) }}), h.vnull())) {
-    .ok => |updated| std.debug.print("{s}\n", .{h.stringify(updated)}),
+    .ok => |updated| std.debug.print("{s}\n", .{h.stringify(updated.asEntity().data(null))}),
     .err => |e| std.debug.print("update failed: {s}\n", .{e.msg}),
 }
 
 // Remove
 switch (client.moon(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("example_id") }, .{ "planet_id", h.vstr("example_planet_id") }}), h.vnull())) {
-    .ok => |_| std.debug.print("removed\n", .{}),
+    .ok => std.debug.print("removed\n", .{}),
     .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
 }
 ```
@@ -103,15 +108,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -120,8 +126,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -171,9 +177,13 @@ Create a mock client for unit testing — no server required:
 ```zig
 const client = sdk.test_sdk(h.vnull(), h.vnull());
 
-// Entity ops return an OpResult — .ok carries the record, .err the error.
-switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon)}), // the mock record
+// list's .ok is one entity per mock record, .err the error.
+switch (client.planet(h.vnull()).list(h.vnull(), h.vnull())) {
+    .ok => |planets| {
+        for (planets) |planet| {
+            std.debug.print("{s}\n", .{h.stringify(planet.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
@@ -251,21 +261,22 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch: Value, ctrl: Value) OpResult` | Load a single entity by match criteria. |
-| `list` | `(reqmatch: Value, ctrl: Value) OpResult` | List entities matching the criteria (`.ok` is a `Value` array). |
-| `create` | `(reqdata: Value, ctrl: Value) OpResult` | Create a new entity. |
-| `update` | `(reqdata: Value, ctrl: Value) OpResult` | Update an existing entity. |
-| `remove` | `(reqmatch: Value, ctrl: Value) OpResult` | Remove an entity. |
-| `stream` | `(action: []const u8, args: Value, callopts: Value) []Value` | Run an op through the pipeline and materialise its result items. |
+| `load` | `(reqmatch: Value, ctrl: Value) EntResult` | Load a single entity by match criteria. |
+| `list` | `(reqmatch: Value, ctrl: Value) EntListResult` | List entities matching the criteria (`.ok` is a slice of entities, one per record). |
+| `create` | `(reqdata: Value, ctrl: Value) EntResult` | Create a new entity. |
+| `update` | `(reqdata: Value, ctrl: Value) EntResult` | Update an existing entity. |
+| `remove` | `(reqmatch: Value, ctrl: Value) EntResult` | Remove an entity, which is returned marked as deleted. |
+| `stream` | `(action: []const u8, args: Value, callopts: Value) StreamResult` | Run an op through the pipeline: `.ok` with its result items, or `.err` with the error that failed it. |
 | `data` | `(args: ?Value) Value` | Get entity data (pass a map to set). |
 | `matchv` | `(args: ?Value) Value` | Get entity match criteria (pass a map to set). |
 | `get_name` | `() []const u8` | Return the entity name. |
 
 ### Result shape
 
-Entity operations return an `OpResult` union — `switch` on it: `.ok`
-carries the bare result data (a `Value` object for single-entity ops, a
-`Value` array for `list`), `.err` carries the branded error pointer.
+Entity operations return a result union — `switch` on it: `.ok` carries
+the entity (`EntResult`), or for `list` a slice of entities, one per record
+(`EntListResult`), and `asEntity().data(null)` reads an entity's record;
+`.err` carries the branded error pointer.
 
 The `direct()` escape hatch returns a result `Value` map directly (no
 error union) — even on a non-2xx response — that you branch on via
@@ -331,8 +342,9 @@ Create an instance: `const moon = client.moon(h.vnull());`
 | `remove(reqmatch, ctrl)` | Remove the matching entity. |
 | `update(reqdata, ctrl)` | Update an existing entity. |
 
-Each operation returns an `OpResult` — `switch` on it: `.ok => |data|`
-carries the result `Value`, `.err => |e|` carries the branded error.
+Each operation returns a result union — `switch` on it: `.ok` carries the
+entity (for `list`, a slice of entities, one per record), whose record
+`asEntity().data(null)` reads, and `.err => |e|` the branded error.
 
 #### Fields
 
@@ -348,7 +360,7 @@ carries the result `Value`, `.err => |e|` carries the branded error.
 
 ```zig
 switch (client.moon(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "planet_id", h.vstr("planet_id") }}), h.vnull())) {
-    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon)}),
+    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))}),
     .err => |e| std.debug.print("load failed: {s}\n", .{e.msg}),
 }
 ```
@@ -356,8 +368,12 @@ switch (client.moon(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "pl
 #### Example: List
 
 ```zig
-switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |moons| std.debug.print("{s}\n", .{h.stringify(moons)}),
+switch (client.moon(h.vnull()).list(h.jo(&.{.{ "planet_id", h.vstr("example") }}), h.vnull())) {
+    .ok => |moons| {
+        for (moons) |moon| {
+            std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
@@ -372,7 +388,7 @@ switch (client.moon(h.vnull()).create(h.jo(&.{
     .{ "kind", h.vstr("example_kind") }, // []const u8
     .{ "name", h.vstr("example_name") }, // []const u8
 }), h.vnull())) {
-    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon)}),
+    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))}),
     .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 ```
@@ -392,8 +408,9 @@ Create an instance: `const planet = client.planet(h.vnull());`
 | `remove(reqmatch, ctrl)` | Remove the matching entity. |
 | `update(reqdata, ctrl)` | Update an existing entity. |
 
-Each operation returns an `OpResult` — `switch` on it: `.ok => |data|`
-carries the result `Value`, `.err => |e|` carries the branded error.
+Each operation returns a result union — `switch` on it: `.ok` carries the
+entity (for `list`, a slice of entities, one per record), whose record
+`asEntity().data(null)` reads, and `.err => |e|` the branded error.
 
 #### Fields
 
@@ -411,7 +428,7 @@ carries the result `Value`, `.err => |e|` carries the branded error.
 
 ```zig
 switch (client.planet(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("planet_id") }}), h.vnull())) {
-    .ok => |planet| std.debug.print("{s}\n", .{h.stringify(planet)}),
+    .ok => |planet| std.debug.print("{s}\n", .{h.stringify(planet.asEntity().data(null))}),
     .err => |e| std.debug.print("load failed: {s}\n", .{e.msg}),
 }
 ```
@@ -420,7 +437,11 @@ switch (client.planet(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("planet_id") }}), 
 
 ```zig
 switch (client.planet(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |planets| std.debug.print("{s}\n", .{h.stringify(planets)}),
+    .ok => |planets| {
+        for (planets) |planet| {
+            std.debug.print("{s}\n", .{h.stringify(planet.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
@@ -434,7 +455,7 @@ switch (client.planet(h.vnull()).create(h.jo(&.{
     .{ "kind", h.vstr("example_kind") }, // []const u8
     .{ "name", h.vstr("example_name") }, // []const u8
 }), h.vnull())) {
-    .ok => |planet| std.debug.print("{s}\n", .{h.stringify(planet)}),
+    .ok => |planet| std.debug.print("{s}\n", .{h.stringify(planet.asEntity().data(null))}),
     .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 ```
@@ -683,11 +704,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

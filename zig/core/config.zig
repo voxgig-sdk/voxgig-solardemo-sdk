@@ -163,6 +163,7 @@ pub fn make_config() Value {
                 }) },
                 .{ "optspec", h.jo(&.{
                     .{ "clearTimer", h.vstr("`$FUNCTION`") },
+                    .{ "now", h.vstr("`$FUNCTION`") },
                     .{ "setTimer", h.vstr("`$FUNCTION`") },
                 }) },
                 .{ "strict", h.vbool(false) },
@@ -269,6 +270,10 @@ pub fn make_config() Value {
                                         h.vstr("planet_id"),
                                     }) },
                                 }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
+                                }) },
                             }),
                         }) },
                     }) },
@@ -320,6 +325,10 @@ pub fn make_config() Value {
                                     .{ "exist", h.ja(&.{
                                         h.vstr("planet_id"),
                                     }) },
+                                }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
                                 }) },
                             }),
                         }) },
@@ -388,6 +397,10 @@ pub fn make_config() Value {
                                         h.vstr("id"),
                                         h.vstr("planet_id"),
                                     }) },
+                                }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
                                 }) },
                             }),
                         }) },
@@ -524,6 +537,10 @@ pub fn make_config() Value {
                                         h.vstr("id"),
                                         h.vstr("planet_id"),
                                     }) },
+                                }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
                                 }) },
                             }),
                         }) },
@@ -646,6 +663,10 @@ pub fn make_config() Value {
                                         h.vstr("id"),
                                     }) },
                                 }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
+                                }) },
                             }),
                             h.jo(&.{
                                 .{ "kind", h.vstr("http") },
@@ -697,6 +718,10 @@ pub fn make_config() Value {
                                         h.vstr("id"),
                                     }) },
                                 }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
+                                }) },
                             }),
                             h.jo(&.{
                                 .{ "kind", h.vstr("http") },
@@ -721,6 +746,10 @@ pub fn make_config() Value {
                                 }) },
                                 .{ "args", h.omap() },
                                 .{ "select", h.omap() },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
+                                }) },
                             }),
                         }) },
                     }) },
@@ -751,6 +780,10 @@ pub fn make_config() Value {
                                 }) },
                                 .{ "args", h.omap() },
                                 .{ "select", h.omap() },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
+                                }) },
                             }),
                         }) },
                     }) },
@@ -802,6 +835,10 @@ pub fn make_config() Value {
                                     .{ "exist", h.ja(&.{
                                         h.vstr("id"),
                                     }) },
+                                }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
                                 }) },
                             }),
                         }) },
@@ -906,6 +943,10 @@ pub fn make_config() Value {
                                     .{ "exist", h.ja(&.{
                                         h.vstr("id"),
                                     }) },
+                                }) },
+                                .{ "response", h.jo(&.{
+                                    .{ "kind", h.vstr("json") },
+                                    .{ "media", h.vstr("application/json") },
                                 }) },
                             }),
                         }) },

@@ -54,7 +54,7 @@ static MoonSetup moon_basic_setup(const Value& extra) {
 
   MoonSetup s;
   s.client = client;
-  s.d = entity_data;
+  s.data = entity_data;
   s.idmap = idmap_resolved;
   s.env = env;
   s.live = live;
@@ -70,26 +70,25 @@ static void moon_entity_instance() {
 }
 
 
-static void moon_entity_stream() {
-  // stream() runs the list op through the full pipeline and returns the
-  // result items. Seed two entities via test mode; with the streaming feature
-  // active it yields the feature's incremental items, else it falls back to
-  // the materialised items — either way every item is yielded.
-  Value seed = vmap({{"entity", vmap({{"moon", vmap({
-      {"strm01", vmap({{"id", Value("strm01")}})},
-      {"strm02", vmap({{"id", Value("strm02")}})}})}})}});
-  Value sdkopts = vmap({{"feature",
-      vmap({{"streaming", vmap({{"active", Value(true)}})}})}});
+static bool moon_has_feature(const std::string& name) {
+  Value fm = Helpers::toMapAny(getp(sharedConfig(), "feature"));
+  return fm.is_map() && !getp(fm, name).is_undef();
+}
 
-  auto strsdk = VoxgigSolardemoSDK::testSDK(seed, sdkopts);
-  auto se = strsdk->moon();
-  std::vector<Value> items = se->stream("list", Value::undef(), Value::undef());
-  ASSERT_EQ((int)items.size(), 2, "stream yields both seeded items");
-
-  auto plainsdk = VoxgigSolardemoSDK::testSDK(seed, Value::undef());
-  auto pe = plainsdk->moon();
-  std::vector<Value> pitems = pe->stream("list", Value::undef(), Value::undef());
-  ASSERT_EQ((int)pitems.size(), 2, "fallback stream yields both items");
+static void moon_entity_validate() {
+  if (!moon_has_feature("validate")) {
+    std::cerr << "skip: feature not present in this SDK: validate\n";
+    return;
+  }
+  auto vsdk = VoxgigSolardemoSDK::testSDK(Value::undef(), vmap({{"feature",
+      vmap({{"validate", vmap({{"active", Value(true)}})}})}}));
+  std::string code;
+  try {
+    vsdk->moon()->list(vmap({{"planet_id", Value(1)}}), Value::undef());
+  } catch (const SdkErrorPtr& err) {
+    code = err->code;
+  }
+  ASSERT_EQ(code, std::string("validate_failed"), "an invalid request fails with validate_failed");
 }
 
 static void moon_entity_basic() {
@@ -141,6 +140,11 @@ static void moon_entity_basic() {
 
   // LOAD
   Value moon_ref01_match_dt0 = vmap({{"id", getp(moon_ref01_data, "id")}});
+  {
+    Value parent_id = getp(setup.idmap, "planet_id");
+    if (parent_id.is_undef() || parent_id.is_null()) parent_id = getp(setup.idmap, "planet01");
+    setp(moon_ref01_match_dt0, "planet_id", parent_id);
+  }
   Value moon_ref01_data_dt0_loaded = moon_ref01_ent->load(Struct::clone(moon_ref01_match_dt0), Value::undef())->data();
   Value moon_ref01_data_dt0_load_result = Helpers::toMapAny(moon_ref01_data_dt0_loaded);
   ASSERT_TRUE(moon_ref01_data_dt0_load_result.is_map(), "expected load result to be a map");
@@ -149,6 +153,11 @@ static void moon_entity_basic() {
   // REMOVE
   {
     Value moon_ref01_match_rm0 = vmap({{"id", getp(moon_ref01_data, "id")}});
+    {
+      Value parent_id = getp(setup.idmap, "planet_id");
+      if (parent_id.is_undef() || parent_id.is_null()) parent_id = getp(setup.idmap, "planet01");
+      setp(moon_ref01_match_rm0, "planet_id", parent_id);
+    }
     moon_ref01_ent->remove(Struct::clone(moon_ref01_match_rm0), Value::undef());
   }
 
@@ -169,7 +178,7 @@ static void moon_entity_basic() {
 
 int main() {
   T_RUN(moon_entity_instance);
-  T_RUN(moon_entity_stream);
+  T_RUN(moon_entity_validate);
   T_RUN(moon_entity_basic);
   return sdktest::summary("moon_entity_test");
 }

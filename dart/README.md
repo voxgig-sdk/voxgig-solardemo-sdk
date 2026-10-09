@@ -51,8 +51,8 @@ final client = VoxgigSolardemoSDK();
 
 ### 2. List moon records
 
-`list()` returns a `List` of entity instances and throws on error — iterate
-it and read each record's data via `.data()`.
+`list()` returns a `List` of entities, one per record, and throws on error —
+iterate it and read each record with `.data()`.
 
 ```dart
 try {
@@ -68,12 +68,12 @@ try {
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`load()` returns the ENTITY — call data() for the record — and throws on error.
+`load()` returns the entity and throws on error; `.data()` reads its record.
 
 ```dart
 try {
   final moon = await client.Moon().load({'planet_id': 'example_planet_id', 'id': 'example_id'});
-  print(moon);
+  print(moon.data());
 } catch (err) {
   print('load failed: $err');
 }
@@ -82,13 +82,13 @@ try {
 ### 4. Create, update, and remove
 
 ```dart
-// Create — returns the ENTITY (call data() for the record)
+// Create — returns the created entity; data() reads its record
 final created = await client.Moon().create({'planet_id': 'example_planet_id', 'diameter': 1, 'id': 'example_id', 'kind': 'example_kind', 'name': 'example_name'});
 
-// Update — the created record's id is a plain map key
+// Update — the id comes off the created entity's data()
 await client.Moon().update({'id': created.data()['id'], 'planet_id': 'example_planet_id', 'diameter': 1});
 
-// Remove
+// Remove — returns the entity, marked as deleted
 await client.Moon().remove({'id': created.data()['id'], 'planet_id': 'example_planet_id'});
 ```
 
@@ -99,15 +99,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -116,8 +117,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -169,11 +170,12 @@ Create a mock client for unit testing — no server required:
 ```dart
 final client = VoxgigSolardemoSDK.test();
 
-// Entity ops return the ENTITY and throws on error;
-// call data() for the record.
-final moon = await client.Moon().list();
-// moon contains the mock response record
-print(moon);
+// list returns one entity per record and throws on error;
+// data() reads each mock record.
+final planets = await client.Planet().list();
+for (final item in planets) {
+  print(item.data());
+}
 ```
 
 ### Use a custom fetch function
@@ -259,11 +261,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, [ctrl]) -> Future<dynamic>` | Load a single entity by match criteria. Throws on error. |
-| `list` | `(reqmatch, [ctrl]) -> Future<List>` | List entities matching the criteria (a list of entity instances). Throws on error. |
-| `create` | `(reqdata, [ctrl]) -> Future<dynamic>` | Create a new entity. Throws on error. |
-| `update` | `(reqdata, [ctrl]) -> Future<dynamic>` | Update an existing entity. Throws on error. |
-| `remove` | `(reqmatch, [ctrl]) -> Future<dynamic>` | Remove an entity. Throws on error. |
+| `load` | `(reqmatch, [ctrl]) -> Future<dynamic>` | Load a single entity by match criteria. Returns the entity. Throws on error. |
+| `list` | `(reqmatch, [ctrl]) -> Future<List>` | List entities matching the criteria. Returns one entity per record. Throws on error. |
+| `create` | `(reqdata, [ctrl]) -> Future<dynamic>` | Create a new entity. Returns the entity. Throws on error. |
+| `update` | `(reqdata, [ctrl]) -> Future<dynamic>` | Update an existing entity. Returns the entity. Throws on error. |
+| `remove` | `(reqmatch, [ctrl]) -> Future<dynamic>` | Remove an entity. Returns the entity, marked as deleted. Throws on error. |
 | `data` | `([d]) -> Map` | Get (or, with an argument, set) entity data. |
 | `match` | `([m]) -> Map` | Get (or, with an argument, set) entity match criteria. |
 | `make` | `() -> Entity` | Create a new instance with the same options. |
@@ -272,9 +274,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the ENTITY (call data() for the record) (a `Map` for single-entity
-ops, a `List` of entity instances for `list`) and throw on error. Wrap calls
-in `try`/`catch` to handle failures.
+Entity operations return the entity, not the raw record — `list` a `List`
+of entities, one per record — and throw on error. An entity's `data()` reads
+its record. `remove` returns the entity marked as deleted (`deleted()`); it
+keeps the data it held. Wrap calls in `try`/`catch` to handle failures.
 
 The `direct()` escape hatch never throws — it returns a result `Map` you
 branch on via `result['ok']`:
@@ -333,11 +336,11 @@ Create an instance: `final moon = client.Moon();`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
-| `list()` | List entities, optionally matching the given criteria. |
-| `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
-| `update(data)` | Update an existing entity. |
+| `create(data)` | Create a new entity with the given data. Returns the entity. |
+| `list()` | List entities, optionally matching the given criteria. Returns one entity per record. |
+| `load(match)` | Load a single entity by match criteria. Returns the entity. |
+| `remove(match)` | Remove the matching entity. Returns the entity, marked as deleted. |
+| `update(data)` | Update an existing entity. Returns the entity. |
 
 #### Fields
 
@@ -382,11 +385,11 @@ Create an instance: `final planet = client.Planet();`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
-| `list()` | List entities, optionally matching the given criteria. |
-| `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
-| `update(data)` | Update an existing entity. |
+| `create(data)` | Create a new entity with the given data. Returns the entity. |
+| `list()` | List entities, optionally matching the given criteria. Returns one entity per record. |
+| `load(match)` | Load a single entity by match criteria. Returns the entity. |
+| `remove(match)` | Remove the matching entity. Returns the entity, marked as deleted. |
+| `update(data)` | Update an existing entity. Returns the entity. |
 
 #### Fields
 
@@ -670,11 +673,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

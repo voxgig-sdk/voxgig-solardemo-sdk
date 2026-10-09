@@ -105,9 +105,9 @@ const moon = client.moon(h.vnull());
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) OpResult`
+#### `create(reqdata: Value, ctrl: Value) EntResult`
 
-Create a new entity with the given data. `.ok` carries the created entity data.
+Create a new entity with the given data. `.ok` carries the created entity.
 
 ```zig
 switch (client.moon(h.vnull()).create(h.jo(&.{
@@ -117,47 +117,51 @@ switch (client.moon(h.vnull()).create(h.jo(&.{
     .{ "kind", h.vstr("example_kind") }, // []const u8
     .{ "name", h.vstr("example_name") }, // []const u8
 }), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `list(reqmatch: Value, ctrl: Value) OpResult`
+#### `list(reqmatch: Value, ctrl: Value) EntListResult`
 
-List entities matching the given criteria. The match is optional — pass `h.vnull()` to list all records. `.ok` is a `Value` array.
+List entities matching the given criteria. The match is optional — pass `h.vnull()` to list all records. `.ok` is a slice of entities, one per record.
 
 ```zig
-switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |results| std.debug.print("{s}\n", .{h.stringify(results)}),
+switch (client.moon(h.vnull()).list(h.jo(&.{.{ "planet_id", h.vstr("example") }}), h.vnull())) {
+    .ok => |results| {
+        for (results) |result| {
+            std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `load(reqmatch: Value, ctrl: Value) OpResult`
+#### `load(reqmatch: Value, ctrl: Value) EntResult`
 
-Load a single entity matching the given criteria. `.ok` carries the entity data, `.err` the branded error.
+Load a single entity matching the given criteria. `.ok` carries the entity, whose record `asEntity().data(null)` reads, and `.err` the branded error.
 
 ```zig
 switch (client.moon(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "planet_id", h.vstr("planet_id") }}), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("load failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) OpResult`
+#### `remove(reqmatch: Value, ctrl: Value) EntResult`
 
-Remove the entity matching the given criteria. `.err` on failure.
+Remove the entity matching the given criteria. `.ok` carries the entity, marked as deleted, and `.err` the branded error.
 
 ```zig
 switch (client.moon(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "planet_id", h.vstr("planet_id") }}), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `update(reqdata: Value, ctrl: Value) OpResult`
+#### `update(reqdata: Value, ctrl: Value) EntResult`
 
-Update an existing entity. The data must include the entity id. `.ok` carries the updated entity data.
+Update an existing entity. The data must include the entity id. `.ok` carries the updated entity.
 
 ```zig
 switch (client.moon(h.vnull()).update(h.jo(&.{
@@ -165,7 +169,7 @@ switch (client.moon(h.vnull()).update(h.jo(&.{
     .{ "planet_id", h.vstr("planet_id") },
     // Fields to update
 }), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("update failed: {s}\n", .{e.msg}),
 }
 ```
@@ -180,9 +184,13 @@ Get the entity data. Pass a map to set it.
 
 Get the entity match criteria. Pass a map to set it.
 
-#### `stream(action: []const u8, args: Value, callopts: Value) []Value`
+#### `stream(action: []const u8, args: Value, callopts: Value) StreamResult`
 
 Run an operation through the pipeline and materialise its result items.
+`StreamResult` is `.ok` with the items, or `.err` with the error that
+failed the operation, as an operation call reports it. Under `throw: false`
+in `callopts.ctrl`, a failed stream is `.ok` with whatever data the
+failure left.
 
 #### `get_name() []const u8`
 
@@ -211,9 +219,9 @@ const planet = client.planet(h.vnull());
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) OpResult`
+#### `create(reqdata: Value, ctrl: Value) EntResult`
 
-Create a new entity with the given data. `.ok` carries the created entity data.
+Create a new entity with the given data. `.ok` carries the created entity.
 
 ```zig
 switch (client.planet(h.vnull()).create(h.jo(&.{
@@ -222,54 +230,58 @@ switch (client.planet(h.vnull()).create(h.jo(&.{
     .{ "kind", h.vstr("example_kind") }, // []const u8
     .{ "name", h.vstr("example_name") }, // []const u8
 }), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `list(reqmatch: Value, ctrl: Value) OpResult`
+#### `list(reqmatch: Value, ctrl: Value) EntListResult`
 
-List entities matching the given criteria. The match is optional — pass `h.vnull()` to list all records. `.ok` is a `Value` array.
+List entities matching the given criteria. The match is optional — pass `h.vnull()` to list all records. `.ok` is a slice of entities, one per record.
 
 ```zig
 switch (client.planet(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |results| std.debug.print("{s}\n", .{h.stringify(results)}),
+    .ok => |results| {
+        for (results) |result| {
+            std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `load(reqmatch: Value, ctrl: Value) OpResult`
+#### `load(reqmatch: Value, ctrl: Value) EntResult`
 
-Load a single entity matching the given criteria. `.ok` carries the entity data, `.err` the branded error.
+Load a single entity matching the given criteria. `.ok` carries the entity, whose record `asEntity().data(null)` reads, and `.err` the branded error.
 
 ```zig
 switch (client.planet(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("planet_id") }}), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("load failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) OpResult`
+#### `remove(reqmatch: Value, ctrl: Value) EntResult`
 
-Remove the entity matching the given criteria. `.err` on failure.
+Remove the entity matching the given criteria. `.ok` carries the entity, marked as deleted, and `.err` the branded error.
 
 ```zig
 switch (client.planet(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("planet_id") }}), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
 }
 ```
 
-#### `update(reqdata: Value, ctrl: Value) OpResult`
+#### `update(reqdata: Value, ctrl: Value) EntResult`
 
-Update an existing entity. The data must include the entity id. `.ok` carries the updated entity data.
+Update an existing entity. The data must include the entity id. `.ok` carries the updated entity.
 
 ```zig
 switch (client.planet(h.vnull()).update(h.jo(&.{
     .{ "id", h.vstr("planet_id") },
     // Fields to update
 }), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result)}),
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("update failed: {s}\n", .{e.msg}),
 }
 ```
@@ -284,9 +296,13 @@ Get the entity data. Pass a map to set it.
 
 Get the entity match criteria. Pass a map to set it.
 
-#### `stream(action: []const u8, args: Value, callopts: Value) []Value`
+#### `stream(action: []const u8, args: Value, callopts: Value) StreamResult`
 
 Run an operation through the pipeline and materialise its result items.
+`StreamResult` is `.ok` with the items, or `.err` with the error that
+failed the operation, as an operation call reports it. Under `throw: false`
+in `callopts.ctrl`, a failed stream is `.ok` with whatever data the
+failure left.
 
 #### `get_name() []const u8`
 
@@ -612,6 +628,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

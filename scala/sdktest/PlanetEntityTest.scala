@@ -5,16 +5,92 @@
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 
-import voxgig.voxgigsolardemosdk.core.{Helpers, SdkEntity, VoxgigSolardemoSDK}
+import voxgig.voxgigsolardemosdk.core.{Config, Context, Helpers, SdkEntity, SdkError, VoxgigSolardemoSDK}
+import voxgig.voxgigsolardemosdk.feature.BaseFeature
 import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 object PlanetEntityTest {
+
+  import SdkTestSupport.{B, I, jl, om}
+
+  private def hasFeature(name: String): Boolean = {
+    val fm = Helpers.toMapAny(Config.sharedConfig().get("feature"))
+    fm != null && fm.get(name) != null
+  }
+
+  final class FailHook extends BaseFeature("failhook", "0.0.1", true) {
+    var unexpected = 0
+    override def preSpec(ctx: Context): Unit = throw new RuntimeException("planet hook failed")
+    override def preUnexpected(ctx: Context): Unit = unexpected += 1
+  }
 
   def run(rep: SdkTestReport): Unit = {
     rep.scope("planet.instance") {
       val testsdk = VoxgigSolardemoSDK.testSDK()
       val ent = testsdk.planet(null)
       rep.check("planet.instance", ent != null, "expected non-null planet entity")
+    }
+
+    rep.scope("planet.stream.error") {
+      val offline = om("net" -> om("offline" -> B(true)))
+      val err = try {
+        VoxgigSolardemoSDK.testSDK(offline, null).planet(null).stream("list", null, null).toList
+        null
+      } catch { case e: RuntimeException => e }
+      rep.check("planet.stream.error", err != null && String.valueOf(err.getMessage).contains("offline"),
+        "expected the transport failure to raise from the stream, got " + err)
+
+      VoxgigSolardemoSDK.testSDK(offline, null).planet(null)
+        .stream("list", null, om("ctrl" -> om("throw" -> B(false)))).toList
+
+      if (hasFeature("rbac")) {
+        val denied = VoxgigSolardemoSDK.testSDK(null,
+          om("feature" -> om("rbac" -> om("active" -> B(true), "deny" -> B(true)))))
+        val denyerr = try {
+          denied.planet(null).stream("list", null, null).toList
+          null
+        } catch { case e: SdkError => e }
+        rep.check("planet.stream.denied", denyerr != null && "rbac_denied" == denyerr.code,
+          "expected the rbac denial to raise from the stream, got " + denyerr)
+      }
+    }
+
+    rep.scope("planet.stream.ctrl") {
+      val explain = new LinkedHashMap[String, Object]()
+      val ctrl = om("explain" -> explain)
+      VoxgigSolardemoSDK.testSDK().planet(null).stream("list", null, om("ctrl" -> ctrl)).toList
+      rep.check("planet.stream.ctrl", 1 == ctrl.size() && (explain eq ctrl.get("explain")),
+        "the stream changed the caller's ctrl")
+      rep.check("planet.stream.explain", !explain.isEmpty(), "the caller's explain record was not filled")
+    }
+
+    rep.scope("planet.unexpected") {
+      val hook = new FailHook()
+      val client = new VoxgigSolardemoSDK(om("feature" -> om("test" -> om("active" -> B(true))), "extend" -> jl(hook)))
+      val err = try {
+        client.planet(null).list(null, null)
+        null
+      } catch { case e: RuntimeException => e }
+      rep.check("planet.unexpected.raise", err != null && String.valueOf(err.getMessage).contains("hook failed"),
+        "expected the hook's failure, got " + err)
+      rep.check("planet.unexpected.fired", hook.unexpected > 0, "PreUnexpected did not fire")
+
+      val fired = hook.unexpected
+      client.planet(null).list(null, om("throw" -> B(false)))
+      rep.check("planet.unexpected.nothrow", hook.unexpected > fired,
+        "PreUnexpected did not fire under throw false")
+    }
+
+    rep.scope("planet.validate") {
+      if (hasFeature("validate")) {
+        val client = VoxgigSolardemoSDK.testSDK(null, om("feature" -> om("validate" -> om("active" -> B(true)))))
+        val err = try {
+          client.planet(null).list(om("diameter" -> "x"), null)
+          null
+        } catch { case e: SdkError => e }
+        rep.check("planet.validate", err != null && "validate_failed" == err.code,
+          "expected validate_failed, got " + err)
+      }
     }
 
     rep.scope("planet.basic") {

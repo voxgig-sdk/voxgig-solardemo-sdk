@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to NuGet. Install it from the GitHub
-release tag (`csharp/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
+release tag (`csharp/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or
 from a source checkout — build the library and add a project reference:
 
 ```bash
@@ -32,20 +32,24 @@ loading a specific record.
 
 ```csharp
 using VoxgigSolardemoSdk;
+using Voxgig.Struct;
 
 var client = new VoxgigSolardemoSDK();
 ```
 
 ### 2. List moon records
 
-`List(null)` returns an aggregate list of records (as `object?`) and raises
-on error.
+`List(null)` returns a list of entities, one per record (as `object?`), and
+raises on error; an entity's `Data()` reads its record.
 
 ```csharp
 try
 {
-    var moonList = client.Moon().List(null);
-    Console.WriteLine(moonList);
+    var moonList = (List<object?>)client.Moon().List(new Dictionary<string, object?> { ["planet_id"] = "example" })!;
+    foreach (var moonItem in moonList)
+    {
+        Console.WriteLine(StructUtils.Jsonify(((IEntity)moonItem!).Data()));
+    }
 }
 catch (Exception err)
 {
@@ -56,13 +60,14 @@ catch (Exception err)
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`Load()` returns the bare record (as `object?`) and raises on error.
+`Load()` returns the entity (as `object?`) and raises on error; an entity's
+`Data()` reads its record.
 
 ```csharp
 try
 {
-    var moon = client.Moon().Load(new Dictionary<string, object?> { ["planet_id"] = "example_planet_id", ["id"] = "example_id" });
-    Console.WriteLine(moon);
+    var moon = (IEntity)client.Moon().Load(new Dictionary<string, object?> { ["planet_id"] = "example_planet_id", ["id"] = "example_id" })!;
+    Console.WriteLine(StructUtils.Jsonify(moon.Data()));
 }
 catch (Exception err)
 {
@@ -73,7 +78,7 @@ catch (Exception err)
 ### 4. Create, update, and remove
 
 ```csharp
-// Create — returns the bare created record (as object?)
+// Create — returns the created entity (as object?)
 var created = client.Moon().Create(new Dictionary<string, object?> { ["planet_id"] = "example_planet_id", ["diameter"] = 1.0, ["id"] = "example_id", ["kind"] = "example_kind", ["name"] = "example_name" });
 
 // Update — supply the id in the match/data
@@ -90,15 +95,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -107,8 +113,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -166,10 +172,12 @@ Create a mock client for unit testing — no server required:
 ```csharp
 var client = VoxgigSolardemoSDK.TestSDK(null, null);
 
-// Entity ops return the bare record and raise on error.
-var moon = client.Moon().List(null);
-// moon holds the mock response record
-Console.WriteLine(moon);
+// List returns a list of entities, one per mock record; it raises on error.
+var planetList = (List<object?>)client.Planet().List(null)!;
+foreach (var planetItem in planetList)
+{
+    Console.WriteLine(StructUtils.Jsonify(((IEntity)planetItem!).Data()));
+}
 ```
 
 ### Use a custom fetch function
@@ -257,11 +265,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `Load` | `(reqmatch, ctrl) -> object?` | Load a single entity by match criteria. Raises on error. |
-| `List` | `(reqmatch, ctrl) -> object?` | List entities matching the criteria (an aggregate list). Raises on error. |
-| `Create` | `(reqdata, ctrl) -> object?` | Create a new entity. Raises on error. |
-| `Update` | `(reqdata, ctrl) -> object?` | Update an existing entity. Raises on error. |
-| `Remove` | `(reqmatch, ctrl) -> object?` | Remove an entity. Raises on error. |
+| `Load` | `(reqmatch, ctrl) -> object?` | Load a single entity by match criteria, and return it. Raises on error. |
+| `List` | `(reqmatch, ctrl) -> object?` | List entities matching the criteria, one per record. Raises on error. |
+| `Create` | `(reqdata, ctrl) -> object?` | Create a new entity, and return it. Raises on error. |
+| `Update` | `(reqdata, ctrl) -> object?` | Update an existing entity, and return it. Raises on error. |
+| `Remove` | `(reqmatch, ctrl) -> object?` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `Data` | `(newdata) -> object?` | Get or set entity data. |
 | `Match` | `(newmatch) -> object?` | Get or set entity match criteria. |
 | `Make` | `() -> IEntity` | Create a new instance with the same options. |
@@ -269,9 +277,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the bare result data (a `Dictionary` for
-single-entity ops, an aggregate list for `List`) as `object?` and raise on
-error. Wrap calls in `try`/`catch` to handle failures.
+Entity operations return the entity, and `List` a list of entities, one per
+record, as `object?`; an entity is an `IEntity`, whose `Data()` reads its
+record. They raise on error, so wrap calls in `try`/`catch` to handle
+failures.
 
 The `Direct()` escape hatch never raises — it returns a result
 `Dictionary<string, object?>` you branch on via `result["ok"]`:
@@ -355,7 +364,7 @@ var moon = client.Moon().Load(new Dictionary<string, object?> { ["id"] = "moon_i
 #### Example: List
 
 ```csharp
-var moonList = client.Moon().List(null);
+var moonList = client.Moon().List(new Dictionary<string, object?> { ["planet_id"] = "example" });
 ```
 
 #### Example: Create
@@ -663,11 +672,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

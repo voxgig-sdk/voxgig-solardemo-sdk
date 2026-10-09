@@ -16,6 +16,13 @@ import (
 	vs "github.com/voxgig-sdk/voxgig-solardemo-sdk/go/utility/struct"
 )
 
+// main.kit.test.live.strict is true (the default is true): a live
+// request that fails, or a live test missing an input it needs,
+// fails the test.
+// An account with no record for a test to read skips it either way.
+const moonEntityLiveStrict = true
+
+
 func TestMoonEntity(t *testing.T) {
 	t.Run("instance", func(t *testing.T) {
 		testsdk := sdk.TestSDK(nil, nil)
@@ -25,55 +32,21 @@ func TestMoonEntity(t *testing.T) {
 		}
 	})
 
-	// Feature #4: the entity Stream(action, ...) method runs the op pipeline and
-	// returns a channel over result items. With the streaming feature active it
-	// yields the feature's incremental output; otherwise it falls back to the
-	// materialised list so Stream always yields.
-	t.Run("stream", func(t *testing.T) {
-		seed := map[string]any{
-			"entity": map[string]any{
-				"moon": map[string]any{
-					"s1": map[string]any{"id": "s1"},
-					"s2": map[string]any{"id": "s2"},
-					"s3": map[string]any{"id": "s3"},
-				},
-			},
+	t.Run("validate", func(t *testing.T) {
+		if !fhHasFeature("validate") {
+			t.Skip("feature not present in this SDK: validate")
 		}
-
-		// Fallback: streaming inactive -> yields the materialised list items.
-		base := sdk.TestSDK(seed, nil)
-		var seen []any
-		for item := range base.Moon(nil).Stream("list", nil, nil) {
-			seen = append(seen, item)
-		}
-		if len(seen) != 3 {
-			t.Fatalf("expected 3 streamed items, got %d", len(seen))
-		}
-
-		// Inbound: streaming active -> yields each item from the feature iterator.
-		hasStreaming := false
-		if fm, ok := core.SharedConfig()["feature"].(map[string]any); ok {
-			_, hasStreaming = fm["streaming"]
-		}
-		if hasStreaming {
-			streamSdk := sdk.TestSDK(seed, map[string]any{
-				"feature": map[string]any{"streaming": map[string]any{"active": true}},
-			})
-			var got []any
-			for item := range streamSdk.Moon(nil).Stream("list", nil, nil) {
-				if sub, ok := item.([]any); ok {
-					got = append(got, sub...)
-				} else {
-					got = append(got, item)
-				}
-			}
-			if len(got) != 3 {
-				t.Fatalf("expected 3 items via streaming feature, got %d", len(got))
-			}
+		client := sdk.TestSDK(nil, map[string]any{
+			"feature": map[string]any{"validate": map[string]any{"active": true}},
+		})
+		_, err := client.Moon(nil).List(map[string]any{"planet_id": 1}, nil)
+		if sdkerr, ok := err.(*core.VoxgigSolardemoError); !ok || "validate_failed" != sdkerr.Code {
+			t.Fatalf("expected validate_failed, got %v", err)
 		}
 	})
 
-	t.Run("basic", func(t *testing.T) {
+	t.Run("basic", func(tt *testing.T) {
+		var t testing.TB = tt
 		setup := moonBasicSetup(nil)
 		// Per-op sdk-test-control.json skip — basic test exercises a flow
 		// with multiple ops; skipping any op skips the whole flow.
@@ -90,13 +63,15 @@ func TestMoonEntity(t *testing.T) {
 				return
 			}
 		}
-		// The basic flow consumes synthetic IDs from the fixture. In live mode
-		// without an *_ENTID env override, those IDs hit the live API and 4xx.
-		if setup.syntheticOnly {
-			t.Skip("live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live")
-			return
+		if setup.live {
+			for _, _liveKey := range []string{"planet01"} {
+				if setup.syntheticOnly || setup.idmap[_liveKey] == nil {
+					liveMiss(t, moonEntityLiveStrict, "Live entity test blocked: needs %s via VOXGIG_SOLARDEMO_TEST_MOON_ENTID", _liveKey)
+				}
+			}
 		}
 		client := setup.client
+		_ = client
 
 		// CREATE
 		moonRef01Ent := client.Moon(nil)
@@ -164,6 +139,11 @@ func TestMoonEntity(t *testing.T) {
 		moonRef01MatchDt0 := map[string]any{
 			"id": moonRef01Data["id"],
 		}
+		if v := setup.idmap["planet_id"]; v != nil {
+			moonRef01MatchDt0["planet_id"] = v
+		} else {
+			moonRef01MatchDt0["planet_id"] = setup.idmap["planet01"]
+		}
 		moonRef01DataDt0Loaded, err := moonRef01Ent.Load(moonRef01MatchDt0, nil)
 		if err != nil {
 			t.Fatalf("load failed: %v", err)
@@ -179,6 +159,11 @@ func TestMoonEntity(t *testing.T) {
 		// REMOVE
 		moonRef01MatchRm0 := map[string]any{
 			"id": moonRef01Data["id"],
+		}
+		if v := setup.idmap["planet_id"]; v != nil {
+			moonRef01MatchRm0["planet_id"] = v
+		} else {
+			moonRef01MatchRm0["planet_id"] = setup.idmap["planet01"]
 		}
 		_, err = moonRef01Ent.Remove(moonRef01MatchRm0, nil)
 		if err != nil {
@@ -241,9 +226,8 @@ func moonBasicSetup(extra map[string]any) *entityTestSetup {
 		},
 	)
 
-	// Detect ENTID env override before envOverride consumes it. When live
-	// mode is on without a real override, the basic test runs against synthetic
-	// IDs from the fixture and 4xx's. Surface this so the test can skip.
+	// Whether *_ENTID supplied the idmap, read before envOverride consumes it:
+	// without it, the ids a live flow binds are the fixture's synthetic ones.
 	entidEnvRaw := os.Getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
 	idmapOverridden := entidEnvRaw != "" && strings.HasPrefix(strings.TrimSpace(entidEnvRaw), "{")
 

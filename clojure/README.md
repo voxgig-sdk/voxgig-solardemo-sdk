@@ -17,7 +17,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to Clojars. Depend on it directly from the
-GitHub release tag (`clojure/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)),
+GitHub release tag (`clojure/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)),
 using a `tools.deps` git dependency:
 
 ```clojure
@@ -54,13 +54,13 @@ loading a specific record.
 
 ### 2. List moon records
 
-`list` returns a vector of records (each a map) and raises on error —
-iterate it directly.
+`list` returns a vector of entities, one per record, and raises on error.
+Read each record with `((:data-get moon))`.
 
 ```clojure
 (try
-  (doseq [moon (e-moon/list (api/moon client nil) nil nil)]
-    (println moon))
+  (doseq [moon (e-moon/list (api/moon client nil) (vs/jm "planet_id" "example") nil)]
+    (println ((:data-get moon))))
   (catch Exception err
     (println "list failed:" (.getMessage err))))
 ```
@@ -68,12 +68,13 @@ iterate it directly.
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the
-`planet_id`. `load` returns the bare record (a map) and raises on error.
+`planet_id`. `load` returns the entity and raises on error;
+`((:data-get moon))` reads its record.
 
 ```clojure
 (try
   (let [moon (e-moon/load (api/moon client nil) (vs/jm "planet_id" "example_planet_id" "id" "example_id") nil)]
-    (println moon))
+    (println ((:data-get moon))))
   (catch Exception err
     (println "load failed:" (.getMessage err))))
 ```
@@ -81,14 +82,14 @@ Moon is nested under planet, so provide the
 ### 4. Create, update, and remove
 
 ```clojure
-;; Create — returns the bare created record (a map)
+;; Create — returns the created entity
 (def created (e-moon/create (api/moon client nil) (vs/jm "planet_id" "example_planet_id" "diameter" 1 "id" "example_id" "kind" "example_kind" "name" "example_name") nil))
 
-;; Update — the created record's id is a plain map key
-(e-moon/update (api/moon client nil) (vs/jm "id" (vs/getprop created "id") "planet_id" "example_planet_id" "diameter" 1) nil)
+;; Update — the created entity's record holds its id
+(e-moon/update (api/moon client nil) (vs/jm "id" (vs/getprop ((:data-get created)) "id") "planet_id" "example_planet_id" "diameter" 1) nil)
 
 ;; Remove
-(e-moon/remove (api/moon client nil) (vs/jm "id" (vs/getprop created "id") "planet_id" "example_planet_id") nil)
+(e-moon/remove (api/moon client nil) (vs/jm "id" (vs/getprop ((:data-get created)) "id") "planet_id" "example_planet_id") nil)
 ```
 
 
@@ -98,15 +99,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -115,8 +117,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -164,15 +166,15 @@ Create a mock client for unit testing — no server required:
 
 ```clojure
 (require '[sdk.api :as api]
-         '[sdk.entity.moon :as e-moon]
+         '[sdk.entity.planet :as e-planet]
          '[voxgig.struct :as vs])
 
 (def client (api/test-sdk nil nil))
 
-;; Entity ops return the bare record and raise on error.
-(def moon (e-moon/list (api/moon client nil) nil nil))
-;; moon contains the mock response record
-(println moon)
+;; list returns a vector of entities, one per mock record; it raises on error.
+(def planets (e-planet/list (api/planet client nil) nil nil))
+(doseq [item planets]
+  (println ((:data-get item))))
 ```
 
 ### Use a custom fetch function
@@ -258,11 +260,11 @@ entity map and are called via keyword lookup.
 
 | Member | Signature | Description |
 | --- | --- | --- |
-| `load` | `(ent reqmatch ctrl) -> map` | Load a single entity by match criteria. Raises on error. |
-| `list` | `(ent reqmatch ctrl) -> vector` | List entities matching the criteria. Raises on error. |
-| `create` | `(ent reqdata ctrl) -> map` | Create a new entity. Raises on error. |
-| `update` | `(ent reqdata ctrl) -> map` | Update an existing entity. Raises on error. |
-| `remove` | `(ent reqmatch ctrl) -> map` | Remove an entity. Raises on error. |
+| `load` | `(ent reqmatch ctrl) -> entity` | Load a single entity by match criteria, and return it. Raises on error. |
+| `list` | `(ent reqmatch ctrl) -> vector` | List entities matching the criteria, one per record. Raises on error. |
+| `create` | `(ent reqdata ctrl) -> entity` | Create a new entity, and return it. Raises on error. |
+| `update` | `(ent reqdata ctrl) -> entity` | Update an existing entity, and return it. Raises on error. |
+| `remove` | `(ent reqmatch ctrl) -> entity` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `:data-get` | `() -> map` | Get entity data. |
 | `:data-set` | `(data)` | Set entity data. |
 | `:match-get` | `() -> map` | Get entity match criteria. |
@@ -275,9 +277,10 @@ State accessors are called by looking up the fn and applying it, e.g.
 
 ### Result shape
 
-Entity operations return the bare result data (a `map` for single-entity
-ops, a `vector` for `list`) and raise (via `ex-info`) on error. Wrap
-calls in `try`/`catch` to handle failures.
+Entity operations resolve to the entity, and `list` to a `vector` of
+entities, one per record. Read an entity's record with
+`((:data-get ent))`. They raise (via `ex-info`) on error, so wrap calls
+in `try`/`catch` to handle failures.
 
 The `direct` escape hatch never raises — it returns a result `map` you
 branch on via `(vs/getprop result "ok")`:
@@ -361,7 +364,7 @@ Create an instance: `(def moon (api/moon client nil))`
 #### Example: List
 
 ```clojure
-(def moons (e-moon/list (api/moon client nil) nil nil))
+(def moons (e-moon/list (api/moon client nil) (vs/jm "planet_id" "example") nil))
 ```
 
 #### Example: Create
@@ -676,11 +679,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

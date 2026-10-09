@@ -24,7 +24,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
   /**
    * @param {MoonLoadMatch} [reqmatch]
    * @param {Object} [ctrl]
-   * @returns {Promise<Moon>}
+   * @returns {Promise<MoonEntity>}
    */
   async load(reqmatch, ctrl) {
 
@@ -129,9 +129,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -149,7 +155,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
   /**
    * @param {MoonListMatch} [reqmatch]
    * @param {Object} [ctrl]
-   * @returns {Promise<Moon[]>}
+   * @returns {Promise<MoonEntity[]>}
    */
   async list(reqmatch, ctrl) {
 
@@ -242,9 +248,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       return done(ctx)
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -262,7 +274,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
   /**
    * @param {MoonCreateData} [reqdata]
    * @param {Object} [ctrl]
-   * @returns {Promise<Moon>}
+   * @returns {Promise<MoonEntity>}
    */
   async create(reqdata, ctrl) {
 
@@ -362,9 +374,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -382,7 +400,7 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
   /**
    * @param {MoonUpdateData} [reqdata]
    * @param {Object} [ctrl]
-   * @returns {Promise<Moon>}
+   * @returns {Promise<MoonEntity>}
    */
   async update(reqdata, ctrl) {
 
@@ -488,9 +506,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       return (ctx.result && ctx.result.ok) ? this : out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 
@@ -505,10 +529,11 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
 
 
 
+
   /**
    * @param {MoonRemoveMatch} [reqmatch]
    * @param {Object} [ctrl]
-   * @returns {Promise<Moon>}
+   * @returns {Promise<MoonEntity>}
    */
   async remove(reqmatch, ctrl) {
 
@@ -620,9 +645,15 @@ class MoonEntity extends VoxgigSolardemoEntityBase {
       return out
     }
     catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected')
-      if (fres instanceof Promise) { await fres }
+        fres = featureHook(ctx, 'PreUnexpected')
+        if (fres instanceof Promise) { await fres }
+      }
+      catch (hookerr) {
+        err = hookerr
+      }
 
       err = this._unexpected(ctx, err)
 

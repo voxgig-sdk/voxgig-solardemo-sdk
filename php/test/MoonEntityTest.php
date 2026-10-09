@@ -11,6 +11,12 @@ use Voxgig\Struct\Struct as Vs;
 
 class MoonEntityTest extends TestCase
 {
+    // main.kit.test.live.strict is true (the default is true): a live
+    // request that fails, or a live test missing an input it needs,
+    // fails the test.
+    // An account with no record for a test to read skips it either way.
+    private const LIVE_STRICT = true;
+
     public function test_create_instance(): void
     {
         $testsdk = VoxgigSolardemoSDK::test(null, null);
@@ -18,43 +24,20 @@ class MoonEntityTest extends TestCase
         $this->assertNotNull($ent);
     }
 
-    // Feature #4: the entity stream(action, ...) method runs the op pipeline
-    // and yields result items. With the streaming feature active it yields the
-    // feature's incremental output; otherwise it falls back to the materialised
-    // list so stream always yields.
-    public function test_stream(): void
+    public function test_validate(): void
     {
-        $seed = [
-            "entity" => [
-                "moon" => [
-                    "s1" => ["id" => "s1"],
-                    "s2" => ["id" => "s2"],
-                    "s3" => ["id" => "s3"],
-                ],
-            ],
-        ];
-
-        // Fallback: streaming inactive -> yields the materialised list items.
-        $base = VoxgigSolardemoSDK::test($seed, null);
-        $seen = iterator_to_array($base->Moon(null)->stream("list", null, null), false);
-        $this->assertCount(3, $seen);
-
-        // Inbound: streaming active -> yields each item from the feature.
         $cfg = VoxgigSolardemoConfig::shared_config();
-        if (isset($cfg["feature"]) && is_array($cfg["feature"]) && isset($cfg["feature"]["streaming"])) {
-            $sdk = VoxgigSolardemoSDK::test($seed, ["feature" => ["streaming" => ["active" => true]]]);
-            $got = [];
-            foreach ($sdk->Moon(null)->stream("list", null, null) as $item) {
-                if (is_array($item) && array_is_list($item)) {
-                    foreach ($item as $sub) {
-                        $got[] = $sub;
-                    }
-                } else {
-                    $got[] = $item;
-                }
-            }
-            $this->assertCount(3, $got);
+        if (!isset($cfg["feature"]["validate"])) {
+            $this->markTestSkipped('feature not present in this SDK: validate');
         }
+        $client = VoxgigSolardemoSDK::test(null, ["feature" => ["validate" => ["active" => true]]]);
+        $err = null;
+        try {
+            $client->Moon(null)->list(["planet_id" => 1], null);
+        } catch (\Throwable $e) {
+            $err = $e;
+        }
+        $this->assertSame('validate_failed', $err->sdk_code ?? null);
     }
 
     public function test_basic_flow(): void
@@ -69,11 +52,12 @@ class MoonEntityTest extends TestCase
                 return;
             }
         }
-        // The basic flow consumes synthetic IDs from the fixture. In live mode
-        // without an *_ENTID env override, those IDs hit the live API and 4xx.
-        if (!empty($setup["synthetic_only"])) {
-            $this->markTestSkipped("live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live");
-            return;
+        if (!empty($setup["live"])) {
+            foreach (["planet01"] as $_liveKey) {
+                if (!empty($setup["synthetic_only"]) || null === ($setup["idmap"][$_liveKey] ?? null)) {
+                    Runner::live_miss(self::LIVE_STRICT, "Live entity test blocked: needs " . $_liveKey . " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
+                }
+            }
         }
         $client = $setup["client"];
 
@@ -121,6 +105,7 @@ class MoonEntityTest extends TestCase
         $moon_ref01_match_dt0 = [
             "id" => $moon_ref01_data["id"],
         ];
+        $moon_ref01_match_dt0["planet_id"] = $setup["idmap"]["planet_id"] ?? $setup["idmap"]["planet01"] ?? null;
         $moon_ref01_data_dt0_loaded = $moon_ref01_ent->load($moon_ref01_match_dt0, null);
         $moon_ref01_data_dt0_load_result = Helpers::to_map(is_object($moon_ref01_data_dt0_loaded) && method_exists($moon_ref01_data_dt0_loaded, 'data_get') ? $moon_ref01_data_dt0_loaded->data_get() : $moon_ref01_data_dt0_loaded);
         $this->assertNotNull($moon_ref01_data_dt0_load_result);
@@ -130,6 +115,7 @@ class MoonEntityTest extends TestCase
         $moon_ref01_match_rm0 = [
             "id" => $moon_ref01_data["id"],
         ];
+        $moon_ref01_match_rm0["planet_id"] = $setup["idmap"]["planet_id"] ?? $setup["idmap"]["planet01"] ?? null;
         $moon_ref01_ent->remove($moon_ref01_match_rm0, null);
 
         // LIST
@@ -167,9 +153,8 @@ function moon_basic_setup($extra)
         $idmap[$k] = strtoupper($k);
     }
 
-    // Detect ENTID env override before envOverride consumes it. When live
-    // mode is on without a real override, the basic test runs against synthetic
-    // IDs from the fixture and 4xx's. Surface this so the test can skip.
+    // Whether *_ENTID supplied the idmap, read before env_override consumes
+    // it: without it, the ids a live flow binds are the fixture's synthetic ones.
     $entid_env_raw = getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
     $idmap_overridden = $entid_env_raw !== false && str_starts_with(trim($entid_env_raw), "{");
 

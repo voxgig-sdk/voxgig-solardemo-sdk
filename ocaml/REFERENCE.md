@@ -10,6 +10,7 @@ Complete API reference for the VoxgigSolardemo OCaml SDK.
 ```ocaml
 open Voxgig_struct
 open Sdk_helpers
+open Sdk_types
 
 let client = Sdk_client.make options
 ```
@@ -100,7 +101,7 @@ let moon = Sdk_client.moon client Noval
 
 #### `e_create reqdata ctrl : entity_obj`
 
-Create a new entity with the given data. Resolves to the ENTITY (read the record with `e_data_get`) and raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```ocaml
 let result = (Sdk_client.moon client Noval).e_create (jo [
@@ -115,17 +116,17 @@ let result_data = result.e_data_get ()
 
 #### `e_list reqmatch ctrl : entity_obj list`
 
-List entities matching the given criteria. The match is optional — pass `(empty_map ())` to list all records. Resolves to one ENTITY per record and raises on error.
+List entities matching the given criteria. The match is optional — pass `(empty_map ())` to list all records. Resolves to one entity per record and raises on error.
 
 ```ocaml
 (* One ENTITY per record; the record is reached with e_data_get. *)
-let results = (Sdk_client.moon client Noval).e_list (empty_map ()) Noval in
+let results = (Sdk_client.moon client Noval).e_list (jo [("planet_id", (Str "example"))]) Noval in
 List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) results
 ```
 
 #### `e_load reqmatch ctrl : entity_obj`
 
-Load a single entity matching the given criteria. Resolves to the ENTITY (read the record with `e_data_get`) and raises on error.
+Load a single entity matching the given criteria. Resolves to the entity, whose record `e_data_get` reads, and raises on error.
 
 ```ocaml
 let result = (Sdk_client.moon client Noval).e_load (jo [("id", (Str "moon_id")); ("planet_id", (Str "planet_id"))]) Noval
@@ -134,7 +135,7 @@ let result_data = result.e_data_get ()
 
 #### `e_remove reqmatch ctrl : entity_obj`
 
-Remove the entity matching the given criteria. Resolves to the ENTITY, marked deleted (`e_deleted`); it keeps the data it held. Raises on error.
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`e_deleted`); it keeps the data it held. Raises on error.
 
 ```ocaml
 let result = (Sdk_client.moon client Noval).e_remove (jo [("id", (Str "moon_id")); ("planet_id", (Str "planet_id"))]) Noval
@@ -143,7 +144,7 @@ let result_data = result.e_data_get ()
 
 #### `e_update reqdata ctrl : entity_obj`
 
-Update an existing entity. The data must include the entity `id`. Resolves to the ENTITY (read the record with `e_data_get`) and raises on error.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity and raises on error.
 
 ```ocaml
 let result = (Sdk_client.moon client Noval).e_update (jo [
@@ -205,7 +206,7 @@ let planet = Sdk_client.planet client Noval
 
 #### `e_create reqdata ctrl : entity_obj`
 
-Create a new entity with the given data. Resolves to the ENTITY (read the record with `e_data_get`) and raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```ocaml
 let result = (Sdk_client.planet client Noval).e_create (jo [
@@ -219,7 +220,7 @@ let result_data = result.e_data_get ()
 
 #### `e_list reqmatch ctrl : entity_obj list`
 
-List entities matching the given criteria. The match is optional — pass `(empty_map ())` to list all records. Resolves to one ENTITY per record and raises on error.
+List entities matching the given criteria. The match is optional — pass `(empty_map ())` to list all records. Resolves to one entity per record and raises on error.
 
 ```ocaml
 (* One ENTITY per record; the record is reached with e_data_get. *)
@@ -229,7 +230,7 @@ List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) results
 
 #### `e_load reqmatch ctrl : entity_obj`
 
-Load a single entity matching the given criteria. Resolves to the ENTITY (read the record with `e_data_get`) and raises on error.
+Load a single entity matching the given criteria. Resolves to the entity, whose record `e_data_get` reads, and raises on error.
 
 ```ocaml
 let result = (Sdk_client.planet client Noval).e_load (jo [("id", (Str "planet_id"))]) Noval
@@ -238,7 +239,7 @@ let result_data = result.e_data_get ()
 
 #### `e_remove reqmatch ctrl : entity_obj`
 
-Remove the entity matching the given criteria. Resolves to the ENTITY, marked deleted (`e_deleted`); it keeps the data it held. Raises on error.
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`e_deleted`); it keeps the data it held. Raises on error.
 
 ```ocaml
 let result = (Sdk_client.planet client Noval).e_remove (jo [("id", (Str "planet_id"))]) Noval
@@ -247,7 +248,7 @@ let result_data = result.e_data_get ()
 
 #### `e_update reqdata ctrl : entity_obj`
 
-Update an existing entity. The data must include the entity `id`. Resolves to the ENTITY (read the record with `e_data_get`) and raises on error.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity and raises on error.
 
 ```ocaml
 let result = (Sdk_client.planet client Noval).e_update (jo [
@@ -603,6 +604,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

@@ -11,10 +11,25 @@ use Cwd ();
 use VoxgigSolardemoSDK;
 require(Cwd::abs_path("$FindBin::Bin/runner.pm"));
 
+# main.kit.test.live.strict is true (the default is true): a live
+# request that fails, or a live test missing an input it needs,
+# fails the test.
+# An account with no record for a test to read skips it either way.
+use constant LIVE_STRICT => 1;
+
 {
   my $testsdk = VoxgigSolardemoSDK->test(undef, undef);
   my $ent = $testsdk->Moon(undef);
   ok(defined $ent, 'moon: create instance');
+}
+
+SKIP: {
+  skip('feature not present in this SDK: validate', 1)
+    unless VoxgigSolardemoConfig::shared_config()->{feature}{validate};
+  my $client = VoxgigSolardemoSDK->test(undef, { feature => { validate => { active => 1 } } });
+  my $err = eval { $client->Moon(undef)->list({ 'planet_id' => 1 }, undef); undef } // $@;
+  is(ref $err ? $err->{code} : undef, 'validate_failed',
+    'moon: an invalid request fails with validate_failed');
 }
 
 BASIC_FLOW: {
@@ -30,12 +45,12 @@ BASIC_FLOW: {
       last BASIC_FLOW;
     }
   }
-  # The basic flow consumes synthetic IDs from the fixture. In live mode
-  # without an *_ENTID env override, those IDs hit the live API and 4xx.
-  if ($setup->{synthetic_only}) {
-    note('live entity test uses synthetic IDs from fixture - set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live');
-    pass('moon: basic flow skipped (synthetic IDs only)');
-    last BASIC_FLOW;
+  if ($setup->{live}) {
+    my @missing = grep { $setup->{synthetic_only} || !defined $setup->{idmap}{$_} } ('planet01');
+    if (@missing) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'moon: basic flow', 'Live entity test blocked: needs ' . join(', ', @missing) . ' via VOXGIG_SOLARDEMO_TEST_MOON_ENTID');
+      last BASIC_FLOW;
+    }
   }
   my $client = $setup->{client};
   my %V;
@@ -84,6 +99,7 @@ BASIC_FLOW: {
   $V{moon_ref01_match_dt0} = {
     'id' => $V{moon_ref01_data}{id},
   };
+  $V{moon_ref01_match_dt0}{'planet_id'} = $setup->{idmap}{'planet_id'} // $setup->{idmap}{'planet01'};
   $V{moon_ref01_data_dt0_loaded} = $V{moon_ref01_ent}->load($V{moon_ref01_match_dt0}, undef);
   $V{moon_ref01_data_dt0_load_result} = VoxgigSolardemoHelpers::to_map(ref($V{moon_ref01_data_dt0_loaded}) && $V{moon_ref01_data_dt0_loaded}->can('data_get') ? $V{moon_ref01_data_dt0_loaded}->data_get : $V{moon_ref01_data_dt0_loaded});
   ok(defined $V{moon_ref01_data_dt0_load_result}, 'moon load: data');
@@ -93,6 +109,7 @@ BASIC_FLOW: {
   $V{moon_ref01_match_rm0} = {
     'id' => $V{moon_ref01_data}{id},
   };
+  $V{moon_ref01_match_rm0}{'planet_id'} = $setup->{idmap}{'planet_id'} // $setup->{idmap}{'planet01'};
   $V{moon_ref01_ent}->remove($V{moon_ref01_match_rm0}, undef);
   pass('moon remove: completed');
 
@@ -139,10 +156,8 @@ sub moon_basic_setup {
     }
   );
 
-  # Detect ENTID env override before env_override consumes it. When live
-  # mode is on without a real override, the basic test runs against
-  # synthetic IDs from the fixture and 4xx's. Surface this so the test can
-  # skip.
+  # Whether *_ENTID supplied the idmap, read before env_override consumes
+  # it: without it, the ids a live flow binds are the fixture's synthetic ones.
   my $entid_env_raw = $ENV{'VOXGIG_SOLARDEMO_TEST_MOON_ENTID'};
   my $idmap_overridden = (defined $entid_env_raw && $entid_env_raw =~ /^\s*\{/) ? 1 : 0;
 

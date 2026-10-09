@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to PyPI. Install it from the GitHub
-release tag (`py/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
+release tag (`py/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or
 from a source checkout:
 
 ```bash
@@ -38,14 +38,14 @@ client = VoxgigSolardemoSDK()
 
 ### 2. List moon records
 
-`list()` returns a `list` of records (each a `dict`) and raises on
-error — iterate it directly.
+`list()` returns a `list` of entities, one per record, and raises on
+error; an entity's `data_get()` reads its record (a `dict`).
 
 ```python
 try:
     moons = client.Moon().list({"planet_id": "example"})
     for moon in moons:
-        print(moon)
+        print(moon.data_get())
 except Exception as err:
     print(f"list failed: {err}")
 ```
@@ -58,7 +58,7 @@ Moon is nested under planet, so provide the `planet_id`.
 ```python
 try:
     moon = client.Moon().load({"planet_id": "example_planet_id", "id": "example_id"})
-    print(moon)
+    print(moon.data_get())
 except Exception as err:
     print(f"load failed: {err}")
 ```
@@ -69,7 +69,7 @@ except Exception as err:
 # Create — returns the ENTITY (call data_get() for the record)
 created = client.Moon().create({"planet_id": "example_planet_id", "diameter": 1, "id": "example_id", "kind": "example_kind", "name": "example_name"})
 
-# Update — the created record's id is a plain dict key
+# Update — the created entity's record holds its id
 client.Moon().update({"id": created.data_get()["id"], "planet_id": "example_planet_id", "diameter": 1})
 
 # Remove
@@ -83,8 +83,8 @@ Entity operations raise on failure, so wrap them in `try` / `except`:
 
 ```python
 try:
-    moons = client.Moon().list()
-    print(moons)
+    planets = client.Planet().list()
+    print([item.data_get() for item in planets])
 except Exception as err:
     print(f"list failed: {err}")
 ```
@@ -150,10 +150,9 @@ Create a mock client for unit testing — no server required:
 ```python
 client = VoxgigSolardemoSDK.test()
 
-# Entity ops return the ENTITY and raises on error;
-# call data_get() for the record.
-moon = client.Moon().list()
-# moon contains the mock response record
+# Entity ops return the entity, and list one per record; they raise on error.
+planet = client.Planet().list()
+# data_get() on an entity reads its mock response record
 ```
 
 ### Use a custom fetch function
@@ -238,11 +237,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, ctrl) -> any` | Load a single entity by match criteria. Raises on error. |
-| `list` | `(reqmatch, ctrl) -> list` | List entities matching the criteria. Raises on error. |
-| `create` | `(reqdata, ctrl) -> any` | Create a new entity. Raises on error. |
-| `update` | `(reqdata, ctrl) -> any` | Update an existing entity. Raises on error. |
-| `remove` | `(reqmatch, ctrl) -> any` | Remove an entity. Raises on error. |
+| `load` | `(reqmatch, ctrl) -> any` | Load a single entity by match criteria, and return it. Raises on error. |
+| `list` | `(reqmatch, ctrl) -> list` | List entities matching the criteria, one per record. Raises on error. |
+| `create` | `(reqdata, ctrl) -> any` | Create a new entity, and return it. Raises on error. |
+| `update` | `(reqdata, ctrl) -> any` | Update an existing entity, and return it. Raises on error. |
+| `remove` | `(reqmatch, ctrl) -> any` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `data_get` | `() -> dict` | Get entity data. |
 | `data_set` | `(data)` | Set entity data. |
 | `match_get` | `() -> dict` | Get entity match criteria. |
@@ -252,9 +251,9 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the ENTITY (call data_get() for the record) (a `dict` for single-entity
-ops, a `list` for `list`) and raise on error. Wrap calls in
-`try`/`except` to handle failures.
+Entity operations return the entity, and `list` a `list` of entities, one
+per record; an entity's `data_get()` reads its record (a `dict`). They raise
+on error, so wrap calls in `try`/`except` to handle failures.
 
 The `direct()` escape hatch never raises — it returns a result `dict`
 you branch on via `result["ok"]`:
@@ -643,11 +642,11 @@ Entity instances are stateful. After a successful `list`, the entity
 stores the returned data and match criteria internally.
 
 ```python
-moon = client.Moon()
-moon.list()
+planet = client.Planet()
+planet.list()
 
-# moon.data_get() now returns the moon data from the last list
-# moon.match_get() returns the last match criteria
+# planet.data_get() now returns the planet data from the last list
+# planet.match_get() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

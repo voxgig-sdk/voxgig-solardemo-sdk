@@ -6,46 +6,28 @@ require_relative "../VoxgigSolardemo_sdk"
 require_relative "runner"
 
 class MoonEntityTest < Minitest::Test
+  # main.kit.test.live.strict is true (the default is true): a live
+  # request that fails, or a live test missing an input it needs,
+  # fails the test.
+  # An account with no record for a test to read skips it either way.
+  LIVE_STRICT = true
+
   def test_create_instance
     testsdk = VoxgigSolardemoSDK.test(nil, nil)
     ent = testsdk.Moon(nil)
     assert !ent.nil?
   end
 
-  # Feature #4: the entity stream(action, ...) method runs the op pipeline and
-  # returns an Enumerator over result items. With the streaming feature active
-  # it yields the feature's incremental output; otherwise it falls back to the
-  # materialised list so stream always yields.
-  def test_stream
-    seed = {
-      "entity" => {
-        "moon" => {
-          "s1" => { "id" => "s1" },
-          "s2" => { "id" => "s2" },
-          "s3" => { "id" => "s3" },
-        },
-      },
-    }
-
-    # Fallback: streaming inactive -> yields the materialised list items.
-    base = VoxgigSolardemoSDK.test(seed, nil)
-    seen = base.Moon(nil).stream("list", nil, nil).to_a
-    assert_equal 3, seen.length
-
-    # Inbound: streaming active -> yields each item from the feature.
+  def test_validate
     cfg = VoxgigSolardemoConfig.shared_config
-    if cfg["feature"].is_a?(Hash) && cfg["feature"].key?("streaming")
-      sdk = VoxgigSolardemoSDK.test(seed, { "feature" => { "streaming" => { "active" => true } } })
-      got = []
-      sdk.Moon(nil).stream("list", nil, nil).each do |item|
-        if item.is_a?(Array)
-          got.concat(item)
-        else
-          got << item
-        end
-      end
-      assert_equal 3, got.length
+    unless cfg["feature"].is_a?(Hash) && cfg["feature"].key?("validate")
+      skip("feature not present in this SDK: validate")
     end
+    client = VoxgigSolardemoSDK.test(nil, { "feature" => { "validate" => { "active" => true } } })
+    err = assert_raises(StandardError) do
+      client.Moon(nil).list({ "planet_id" => 1 }, nil)
+    end
+    assert_equal "validate_failed", err.code
   end
 
   def test_basic_flow
@@ -59,11 +41,12 @@ class MoonEntityTest < Minitest::Test
         return
       end
     end
-    # The basic flow consumes synthetic IDs from the fixture. In live mode
-    # without an *_ENTID env override, those IDs hit the live API and 4xx.
-    if setup[:synthetic_only]
-      skip "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live"
-      return
+    if setup[:live]
+      ["planet01"].each do |_live_key|
+        if setup[:synthetic_only] || setup[:idmap][_live_key].nil?
+          Runner.live_miss(LIVE_STRICT, "Live entity test blocked: needs #{_live_key} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
+        end
+      end
     end
     client = setup[:client]
 
@@ -111,6 +94,7 @@ class MoonEntityTest < Minitest::Test
     moon_ref01_match_dt0 = {
       "id" => moon_ref01_data["id"],
     }
+    moon_ref01_match_dt0["planet_id"] = setup[:idmap]["planet_id"] || setup[:idmap]["planet01"]
     moon_ref01_data_dt0_loaded = moon_ref01_ent.load(moon_ref01_match_dt0, nil)
     moon_ref01_data_dt0_load_result = Helpers.to_map(moon_ref01_data_dt0_loaded.respond_to?(:data_get) ? moon_ref01_data_dt0_loaded.data_get : moon_ref01_data_dt0_loaded)
     assert !moon_ref01_data_dt0_load_result.nil?
@@ -120,6 +104,7 @@ class MoonEntityTest < Minitest::Test
     moon_ref01_match_rm0 = {
       "id" => moon_ref01_data["id"],
     }
+    moon_ref01_match_rm0["planet_id"] = setup[:idmap]["planet_id"] || setup[:idmap]["planet01"]
     moon_ref01_ent.remove(moon_ref01_match_rm0, nil)
 
     # LIST
@@ -142,7 +127,7 @@ def moon_basic_setup(extra)
   Runner.load_env_local
 
   entity_data_file = File.join(__dir__, "..", "..", ".sdk", "test", "entity", "moon", "MoonTestData.json")
-  entity_data_source = File.read(entity_data_file)
+  entity_data_source = File.read(entity_data_file, encoding: "UTF-8")
   entity_data = JSON.parse(entity_data_source)
 
   options = {}
@@ -161,9 +146,8 @@ def moon_basic_setup(extra)
     }
   )
 
-  # Detect ENTID env override before envOverride consumes it. When live
-  # mode is on without a real override, the basic test runs against synthetic
-  # IDs from the fixture and 4xx's. Surface this so the test can skip.
+  # Whether *_ENTID supplied the idmap, read before env_override consumes
+  # it: without it, the ids a live flow binds are the fixture's synthetic ones.
   entid_env_raw = ENV["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"]
   idmap_overridden = !entid_env_raw.nil? && entid_env_raw.strip.start_with?("{")
 

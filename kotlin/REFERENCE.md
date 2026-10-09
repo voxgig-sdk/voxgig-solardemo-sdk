@@ -104,7 +104,7 @@ val moon = client.moon(null)
 
 #### `create(reqdata, ctrl) -> Any?`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```kotlin
 val result = client.moon(null).create(mutableMapOf<String, Any?>(
@@ -118,16 +118,18 @@ val result = client.moon(null).create(mutableMapOf<String, Any?>(
 
 #### `list(reqmatch, ctrl) -> Any?`
 
-List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns an aggregate list and raises on error.
+List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```kotlin
-val results = client.moon(null).list(null, null)
-println(results)
+val results = client.moon(null).list(mutableMapOf<String, Any?>("planet_id" to "example"), null) as List<*>
+for (item in results) {
+    println((item as SdkEntity).data())
+}
 ```
 
 #### `load(reqmatch, ctrl) -> Any?`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and raises on error.
 
 ```kotlin
 val result = client.moon(null).load(mutableMapOf<String, Any?>("id" to "moon_id", "planet_id" to "planet_id"), null)
@@ -135,7 +137,7 @@ val result = client.moon(null).load(mutableMapOf<String, Any?>("id" to "moon_id"
 
 #### `remove(reqmatch, ctrl) -> Any?`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```kotlin
 val result = client.moon(null).remove(mutableMapOf<String, Any?>("id" to "moon_id", "planet_id" to "planet_id"), null)
@@ -143,7 +145,7 @@ val result = client.moon(null).remove(mutableMapOf<String, Any?>("id" to "moon_i
 
 #### `update(reqdata, ctrl) -> Any?`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```kotlin
 val result = client.moon(null).update(mutableMapOf<String, Any?>(
@@ -195,7 +197,7 @@ val planet = client.planet(null)
 
 #### `create(reqdata, ctrl) -> Any?`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```kotlin
 val result = client.planet(null).create(mutableMapOf<String, Any?>(
@@ -208,16 +210,18 @@ val result = client.planet(null).create(mutableMapOf<String, Any?>(
 
 #### `list(reqmatch, ctrl) -> Any?`
 
-List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns an aggregate list and raises on error.
+List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```kotlin
-val results = client.planet(null).list(null, null)
-println(results)
+val results = client.planet(null).list(null, null) as List<*>
+for (item in results) {
+    println((item as SdkEntity).data())
+}
 ```
 
 #### `load(reqmatch, ctrl) -> Any?`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and raises on error.
 
 ```kotlin
 val result = client.planet(null).load(mutableMapOf<String, Any?>("id" to "planet_id"), null)
@@ -225,7 +229,7 @@ val result = client.planet(null).load(mutableMapOf<String, Any?>("id" to "planet
 
 #### `remove(reqmatch, ctrl) -> Any?`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```kotlin
 val result = client.planet(null).remove(mutableMapOf<String, Any?>("id" to "planet_id"), null)
@@ -233,7 +237,7 @@ val result = client.planet(null).remove(mutableMapOf<String, Any?>("id" to "plan
 
 #### `update(reqdata, ctrl) -> Any?`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```kotlin
 val result = client.planet(null).update(mutableMapOf<String, Any?>(
@@ -578,6 +582,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

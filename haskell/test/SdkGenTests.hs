@@ -22,7 +22,7 @@ loadFixture entName = do
   -- plain lowercase of the CamelCase entName (createresult) misses the
   -- underscores for multi-word entities. Convert CamelCase -> snake_case.
   let lname = camelToSnake entName
-  raw <- readFile ("../.sdk/test/entity/" ++ lname ++ "/" ++ entName ++ "TestData.json")
+  raw <- readUtf8 ("../.sdk/test/entity/" ++ lname ++ "/" ++ entName ++ "TestData.json")
   jsonRead raw
   where
     toLowerCh ch = if ch >= 'A' && ch <= 'Z' then toEnum (fromEnum ch + 32) else ch
@@ -69,6 +69,9 @@ moonBasicTest c = do
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
     em1 <- emptyMap; em2 <- emptyMap
+    entmap <- getp existing "moon"
+    rec0 <- keysof entmap >>= \ids -> case ids of { (i : _) -> getp entmap i; [] -> emptyMap }
+    setp em1 "planet_id" =<< getp rec0 "planet_id"
     lst <- eList ent em1 em2
     -- `list` resolves to one ENTITY per record; the record is reached
     -- through eDataGet. See AGENTS.md "Entity operations return ENTITIES".
@@ -83,6 +86,8 @@ moonBasicTest c = do
       [] -> pure True
       (id0 : _) -> do
         m <- jo [("id", VStr id0)]; ctrl <- emptyMap
+        rec0 <- getp entmap id0
+        setp m "planet_id" =<< getp rec0 "planet_id"
         loaded <- eLoad ent m ctrl
         ld <- eDataGet loaded
         lid <- getp ld "id"
@@ -110,11 +115,14 @@ moonBasicTest c = do
     cd <- eDataGet created
     cid <- getp cd "id"
     upd <- jo [("id", cid), ("diameter", VStr "UpdatedMark")]
+    setp upd "planet_id" =<< getp cd "planet_id"
     ctrl2 <- emptyMap
     updated <- eUpdate ent upd ctrl2
     ud <- eDataGet updated
     uv <- getp ud "diameter"
-    pure (ismap ud && vstring uv == "UpdatedMark")
+    um <- readIORef (eMatch updated)
+    umid <- getp um "id"
+    pure (ismap ud && vstring uv == "UpdatedMark" && vstring umid == vstring cid)
   runTest c "moon.remove" $ do
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
@@ -124,6 +132,7 @@ moonBasicTest c = do
     cd <- eDataGet created
     cid <- getp cd "id"
     rm <- jo [("id", cid)]; ctrl2 <- emptyMap
+    setp rm "planet_id" =<< getp cd "planet_id"
     -- `remove` resolves to the entity, marked. It KEEPS the data it held.
     removed <- eRemove ent rm ctrl2
     gone <- readIORef (eDeleted removed)
@@ -152,10 +161,11 @@ moonDirectTest c = runTest c "moon.direct" $ do
 
 moonStreamTest :: Counters -> IO ()
 moonStreamTest c = do
-  let mkSeed = do
-        r1 <- jo [("id", VStr "S1"), ("name", VStr "a")]
-        r2 <- jo [("id", VStr "S2"), ("name", VStr "b")]
-        r3 <- jo [("id", VStr "S3"), ("name", VStr "c")]
+  let parentVals = [("planet_id", VStr "P1")]
+      mkSeed = do
+        r1 <- jo ([("id", VStr "S1"), ("name", VStr "a")] ++ parentVals)
+        r2 <- jo ([("id", VStr "S2"), ("name", VStr "b")] ++ parentVals)
+        r3 <- jo ([("id", VStr "S3"), ("name", VStr "c")] ++ parentVals)
         recs <- jo [("S1", r1), ("S2", r2), ("S3", r3)]
         jo [("moon", recs)]
       hasStreaming = do
@@ -167,14 +177,14 @@ moonStreamTest c = do
     seed <- mkSeed; opts <- jo [("entity", seed)]
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
-    em1 <- emptyMap
+    em1 <- jo parentVals
     items <- eStream ent "list" em1 VNoval
     pure (length items == 3 && (case items of (x : _) -> ismap x; [] -> False))
   runTest c "moon.stream_signal" $ do
     seed <- mkSeed; opts <- jo [("entity", seed)]
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
-    em1 <- emptyMap
+    em1 <- jo parentVals
     n <- newIORef (0 :: Int)
     let sig = vfunc0 (do modifyIORef n (+ 1); v <- readIORef n; pure (VBool (v >= 2)))
     co <- jo [("signal", sig)]
@@ -187,7 +197,7 @@ moonStreamTest c = do
       stg <- jo [("active", VBool True)]; strm <- jo [("streaming", stg)]; sopts <- jo [("feature", strm)]
       sdk <- C.testSdk opts sopts
       ent <- C.moon sdk VNoval
-      em1 <- emptyMap
+      em1 <- jo parentVals
       items <- eStream ent "list" em1 VNoval
       pure (length items == 3)
   runTest c "moon.stream_chunk" $ do
@@ -197,7 +207,7 @@ moonStreamTest c = do
       stg <- jo [("active", VBool True), ("chunkSize", VNum 2)]; strm <- jo [("streaming", stg)]; sopts <- jo [("feature", strm)]
       sdk <- C.testSdk opts sopts
       ent <- C.moon sdk VNoval
-      em1 <- emptyMap
+      em1 <- jo parentVals
       batches <- eStream ent "list" em1 VNoval
       pure (length batches == 2)
 
@@ -261,7 +271,9 @@ planetBasicTest c = do
     updated <- eUpdate ent upd ctrl2
     ud <- eDataGet updated
     uv <- getp ud "diameter"
-    pure (ismap ud && vstring uv == "UpdatedMark")
+    um <- readIORef (eMatch updated)
+    umid <- getp um "id"
+    pure (ismap ud && vstring uv == "UpdatedMark" && vstring umid == vstring cid)
   runTest c "planet.remove" $ do
     sdk <- C.testSdk opts VNoval
     ent <- C.planet sdk VNoval
@@ -299,10 +311,11 @@ planetDirectTest c = runTest c "planet.direct" $ do
 
 planetStreamTest :: Counters -> IO ()
 planetStreamTest c = do
-  let mkSeed = do
-        r1 <- jo [("id", VStr "S1"), ("name", VStr "a")]
-        r2 <- jo [("id", VStr "S2"), ("name", VStr "b")]
-        r3 <- jo [("id", VStr "S3"), ("name", VStr "c")]
+  let parentVals = []
+      mkSeed = do
+        r1 <- jo ([("id", VStr "S1"), ("name", VStr "a")] ++ parentVals)
+        r2 <- jo ([("id", VStr "S2"), ("name", VStr "b")] ++ parentVals)
+        r3 <- jo ([("id", VStr "S3"), ("name", VStr "c")] ++ parentVals)
         recs <- jo [("S1", r1), ("S2", r2), ("S3", r3)]
         jo [("planet", recs)]
       hasStreaming = do
@@ -314,14 +327,14 @@ planetStreamTest c = do
     seed <- mkSeed; opts <- jo [("entity", seed)]
     sdk <- C.testSdk opts VNoval
     ent <- C.planet sdk VNoval
-    em1 <- emptyMap
+    em1 <- jo parentVals
     items <- eStream ent "list" em1 VNoval
     pure (length items == 3 && (case items of (x : _) -> ismap x; [] -> False))
   runTest c "planet.stream_signal" $ do
     seed <- mkSeed; opts <- jo [("entity", seed)]
     sdk <- C.testSdk opts VNoval
     ent <- C.planet sdk VNoval
-    em1 <- emptyMap
+    em1 <- jo parentVals
     n <- newIORef (0 :: Int)
     let sig = vfunc0 (do modifyIORef n (+ 1); v <- readIORef n; pure (VBool (v >= 2)))
     co <- jo [("signal", sig)]
@@ -334,7 +347,7 @@ planetStreamTest c = do
       stg <- jo [("active", VBool True)]; strm <- jo [("streaming", stg)]; sopts <- jo [("feature", strm)]
       sdk <- C.testSdk opts sopts
       ent <- C.planet sdk VNoval
-      em1 <- emptyMap
+      em1 <- jo parentVals
       items <- eStream ent "list" em1 VNoval
       pure (length items == 3)
   runTest c "planet.stream_chunk" $ do
@@ -344,6 +357,6 @@ planetStreamTest c = do
       stg <- jo [("active", VBool True), ("chunkSize", VNum 2)]; strm <- jo [("streaming", stg)]; sopts <- jo [("feature", strm)]
       sdk <- C.testSdk opts sopts
       ent <- C.planet sdk VNoval
-      em1 <- emptyMap
+      em1 <- jo parentVals
       batches <- eStream ent "list" em1 VNoval
       pure (length batches == 2)

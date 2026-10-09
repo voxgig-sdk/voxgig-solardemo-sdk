@@ -12,40 +12,11 @@
   (t/run-check rec "gen-exists-moon"
     (fn [] (let [sdk (api/test-sdk nil nil)]
              (t/is-true (some? (api/moon sdk nil)) "moon accessor present"))))
-  (t/run-check rec "gen-smoke-moon"
-    (fn [] (let [sdk (api/test-sdk nil nil)
-                 ent (api/moon sdk nil)]
-             (let [res (e-moon/create ent (vs/jm "name" "smoke") nil)
-                   rec (if (map? res) ((:data-get res)) res)]
-               ;; create resolves to the ENTITY; the record is data-get.
-               (t/is-true (vs/ismap rec) "create resolves to an entity carrying a record")
-               (t/is-true (some? (vs/getprop rec "id")) "created record has an id"))
-             (let [items (e-moon/list ent (vs/jm) nil)]
-               ;; list resolves to one entity per record.
-               (t/is-true (sequential? items) "list returns a sequential collection"))
-             )))
-  (t/run-check rec "gen-stream-moon"
-    (fn [] (let [seed (vs/jm "moon" (vs/jm "S1" (vs/jm "id" "S1" "name" "a")
-                                                "S2" (vs/jm "id" "S2" "name" "b")
-                                                "S3" (vs/jm "id" "S3" "name" "c")))]
-             ;; Fallback (no streaming feature): materialised items.
-             (let [sdk (api/test-sdk (vs/jm "entity" seed) nil)
-                   items (vec (e-moon/stream (api/moon sdk nil) "list" (vs/jm) nil))]
-               (t/is-eq (count items) 3 "stream fallback yields materialised items")
-               (t/is-true (vs/ismap (first items)) "stream yields bare record maps"))
-             ;; signal cancels iteration between yields.
-             (let [sdk (api/test-sdk (vs/jm "entity" seed) nil)
-                   n (atom 0) sig (fn [] (>= (swap! n inc) 2))
-                   items (vec (e-moon/stream (api/moon sdk nil) "list" (vs/jm) (vs/jm "signal" sig)))]
-               (t/is-eq (count items) 1 "stream signal stops after first yield"))
-             ;; Streaming feature active: yields from the streaming iterator.
-             (when (vs/getpath (config/make-config) "feature.streaming")
-               (let [ssdk (api/test-sdk (vs/jm "entity" seed) (vs/jm "feature" (vs/jm "streaming" (vs/jm "active" true))))]
-                 (t/is-eq (count (vec (e-moon/stream (api/moon ssdk nil) "list" (vs/jm) nil))) 3
-                          "stream (streaming active) yields all items"))
-               (let [csdk (api/test-sdk (vs/jm "entity" seed) (vs/jm "feature" (vs/jm "streaming" (vs/jm "active" true "chunkSize" 2))))
-                     batches (vec (e-moon/stream (api/moon csdk nil) "list" (vs/jm) nil))]
-                 (t/is-eq (count batches) 2 "stream chunkSize groups items into 2 batches"))))))
+  (t/run-check rec "gen-validate-moon"
+    (fn [] (when (vs/getpath (config/make-config) "feature.validate")
+             (let [client (api/test-sdk nil (vs/jm "feature" (vs/jm "validate" (vs/jm "active" true))))]
+               (t/is-throws (fn [] (e-moon/list (api/moon client nil) (vs/jm "planet_id" 1) nil))
+                            "validate_failed" "validate refuses an invalid request")))))
   (t/run-check rec "gen-exists-planet"
     (fn [] (let [sdk (api/test-sdk nil nil)]
              (t/is-true (some? (api/planet sdk nil)) "planet accessor present"))))
@@ -61,6 +32,15 @@
                ;; list resolves to one entity per record.
                (t/is-true (sequential? items) "list returns a sequential collection"))
              )))
+  (t/run-check rec "gen-list-planet"
+    (fn [] (let [seed (vs/jm "planet" (vs/jm "L1" (vs/jm "id" "L1" "name" "a")
+                                                "L2" (vs/jm "id" "L2" "name" "b")))
+                 items (e-planet/list (api/planet (api/test-sdk (vs/jm "entity" seed) nil) nil)
+                                         (vs/jm) nil)]
+             ;; list resolves to one entity per record; data-get reads the record.
+             (t/is-eq (count items) 2 "list answers each seeded record")
+             (t/is-true (every? (fn [item] (and (map? item) (vs/ismap ((:data-get item))))) items)
+                        "each listed item is an entity carrying its record"))))
   (t/run-check rec "gen-stream-planet"
     (fn [] (let [seed (vs/jm "planet" (vs/jm "S1" (vs/jm "id" "S1" "name" "a")
                                                 "S2" (vs/jm "id" "S2" "name" "b")
@@ -83,6 +63,45 @@
                (let [csdk (api/test-sdk (vs/jm "entity" seed) (vs/jm "feature" (vs/jm "streaming" (vs/jm "active" true "chunkSize" 2))))
                      batches (vec (e-planet/stream (api/planet csdk nil) "list" (vs/jm) nil))]
                  (t/is-eq (count batches) 2 "stream chunkSize groups items into 2 batches"))))))
+  (t/run-check rec "gen-stream-error-planet"
+    (fn [] (let [offline (vs/jm "net" (vs/jm "offline" true))
+                 err (try (vec (e-planet/stream (api/planet (api/test-sdk offline nil) nil) "list" (vs/jm) nil)) nil
+                          (catch Throwable e e))]
+             (t/is-true (and (some? err) (.contains (str (.getMessage ^Throwable err)) "offline"))
+                        "the transport failure raises from the stream")
+             (t/is-eq (count (vec (e-planet/stream (api/planet (api/test-sdk offline nil) nil) "list" (vs/jm)
+                                                 (vs/jm "ctrl" (vs/jm "throw" false)))))
+                      0 "throw false ends the stream quietly")
+             (when (vs/getpath (config/make-config) "feature.rbac")
+               (let [denied (api/test-sdk nil (vs/jm "feature" (vs/jm "rbac" (vs/jm "active" true "deny" true))))]
+                 (t/is-throws (fn [] (vec (e-planet/stream (api/planet denied nil) "list" (vs/jm) nil)))
+                              "rbac_denied" "the rbac denial raises from the stream"))))))
+  (t/run-check rec "gen-stream-ctrl-planet"
+    (fn [] (let [explain (vs/jm)
+                 ctrl (vs/jm "explain" explain)]
+             (vec (e-planet/stream (api/planet (api/test-sdk nil nil) nil) "list" (vs/jm) (vs/jm "ctrl" ctrl)))
+             (t/is-eq (vec (vs/keysof ctrl)) ["explain"] "the stream changed the caller's ctrl")
+             (t/is-true (identical? explain (vs/getprop ctrl "explain")) "the caller's explain record is not its own")
+             (t/is-true (pos? (count (vs/keysof explain))) "the caller's explain record was not filled"))))
+  (t/run-check rec "gen-unexpected-planet"
+    (fn [] (let [seen (atom 0)
+                 hook (atom {:name "failhook" :active true :version "0.0.1" :_options nil
+                             "init" (fn [_ctx _opts] nil)
+                             "PreSpec" (fn [_ctx] (throw (RuntimeException. "planet hook failed")))
+                             "PreUnexpected" (fn [_ctx] (swap! seen inc))})
+                 ent (api/planet (api/make-sdk (vs/jm "feature" (vs/jm "test" (vs/jm "active" true)) "extend" [hook])) nil)
+                 err (try (e-planet/list ent (vs/jm) nil) nil (catch Throwable e e))]
+             (t/is-true (and (some? err) (.contains (str (.getMessage ^Throwable err)) "hook failed"))
+                        "the hook's failure is raised")
+             (t/is-true (pos? @seen) "PreUnexpected did not fire")
+             (let [fired @seen]
+               (t/is-nil (e-planet/list ent (vs/jm) (vs/jm "throw" false)) "throw false should resolve to nothing")
+               (t/is-true (> @seen fired) "PreUnexpected did not fire under throw false")))))
+  (t/run-check rec "gen-validate-planet"
+    (fn [] (when (vs/getpath (config/make-config) "feature.validate")
+             (let [client (api/test-sdk nil (vs/jm "feature" (vs/jm "validate" (vs/jm "active" true))))]
+               (t/is-throws (fn [] (e-planet/list (api/planet client nil) (vs/jm "diameter" "x") nil))
+                            "validate_failed" "validate refuses an invalid request")))))
   (t/run-check rec "gen-prepare-moon"
     (fn [] (let [client (api/make-sdk (vs/jm "base" "http://example.test"))
                  fetchdef (api/prepare client (vs/jm "path" "/api/moon" "method" "GET"))]

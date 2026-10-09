@@ -12,13 +12,13 @@ An entity groups related API operations. An operation can have several routes wi
 
 ## What the API provides
 
-### [Moon](docs/api/moon.html)
+### Moon
 
 Results: Created; OK; No Content.
 
 SDK operations: `create`, `list`, `load`, `remove`, `update`.
 
-### [Planet](docs/api/planet.html)
+### Planet
 
 Results: OK; Created; No Content.
 
@@ -36,18 +36,18 @@ Use this map to locate a capability. Consult the entity reference before supplyi
 
 | Entity | SDK operation | HTTP route | Authentication |
 | --- | --- | --- | --- |
-| [Moon](docs/api/moon.html) | `create` | `POST /api/planet/{planet_id}/moon` | See reference |
-| [Moon](docs/api/moon.html) | `list` | `GET /api/planet/{planet_id}/moon` | See reference |
-| [Moon](docs/api/moon.html) | `load` | `GET /api/planet/{planet_id}/moon/{moon_id}` | See reference |
-| [Moon](docs/api/moon.html) | `remove` | `DELETE /api/planet/{planet_id}/moon/{moon_id}` | See reference |
-| [Moon](docs/api/moon.html) | `update` | `PUT /api/planet/{planet_id}/moon/{moon_id}` | See reference |
-| [Planet](docs/api/planet.html) | `create` | `POST /api/planet/{planet_id}/forbid` | See reference |
-| [Planet](docs/api/planet.html) | `create` | `POST /api/planet/{planet_id}/terraform` | See reference |
-| [Planet](docs/api/planet.html) | `create` | `POST /api/planet` | See reference |
-| [Planet](docs/api/planet.html) | `list` | `GET /api/planet` | See reference |
-| [Planet](docs/api/planet.html) | `load` | `GET /api/planet/{planet_id}` | See reference |
-| [Planet](docs/api/planet.html) | `remove` | `DELETE /api/planet/{planet_id}` | See reference |
-| [Planet](docs/api/planet.html) | `update` | `PUT /api/planet/{planet_id}` | See reference |
+| Moon | `create` | `POST /api/planet/{planet_id}/moon` | See reference |
+| Moon | `list` | `GET /api/planet/{planet_id}/moon` | See reference |
+| Moon | `load` | `GET /api/planet/{planet_id}/moon/{moon_id}` | See reference |
+| Moon | `remove` | `DELETE /api/planet/{planet_id}/moon/{moon_id}` | See reference |
+| Moon | `update` | `PUT /api/planet/{planet_id}/moon/{moon_id}` | See reference |
+| Planet | `create` | `POST /api/planet/{planet_id}/forbid` | See reference |
+| Planet | `create` | `POST /api/planet/{planet_id}/terraform` | See reference |
+| Planet | `create` | `POST /api/planet` | See reference |
+| Planet | `list` | `GET /api/planet` | See reference |
+| Planet | `load` | `GET /api/planet/{planet_id}` | See reference |
+| Planet | `remove` | `DELETE /api/planet/{planet_id}` | See reference |
+| Planet | `update` | `PUT /api/planet/{planet_id}` | See reference |
 
 ## Connect to the API
 
@@ -69,30 +69,30 @@ Choose the language already used by your application or service. The clients rep
 
 | Client | Repository directory | Distribution |
 | --- | --- | --- |
-| [C](docs/sdks/c.html) | `c/` | Build from source |
-| [Clojure](docs/sdks/clojure.html) | `clojure/` | Build from source |
-| [C++](docs/sdks/cpp.html) | `cpp/` | Build from source |
-| [C#](docs/sdks/csharp.html) | `csharp/` | Build from source |
-| [Dart](docs/sdks/dart.html) | `dart/` | Build from source |
-| [Elixir](docs/sdks/elixir.html) | `elixir/` | Build from source |
-| [Golang](docs/sdks/go.html) | `go/` | Build from source |
-| [Haskell](docs/sdks/haskell.html) | `haskell/` | Build from source |
-| [Java](docs/sdks/java.html) | `java/` | Build from source |
-| [JavaScript](docs/sdks/js.html) | `js/` | Build from source |
-| [Kotlin](docs/sdks/kotlin.html) | `kotlin/` | Build from source |
-| [Lean](docs/sdks/lean.html) | `lean/` | Build from source |
-| [Lua](docs/sdks/lua.html) | `lua/` | Build from source |
-| [OCaml](docs/sdks/ocaml.html) | `ocaml/` | Build from source |
-| [Perl](docs/sdks/perl.html) | `perl/` | Build from source |
-| [PHP](docs/sdks/php.html) | `php/` | Build from source |
-| [Python](docs/sdks/py.html) | `py/` | Build from source |
-| [Ruby](docs/sdks/rb.html) | `rb/` | Build from source |
-| [Rust](docs/sdks/rust.html) | `rust/` | Build from source |
-| [Scala](docs/sdks/scala.html) | `scala/` | Build from source |
-| [Seneca Provider](docs/sdks/seneca-provider.html) | `seneca-provider/` | Build from source |
-| [Swift](docs/sdks/swift.html) | `swift/` | Build from source |
-| [TypeScript](docs/sdks/ts.html) | `ts/` | Build from source |
-| [Zig](docs/sdks/zig.html) | `zig/` | Build from source |
+| C | `c/` | Build from source |
+| Clojure | `clojure/` | Build from source |
+| C++ | `cpp/` | Build from source |
+| C# | `csharp/` | Build from source |
+| Dart | `dart/` | Build from source |
+| Elixir | `elixir/` | Build from source |
+| Golang | `go/` | Build from source |
+| Haskell | `haskell/` | Build from source |
+| Java | `java/` | Build from source |
+| JavaScript | `js/` | Build from source |
+| Kotlin | `kotlin/` | Build from source |
+| Lean | `lean/` | Build from source |
+| Lua | `lua/` | Build from source |
+| OCaml | `ocaml/` | Build from source |
+| Perl | `perl/` | Build from source |
+| PHP | `php/` | Build from source |
+| Python | `py/` | Build from source |
+| Ruby | `rb/` | Build from source |
+| Rust | `rust/` | Build from source |
+| Scala | `scala/` | Build from source |
+| Seneca Provider | `seneca-provider/` | Build from source |
+| Swift | `swift/` | Build from source |
+| TypeScript | `ts/` | Build from source |
+| Zig | `zig/` | Build from source |
 
 Build-from-source entries are not marked as published in the project model. Follow the build instructions in that target’s README, then consume the resulting package using your language’s local dependency mechanism. Published entries give the installation command recorded for that client.
 
@@ -100,14 +100,14 @@ Build-from-source entries are not marked as published in the project model. Foll
 
 These targets provide another way to use the API. Their available commands or tools can cover a smaller set of operations than the client libraries.
 
-### [Go CLI](docs/tools/go-cli.html)
+### Go CLI
 
 Use the command-line interface for shell-based tasks and scripts.
 
 Repository directory: `go-cli/`. Not published. Build from the go-cli directory.
 
 
-### [Go MCP server](docs/tools/go-mcp.html)
+### Go MCP server
 
 Use the MCP server to expose supported API operations to an MCP client.
 
@@ -116,7 +116,7 @@ Repository directory: `go-mcp/`. Not published. Build from the go-mcp directory.
 - `voxgig-solardemo_list`: List records for an entity. Supported entities: `moon`, `planet`.
 - `voxgig-solardemo_load`: Load one record for an entity. Supported entities: `moon`, `planet`.
 
-### [Python Data](docs/tools/py-data.html)
+### Python Data
 
 Use the data integration for analysis and notebook workflows.
 
@@ -127,22 +127,22 @@ Repository directory: `py-data/`. Not published. Build from the py-data director
 
 Features supply behaviour around API calls, such as request handling, diagnostics, or local testing. Inclusion in this project does not mean a feature is enabled at runtime. Check the selected SDK’s supported features and configuration defaults, then enable the behaviour your application needs.
 
-- [`debug`](docs/features/debug.html): Request/response capture ring buffer for debugging
-- [`idempotency`](docs/features/idempotency.html): Idempotency keys for safe retries of mutating operations
-- [`metrics`](docs/features/metrics.html): Statistics capture: per-operation counters and latency
-- [`paging`](docs/features/paging.html): Pagination signals for list operations
-- [`ratelimit`](docs/features/ratelimit.html): Client-side rate limiting via a token bucket
-- [`retry`](docs/features/retry.html): Automatic retry of transient failures with exponential backoff
-- [`secrets`](docs/features/secrets.html): Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
-- [`test`](docs/features/test.html): In-memory mock transport for testing without a live server
-- [`timeout`](docs/features/timeout.html): Per-request timeout with transport abort
+- `debug`: Request/response capture ring buffer for debugging
+- `idempotency`: Idempotency keys for safe retries of mutating operations
+- `metrics`: Statistics capture: per-operation counters and latency
+- `paging`: Pagination signals for list operations
+- `ratelimit`: Client-side rate limiting via a token bucket
+- `retry`: Automatic retry of transient failures with exponential backoff
+- `secrets`: Secret access: resolve the API credential through a provider chain, and exchange a refresh token for short-lived access tokens
+- `test`: In-memory mock transport for testing without a live server
+- `timeout`: Per-request timeout with transport abort
 
 Start with the default client configuration. Add request limits and diagnostics as needed, test error paths, and review retry behaviour before using operations that change data. A retry can repeat an operation unless the API provides a suitable guarantee.
 
 ## Continue with the documentation
 
-- Follow the [first-call guide](docs/guides/first-call.html) for the setup sequence.
-- Read the [authentication guide](docs/guides/authentication.html) before using protected routes.
-- Use the [API reference](docs/api/index.html) for request schemas, response formats, and status codes.
+- Follow the first-call guide for the setup sequence.
+- Read the authentication guide before using protected routes.
+- Use the API reference for request schemas, response formats, and status codes.
 - Check the chosen SDK or companion tool reference for its configuration and supported operations.
 

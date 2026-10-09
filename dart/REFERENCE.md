@@ -100,7 +100,7 @@ final moon = client.Moon();
 
 #### `create(reqdata, [ctrl]) -> Future<dynamic>`
 
-Create a new entity with the given data. Returns the created entity data and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```dart
 final result = await client.Moon().create({
@@ -114,7 +114,7 @@ final result = await client.Moon().create({
 
 #### `list([reqmatch, ctrl]) -> Future<List>`
 
-List entities matching the given criteria. The match is optional — call `list()` with no argument to list all records. Returns a list of entity instances and throws on error.
+List entities matching the given criteria. The match is optional — call `list()` with no argument to list all records. Returns a list of entities, one per record, and throws on error.
 
 ```dart
 final results = await client.Moon().list({ planet_id: "example" });
@@ -125,7 +125,7 @@ for (final moon in results) {
 
 #### `load(reqmatch, [ctrl]) -> Future<dynamic>`
 
-Load a single entity matching the given criteria. Returns the entity data and throws on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and throws on error.
 
 ```dart
 final result = await client.Moon().load({'id': 'moon_id', 'planet_id': 'planet_id'});
@@ -133,7 +133,7 @@ final result = await client.Moon().load({'id': 'moon_id', 'planet_id': 'planet_i
 
 #### `remove(reqmatch, [ctrl]) -> Future<dynamic>`
 
-Remove the entity matching the given criteria. Throws on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted (`deleted()`); it keeps the data it held. Throws on error.
 
 ```dart
 final result = await client.Moon().remove({'id': 'moon_id', 'planet_id': 'planet_id'});
@@ -141,7 +141,7 @@ final result = await client.Moon().remove({'id': 'moon_id', 'planet_id': 'planet
 
 #### `update(reqdata, [ctrl]) -> Future<dynamic>`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and throws on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and throws on error.
 
 ```dart
 final result = await client.Moon().update({
@@ -194,7 +194,7 @@ final planet = client.Planet();
 
 #### `create(reqdata, [ctrl]) -> Future<dynamic>`
 
-Create a new entity with the given data. Returns the created entity data and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```dart
 final result = await client.Planet().create({
@@ -207,7 +207,7 @@ final result = await client.Planet().create({
 
 #### `list([reqmatch, ctrl]) -> Future<List>`
 
-List entities matching the given criteria. The match is optional — call `list()` with no argument to list all records. Returns a list of entity instances and throws on error.
+List entities matching the given criteria. The match is optional — call `list()` with no argument to list all records. Returns a list of entities, one per record, and throws on error.
 
 ```dart
 final results = await client.Planet().list();
@@ -218,7 +218,7 @@ for (final planet in results) {
 
 #### `load(reqmatch, [ctrl]) -> Future<dynamic>`
 
-Load a single entity matching the given criteria. Returns the entity data and throws on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and throws on error.
 
 ```dart
 final result = await client.Planet().load({'id': 'planet_id'});
@@ -226,7 +226,7 @@ final result = await client.Planet().load({'id': 'planet_id'});
 
 #### `remove(reqmatch, [ctrl]) -> Future<dynamic>`
 
-Remove the entity matching the given criteria. Throws on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted (`deleted()`); it keeps the data it held. Throws on error.
 
 ```dart
 final result = await client.Planet().remove({'id': 'planet_id'});
@@ -234,7 +234,7 @@ final result = await client.Planet().remove({'id': 'planet_id'});
 
 #### `update(reqdata, [ctrl]) -> Future<dynamic>`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and throws on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and throws on error.
 
 ```dart
 final result = await client.Planet().update({
@@ -581,6 +581,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

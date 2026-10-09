@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to Maven Central. Install it from the GitHub
-release tag (`kotlin/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
+release tag (`kotlin/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or
 from a source checkout — build the library with Gradle:
 
 ```bash
@@ -32,19 +32,22 @@ loading a specific record.
 
 ```kotlin
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.SdkEntity
 
 val client = VoxgigSolardemoSDK()
 ```
 
 ### 2. List moon records
 
-`list(null, null)` returns an aggregate list of records (as `Any?`, an
-aggregate list) and raises on error.
+`list(null, null)` returns a list of entities, one per record (as `Any?`),
+and raises on error; an entity's `data()` reads its record.
 
 ```kotlin
 try {
-    val moonList = client.moon(null).list(null, null)
-    println(moonList)
+    val moonList = client.moon(null).list(mutableMapOf<String, Any?>("planet_id" to "example"), null) as List<*>
+    for (moonItem in moonList) {
+        println((moonItem as SdkEntity).data())
+    }
 }
 catch (err: RuntimeException) {
     println("list failed: " + err.message)
@@ -58,8 +61,8 @@ Moon is nested under planet, so provide the `planet_id`.
 
 ```kotlin
 try {
-    val moon = client.moon(null).load(mutableMapOf<String, Any?>("planet_id" to "example_planet_id", "id" to "example_id"), null)
-    println(moon)
+    val moon = client.moon(null).load(mutableMapOf<String, Any?>("planet_id" to "example_planet_id", "id" to "example_id"), null) as SdkEntity
+    println(moon.data())
 }
 catch (err: RuntimeException) {
     println("load failed: " + err.message)
@@ -86,15 +89,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -103,8 +107,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -154,11 +158,11 @@ Create a mock client for unit testing — no server required:
 ```kotlin
 val client = VoxgigSolardemoSDK.testSDK(null, null)
 
-// Entity ops return the ENTITY and raises on error;
-// call data() for the record.
-val moon = client.moon(null).list(null, null)
-// moon holds the mock response record
-println(moon)
+// list returns a list of entities, one per mock record; it raises on error.
+val planetList = client.planet(null).list(null, null) as List<*>
+for (planetItem in planetList) {
+    println((planetItem as SdkEntity).data())
+}
 ```
 
 ### Use a custom fetch function
@@ -240,11 +244,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, ctrl) -> Any?` | Load a single entity by match criteria. Raises on error. |
-| `list` | `(reqmatch, ctrl) -> Any?` | List entities matching the criteria (an aggregate list). Raises on error. |
-| `create` | `(reqdata, ctrl) -> Any?` | Create a new entity. Raises on error. |
-| `update` | `(reqdata, ctrl) -> Any?` | Update an existing entity. Raises on error. |
-| `remove` | `(reqmatch, ctrl) -> Any?` | Remove an entity. Raises on error. |
+| `load` | `(reqmatch, ctrl) -> Any?` | Load a single entity by match criteria, and return it. Raises on error. |
+| `list` | `(reqmatch, ctrl) -> Any?` | List entities matching the criteria, one per record. Raises on error. |
+| `create` | `(reqdata, ctrl) -> Any?` | Create a new entity, and return it. Raises on error. |
+| `update` | `(reqdata, ctrl) -> Any?` | Update an existing entity, and return it. Raises on error. |
+| `remove` | `(reqmatch, ctrl) -> Any?` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `data` | `(vararg newdata) -> Any?` | Get or set entity data. |
 | `match` | `(vararg newmatch) -> Any?` | Get or set entity match criteria. |
 | `make` | `() -> Entity` | Create a new instance with the same options. |
@@ -252,9 +256,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the ENTITY (call data() for the record) (a `Map` for single-entity
-ops, an aggregate `List` for `list`) as `Any?` and raise on error. Wrap
-calls in `try`/`catch` to handle failures.
+Entity operations return the entity, and `list` a list of entities, one per
+record, as `Any?`; an entity is an `SdkEntity`, whose `data()` reads its
+record. They raise on error, so wrap calls in `try`/`catch` to handle
+failures.
 
 The `direct()` escape hatch never raises — it returns a result
 `MutableMap<String, Any?>` you branch on via `result["ok"]`:
@@ -338,7 +343,7 @@ val moon = client.moon(null).load(mutableMapOf<String, Any?>("id" to "moon_id", 
 #### Example: List
 
 ```kotlin
-val moonList = client.moon(null).list(null, null)
+val moonList = client.moon(null).list(mutableMapOf<String, Any?>("planet_id" to "example"), null)
 ```
 
 #### Example: Create
@@ -645,11 +650,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

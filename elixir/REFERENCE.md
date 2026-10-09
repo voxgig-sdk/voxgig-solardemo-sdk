@@ -98,12 +98,12 @@ moon = VoxgigSolardemo.moon(sdk)
 
 ### Operations
 
-#### `create(entity, reqdata, ctrl \\ nil) :: map()`
+#### `create(entity, reqdata, ctrl \\ nil) :: entity`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%{
+moon = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%{
   "planet_id" => "example_planet_id",  # String.t()
   "diameter" => 1,  # float()
   "id" => "example_id",  # String.t()
@@ -114,34 +114,34 @@ record = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%
 
 #### `list(entity, reqmatch \\ nil, ctrl \\ nil) :: list()`
 
-List entities matching the given criteria. The match is optional — call `list(entity)` to list all records. Returns a list and raises on error.
+List entities matching the given criteria. The match is optional — call `list(entity)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```elixir
-records = VoxgigSolardemo.Entity.Moon.list(moon)
+moons = VoxgigSolardemo.Entity.Moon.list(moon, VoxgigSolardemo.Helpers.deep(%{"planet_id" => "example"}))
 ```
 
-#### `load(entity, reqmatch, ctrl \\ nil) :: map()`
+#### `load(entity, reqmatch, ctrl \\ nil) :: entity`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get/1` reads, and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
+moon = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
 ```
 
-#### `remove(entity, reqmatch, ctrl \\ nil) :: map()`
+#### `remove(entity, reqmatch, ctrl \\ nil) :: entity`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Moon.remove(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
+moon = VoxgigSolardemo.Entity.Moon.remove(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
 ```
 
-#### `update(entity, reqdata, ctrl \\ nil) :: map()`
+#### `update(entity, reqdata, ctrl \\ nil) :: entity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Moon.update(moon, VoxgigSolardemo.Helpers.deep(%{
+moon = VoxgigSolardemo.Entity.Moon.update(moon, VoxgigSolardemo.Helpers.deep(%{
   "id" => "moon_id",
   "planet_id" => "planet_id",
   # Fields to update
@@ -197,12 +197,12 @@ planet = VoxgigSolardemo.planet(sdk)
 
 ### Operations
 
-#### `create(entity, reqdata, ctrl \\ nil) :: map()`
+#### `create(entity, reqdata, ctrl \\ nil) :: entity`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
+planet = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
   "diameter" => 1,  # float()
   "id" => "example_id",  # String.t()
   "kind" => "example_kind",  # String.t()
@@ -212,34 +212,34 @@ record = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.de
 
 #### `list(entity, reqmatch \\ nil, ctrl \\ nil) :: list()`
 
-List entities matching the given criteria. The match is optional — call `list(entity)` to list all records. Returns a list and raises on error.
+List entities matching the given criteria. The match is optional — call `list(entity)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```elixir
-records = VoxgigSolardemo.Entity.Planet.list(planet)
+planets = VoxgigSolardemo.Entity.Planet.list(planet)
 ```
 
-#### `load(entity, reqmatch, ctrl \\ nil) :: map()`
+#### `load(entity, reqmatch, ctrl \\ nil) :: entity`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get/1` reads, and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Planet.load(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
+planet = VoxgigSolardemo.Entity.Planet.load(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
 ```
 
-#### `remove(entity, reqmatch, ctrl \\ nil) :: map()`
+#### `remove(entity, reqmatch, ctrl \\ nil) :: entity`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Planet.remove(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
+planet = VoxgigSolardemo.Entity.Planet.remove(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
 ```
 
-#### `update(entity, reqdata, ctrl \\ nil) :: map()`
+#### `update(entity, reqdata, ctrl \\ nil) :: entity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```elixir
-record = VoxgigSolardemo.Entity.Planet.update(planet, VoxgigSolardemo.Helpers.deep(%{
+planet = VoxgigSolardemo.Entity.Planet.update(planet, VoxgigSolardemo.Helpers.deep(%{
   "id" => "planet_id",
   # Fields to update
 }))
@@ -591,6 +591,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

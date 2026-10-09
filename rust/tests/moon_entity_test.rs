@@ -13,6 +13,12 @@ use voxgig_solardemo_sdk::core::helpers::{getp, getpath, ja, jo, now_ms, setp, t
 use voxgig_solardemo_sdk::utility::voxgigstruct as vs;
 use voxgig_solardemo_sdk::{test_sdk, Entity, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Value};
 
+// main.kit.test.live.strict is true (the default is true): a live
+// request that fails, or a live test missing an input it needs,
+// fails the test.
+// An account with no record for a test to read skips it either way.
+const LIVE_STRICT: bool = true;
+
 #[test]
 fn moon_entity_instance() {
     let testsdk = test_sdk(Value::Noval, Value::Noval);
@@ -21,43 +27,20 @@ fn moon_entity_instance() {
 }
 
 #[test]
-fn moon_entity_stream() {
-    // stream() runs the list op through the full pipeline and yields each
-    // result item. Seed two entities via test mode; with the `streaming`
-    // feature active it yields the feature's incremental items, else it
-    // falls back to the materialised items — either way every item yields.
-    let seed = jo(vec![(
-        "entity",
-        jo(vec![(
-            "moon",
-            jo(vec![
-                ("strm01", jo(vec![("id", Value::str("strm01"))])),
-                ("strm02", jo(vec![("id", Value::str("strm02"))])),
-            ]),
-        )]),
-    )]);
-
-    let sdkopts = jo(vec![(
+fn moon_entity_validate() {
+    if getp(&getp(&voxgig_solardemo_sdk::make_config(), "feature"), "validate").is_noval() {
+        return;
+    }
+    let client = test_sdk(Value::Noval, jo(vec![(
         "feature",
-        jo(vec![("streaming", jo(vec![("active", Value::Bool(true))]))]),
-    )]);
-
-    let testsdk = test_sdk(seed.clone(), sdkopts);
-    let ent = testsdk.moon(Value::Noval);
-    let items: Vec<Value> = ent
-        .stream("list", Value::empty_map(), Value::empty_map())
-        .expect("stream failed")
-        .collect();
-    assert_eq!(items.len(), 2, "stream should yield both seeded items");
-
-    // Fallback: streaming inactive still yields both materialised items.
-    let plainsdk = test_sdk(seed, Value::Noval);
-    let plainent = plainsdk.moon(Value::Noval);
-    let plain_items: Vec<Value> = plainent
-        .stream("list", Value::empty_map(), Value::empty_map())
-        .expect("stream failed")
-        .collect();
-    assert_eq!(plain_items.len(), 2, "fallback stream should yield both items");
+        jo(vec![("validate", jo(vec![("active", Value::Bool(true))]))]),
+    )]));
+    let err = client
+        .moon(Value::Noval)
+        .list(jo(vec![("planet_id", Value::Num(1.0))]), Value::Noval)
+        .err()
+        .expect("an invalid request should fail");
+    assert_eq!(err.code, "validate_failed");
 }
 
 #[test]
@@ -78,11 +61,13 @@ fn moon_entity_basic() {
             return;
         }
     }
-    // The basic flow consumes synthetic IDs from the fixture. In live mode
-    // without an *_ENTID env override, those IDs hit the live API and 4xx.
-    if setup.synthetic_only {
-        eprintln!("skip: live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live");
-        return;
+    if setup.live {
+        for live_key in ["planet01"] {
+            if setup.synthetic_only || getp(&setup.idmap, live_key).is_noval() {
+                live_miss(LIVE_STRICT, &format!("Live entity test blocked: needs {} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID", live_key));
+                return;
+            }
+        }
     }
     let client = setup.client.clone();
     // CREATE
@@ -161,6 +146,10 @@ fn moon_entity_basic() {
 
     // LOAD
     let moon_ref01_match_dt0 = jo(vec![("id", getp(&moon_ref01_data, "id"))]);
+    setp(&moon_ref01_match_dt0, "planet_id", match getp(&setup.idmap, "planet_id") {
+        v if v.is_nullish() => getp(&setup.idmap, "planet01"),
+        v => v,
+    });
     let moon_ref01_data_dt0_loaded = moon_ref01_ent
         .load(moon_ref01_match_dt0.clone(), Value::Noval)
         .expect("load failed");
@@ -177,6 +166,10 @@ fn moon_entity_basic() {
 
     // REMOVE
     let moon_ref01_match_rm0 = jo(vec![("id", getp(&moon_ref01_data, "id"))]);
+    setp(&moon_ref01_match_rm0, "planet_id", match getp(&setup.idmap, "planet_id") {
+        v if v.is_nullish() => getp(&setup.idmap, "planet01"),
+        v => v,
+    });
     moon_ref01_ent
         .remove(moon_ref01_match_rm0.clone(), Value::Noval)
         .expect("remove failed");
@@ -244,9 +237,8 @@ fn moon_basic_setup(extra: Value) -> EntityTestSetup {
     )
     .unwrap_or_else(|_| Value::empty_map());
 
-    // Detect ENTID env override before env_override consumes it. When live
-    // mode is on without a real override, the basic test runs against
-    // synthetic IDs from the fixture and 4xx's.
+    // Whether *_ENTID supplied the idmap, read before env_override consumes
+    // it: without it, the ids a live flow binds are the fixture's synthetic ones.
     let entid_env_raw = std::env::var("VOXGIG_SOLARDEMO_TEST_MOON_ENTID").unwrap_or_default();
     let idmap_overridden =
         !entid_env_raw.trim().is_empty() && entid_env_raw.trim().starts_with('{');

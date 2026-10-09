@@ -15,8 +15,10 @@ keeps the cognitive load low.
 
 
 ## Install
+The SDK needs perl 5.36 or later.
+
 This package is not yet published to CPAN. Install it from the GitHub
-release tag (`perl/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
+release tag (`perl/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or
 from a source checkout.
 
 The SDK is pure Perl with zero non-core runtime dependencies, so no build
@@ -44,17 +46,17 @@ my $client = VoxgigSolardemoSDK->new;
 
 ### 2. List moon records
 
-`list()` returns an `arrayref` of records (each a `hashref`) and dies on
-error — iterate it directly.
+`list()` returns an `arrayref` of entities, one per record, and dies on
+error; `data_get` reads each record.
 
 ```perl
-my $moons = eval { $client->Moon->list };
+my $moons = eval { $client->Moon->list({ 'planet_id' => 'example' }) };
 if (my $err = $@) {
     print "list failed: $err\n";
 }
 else {
     for my $moon (@$moons) {
-        print "$moon->{id}\n";
+        print $moon->data_get->{id}, "\n";
     }
 }
 ```
@@ -70,7 +72,7 @@ if (my $err = $@) {
     print "load failed: $err\n";
 }
 else {
-    print "$moon->{id}\n";
+    print $moon->data_get->{id}, "\n";
 }
 ```
 
@@ -80,11 +82,11 @@ else {
 # Create — returns the ENTITY (call data_get for the record)
 my $created = $client->Moon->create({ 'planet_id' => 'example_planet_id', 'diameter' => 1, 'id' => 'example_id', 'kind' => 'example_kind', 'name' => 'example_name' });
 
-# Update — the created record's id is a plain hash key
-$client->Moon->update({ 'id' => $created->{id}, 'planet_id' => 'example_planet_id', 'diameter' => 1 });
+# Update — the created entity's record holds its id
+$client->Moon->update({ 'id' => $created->data_get->{id}, 'planet_id' => 'example_planet_id', 'diameter' => 1 });
 
 # Remove
-$client->Moon->remove({ 'id' => $created->{id}, 'planet_id' => 'example_planet_id' });
+$client->Moon->remove({ 'id' => $created->data_get->{id}, 'planet_id' => 'example_planet_id' });
 ```
 
 
@@ -94,15 +96,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -111,8 +114,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -164,10 +167,9 @@ Create a mock client for unit testing — no server required:
 ```perl
 my $client = VoxgigSolardemoSDK->test(undef, undef);
 
-# Entity ops return the ENTITY and dies on error;
-# call data_get for the record.
-my $moon = $client->Moon->list();
-# $moon contains the mock response record
+# Entity ops return the entity, and list one per record; they die on error.
+my $planet = $client->Planet->list();
+# data_get on an entity reads its mock response record
 ```
 
 ### Use a custom fetch function
@@ -253,11 +255,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `($reqmatch, $ctrl) -> hashref` | Load a single entity by match criteria. Dies on error. |
-| `list` | `($reqmatch, $ctrl) -> arrayref` | List entities matching the criteria. Dies on error. |
-| `create` | `($reqdata, $ctrl) -> hashref` | Create a new entity. Dies on error. |
-| `update` | `($reqdata, $ctrl) -> hashref` | Update an existing entity. Dies on error. |
-| `remove` | `($reqmatch, $ctrl) -> hashref` | Remove an entity. Dies on error. |
+| `load` | `($reqmatch, $ctrl) -> entity` | Load a single entity by match criteria, and return it. Dies on error. |
+| `list` | `($reqmatch, $ctrl) -> arrayref` | List entities matching the criteria, one per record. Dies on error. |
+| `create` | `($reqdata, $ctrl) -> entity` | Create a new entity, and return it. Dies on error. |
+| `update` | `($reqdata, $ctrl) -> entity` | Update an existing entity, and return it. Dies on error. |
+| `remove` | `($reqmatch, $ctrl) -> entity` | Remove an entity, and return it marked as deleted. Dies on error. |
 | `data_get` | `() -> hashref` | Get entity data. |
 | `data_set` | `($data)` | Set entity data. |
 | `match_get` | `() -> hashref` | Get entity match criteria. |
@@ -267,9 +269,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the ENTITY (call data_get for the record) (a `hashref` for single-entity
-ops, an `arrayref` for `list`) and die on error. Wrap calls in
-`eval { ... }` and inspect `$@` to handle failures.
+Entity operations return the entity, and `list` an `arrayref` of
+entities, one per record; `data_get` reads an entity's record (a
+`hashref`). They die on error, so wrap calls in `eval { ... }` and
+inspect `$@` to handle failures.
 
 The `direct()` escape hatch never dies — it returns a result `hashref`
 you branch on via `$result->{ok}`:
@@ -353,7 +356,9 @@ my $moon = $client->Moon->load({ 'id' => 'moon_id', 'planet_id' => 'planet_id' }
 #### Example: List
 
 ```perl
-my $moons = $client->Moon->list;
+# an arrayref of entities, one per record; data_get reads each record
+my $moons = $client->Moon->list({ 'planet_id' => 'example' });
+print $_->data_get->{id}, "\n" for @$moons;
 ```
 
 #### Example: Create
@@ -404,7 +409,9 @@ my $planet = $client->Planet->load({ 'id' => 'planet_id' });
 #### Example: List
 
 ```perl
+# an arrayref of entities, one per record; data_get reads each record
 my $planets = $client->Planet->list;
+print $_->data_get->{id}, "\n" for @$planets;
 ```
 
 #### Example: Create
@@ -661,11 +668,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

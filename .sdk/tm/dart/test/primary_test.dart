@@ -14,6 +14,10 @@ import 'omni.dart';
 
 import '../lib/VoxgigSolardemoSDK.dart';
 import '../lib/Point.dart';
+import '../lib/VoxgigSolardemoError.dart';
+import '../lib/Result.dart';
+import '../lib/Spec.dart';
+import '../lib/utility/CleanUtility.dart' as cu;
 import '../lib/utility/ErrUtility.dart';
 import '../lib/utility/voxgig_struct.dart' as vs;
 
@@ -161,6 +165,32 @@ void tests() {
     test('fullurl-basic', (t) async {
       await _setup();
       await _sec('makeUrl.basic', _utility.makeUrl);
+    });
+
+    // An unfilled route is refused; a placeholder in the base is a server variable.
+    test('fullurl-unfilled', (t) async {
+      await _setup();
+      dynamic urlFor(String base, String path) {
+        final ctx = _utility.makeContext({});
+        ctx.spec = Spec({'base': base, 'path': path, 'params': <String, dynamic>{}});
+        ctx.result = Result({});
+        return _utility.makeUrl(ctx);
+      }
+
+      final err = urlFor('http://h', 'planet/{planet_id}/moon/{id}');
+      ok(err is VoxgigSolardemoError, 'a URL was built: ' + err.toString());
+      equal('url_param_missing', err.code);
+      equal('URL path has no value for {planet_id}, {id}.', err.message);
+
+      for (final base in [
+        'https://api.example.test/bot{token}',
+        'http://{{base_url}}',
+        'http://{test-base_url}/',
+      ]) {
+        ok(urlFor(base, 'planet') is String, base);
+      }
+      equal('URL path has no value for {id}.',
+          urlFor('http://{{base_url}}', 'planet/{id}').message);
     });
 
     test('operator-basic', (t) async {
@@ -423,6 +453,176 @@ void tests() {
       final val = {'key': 'secret123', 'name': 'test'};
       final cleaned = _utility.clean(ctx, val);
       ok(null != cleaned);
+    });
+
+    test('makeError-cleans-the-code', (t) async {
+      await _setup();
+      final ctx = _makeFullCtx();
+      ctx.ctrl['throw'] = false;
+      cu.cleanAdd(ctx, 'CODE-SECRET-12');
+      _utility.makeError(ctx, ctx.error('refused_CODE-SECRET-12', 'refused'));
+      equal('refused_[redacted]', ctx.ctrl['err'].code);
+      ok(!ctx.ctrl['err'].toString().contains('CODE-SECRET-12'));
+    });
+
+    test('clean-with-a-huge-hint-still-masks', (t) async {
+      final ctx = {
+        'options': {
+          '__derived__': {
+            'clean': cu.makeCleanConfig(
+                {...cu.CLEAN_OPTSPEC, 'hint': '5000000000000000000'})
+          }
+        }
+      };
+      cu.cleanAdd(ctx, 'HINT-SECRET-abcdef');
+      equal('k [redacted]', cu.clean(ctx, 'k HINT-SECRET-abcdef'));
+    });
+
+    test('clean-masks-registered-property-names', (t) async {
+      final ctx = {
+        'options': {
+          '__derived__': {'clean': cu.makeCleanConfig(cu.CLEAN_OPTSPEC)}
+        }
+      };
+      cu.cleanAdd(ctx, 'ZZVAL-abc123');
+      cu.cleanAdd(ctx, 'ZZVAL-xyz789');
+      final out =
+          cu.clean(ctx, {'ZZVAL-abc123': 1, 'ZZVAL-xyz789': 2, 'plain': 3});
+      deepEqual(out, {'[redacted]': 1, '[redacted]#1': 2, 'plain': 3});
+    });
+
+    test('cleanAddSensitive-registers-every-scalar-under-a-sensitive-name',
+        (t) async {
+      final cfg = cu.makeCleanConfig(cu.CLEAN_OPTSPEC);
+      final ctx = {
+        'options': {
+          '__derived__': {'clean': cfg}
+        }
+      };
+      cu.cleanAddSensitive(ctx, {
+        'apikey': {'value': 'NESTED-SECRET-1'},
+        'headers': {
+          'X-Api-Token': ['LISTED-SECRET-2']
+        },
+        'secret': 123456789,
+        'name': 'not-a-secret',
+      });
+      final List values = cfg['values'];
+      ok(values.contains('NESTED-SECRET-1'));
+      ok(values.contains('LISTED-SECRET-2'));
+      ok(values.contains('123456789'));
+      ok(!values.contains('not-a-secret'));
+
+      final loop = <String, dynamic>{'token': 'LOOP-SECRET-3'};
+      loop['self'] = loop;
+      cu.cleanAddSensitive(ctx, loop);
+      ok(values.contains('LOOP-SECRET-3'));
+    });
+
+    test('clean-honours-the-config-clean-block', (t) async {
+      await _setup();
+      final dynamic config = {
+        'options': {
+          'clean': {'keys': 'zzsens', 'values': 'CONFIG-SEEDED-1'}
+        }
+      };
+      final ctx = _utility.makeContext({
+        'options': {
+          'clean': {'values': 'CALLER-SEEDED-2'}
+        },
+        'config': config,
+      });
+      ctx.client = _client;
+      ctx.utility = _client.utility();
+      ctx.options = _utility.makeOptions(ctx);
+      equal('a [redacted] b [redacted]',
+          cu.clean(ctx, 'a CONFIG-SEEDED-1 b CALLER-SEEDED-2'));
+      deepEqual(cu.clean(ctx, {'my_zzsens': 'x', 'other': 'y'}),
+          {'my_zzsens': '[redacted]', 'other': 'y'});
+      equal('CONFIG-SEEDED-1', config['options']['clean']['values']);
+    });
+
+    test('options-stay-with-their-client', (t) async {
+      VoxgigSolardemoSDK({
+        'headers': {'X-Custom-Token': 'FIRST-CLIENT-TOKEN'}
+      });
+      final second = VoxgigSolardemoSDK({});
+      equal(null, vs.getpath(second.options(), 'headers.X-Custom-Token'));
+    });
+
+    test('feature-names-do-not-make-settings-sensitive', (t) async {
+      await _setup();
+      final ctx = _utility.makeContext({
+        'options': {
+          'feature': {
+            'secrets': {
+              'active': false,
+              'kind': 'vaultish',
+              'token': 'REAL-TOKEN-1'
+            }
+          }
+        },
+        'config': <String, dynamic>{},
+      });
+      ctx.client = _client;
+      ctx.utility = _client.utility();
+      ctx.options = _utility.makeOptions(ctx);
+      final List values = ctx.options['__derived__']['clean']['values'];
+      ok(values.contains('REAL-TOKEN-1'));
+      ok(!values.contains('vaultish'), 'a feature name made its settings secret');
+      equal('unknown provider kind: vaultish',
+          cu.clean(ctx, 'unknown provider kind: vaultish'));
+    });
+
+    test('entity-blocks-are-not-read', (t) async {
+      await _setup();
+      Map<String, dynamic> seeded(Map<String, dynamic> block) => {
+            ...block,
+            'entity': {
+              'zztoken': {
+                'ZZTOKEN01': {'id': 'ZZTOKEN01', 'note': 'PLAINRECORD-t5r3e1w9'}
+              }
+            },
+          };
+      final features = <String, dynamic>{
+        'zzfeat': {'active': false, 'apitoken': 'FEATTOKEN-z9y8x7w6'},
+        'test': seeded({'active': false}),
+      };
+      for (final feature in [
+        features,
+        [
+          for (final e in features.entries) {'name': e.key, ...e.value}
+        ],
+      ]) {
+        final ctx = _utility.makeContext({
+          'options': {
+            'feature': feature,
+            'test': seeded({}),
+            'entity': {
+              'zztoken': {
+                'alias': {'zzkey': 'PLAINALIAS-m2n4b6v8'}
+              }
+            },
+          },
+          'config': <String, dynamic>{},
+        });
+        ctx.client = _client;
+        ctx.utility = _client.utility();
+        ctx.options = _utility.makeOptions(ctx);
+        final List values = ctx.options['__derived__']['clean']['values'];
+        ok(values.contains('FEATTOKEN-z9y8x7w6'));
+        for (final plain in [
+          'ZZTOKEN01',
+          'PLAINRECORD-t5r3e1w9',
+          'PLAINALIAS-m2n4b6v8'
+        ]) {
+          ok(!values.contains(plain), 'an entity block registered ' + plain);
+        }
+        equal('record PLAINRECORD-t5r3e1w9',
+            cu.clean(ctx, 'record PLAINRECORD-t5r3e1w9'));
+        equal('alias PLAINALIAS-m2n4b6v8',
+            cu.clean(ctx, 'alias PLAINALIAS-m2n4b6v8'));
+      }
     });
 
     // The whole-suite backstop, behind `_sec`'s per-section guards: those

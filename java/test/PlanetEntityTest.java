@@ -3,6 +3,7 @@ package voxgig.voxgigsolardemosdk.sdktest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -16,14 +17,24 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import voxgig.voxgigsolardemosdk.core.Config;
+import voxgig.voxgigsolardemosdk.core.Context;
 import voxgig.voxgigsolardemosdk.core.Helpers;
 import voxgig.voxgigsolardemosdk.core.SdkEntity;
+import voxgig.voxgigsolardemosdk.core.SdkError;
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.feature.BaseFeature;
 import voxgig.voxgigsolardemosdk.utility.Json;
 import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 @SuppressWarnings({"unchecked", "unused"})
 public class PlanetEntityTest {
+
+  // main.kit.test.live.strict is true (the default is true): a live
+  // request that fails, or a live test missing an input it needs,
+  // fails the test.
+  // An account with no record for a test to read skips it either way.
+  static final boolean LIVE_STRICT = true;
 
   @Test
   public void instance() {
@@ -44,10 +55,6 @@ public class PlanetEntityTest {
           reason == null || "".equals(reason)
               ? "skipped via sdk-test-control.json" : reason);
     }
-    // The basic flow consumes synthetic IDs from the fixture. In live mode
-    // without an *_ENTID env override, those IDs hit the live API and 4xx.
-    Assumptions.assumeFalse(setup.syntheticOnly,
-        "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_PLANET_ENTID JSON to run live");
     VoxgigSolardemoSDK client = setup.client;
 
     // CREATE
@@ -156,6 +163,88 @@ public class PlanetEntityTest {
         "expected fallback stream to yield the materialised items");
   }
 
+  static boolean hasFeature(String name) {
+    Map<String, Object> fm = Helpers.toMapAny(Config.makeConfig().get("feature"));
+    return fm != null && fm.get(name) != null;
+  }
+
+  public static final class FailHook extends BaseFeature {
+    int unexpected = 0;
+
+    FailHook() {
+      super("failhook", "0.0.1", true);
+    }
+
+    @Override
+    public void preSpec(Context ctx) {
+      throw new RuntimeException("planet hook failed");
+    }
+
+    @Override
+    public void preUnexpected(Context ctx) {
+      this.unexpected++;
+    }
+  }
+
+  @Test
+  public void streamError() {
+    Map<String, Object> offline = Struct.jm("net", Struct.jm("offline", true));
+    RuntimeException err = assertThrows(RuntimeException.class, () ->
+        VoxgigSolardemoSDK.testSDK(offline, null).planet(null).stream("list", null, null)
+            .collect(Collectors.toList()));
+    assertTrue(err.getMessage().contains("offline"), err.getMessage());
+
+    VoxgigSolardemoSDK.testSDK(offline, null).planet(null)
+        .stream("list", null, Struct.jm("ctrl", Struct.jm("throw", false)))
+        .collect(Collectors.toList());
+
+    if (hasFeature("rbac")) {
+      VoxgigSolardemoSDK denied = VoxgigSolardemoSDK.testSDK(null,
+          Struct.jm("feature", Struct.jm("rbac", Struct.jm("active", true, "deny", true))));
+      SdkError denyerr = assertThrows(SdkError.class, () ->
+          denied.planet(null).stream("list", null, null).collect(Collectors.toList()));
+      assertEquals("rbac_denied", denyerr.code);
+    }
+  }
+
+  @Test
+  public void streamCtrl() {
+    Map<String, Object> explain = new LinkedHashMap<>();
+    Map<String, Object> ctrl = new LinkedHashMap<>();
+    ctrl.put("explain", explain);
+    VoxgigSolardemoSDK.testSDK().planet(null).stream("list", null, Struct.jm("ctrl", ctrl))
+        .collect(Collectors.toList());
+    assertEquals(List.of("explain"), new ArrayList<>(ctrl.keySet()));
+    assertTrue(explain == ctrl.get("explain") && !explain.isEmpty());
+  }
+
+  @Test
+  public void unexpected() {
+    FailHook hook = new FailHook();
+    VoxgigSolardemoSDK client = new VoxgigSolardemoSDK(Struct.jm(
+        "feature", Struct.jm("test", Struct.jm("active", true)),
+        "extend", Struct.jt(hook)));
+
+    RuntimeException err = assertThrows(RuntimeException.class, () ->
+        client.planet(null).list(null, null));
+    assertTrue(err.getMessage().contains("hook failed"), err.getMessage());
+    assertTrue(0 < hook.unexpected);
+
+    int fired = hook.unexpected;
+    client.planet(null).list(null, Struct.jm("throw", false));
+    assertTrue(fired < hook.unexpected);
+  }
+
+  @Test
+  public void validate() {
+    Assumptions.assumeTrue(hasFeature("validate"), "feature not present in this SDK: validate");
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(null,
+        Struct.jm("feature", Struct.jm("validate", Struct.jm("active", true))));
+    SdkError err = assertThrows(SdkError.class, () ->
+        client.planet(null).list(Struct.jm("diameter", "x"), null));
+    assertEquals("validate_failed", err.code);
+  }
+
   static RunnerSupport.EntityTestSetup planetBasicSetup(Map<String, Object> extra) {
     RunnerSupport.loadEnvLocal();
 
@@ -185,10 +274,8 @@ public class PlanetEntityTest {
         + "\"`$VAL`\": [\"`$FORMAT`\", \"upper\", \"`$COPY`\"]"
         + "}]}"));
 
-    // Detect ENTID env override before envOverride consumes it. When live
-    // mode is on without a real override, the basic test runs against
-    // synthetic IDs from the fixture and 4xx's. Surface this so the test
-    // can skip.
+    // Whether *_ENTID supplied the idmap, read before envOverride consumes
+    // it: without it, the ids a live flow binds are the fixture's synthetic ones.
     String entidEnvRaw = RunnerSupport.getenv("VOXGIG_SOLARDEMO_TEST_PLANET_ENTID");
     boolean idmapOverridden = entidEnvRaw != null
         && entidEnvRaw.trim().startsWith("{");

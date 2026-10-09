@@ -113,6 +113,11 @@ class MoonEntity(clientIn: SdkClient, entoptsIn: MutableMap<String, Any?>?) :
 
 
 
+  override fun patch(req: MutableMap<String, Any?>?, ctrl: MutableMap<String, Any?>?): Any? {
+    throw Helpers.unsupportedOp("patch", this.name)
+  }
+
+
 
   override fun remove(reqmatch: MutableMap<String, Any?>?, ctrl: MutableMap<String, Any?>?): Any? {
     val ctxmap = linkedMapOf<String, Any?>()

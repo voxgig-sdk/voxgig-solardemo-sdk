@@ -163,6 +163,7 @@ pub fn make_config() -> Value {
                 ])),
                 ("optspec".to_string(), Value::map_of([
                     ("clearTimer".to_string(), Value::str("`$FUNCTION`")),
+                    ("now".to_string(), Value::str("`$FUNCTION`")),
                     ("setTimer".to_string(), Value::str("`$FUNCTION`")),
                 ])),
                 ("strict".to_string(), Value::Bool(false)),
@@ -269,6 +270,10 @@ pub fn make_config() -> Value {
                                         Value::str("planet_id"),
                                     ])),
                                 ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
+                                ])),
                             ]),
                         ])),
                     ])),
@@ -320,6 +325,10 @@ pub fn make_config() -> Value {
                                     ("exist".to_string(), Value::list(vec![
                                         Value::str("planet_id"),
                                     ])),
+                                ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
                                 ])),
                             ]),
                         ])),
@@ -388,6 +397,10 @@ pub fn make_config() -> Value {
                                         Value::str("id"),
                                         Value::str("planet_id"),
                                     ])),
+                                ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
                                 ])),
                             ]),
                         ])),
@@ -524,6 +537,10 @@ pub fn make_config() -> Value {
                                         Value::str("id"),
                                         Value::str("planet_id"),
                                     ])),
+                                ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
                                 ])),
                             ]),
                         ])),
@@ -646,6 +663,10 @@ pub fn make_config() -> Value {
                                         Value::str("id"),
                                     ])),
                                 ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
+                                ])),
                             ]),
                             Value::map_of([
                                 ("kind".to_string(), Value::str("http")),
@@ -697,6 +718,10 @@ pub fn make_config() -> Value {
                                         Value::str("id"),
                                     ])),
                                 ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
+                                ])),
                             ]),
                             Value::map_of([
                                 ("kind".to_string(), Value::str("http")),
@@ -721,6 +746,10 @@ pub fn make_config() -> Value {
                                 ])),
                                 ("args".to_string(), Value::empty_map()),
                                 ("select".to_string(), Value::empty_map()),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
+                                ])),
                             ]),
                         ])),
                     ])),
@@ -751,6 +780,10 @@ pub fn make_config() -> Value {
                                 ])),
                                 ("args".to_string(), Value::empty_map()),
                                 ("select".to_string(), Value::empty_map()),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
+                                ])),
                             ]),
                         ])),
                     ])),
@@ -802,6 +835,10 @@ pub fn make_config() -> Value {
                                     ("exist".to_string(), Value::list(vec![
                                         Value::str("id"),
                                     ])),
+                                ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
                                 ])),
                             ]),
                         ])),
@@ -906,6 +943,10 @@ pub fn make_config() -> Value {
                                     ("exist".to_string(), Value::list(vec![
                                         Value::str("id"),
                                     ])),
+                                ])),
+                                ("response".to_string(), Value::map_of([
+                                    ("kind".to_string(), Value::str("json")),
+                                    ("media".to_string(), Value::str("application/json")),
                                 ])),
                             ]),
                         ])),

@@ -103,7 +103,7 @@ let moon = client.Moon()
 
 #### `create(reqdata, ctrl) throws -> Value`
 
-Create a new entity with the given data. Returns the created entity data and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```swift
 let result = try client.Moon().create(VMap([
@@ -117,16 +117,20 @@ let result = try client.Moon().create(VMap([
 
 #### `list(reqmatch, ctrl) throws -> Value`
 
-List entities matching the given criteria. The match is optional — call `list(nil, nil)` to list all records. Returns a Value list and throws on error.
+List entities matching the given criteria. The match is optional — call `list(nil, nil)` to list all records. Returns a `Value` list of entities, one per record, and throws on error.
 
 ```swift
-let results = try client.Moon().list(nil, nil)
-print(results)
+let results = try client.Moon().list(VMap([("planet_id", .string("example"))]), nil)
+for item in results.asList?.items ?? [] {
+    if let entity = item.asNative as? Entity {
+        print(entity.data())
+    }
+}
 ```
 
 #### `load(reqmatch, ctrl) throws -> Value`
 
-Load a single entity matching the given criteria. Returns the entity data and throws on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, as a native `Value` that `asNative as? Entity` unwraps, and throws on error.
 
 ```swift
 let result = try client.Moon().load(VMap([("id", .string("moon_id")), ("planet_id", .string("planet_id"))]), nil)
@@ -134,7 +138,7 @@ let result = try client.Moon().load(VMap([("id", .string("moon_id")), ("planet_i
 
 #### `remove(reqmatch, ctrl) throws -> Value`
 
-Remove the entity matching the given criteria. Throws on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
 
 ```swift
 let result = try client.Moon().remove(VMap([("id", .string("moon_id")), ("planet_id", .string("planet_id"))]), nil)
@@ -142,7 +146,7 @@ let result = try client.Moon().remove(VMap([("id", .string("moon_id")), ("planet
 
 #### `update(reqdata, ctrl) throws -> Value`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and throws on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and throws on error.
 
 ```swift
 let result = try client.Moon().update(VMap([
@@ -194,7 +198,7 @@ let planet = client.Planet()
 
 #### `create(reqdata, ctrl) throws -> Value`
 
-Create a new entity with the given data. Returns the created entity data and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```swift
 let result = try client.Planet().create(VMap([
@@ -207,16 +211,20 @@ let result = try client.Planet().create(VMap([
 
 #### `list(reqmatch, ctrl) throws -> Value`
 
-List entities matching the given criteria. The match is optional — call `list(nil, nil)` to list all records. Returns a Value list and throws on error.
+List entities matching the given criteria. The match is optional — call `list(nil, nil)` to list all records. Returns a `Value` list of entities, one per record, and throws on error.
 
 ```swift
 let results = try client.Planet().list(nil, nil)
-print(results)
+for item in results.asList?.items ?? [] {
+    if let entity = item.asNative as? Entity {
+        print(entity.data())
+    }
+}
 ```
 
 #### `load(reqmatch, ctrl) throws -> Value`
 
-Load a single entity matching the given criteria. Returns the entity data and throws on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, as a native `Value` that `asNative as? Entity` unwraps, and throws on error.
 
 ```swift
 let result = try client.Planet().load(VMap([("id", .string("planet_id"))]), nil)
@@ -224,7 +232,7 @@ let result = try client.Planet().load(VMap([("id", .string("planet_id"))]), nil)
 
 #### `remove(reqmatch, ctrl) throws -> Value`
 
-Remove the entity matching the given criteria. Throws on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
 
 ```swift
 let result = try client.Planet().remove(VMap([("id", .string("planet_id"))]), nil)
@@ -232,7 +240,7 @@ let result = try client.Planet().remove(VMap([("id", .string("planet_id"))]), ni
 
 #### `update(reqdata, ctrl) throws -> Value`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and throws on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and throws on error.
 
 ```swift
 let result = try client.Planet().update(VMap([
@@ -578,6 +586,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

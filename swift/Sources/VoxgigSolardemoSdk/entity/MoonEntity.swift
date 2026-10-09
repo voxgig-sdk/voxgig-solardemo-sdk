@@ -71,6 +71,8 @@ public final class MoonEntity: VoxgigSolardemoEntityBase {
     }
   }
 
+  // (patch not defined by this API - base class throws unsupportedOp)
+
   public override func remove(_ reqmatch: VMap?, _ ctrl: VMap?) throws -> Value {
     var ctxmap: [String: Any?] = ["opname": "remove", "match": match, "data": data]
     if let ctrl = ctrl { ctxmap["ctrl"] = ctrl }

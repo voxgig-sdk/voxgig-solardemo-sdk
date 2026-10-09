@@ -17,7 +17,7 @@ keeps the cognitive load low.
 This package is not yet published to a SwiftPM registry. The generated SDK
 is a dependency-free SwiftPM package (Foundation only, plus the vendored
 Voxgig Struct port). Depend on it from the GitHub release tag
-(`swift/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) by adding it to
+(`swift/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) by adding it to
 your `Package.swift`:
 
 ```swift
@@ -49,14 +49,17 @@ let client = VoxgigSolardemoSDK()
 
 ### 2. List moon records
 
-`list(nil, nil)` returns a `Value` list of records and throws on error —
-iterate its items.
+`list(nil, nil)` returns a `Value` list of entities, one per record, and
+throws on error; `asNative as? Entity` unwraps an item, and its `data()`
+reads the record.
 
 ```swift
 do {
-    let moonList = try client.Moon().list(nil, nil)
-    for moon in moonList.asList?.items ?? [] {
-        print(moon)
+    let moonList = try client.Moon().list(VMap([("planet_id", .string("example"))]), nil)
+    for moonItem in moonList.asList?.items ?? [] {
+        if let moonEntity = moonItem.asNative as? Entity {
+            print(moonEntity.data())
+        }
     }
 }
 catch {
@@ -72,7 +75,9 @@ Moon is nested under planet, so provide the `planet_id`.
 ```swift
 do {
     let moon = try client.Moon().load(VMap([("planet_id", .string("example_planet_id")), ("id", .string("example_id"))]), nil)
-    print(moon)
+    if let moonEntity = moon.asNative as? Entity {
+        print(moonEntity.data())
+    }
 }
 catch {
     print("load failed: \(error)")
@@ -99,15 +104,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -116,8 +122,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -169,11 +175,13 @@ Create a mock client for unit testing — no server required:
 ```swift
 let client = VoxgigSolardemoSDK.testSDK(nil, nil)
 
-// Entity ops return the ENTITY and throws on error;
-// call data() for the record.
-let moon = try client.Moon().list(nil, nil)
-// moon holds the mock response record
-print(moon)
+// list returns a Value list of entities, one per mock record; it throws on error.
+let planetList = try client.Planet().list(nil, nil)
+for planetItem in planetList.asList?.items ?? [] {
+    if let planetEntity = planetItem.asNative as? Entity {
+        print(planetEntity.data())
+    }
+}
 ```
 
 ### Use a custom fetch function
@@ -257,11 +265,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, ctrl) throws -> Value` | Load a single entity by match criteria. Throws on error. |
-| `list` | `(reqmatch, ctrl) throws -> Value` | List entities matching the criteria (a Value list). Throws on error. |
-| `create` | `(reqdata, ctrl) throws -> Value` | Create a new entity. Throws on error. |
-| `update` | `(reqdata, ctrl) throws -> Value` | Update an existing entity. Throws on error. |
-| `remove` | `(reqmatch, ctrl) throws -> Value` | Remove an entity. Throws on error. |
+| `load` | `(reqmatch, ctrl) throws -> Value` | Load a single entity by match criteria, and return it. Throws on error. |
+| `list` | `(reqmatch, ctrl) throws -> Value` | List entities matching the criteria, one per record. Throws on error. |
+| `create` | `(reqdata, ctrl) throws -> Value` | Create a new entity, and return it. Throws on error. |
+| `update` | `(reqdata, ctrl) throws -> Value` | Update an existing entity, and return it. Throws on error. |
+| `remove` | `(reqmatch, ctrl) throws -> Value` | Remove an entity, and return it marked as deleted. Throws on error. |
 | `data` | `(newdata?) -> Value` | Get or set entity data. |
 | `matchv` | `(newmatch?) -> Value` | Get or set entity match criteria. |
 | `make` | `() -> Entity` | Create a new instance with the same options. |
@@ -269,9 +277,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the ENTITY (call data() for the record) (a `Value` map for
-single-entity ops, a `Value` list for `list`) and throw on error. Wrap
-calls in `do`/`catch` to handle failures.
+Entity operations return the entity, and `list` a `Value` list of entities,
+one per record; each entity comes wrapped in a native `Value`, which
+`asNative as? Entity` unwraps, and its `data()` reads the record. They
+throw on error, so wrap calls in `do`/`catch` to handle failures.
 
 The `direct()` escape hatch never throws — it returns a result `VMap` you
 branch on via `result.entries["ok"]`:
@@ -355,7 +364,7 @@ let moon = try client.Moon().load(VMap([("id", .string("moon_id")), ("planet_id"
 #### Example: List
 
 ```swift
-let moonList = try client.Moon().list(nil, nil)
+let moonList = try client.Moon().list(VMap([("planet_id", .string("example"))]), nil)
 ```
 
 #### Example: Create
@@ -666,11 +675,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

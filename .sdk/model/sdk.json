@@ -53,7 +53,7 @@
         },
         "edition": {
           "github-pages": {
-            "active": true,
+            "active": false,
             "base": "node_modules/@voxgig/docgen/project/.sdk",
             "brand": {},
             "filter": {
@@ -178,6 +178,13 @@
               "points": [
                 {
                   "a": true,
+                  "bf": [
+                    "diameter",
+                    "id",
+                    "kind",
+                    "name",
+                    "planet_id"
+                  ],
                   "co": {
                     "id": "POST /api/planet/{planet_id}/moon",
                     "source": "openapi3",
@@ -204,6 +211,10 @@
                     ]
                   },
                   "r": {},
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
+                  },
                   "s": [
                     {
                       "lit": "api"
@@ -257,6 +268,10 @@
                     ]
                   },
                   "r": {},
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
+                  },
                   "s": [
                     {
                       "lit": "api"
@@ -322,6 +337,10 @@
                     "param": {
                       "moon_id": "id"
                     }
+                  },
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
                   },
                   "s": [
                     {
@@ -422,6 +441,13 @@
               "points": [
                 {
                   "a": true,
+                  "bf": [
+                    "diameter",
+                    "id",
+                    "kind",
+                    "name",
+                    "planet_id"
+                  ],
                   "co": {
                     "id": "PUT /api/planet/{planet_id}/moon/{moon_id}",
                     "source": "openapi3",
@@ -460,6 +486,10 @@
                     "param": {
                       "moon_id": "id"
                     }
+                  },
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
                   },
                   "s": [
                     {
@@ -569,6 +599,10 @@
               "points": [
                 {
                   "a": true,
+                  "bf": [
+                    "forbid",
+                    "why"
+                  ],
                   "co": {
                     "id": "POST /api/planet/{planet_id}/forbid",
                     "source": "openapi3",
@@ -600,6 +634,10 @@
                       "planet_id": "id"
                     }
                   },
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
+                  },
                   "s": [
                     {
                       "lit": "api"
@@ -621,6 +659,10 @@
                 },
                 {
                   "a": true,
+                  "bf": [
+                    "start",
+                    "stop"
+                  ],
                   "co": {
                     "id": "POST /api/planet/{planet_id}/terraform",
                     "source": "openapi3",
@@ -652,6 +694,10 @@
                       "planet_id": "id"
                     }
                   },
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
+                  },
                   "s": [
                     {
                       "lit": "api"
@@ -673,6 +719,15 @@
                 },
                 {
                   "a": true,
+                  "bf": [
+                    "diameter",
+                    "forbidReason",
+                    "forbidState",
+                    "id",
+                    "kind",
+                    "name",
+                    "terraformState"
+                  ],
                   "co": {
                     "id": "POST /api/planet",
                     "source": "openapi3",
@@ -684,6 +739,10 @@
                   "o": "/api/planet",
                   "q": {},
                   "r": {},
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
+                  },
                   "s": [
                     {
                       "lit": "api"
@@ -716,6 +775,10 @@
                   "o": "/api/planet",
                   "q": {},
                   "r": {},
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
+                  },
                   "s": [
                     {
                       "lit": "api"
@@ -766,6 +829,10 @@
                     "param": {
                       "planet_id": "id"
                     }
+                  },
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
                   },
                   "s": [
                     {
@@ -845,6 +912,15 @@
               "points": [
                 {
                   "a": true,
+                  "bf": [
+                    "diameter",
+                    "forbidReason",
+                    "forbidState",
+                    "id",
+                    "kind",
+                    "name",
+                    "terraformState"
+                  ],
                   "co": {
                     "id": "PUT /api/planet/{planet_id}",
                     "source": "openapi3",
@@ -874,6 +950,10 @@
                     "param": {
                       "planet_id": "id"
                     }
+                  },
+                  "rs": {
+                    "kind": "json",
+                    "media": "application/json"
                   },
                   "s": [
                     {
@@ -3094,6 +3174,7 @@
             },
             "optspec": {
               "clearTimer": "`$FUNCTION`",
+              "now": "`$FUNCTION`",
               "setTimer": "`$FUNCTION`"
             },
             "strict": false
@@ -3490,7 +3571,7 @@
       "optspec": {
         "allow": {
           "method": "GET,PUT,POST,PATCH,DELETE,OPTIONS",
-          "op": "create,update,load,list,remove,command,direct,graphql"
+          "op": "create,update,patch,load,list,remove,command,direct,graphql"
         },
         "apikey": "",
         "auth": {
@@ -3501,7 +3582,12 @@
         },
         "base": "http://localhost:8000",
         "clean": {
-          "keys": "key,token,id"
+          "active": true,
+          "hint": "0",
+          "keys": "key,secret,token,password,passwd,authorization,cookie,credential,signature",
+          "mask": "[redacted]",
+          "min": "4",
+          "values": ""
         },
         "entity": {
           "`$CHILD`": {
@@ -3538,6 +3624,11 @@
         "top": {
           "active": true
         }
+      },
+      "publisher": {
+        "name": "",
+        "security": "",
+        "url": ""
       },
       "repo": {
         "host": "github.com",
@@ -4175,7 +4266,10 @@
             "version": "0.1.0"
           },
           "superseded": [],
-          "title": "Go MCP server"
+          "title": "Go MCP server",
+          "tool": {
+            "write": false
+          }
         },
         "haskell": {
           "active": true,
@@ -5556,6 +5650,17 @@
           "base": "",
           "strict": true
         }
+      },
+      "text": {
+        "about_md": "",
+        "docs_url": "",
+        "entity_desc": {},
+        "homepage": "",
+        "meta_source": "",
+        "summary": "",
+        "tagline": "",
+        "title": "",
+        "website": ""
       }
     }
   },

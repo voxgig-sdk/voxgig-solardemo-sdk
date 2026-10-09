@@ -161,6 +161,7 @@ defmodule VoxgigSolardemo.Config do
           },
           "optspec" => %{
             "clearTimer" => "`$FUNCTION`",
+            "now" => "`$FUNCTION`",
             "setTimer" => "`$FUNCTION`"
           },
           "strict" => false,
@@ -266,6 +267,10 @@ defmodule VoxgigSolardemo.Config do
                     "exist" => [
                       "planet_id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 }
               ]
@@ -318,6 +323,10 @@ defmodule VoxgigSolardemo.Config do
                     "exist" => [
                       "planet_id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 }
               ]
@@ -386,6 +395,10 @@ defmodule VoxgigSolardemo.Config do
                       "id",
                       "planet_id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 }
               ]
@@ -522,6 +535,10 @@ defmodule VoxgigSolardemo.Config do
                       "id",
                       "planet_id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 }
               ]
@@ -643,6 +660,10 @@ defmodule VoxgigSolardemo.Config do
                     "exist" => [
                       "id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 },
                 %{
@@ -694,6 +715,10 @@ defmodule VoxgigSolardemo.Config do
                     "exist" => [
                       "id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 },
                 %{
@@ -718,7 +743,11 @@ defmodule VoxgigSolardemo.Config do
                     "res" => "`body`"
                   },
                   "args" => %{},
-                  "select" => %{}
+                  "select" => %{},
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
+                  }
                 }
               ]
             },
@@ -748,7 +777,11 @@ defmodule VoxgigSolardemo.Config do
                     "res" => "`body`"
                   },
                   "args" => %{},
-                  "select" => %{}
+                  "select" => %{},
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
+                  }
                 }
               ]
             },
@@ -800,6 +833,10 @@ defmodule VoxgigSolardemo.Config do
                     "exist" => [
                       "id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 }
               ]
@@ -904,6 +941,10 @@ defmodule VoxgigSolardemo.Config do
                     "exist" => [
                       "id"
                     ]
+                  },
+                  "response" => %{
+                    "kind" => "json",
+                    "media" => "application/json"
                   }
                 }
               ]

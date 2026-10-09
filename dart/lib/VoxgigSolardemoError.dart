@@ -21,6 +21,19 @@ class VoxgigSolardemoError extends Error {
 
   VoxgigSolardemoError(this.code, this.message, [this.ctx]);
 
+  // What makeError attached is already cleaned; the context (live spec and
+  // options) is reachable for a debugger and not part of the record.
+  Map<String, dynamic> toJSON() => {
+        'sdk': sdk,
+        'code': code,
+        'message': message,
+        'status': status,
+        'result': result,
+        'spec': spec,
+      };
+
+  Map<String, dynamic> toJson() => toJSON();
+
   @override
   String toString() => 'VoxgigSolardemoError: ' + code + ': ' + message;
 }

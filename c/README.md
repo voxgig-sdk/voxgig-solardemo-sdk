@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 ## Install
 C has no central package registry — a release is the git tag
-(`c/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)). Build from a
+(`c/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)). Build from a
 source checkout with the bundled `Makefile`; the voxgig struct library is
 vendored under `utility/struct`, so there are no external dependencies to
 fetch:
@@ -49,17 +49,18 @@ PNError* err = NULL;
 
 ### 2. List moon records
 
-`list()` returns a List of records and sets `*err` on failure — check
-`err` after the call.
+`list()` returns a `NULL`-terminated array of entities, one per record,
+and sets `*err` on failure — check `err` after the call. `vt->data`
+reads an entity's record.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moons = moon->vt->list(moon, NULL, NULL, &err);
+Entity** moons = moon->vt->list(moon, cmap(1, "planet_id", v_str("example")), NULL, &err);
 if (err) {
     fprintf(stderr, "list failed: %s\n", err->msg);
 } else {
-    for (size_t i = 0; i < (size_t)voxgig_size(moons); i++) {
-        printf("%s\n", voxgig_to_json(voxgig_getelem(moons, v_int(i), NULL)));
+    for (size_t i = 0; moons[i]; i++) {
+        printf("%s\n", voxgig_to_json(moons[i]->vt->data(moons[i], NULL)));
     }
 }
 ```
@@ -67,29 +68,32 @@ if (err) {
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`load()` returns the bare record and sets `*err` on failure.
+`load()` returns the entity and sets `*err` on failure; `vt->data` reads
+its record.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moon_rec = moon->vt->load(moon, cmap(2, "planet_id", v_str("example_planet_id"), "id", v_str("example_id")), NULL, &err);
+Entity* loaded = moon->vt->load(moon, cmap(2, "planet_id", v_str("example_planet_id"), "id", v_str("example_id")), NULL, &err);
 if (err) {
     fprintf(stderr, "load failed: %s\n", err->msg);
 } else {
-    printf("%s\n", voxgig_to_json(moon_rec));
+    printf("%s\n", voxgig_to_json(loaded->vt->data(loaded, NULL)));
 }
 ```
 
 ### 4. Create, update, and remove
 
 ```c
-// Create — returns the bare created record
-voxgig_value* created = moon->vt->create(moon, cmap(5, "planet_id", v_str("example_planet_id"), "diameter", v_num(1), "id", v_str("example_id"), "kind", v_str("example_kind"), "name", v_str("example_name")), NULL, &err);
+// Create — returns the created entity, or NULL with *err set
+Entity* created = moon->vt->create(moon, cmap(5, "planet_id", v_str("example_planet_id"), "diameter", v_num(1), "id", v_str("example_id"), "kind", v_str("example_kind"), "name", v_str("example_name")), NULL, &err);
+voxgig_value* created_id = created
+    ? getp(created->vt->data(created, NULL), "id") : v_undef();
 
 // Update
-moon->vt->update(moon, cmap(3, "id", getp(created, "id"), "planet_id", v_str("example_planet_id"), "diameter", v_num(1)), NULL, &err);
+moon->vt->update(moon, cmap(3, "id", created_id, "planet_id", v_str("example_planet_id"), "diameter", v_num(1)), NULL, &err);
 
 // Remove
-moon->vt->remove(moon, cmap(2, "id", getp(created, "id"), "planet_id", v_str("example_planet_id")), NULL, &err);
+moon->vt->remove(moon, cmap(2, "id", created_id, "planet_id", v_str("example_planet_id")), NULL, &err);
 ```
 
 
@@ -99,15 +103,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -116,8 +121,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -170,10 +175,10 @@ Create a mock client for unit testing — no server required:
 VoxgigSolardemoSDK* client = test_sdk(NULL, NULL);
 PNError* err = NULL;
 
-// Entity ops return the bare record and set *err on failure.
-Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moon_rec = moon->vt->list(moon, NULL, NULL, &err);
-// moon_rec contains the mock response record
+// list returns one entity per mock record, and sets *err on failure.
+Entity* planet = voxgigsolardemo_planet(client, NULL);
+Entity** planets = planet->vt->list(planet, NULL, NULL, &err);
+// planets[i]->vt->data(planets[i], NULL) is a mock record
 ```
 
 ### Use a custom fetch function
@@ -265,11 +270,11 @@ All entities share the same `EntityVT` vtable, reached via `e->vt->...`.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(Entity*, reqmatch, ctrl, PNError**) -> voxgig_value*` | Load a single entity by match criteria. |
-| `list` | `(Entity*, reqmatch, ctrl, PNError**) -> voxgig_value*` | List entities matching the criteria (a List). |
-| `create` | `(Entity*, reqdata, ctrl, PNError**) -> voxgig_value*` | Create a new entity. |
-| `update` | `(Entity*, reqdata, ctrl, PNError**) -> voxgig_value*` | Update an existing entity. |
-| `remove` | `(Entity*, reqmatch, ctrl, PNError**) -> voxgig_value*` | Remove an entity. |
+| `load` | `(Entity*, reqmatch, ctrl, PNError**) -> Entity*` | Load a single entity by match criteria. |
+| `list` | `(Entity*, reqmatch, ctrl, PNError**) -> Entity**` | List entities matching the criteria: a `NULL`-terminated array, one per record. |
+| `create` | `(Entity*, reqdata, ctrl, PNError**) -> Entity*` | Create a new entity. |
+| `update` | `(Entity*, reqdata, ctrl, PNError**) -> Entity*` | Update an existing entity. |
+| `remove` | `(Entity*, reqmatch, ctrl, PNError**) -> Entity*` | Remove an entity, which is returned marked as deleted. |
 | `data` | `(Entity*, args) -> voxgig_value*` | Get entity data (pass a map to set). |
 | `matchv` | `(Entity*, args) -> voxgig_value*` | Get entity match criteria (pass a map to set). |
 | `make` | `(Entity*) -> Entity*` | Create a new instance with the same options. |
@@ -277,10 +282,10 @@ All entities share the same `EntityVT` vtable, reached via `e->vt->...`.
 
 ### Result shape
 
-Entity operations return the bare result data (a `voxgig_value` map for
-single-entity ops, a List for `list`) and set `*err` to a `PNError*` on
-failure. Always initialise `PNError* err = NULL;` and check it after the
-call.
+Entity operations return the entity, and `list` a `NULL`-terminated array
+of entities, one per record; `vt->data` reads an entity's record. On
+failure they return `NULL` and set `*err` to a `PNError*`. Always
+initialise `PNError* err = NULL;` and check it after the call.
 
 The `sdk_direct()` escape hatch never sets `*err` for a non-2xx response —
 it returns a result map you branch on via `getp(result, "ok")`:
@@ -339,11 +344,11 @@ Create an instance: `Entity* moon = voxgigsolardemo_moon(client, NULL);`
 
 | Method | Description |
 | --- | --- |
-| `vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
-| `vt->list(e, reqmatch, ctrl, &err)` | List entities, optionally matching the given criteria. |
-| `vt->load(e, reqmatch, ctrl, &err)` | Load a single entity by match criteria. |
-| `vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity. |
-| `vt->update(e, reqdata, ctrl, &err)` | Update an existing entity. |
+| `Entity* vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
+| `Entity** vt->list(e, reqmatch, ctrl, &err)` | List entities, optionally matching the given criteria: a `NULL`-terminated array, one per record. |
+| `Entity* vt->load(e, reqmatch, ctrl, &err)` | Load a single entity by match criteria. |
+| `Entity* vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity, which is returned marked as deleted. |
+| `Entity* vt->update(e, reqdata, ctrl, &err)` | Update an existing entity. |
 
 #### Fields
 
@@ -359,21 +364,27 @@ Create an instance: `Entity* moon = voxgigsolardemo_moon(client, NULL);`
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moon_rec = moon->vt->load(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+Entity* loaded = moon->vt->load(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+if (loaded) {
+    printf("%s\n", voxgig_to_json(loaded->vt->data(loaded, NULL)));
+}
 ```
 
 #### Example: List
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moons = moon->vt->list(moon, NULL, NULL, &err);
+Entity** moons = moon->vt->list(moon, cmap(1, "planet_id", v_str("example")), NULL, &err);
+for (size_t i = 0; moons && moons[i]; i++) {
+    printf("%s\n", voxgig_to_json(moons[i]->vt->data(moons[i], NULL)));
+}
 ```
 
 #### Example: Create
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moon_rec = moon->vt->create(moon, cmap(5,
+Entity* created = moon->vt->create(moon, cmap(5,
     "planet_id", v_str("example_planet_id"),  // char*
     "diameter", v_num(1),  // double
     "id", v_str("example_id"),  // char*
@@ -391,11 +402,11 @@ Create an instance: `Entity* planet = voxgigsolardemo_planet(client, NULL);`
 
 | Method | Description |
 | --- | --- |
-| `vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
-| `vt->list(e, reqmatch, ctrl, &err)` | List entities, optionally matching the given criteria. |
-| `vt->load(e, reqmatch, ctrl, &err)` | Load a single entity by match criteria. |
-| `vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity. |
-| `vt->update(e, reqdata, ctrl, &err)` | Update an existing entity. |
+| `Entity* vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
+| `Entity** vt->list(e, reqmatch, ctrl, &err)` | List entities, optionally matching the given criteria: a `NULL`-terminated array, one per record. |
+| `Entity* vt->load(e, reqmatch, ctrl, &err)` | Load a single entity by match criteria. |
+| `Entity* vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity, which is returned marked as deleted. |
+| `Entity* vt->update(e, reqdata, ctrl, &err)` | Update an existing entity. |
 
 #### Fields
 
@@ -413,21 +424,27 @@ Create an instance: `Entity* planet = voxgigsolardemo_planet(client, NULL);`
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* planet_rec = planet->vt->load(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+Entity* loaded = planet->vt->load(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+if (loaded) {
+    printf("%s\n", voxgig_to_json(loaded->vt->data(loaded, NULL)));
+}
 ```
 
 #### Example: List
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* planets = planet->vt->list(planet, NULL, NULL, &err);
+Entity** planets = planet->vt->list(planet, NULL, NULL, &err);
+for (size_t i = 0; planets && planets[i]; i++) {
+    printf("%s\n", voxgig_to_json(planets[i]->vt->data(planets[i], NULL)));
+}
 ```
 
 #### Example: Create
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* planet_rec = planet->vt->create(planet, cmap(4,
+Entity* created = planet->vt->create(planet, cmap(4,
     "diameter", v_num(1),  // double
     "id", v_str("example_id"),  // char*
     "kind", v_str("example_kind"),  // char*
@@ -689,11 +706,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

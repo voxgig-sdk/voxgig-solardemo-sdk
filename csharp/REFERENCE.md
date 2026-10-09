@@ -9,6 +9,7 @@ Complete API reference for the VoxgigSolardemo C# SDK.
 
 ```csharp
 using VoxgigSolardemoSdk;
+using Voxgig.Struct;
 
 var client = new VoxgigSolardemoSDK(options);
 ```
@@ -107,7 +108,7 @@ var moon = client.Moon();
 
 #### `Create(reqdata, ctrl = null) -> object?`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```csharp
 var result = client.Moon().Create(new Dictionary<string, object?>
@@ -122,16 +123,19 @@ var result = client.Moon().Create(new Dictionary<string, object?>
 
 #### `List(reqmatch, ctrl = null) -> object?`
 
-List entities matching the given criteria. The match is optional — call `List(null)` to list all records. Returns an aggregate list and raises on error.
+List entities matching the given criteria. The match is optional — call `List(null)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```csharp
-var results = client.Moon().List(null);
-Console.WriteLine(results);
+var results = (List<object?>)client.Moon().List(new Dictionary<string, object?> { ["planet_id"] = "example" })!;
+foreach (var item in results)
+{
+    Console.WriteLine(StructUtils.Jsonify(((IEntity)item!).Data()));
+}
 ```
 
 #### `Load(reqmatch, ctrl = null) -> object?`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `Data()` reads, and raises on error.
 
 ```csharp
 var result = client.Moon().Load(new Dictionary<string, object?> { ["id"] = "moon_id", ["planet_id"] = "planet_id" });
@@ -139,7 +143,7 @@ var result = client.Moon().Load(new Dictionary<string, object?> { ["id"] = "moon
 
 #### `Remove(reqmatch, ctrl = null) -> object?`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```csharp
 var result = client.Moon().Remove(new Dictionary<string, object?> { ["id"] = "moon_id", ["planet_id"] = "planet_id" });
@@ -147,7 +151,7 @@ var result = client.Moon().Remove(new Dictionary<string, object?> { ["id"] = "mo
 
 #### `Update(reqdata, ctrl = null) -> object?`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```csharp
 var result = client.Moon().Update(new Dictionary<string, object?>
@@ -201,7 +205,7 @@ var planet = client.Planet();
 
 #### `Create(reqdata, ctrl = null) -> object?`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```csharp
 var result = client.Planet().Create(new Dictionary<string, object?>
@@ -215,16 +219,19 @@ var result = client.Planet().Create(new Dictionary<string, object?>
 
 #### `List(reqmatch, ctrl = null) -> object?`
 
-List entities matching the given criteria. The match is optional — call `List(null)` to list all records. Returns an aggregate list and raises on error.
+List entities matching the given criteria. The match is optional — call `List(null)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```csharp
-var results = client.Planet().List(null);
-Console.WriteLine(results);
+var results = (List<object?>)client.Planet().List(null)!;
+foreach (var item in results)
+{
+    Console.WriteLine(StructUtils.Jsonify(((IEntity)item!).Data()));
+}
 ```
 
 #### `Load(reqmatch, ctrl = null) -> object?`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `Data()` reads, and raises on error.
 
 ```csharp
 var result = client.Planet().Load(new Dictionary<string, object?> { ["id"] = "planet_id" });
@@ -232,7 +239,7 @@ var result = client.Planet().Load(new Dictionary<string, object?> { ["id"] = "pl
 
 #### `Remove(reqmatch, ctrl = null) -> object?`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```csharp
 var result = client.Planet().Remove(new Dictionary<string, object?> { ["id"] = "planet_id" });
@@ -240,7 +247,7 @@ var result = client.Planet().Remove(new Dictionary<string, object?> { ["id"] = "
 
 #### `Update(reqdata, ctrl = null) -> object?`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```csharp
 var result = client.Planet().Update(new Dictionary<string, object?>
@@ -590,6 +597,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

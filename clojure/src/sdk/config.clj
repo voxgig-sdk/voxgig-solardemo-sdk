@@ -61,6 +61,9 @@
                   "{planet_id}"
                   "moon")
                 "rename" (vs/jm)
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -98,6 +101,9 @@
                   "{planet_id}"
                   "moon")
                 "rename" (vs/jm)
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -144,6 +150,9 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "moon_id" "id"))
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -242,6 +251,9 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "moon_id" "id"))
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -334,6 +346,9 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -370,6 +385,9 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -395,6 +413,9 @@
                   "api"
                   "planet")
                 "rename" (vs/jm)
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -417,6 +438,9 @@
                   "api"
                   "planet")
                 "rename" (vs/jm)
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -449,6 +473,9 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -521,6 +548,9 @@
                 "rename" (vs/jm
                   "param" (vs/jm
                     "planet_id" "id"))
+                "response" (vs/jm
+                  "kind" "json"
+                  "media" "application/json")
                 "segments" (vs/jt
                   (vs/jm
                     "lit" "api")
@@ -655,6 +685,7 @@
           "ms" 30000)
         "optspec" (vs/jm
           "clearTimer" "`$FUNCTION`"
+          "now" "`$FUNCTION`"
           "setTimer" "`$FUNCTION`")
         "strict" false
         "transport" "wrap"))

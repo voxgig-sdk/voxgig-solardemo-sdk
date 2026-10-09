@@ -12,9 +12,18 @@ The SDK exposes the API as capitalised, semantic **Entities** — for example `c
 
 ## Install
 This package is not yet published to RubyGems. Install it from the
-GitHub release tag (`rb/vX.Y.Z`):
+GitHub release tag (`rb/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)), or
+from a clone:
 
-- Releases: [https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)
+```bash
+git clone https://github.com/voxgig-sdk/voxgig-solardemo-sdk
+```
+
+Then add it to your `Gemfile` by path, and run `bundle install`:
+
+```ruby
+gem "voxgig-sdk-voxgig-solardemo-sdk", path: "./voxgig-solardemo-sdk/rb"
+```
 
 
 ## Tutorial: your first API call
@@ -34,10 +43,11 @@ client = VoxgigSolardemoSDK.new
 
 ```ruby
 begin
-  # list returns an Array of Moon records — iterate directly.
-  moons = client.Moon.list
+  # list returns an Array of Moon entities, one per record; data_get reads the record.
+  moons = client.Moon.list({ "planet_id" => "example" })
   moons.each do |item|
-    puts "#{item["id"]} #{item["diameter"]}"
+    record = item.data_get
+    puts "#{record["id"]} #{record["diameter"]}"
   end
 rescue => err
   warn "list failed: #{err}"
@@ -52,7 +62,7 @@ Moon is nested under planet, so provide the `planet_id`.
 begin
   # load returns the ENTITY — call data_get for the Moon record (raises on error).
   moon = client.Moon.load({ "planet_id" => "example_planet_id", "id" => "example_id" })
-  puts moon
+  puts moon.data_get
 rescue => err
   warn "load failed: #{err}"
 end
@@ -78,7 +88,7 @@ Entity operations raise on failure, so rescue them:
 
 ```ruby
 begin
-  moons = client.Moon.list()
+  planets = client.Planet.list()
 rescue => err
   warn "list failed: #{err}"
 end
@@ -146,13 +156,13 @@ data via the `entity` option so offline calls resolve without a live server:
 
 ```ruby
 client = VoxgigSolardemoSDK.test({
-  "entity" => { "moon" => { "test01" => { "id" => "test01" } } },
+  "entity" => { "planet" => { "test01" => { "id" => "test01" } } },
 })
 
-# Entity ops return the ENTITY (raises on error);
-# call data_get for the mock record.
-moon = client.Moon.list()
-puts moon
+# list returns an Array of Planet entities, one per mock record (raises on
+# error); data_get reads each record.
+planets = client.Planet.list()
+planets.each { |item| puts item.data_get }
 ```
 
 ### Use a custom fetch function
@@ -237,11 +247,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, ctrl) -> any` | Load a single entity by match criteria. Raises on error. |
-| `list` | `(reqmatch = nil, ctrl) -> Array` | List entities matching the criteria (call with no argument to list all). Raises on error. |
-| `create` | `(reqdata, ctrl) -> any` | Create a new entity. Raises on error. |
-| `update` | `(reqdata, ctrl) -> any` | Update an existing entity. Raises on error. |
-| `remove` | `(reqmatch, ctrl) -> any` | Remove an entity. Raises on error. |
+| `load` | `(reqmatch, ctrl) -> any` | Load a single entity by match criteria, and return it. Raises on error. |
+| `list` | `(reqmatch = nil, ctrl) -> Array` | List entities matching the criteria (call with no argument to list all), one per record. Raises on error. |
+| `create` | `(reqdata, ctrl) -> any` | Create a new entity, and return it. Raises on error. |
+| `update` | `(reqdata, ctrl) -> any` | Update an existing entity, and return it. Raises on error. |
+| `remove` | `(reqmatch, ctrl) -> any` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `data_get` | `() -> Hash` | Get entity data. |
 | `data_set` | `(data)` | Set entity data. |
 | `match_get` | `() -> Hash` | Get entity match criteria. |
@@ -251,9 +261,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the result data directly. On failure they
-raise a `VoxgigSolardemoError` (a `StandardError` subclass), so wrap
-calls in `begin`/`rescue` where you need to handle errors.
+Entity operations return the entity, and `list` an `Array` of entities, one
+per record; an entity's `data_get` reads its record. On failure they raise a
+`VoxgigSolardemoError` (a `StandardError` subclass), so wrap calls in
+`begin`/`rescue` where you need to handle errors.
 
 The `direct` escape hatch is the exception: it never raises and instead
 returns a result `Hash` with these keys:
@@ -337,8 +348,9 @@ moon = client.Moon.load({ "id" => "moon_id", "planet_id" => "planet_id" })
 #### Example: List
 
 ```ruby
-# list returns an Array of Moon records (raises on error).
-moons = client.Moon.list
+# list returns an Array of Moon entities, one per record (raises on error).
+moons = client.Moon.list({ "planet_id" => "example" })
+moons.each { |item| puts item.data_get }
 ```
 
 #### Example: Create
@@ -390,8 +402,9 @@ planet = client.Planet.load({ "id" => "planet_id" })
 #### Example: List
 
 ```ruby
-# list returns an Array of Planet records (raises on error).
+# list returns an Array of Planet entities, one per record (raises on error).
 planets = client.Planet.list
+planets.each { |item| puts item.data_get }
 ```
 
 #### Example: Create
@@ -646,11 +659,11 @@ Entity instances are stateful. After a successful `list`, the entity
 stores the returned data and match criteria internally.
 
 ```ruby
-moon = client.Moon
-moon.list()
+planet = client.Planet
+planet.list()
 
-# moon.data_get now returns the moon data from the last list
-# moon.match_get returns the last match criteria
+# planet.data_get now returns the planet data from the last list
+# planet.match_get returns the last match criteria
 ```
 
 Call `make` to create a fresh instance with the same configuration

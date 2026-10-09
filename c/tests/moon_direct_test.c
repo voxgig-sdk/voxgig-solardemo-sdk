@@ -41,7 +41,7 @@ int main(void) {
       cmap(1, "id", v_str("direct02")));
     VoxgigSolardemoSDK* sdk = moon_direct_setup(mockres);
     voxgig_value* params = v_map();
-    setp(params, "undefined", v_str("direct01"));
+    setp(params, "planet_id", v_str("direct01"));
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
       "path", v_str("api/planet/{planet_id}/moon"),
@@ -64,8 +64,8 @@ int main(void) {
     voxgig_value* mockres = cmap(1, "id", v_str("direct01"));
     VoxgigSolardemoSDK* sdk = moon_direct_setup(mockres);
     voxgig_value* params = v_map();
-    setp(params, "undefined", v_str("direct01"));
-    setp(params, "undefined", v_str("direct02"));
+    setp(params, "id", v_str("direct01"));
+    setp(params, "planet_id", v_str("direct02"));
     PNError* err = NULL;
     voxgig_value* result = sdk_direct(sdk, cmap(3,
       "path", v_str("api/planet/{planet_id}/moon/{id}"),

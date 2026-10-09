@@ -50,7 +50,7 @@ static PlanetSetup planet_basic_setup(const Value& extra) {
 
   PlanetSetup s;
   s.client = client;
-  s.d = entity_data;
+  s.data = entity_data;
   s.idmap = idmap_resolved;
   s.env = env;
   s.live = live;
@@ -86,6 +86,100 @@ static void planet_entity_stream() {
   auto pe = plainsdk->planet();
   std::vector<Value> pitems = pe->stream("list", Value::undef(), Value::undef());
   ASSERT_EQ((int)pitems.size(), 2, "fallback stream yields both items");
+}
+
+static bool planet_has_feature(const std::string& name) {
+  Value fm = Helpers::toMapAny(getp(sharedConfig(), "feature"));
+  return fm.is_map() && !getp(fm, name).is_undef();
+}
+
+class PlanetFailHook : public BaseFeature {
+public:
+  int unexpected = 0;
+  PlanetFailHook() : BaseFeature("failhook", "0.0.1", true) {}
+  void preSpec(CtxPtr ctx) override {
+    throw std::runtime_error("planet hook failed");
+  }
+  void preUnexpected(CtxPtr ctx) override {
+    unexpected++;
+  }
+};
+
+static void planet_entity_stream_error() {
+  Value offline = vmap({{"net", vmap({{"offline", Value(true)}})}});
+  std::string msg;
+  try {
+    VoxgigSolardemoSDK::testSDK(offline, Value::undef())->planet()
+        ->stream("list", Value::undef(), Value::undef());
+  } catch (const SdkErrorPtr& err) {
+    msg = err->getMessage();
+  }
+  ASSERT_TRUE(msg.find("offline") != std::string::npos,
+      "stream: a failed operation fails the stream");
+
+  bool raised = false;
+  try {
+    VoxgigSolardemoSDK::testSDK(offline, Value::undef())->planet()
+        ->stream("list", Value::undef(), vmap({{"ctrl", vmap({{"throw", Value(false)}})}}));
+  } catch (const SdkErrorPtr&) {
+    raised = true;
+  }
+  ASSERT_FALSE(raised, "stream: under throw false a failed stream ends");
+
+  if (planet_has_feature("rbac")) {
+    std::string code;
+    try {
+      VoxgigSolardemoSDK::testSDK(Value::undef(), vmap({{"feature", vmap({{"rbac",
+          vmap({{"active", Value(true)}, {"deny", Value(true)}})}})}}))->planet()
+          ->stream("list", Value::undef(), Value::undef());
+    } catch (const SdkErrorPtr& err) {
+      code = err->code;
+    }
+    ASSERT_EQ(code, std::string("rbac_denied"), "stream: a denied operation fails the stream");
+  }
+}
+
+static void planet_entity_stream_ctrl() {
+  Value explain = vmap();
+  Value ctrl = vmap({{"explain", explain}});
+  VoxgigSolardemoSDK::testSDK()->planet()->stream("list", Value::undef(), vmap({{"ctrl", ctrl}}));
+  ASSERT_TRUE(getp(ctrl, "stream").is_undef(), "stream: the caller's ctrl gains no key");
+  ASSERT_TRUE(!explain.as_map()->empty(), "stream: the caller's explain record is filled");
+}
+
+static void planet_entity_unexpected() {
+  auto hook = std::make_shared<PlanetFailHook>();
+  auto client = VoxgigSolardemoSDK::testSDK();
+  client->getRootCtx()->utility->featureAdd(client->getRootCtx(), hook);
+
+  std::string msg;
+  try {
+    client->planet()->list(Value::undef(), Value::undef());
+  } catch (const SdkErrorPtr& err) {
+    msg = err->getMessage();
+  }
+  ASSERT_TRUE(msg.find("hook failed") != std::string::npos, "a throwing hook fails the operation");
+  ASSERT_TRUE(0 < hook->unexpected, "a throwing hook fires PreUnexpected");
+
+  int fired = hook->unexpected;
+  client->planet()->list(Value::undef(), vmap({{"throw", Value(false)}}));
+  ASSERT_TRUE(fired < hook->unexpected, "under throw false PreUnexpected fires too");
+}
+
+static void planet_entity_validate() {
+  if (!planet_has_feature("validate")) {
+    std::cerr << "skip: feature not present in this SDK: validate\n";
+    return;
+  }
+  auto vsdk = VoxgigSolardemoSDK::testSDK(Value::undef(), vmap({{"feature",
+      vmap({{"validate", vmap({{"active", Value(true)}})}})}}));
+  std::string code;
+  try {
+    vsdk->planet()->list(vmap({{"diameter", Value("x")}}), Value::undef());
+  } catch (const SdkErrorPtr& err) {
+    code = err->code;
+  }
+  ASSERT_EQ(code, std::string("validate_failed"), "an invalid request fails with validate_failed");
 }
 
 static void planet_entity_basic() {
@@ -162,6 +256,10 @@ static void planet_entity_basic() {
 int main() {
   T_RUN(planet_entity_instance);
   T_RUN(planet_entity_stream);
+  T_RUN(planet_entity_stream_error);
+  T_RUN(planet_entity_stream_ctrl);
+  T_RUN(planet_entity_unexpected);
+  T_RUN(planet_entity_validate);
   T_RUN(planet_entity_basic);
   return sdktest::summary("planet_entity_test");
 }

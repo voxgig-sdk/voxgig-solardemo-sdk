@@ -100,9 +100,9 @@ my $moon = $client->Moon;
 
 ### Operations
 
-#### `create($reqdata, $ctrl) -> hashref`
+#### `create($reqdata, $ctrl) -> MoonEntity`
 
-Create a new entity with the given data. Returns the created entity data and dies on error.
+Create a new entity with the given data. Returns the created entity and dies on error.
 
 ```perl
 my $result = $client->Moon->create({
@@ -116,34 +116,34 @@ my $result = $client->Moon->create({
 
 #### `list($reqmatch, $ctrl) -> arrayref`
 
-List entities matching the given criteria. The match is optional — call `list` with no argument to list all records. Returns an arrayref and dies on error.
+List entities matching the given criteria. The match is optional — call `list` with no argument to list all records. Returns an arrayref of entities, one per record (`data_get` reads each record), and dies on error.
 
 ```perl
-my $results = $client->Moon->list;
+my $results = $client->Moon->list({ 'planet_id' => 'example' });
 for my $moon (@$results) {
-    print "$moon->{id}\n";
+    print $moon->data_get->{id}, "\n";
 }
 ```
 
-#### `load($reqmatch, $ctrl) -> hashref`
+#### `load($reqmatch, $ctrl) -> MoonEntity`
 
-Load a single entity matching the given criteria. Returns the entity data and dies on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get` reads, and dies on error.
 
 ```perl
 my $result = $client->Moon->load({ 'id' => 'moon_id', 'planet_id' => 'planet_id' });
 ```
 
-#### `remove($reqmatch, $ctrl) -> hashref`
+#### `remove($reqmatch, $ctrl) -> MoonEntity`
 
-Remove the entity matching the given criteria. Dies on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and dies on error.
 
 ```perl
 my $result = $client->Moon->remove({ 'id' => 'moon_id', 'planet_id' => 'planet_id' });
 ```
 
-#### `update($reqdata, $ctrl) -> hashref`
+#### `update($reqdata, $ctrl) -> MoonEntity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and dies on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and dies on error.
 
 ```perl
 my $result = $client->Moon->update({
@@ -202,9 +202,9 @@ my $planet = $client->Planet;
 
 ### Operations
 
-#### `create($reqdata, $ctrl) -> hashref`
+#### `create($reqdata, $ctrl) -> PlanetEntity`
 
-Create a new entity with the given data. Returns the created entity data and dies on error.
+Create a new entity with the given data. Returns the created entity and dies on error.
 
 ```perl
 my $result = $client->Planet->create({
@@ -217,34 +217,34 @@ my $result = $client->Planet->create({
 
 #### `list($reqmatch, $ctrl) -> arrayref`
 
-List entities matching the given criteria. The match is optional — call `list` with no argument to list all records. Returns an arrayref and dies on error.
+List entities matching the given criteria. The match is optional — call `list` with no argument to list all records. Returns an arrayref of entities, one per record (`data_get` reads each record), and dies on error.
 
 ```perl
 my $results = $client->Planet->list;
 for my $planet (@$results) {
-    print "$planet->{id}\n";
+    print $planet->data_get->{id}, "\n";
 }
 ```
 
-#### `load($reqmatch, $ctrl) -> hashref`
+#### `load($reqmatch, $ctrl) -> PlanetEntity`
 
-Load a single entity matching the given criteria. Returns the entity data and dies on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get` reads, and dies on error.
 
 ```perl
 my $result = $client->Planet->load({ 'id' => 'planet_id' });
 ```
 
-#### `remove($reqmatch, $ctrl) -> hashref`
+#### `remove($reqmatch, $ctrl) -> PlanetEntity`
 
-Remove the entity matching the given criteria. Dies on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and dies on error.
 
 ```perl
 my $result = $client->Planet->remove({ 'id' => 'planet_id' });
 ```
 
-#### `update($reqdata, $ctrl) -> hashref`
+#### `update($reqdata, $ctrl) -> PlanetEntity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and dies on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and dies on error.
 
 ```perl
 my $result = $client->Planet->update({
@@ -599,6 +599,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

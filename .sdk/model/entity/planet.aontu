@@ -67,6 +67,10 @@ main: kit: entity: planet: {
       name: "create"
       points: [
         {
+          bf: [
+            "forbid"
+            "why"
+          ]
           co: {
             id: "POST /api/planet/{planet_id}/forbid"
             source: "openapi3"
@@ -96,6 +100,10 @@ main: kit: entity: planet: {
               planet_id: "id"
             }
           }
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
           s: [
             {
               lit: "api"
@@ -116,6 +124,10 @@ main: kit: entity: planet: {
           }
         }
         {
+          bf: [
+            "start"
+            "stop"
+          ]
           co: {
             id: "POST /api/planet/{planet_id}/terraform"
             source: "openapi3"
@@ -145,6 +157,10 @@ main: kit: entity: planet: {
               planet_id: "id"
             }
           }
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
           s: [
             {
               lit: "api"
@@ -165,6 +181,15 @@ main: kit: entity: planet: {
           }
         }
         {
+          bf: [
+            "diameter"
+            "forbidReason"
+            "forbidState"
+            "id"
+            "kind"
+            "name"
+            "terraformState"
+          ]
           co: {
             id: "POST /api/planet"
             source: "openapi3"
@@ -172,6 +197,10 @@ main: kit: entity: planet: {
           }
           m: "POST"
           o: "/api/planet"
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
           s: [
             {
               lit: "api"
@@ -198,6 +227,10 @@ main: kit: entity: planet: {
           }
           m: "GET"
           o: "/api/planet"
+          rs: {
+            kind: "json"
+            media: "application/json"
+          }
           s: [
             {
               lit: "api"
@@ -244,6 +277,10 @@ main: kit: entity: planet: {
             param: {
               planet_id: "id"
             }
+          }
+          rs: {
+            kind: "json"
+            media: "application/json"
           }
           s: [
             {
@@ -317,6 +354,15 @@ main: kit: entity: planet: {
       name: "update"
       points: [
         {
+          bf: [
+            "diameter"
+            "forbidReason"
+            "forbidState"
+            "id"
+            "kind"
+            "name"
+            "terraformState"
+          ]
           co: {
             id: "PUT /api/planet/{planet_id}"
             source: "openapi3"
@@ -344,6 +390,10 @@ main: kit: entity: planet: {
             param: {
               planet_id: "id"
             }
+          }
+          rs: {
+            kind: "json"
+            media: "application/json"
           }
           s: [
             {

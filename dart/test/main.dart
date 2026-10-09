@@ -12,6 +12,7 @@ import 'pipeline_test.dart' as pipeline_test;
 import 'feature_test.dart' as feature_test;
 import 'netsim_test.dart' as netsim_test;
 import 'custom_test.dart' as custom_test;
+import 'clean_test.dart' as clean_test;
 import 'readme_examples_test.dart' as readme_examples_test;
 import 'feature/secrets/secrets_test.dart' as secrets_test;
 import 'entity/moon/MoonEntity_test.dart' as moon_entity_test;
@@ -28,6 +29,7 @@ Future<void> main() async {
   feature_test.tests();
   netsim_test.tests();
   custom_test.tests();
+  clean_test.tests();
   readme_examples_test.tests();
   secrets_test.tests();
   moon_entity_test.tests();

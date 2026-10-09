@@ -8,7 +8,7 @@ Complete API reference for the VoxgigSolardemo Rust SDK.
 ### Constructor
 
 ```rust
-use voxgig_solardemo_sdk::{VoxgigSolardemoSDK, Value};
+use voxgig_solardemo_sdk::{jo, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Entity, Value};
 
 let client = VoxgigSolardemoSDK::new(options);
 ```
@@ -105,9 +105,9 @@ let moon = client.moon(Value::Noval);
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `create(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Create a new entity with the given data. Returns the created entity data on `Ok` and `Err` on failure.
+Create a new entity with the given data. `Ok` is the created entity, and `Err` a failure.
 
 ```rust
 let result = client.moon(Value::Noval).create(jo(vec![
@@ -119,38 +119,38 @@ let result = client.moon(Value::Noval).create(jo(vec![
 ]), Value::Noval).unwrap();
 ```
 
-#### `list(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `list(reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError>`
 
-List entities matching the given criteria. The match is optional — pass `Value::Noval` to list all records. `Ok` is a `Value::List`.
+List entities matching the given criteria. The match is optional — pass `Value::Noval` to list all records. `Ok` is a `Vec` of entities, one per record.
 
 ```rust
-let results = client.moon(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
-if let Value::List(items) = &results {
-    for moon in items.borrow().iter() {
-        println!("{:?}", moon);
-    }
+let results = client.moon(Value::Noval).list(jo(vec![("planet_id", Value::str("example"))]), Value::Noval).unwrap();
+for moon in &results {
+    println!("{:?}", moon.data(None));
 }
 ```
 
-#### `load(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `load(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Load a single entity matching the given criteria. Returns the entity data on `Ok` and `Err` on failure.
+Load a single entity matching the given criteria. `Ok` is the entity, whose record `data(None)` reads, and `Err` a failure.
 
 ```rust
 let result = client.moon(Value::Noval).load(jo(vec![("id", Value::str("moon_id")), ("planet_id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", result.data(None));
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `remove(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Remove the entity matching the given criteria. `Err` on failure.
+Remove the entity matching the given criteria. `Ok` is the entity, marked as deleted, and `Err` a failure.
 
 ```rust
 let result = client.moon(Value::Noval).remove(jo(vec![("id", Value::str("moon_id")), ("planet_id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", result.data(None));
 ```
 
-#### `update(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `update(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Update an existing entity. The data must include the entity id. Returns the updated entity data on `Ok`.
+Update an existing entity. The data must include the entity id. `Ok` is the updated entity.
 
 ```rust
 let result = client.moon(Value::Noval).update(jo(vec![
@@ -201,9 +201,9 @@ let planet = client.planet(Value::Noval);
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `create(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Create a new entity with the given data. Returns the created entity data on `Ok` and `Err` on failure.
+Create a new entity with the given data. `Ok` is the created entity, and `Err` a failure.
 
 ```rust
 let result = client.planet(Value::Noval).create(jo(vec![
@@ -214,38 +214,38 @@ let result = client.planet(Value::Noval).create(jo(vec![
 ]), Value::Noval).unwrap();
 ```
 
-#### `list(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `list(reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError>`
 
-List entities matching the given criteria. The match is optional — pass `Value::Noval` to list all records. `Ok` is a `Value::List`.
+List entities matching the given criteria. The match is optional — pass `Value::Noval` to list all records. `Ok` is a `Vec` of entities, one per record.
 
 ```rust
 let results = client.planet(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
-if let Value::List(items) = &results {
-    for planet in items.borrow().iter() {
-        println!("{:?}", planet);
-    }
+for planet in &results {
+    println!("{:?}", planet.data(None));
 }
 ```
 
-#### `load(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `load(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Load a single entity matching the given criteria. Returns the entity data on `Ok` and `Err` on failure.
+Load a single entity matching the given criteria. `Ok` is the entity, whose record `data(None)` reads, and `Err` a failure.
 
 ```rust
 let result = client.planet(Value::Noval).load(jo(vec![("id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", result.data(None));
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `remove(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Remove the entity matching the given criteria. `Err` on failure.
+Remove the entity matching the given criteria. `Ok` is the entity, marked as deleted, and `Err` a failure.
 
 ```rust
 let result = client.planet(Value::Noval).remove(jo(vec![("id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", result.data(None));
 ```
 
-#### `update(reqdata: Value, ctrl: Value) -> Result<Value, VoxgigSolardemoError>`
+#### `update(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Update an existing entity. The data must include the entity id. Returns the updated entity data on `Ok`.
+Update an existing entity. The data must include the entity id. `Ok` is the updated entity.
 
 ```rust
 let result = client.planet(Value::Noval).update(jo(vec![
@@ -592,6 +592,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

@@ -101,9 +101,9 @@ Prepare a fetch definition without sending. Returns the `fetchdef` and raises on
 
 ### Operations
 
-#### `(create ent reqdata ctrl) -> map`
+#### `(create ent reqdata ctrl) -> entity`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```clojure
 (def result
@@ -120,32 +120,32 @@ Create a new entity with the given data. Returns the created entity data and rai
 
 #### `(list ent reqmatch ctrl) -> vector`
 
-List entities matching the given criteria. The match is optional — call with `nil` to list all records. Returns a vector and raises on error.
+List entities matching the given criteria. The match is optional — call with `nil` to list all records. Returns a vector of entities, one per record, and raises on error.
 
 ```clojure
-(doseq [moon (e-moon/list (api/moon client nil) nil nil)]
-  (println moon))
+(doseq [moon (e-moon/list (api/moon client nil) (vs/jm "planet_id" "example") nil)]
+  (println ((:data-get moon))))
 ```
 
-#### `(load ent reqmatch ctrl) -> map`
+#### `(load ent reqmatch ctrl) -> entity`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `((:data-get ent))` reads, and raises on error.
 
 ```clojure
 (def result (e-moon/load (api/moon client nil) (vs/jm "id" "moon_id" "planet_id" "planet_id") nil))
 ```
 
-#### `(remove ent reqmatch ctrl) -> map`
+#### `(remove ent reqmatch ctrl) -> entity`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```clojure
 (def result (e-moon/remove (api/moon client nil) (vs/jm "id" "moon_id" "planet_id" "planet_id") nil))
 ```
 
-#### `(update ent reqdata ctrl) -> map`
+#### `(update ent reqdata ctrl) -> entity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```clojure
 (def result
@@ -211,9 +211,9 @@ Return the entity name.
 
 ### Operations
 
-#### `(create ent reqdata ctrl) -> map`
+#### `(create ent reqdata ctrl) -> entity`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```clojure
 (def result
@@ -229,32 +229,32 @@ Create a new entity with the given data. Returns the created entity data and rai
 
 #### `(list ent reqmatch ctrl) -> vector`
 
-List entities matching the given criteria. The match is optional — call with `nil` to list all records. Returns a vector and raises on error.
+List entities matching the given criteria. The match is optional — call with `nil` to list all records. Returns a vector of entities, one per record, and raises on error.
 
 ```clojure
 (doseq [planet (e-planet/list (api/planet client nil) nil nil)]
-  (println planet))
+  (println ((:data-get planet))))
 ```
 
-#### `(load ent reqmatch ctrl) -> map`
+#### `(load ent reqmatch ctrl) -> entity`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `((:data-get ent))` reads, and raises on error.
 
 ```clojure
 (def result (e-planet/load (api/planet client nil) (vs/jm "id" "planet_id") nil))
 ```
 
-#### `(remove ent reqmatch ctrl) -> map`
+#### `(remove ent reqmatch ctrl) -> entity`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```clojure
 (def result (e-planet/remove (api/planet client nil) (vs/jm "id" "planet_id") nil))
 ```
 
-#### `(update ent reqdata ctrl) -> map`
+#### `(update ent reqdata ctrl) -> entity`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```clojure
 (def result
@@ -615,6 +615,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

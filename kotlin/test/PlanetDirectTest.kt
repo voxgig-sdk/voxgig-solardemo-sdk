@@ -16,6 +16,17 @@ import voxgig.voxgigsolardemosdk.utility.Json
 @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE")
 class PlanetDirectTest {
 
+  // main.kit.test.live.strict is true (the default is true): a live
+  // request that fails, or a live test missing an input it needs,
+  // fails the test.
+  // An account with no record for a test to read skips it either way.
+  private val LIVE_STRICT = true
+
+  private fun liveOk(result: Map<String, Any?>): Boolean {
+    val status = Helpers.toInt(result["status"])
+    return result["err"] == null && result["ok"] == true && status in 200..299
+  }
+
   @Test
   fun directListPlanet() {
     val mockres = mutableListOf<Any?>()
@@ -36,10 +47,12 @@ class PlanetDirectTest {
         "method", "GET",
         "params", linkedMapOf<String, Any?>()))
     if (setup.live) {
-      Assumptions.assumeTrue(result["ok"] == true,
-          "list call not ok (likely synthetic IDs against live API): " + result)
-      val status = Helpers.toInt(result["status"])
-      Assumptions.assumeTrue(status in 200..299, "expected 2xx status, got " + result["status"])
+      if (!liveOk(result)) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live list failed: " + RunnerSupport.liveDescribe(result))
+      }
+      if (RunnerSupport.liveList(result["data"]) == null) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live list returned no list: " + RunnerSupport.liveDescribe(result))
+      }
     } else {
       assertEquals(true, result["ok"], "expected ok to be true")
       assertEquals(200, Helpers.toInt(result["status"]), "expected status 200")
@@ -73,12 +86,20 @@ class PlanetDirectTest {
           "path", "api/planet",
           "method", "GET",
           "params", listParams))
-      Assumptions.assumeTrue(listResult["ok"] == true,
-          "list call not ok (likely synthetic IDs against live API): " + listResult)
-
-      val listData = if (listResult["data"] is List<*>) listResult["data"] as List<Any?> else mutableListOf<Any?>()
-      Assumptions.assumeTrue(listData.isNotEmpty(), "no entities to load in live mode")
+      if (!liveOk(listResult)) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live list discovery failed: " + RunnerSupport.liveDescribe(listResult))
+      }
+      val listData = RunnerSupport.liveList(listResult["data"])
+      if (listData == null) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live list discovery returned no list: " + RunnerSupport.liveDescribe(listResult))
+      }
+      if (listData!!.isEmpty()) {
+        RunnerSupport.liveEmpty("The account has no planet record to load")
+      }
       val firstEnt = Helpers.toMapAny(listData[0]) ?: linkedMapOf()
+      if (firstEnt["id"] == null) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity")
+      }
       params["id"] = firstEnt["id"]
     } else {
       params["id"] = "direct01"
@@ -90,10 +111,12 @@ class PlanetDirectTest {
         "params", params,
         "query", query))
     if (setup.live) {
-      Assumptions.assumeTrue(result["ok"] == true,
-          "load call not ok (likely synthetic IDs against live API): " + result)
-      val status = Helpers.toInt(result["status"])
-      Assumptions.assumeTrue(status in 200..299, "expected 2xx status, got " + result["status"])
+      if (!liveOk(result)) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live load failed: " + RunnerSupport.liveDescribe(result))
+      }
+      if (result["data"] == null) {
+        RunnerSupport.liveMiss(LIVE_STRICT, "Live load returned no data: " + RunnerSupport.liveDescribe(result))
+      }
     } else {
       assertEquals(true, result["ok"], "expected ok to be true")
       assertEquals(200, Helpers.toInt(result["status"]), "expected status 200")

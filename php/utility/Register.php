@@ -37,6 +37,8 @@ require_once __DIR__ . '/TransformResponse.php';
 
 VoxgigSolardemoUtility::setRegistrar(function (VoxgigSolardemoUtility $u): void {
     $u->clean = [VoxgigSolardemoClean::class, 'call'];
+    $u->clean_add = [VoxgigSolardemoClean::class, 'add'];
+    $u->clean_explain = [VoxgigSolardemoDone::class, 'clean_explain'];
     $u->done = [VoxgigSolardemoDone::class, 'call'];
     $u->make_error = [VoxgigSolardemoMakeError::class, 'call'];
     $u->feature_add = [VoxgigSolardemoFeatureAdd::class, 'call'];

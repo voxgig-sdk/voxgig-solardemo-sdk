@@ -18,7 +18,7 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
 
   /// Load a Planet by match (see PlanetLoadMatch in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the entity, whose record `data()` reads.
   Future<dynamic> load([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -124,13 +124,19 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
       // operations return ENTITIES".
       return (null != ctx.result && true == ctx.result.ok) ? this : out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -144,7 +150,7 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
 
   /// List Planet entities by match (see PlanetListMatch in
-  /// VoxgigSolardemoTypes.dart). Returns a list of Planet entity instances.
+  /// VoxgigSolardemoTypes.dart). Returns a list of entities, one per record.
   Future<dynamic> list([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -238,13 +244,19 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
       return done(ctx);
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -258,7 +270,7 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
 
   /// Create a Planet (see PlanetCreateData in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the created entity.
   Future<dynamic> create([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -360,13 +372,19 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
       // operations return ENTITIES".
       return (null != ctx.result && true == ctx.result.ok) ? this : out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -380,7 +398,7 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
 
   /// Update a Planet (see PlanetUpdateData in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the updated entity.
   Future<dynamic> update([dynamic reqdata, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -486,13 +504,19 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
       // operations return ENTITIES".
       return (null != ctx.result && true == ctx.result.ok) ? this : out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;
@@ -505,8 +529,9 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
 
 
+
   /// Remove a Planet by match (see PlanetRemoveMatch in
-  /// VoxgigSolardemoTypes.dart). Returns the entity data map (Planet).
+  /// VoxgigSolardemoTypes.dart). Returns the entity, marked as deleted.
   Future<dynamic> remove([dynamic reqmatch, dynamic ctrl]) async {
     final utility = this.utility;
 
@@ -618,13 +643,19 @@ class PlanetEntity extends VoxgigSolardemoEntityBase {
 
       return out;
     } catch (err) {
+      // What a hook throws here must not escape the cleaning below.
+      dynamic failure = err;
+      try {
 
-      fres = featureHook(ctx, 'PreUnexpected');
-      if (fres is Future) {
-        await fres;
+        fres = featureHook(ctx, 'PreUnexpected');
+        if (fres is Future) {
+          await fres;
+        }
+      } catch (hookerr) {
+        failure = hookerr;
       }
 
-      final uerr = unexpected(ctx, err);
+      final uerr = unexpected(ctx, failure);
 
       if (null != uerr) {
         throw uerr;

@@ -104,7 +104,7 @@ SdkEntity moon = client.moon(null);
 
 #### `create(reqdata, ctrl) -> Object`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```java
 Object result = client.moon(null).create(Map.of(
@@ -118,16 +118,18 @@ Object result = client.moon(null).create(Map.of(
 
 #### `list(reqmatch, ctrl) -> Object`
 
-List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns an aggregate list and raises on error.
+List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```java
-Object results = client.moon(null).list(null, null);
-System.out.println(results);
+List<?> results = (List<?>) client.moon(null).list(Map.of("planet_id", "example"), null);
+for (Object item : results) {
+    System.out.println(((SdkEntity) item).data());
+}
 ```
 
 #### `load(reqmatch, ctrl) -> Object`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and raises on error.
 
 ```java
 Object result = client.moon(null).load(Map.of("id", "moon_id", "planet_id", "planet_id"), null);
@@ -135,7 +137,7 @@ Object result = client.moon(null).load(Map.of("id", "moon_id", "planet_id", "pla
 
 #### `remove(reqmatch, ctrl) -> Object`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```java
 Object result = client.moon(null).remove(Map.of("id", "moon_id", "planet_id", "planet_id"), null);
@@ -143,7 +145,7 @@ Object result = client.moon(null).remove(Map.of("id", "moon_id", "planet_id", "p
 
 #### `update(reqdata, ctrl) -> Object`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```java
 Object result = client.moon(null).update(Map.of(
@@ -195,7 +197,7 @@ SdkEntity planet = client.planet(null);
 
 #### `create(reqdata, ctrl) -> Object`
 
-Create a new entity with the given data. Returns the created entity data and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```java
 Object result = client.planet(null).create(Map.of(
@@ -208,16 +210,18 @@ Object result = client.planet(null).create(Map.of(
 
 #### `list(reqmatch, ctrl) -> Object`
 
-List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns an aggregate list and raises on error.
+List entities matching the given criteria. The match is optional — call `list(null, null)` to list all records. Returns a list of entities, one per record, and raises on error.
 
 ```java
-Object results = client.planet(null).list(null, null);
-System.out.println(results);
+List<?> results = (List<?>) client.planet(null).list(null, null);
+for (Object item : results) {
+    System.out.println(((SdkEntity) item).data());
+}
 ```
 
 #### `load(reqmatch, ctrl) -> Object`
 
-Load a single entity matching the given criteria. Returns the entity data and raises on error.
+Load a single entity matching the given criteria. Returns the entity, whose record `data()` reads, and raises on error.
 
 ```java
 Object result = client.planet(null).load(Map.of("id", "planet_id"), null);
@@ -225,7 +229,7 @@ Object result = client.planet(null).load(Map.of("id", "planet_id"), null);
 
 #### `remove(reqmatch, ctrl) -> Object`
 
-Remove the entity matching the given criteria. Raises on error.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
 
 ```java
 Object result = client.planet(null).remove(Map.of("id", "planet_id"), null);
@@ -233,7 +237,7 @@ Object result = client.planet(null).remove(Map.of("id", "planet_id"), null);
 
 #### `update(reqdata, ctrl) -> Object`
 
-Update an existing entity. The data must include the entity `id`. Returns the updated entity data and raises on error.
+Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
 
 ```java
 Object result = client.planet(null).update(Map.of(
@@ -579,6 +583,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

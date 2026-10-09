@@ -11,6 +11,18 @@ use Cwd ();
 use VoxgigSolardemoSDK;
 require(Cwd::abs_path("$FindBin::Bin/runner.pm"));
 
+# main.kit.test.live.strict is true (the default is true): a live
+# request that fails, or a live test missing an input it needs,
+# fails the test.
+# An account with no record for a test to read skips it either way.
+use constant LIVE_STRICT => 1;
+
+sub live_ok {
+  my ($result) = @_;
+  my $status = VoxgigSolardemoHelpers::to_int($result->{status});
+  return !defined $result->{err} && $result->{ok} && $status >= 200 && $status < 300;
+}
+
 DIRECT_LIST: {
   my $setup = moon_direct_setup([
     { 'id' => 'direct01' },
@@ -24,23 +36,16 @@ DIRECT_LIST: {
     last DIRECT_LIST;
   }
   if ($setup->{live}) {
-    for my $_live_key ('planet01') {
-      if (!defined $setup->{idmap}{$_live_key}) {
-        note("live test needs $_live_key via *_ENTID env var (synthetic IDs only)");
-        pass('direct-list-moon: skipped');
-        last DIRECT_LIST;
-      }
+    my @missing = grep { !defined $setup->{idmap}{$_} } ('planet01');
+    if (@missing) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-list-moon', 'Live test blocked: needs ' . join(', ', @missing) . ' via VOXGIG_SOLARDEMO_TEST_MOON_ENTID');
+      last DIRECT_LIST;
     }
   }
   my $client = $setup->{client};
 
   my $params = {};
-  if ($setup->{live}) {
-    $params->{'planet_id'} = $setup->{idmap}{'planet01'};
-  }
-  else {
-    $params->{'planet_id'} = 'direct01';
-  }
+  $params->{'planet_id'} = $setup->{live} ? $setup->{idmap}{'planet01'} : 'direct01';
 
   my $result = $client->direct({
     'path' => 'api/planet/{planet_id}/moon',
@@ -48,23 +53,12 @@ DIRECT_LIST: {
     'params' => $params,
   });
   if ($setup->{live}) {
-    # Live mode is lenient: synthetic IDs frequently 4xx and the list-
-    # response shape varies wildly across public APIs. Skip rather than
-    # fail when the call doesn't return a usable list.
-    if (defined $result->{err}) {
-      note("list call failed (likely synthetic IDs against live API): $result->{err}");
-      pass('direct-list-moon: skipped (live)');
+    if (!live_ok($result)) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-list-moon', 'Live list failed: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LIST;
     }
-    unless ($result->{ok}) {
-      note('list call not ok (likely synthetic IDs against live API)');
-      pass('direct-list-moon: skipped (live)');
-      last DIRECT_LIST;
-    }
-    my $status = VoxgigSolardemoHelpers::to_int($result->{status});
-    if ($status < 200 || $status >= 300) {
-      note("expected 2xx status, got $status");
-      pass('direct-list-moon: skipped (live)');
+    if (!defined VoxgigSolardemoTestRunner::live_list($result->{data})) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-list-moon', 'Live list returned no list: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LIST;
     }
     pass('direct-list-moon: live ok');
@@ -89,15 +83,45 @@ DIRECT_LOAD: {
     last DIRECT_LOAD;
   }
   if ($setup->{live}) {
-    note('live direct-load needs real ID - set *_ENTID env var with real IDs to run');
-    pass('direct-load-moon: skipped (live)');
-    last DIRECT_LOAD;
+    my @missing = grep { !defined $setup->{idmap}{$_} } ('planet01');
+    if (@missing) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-moon', 'Live test blocked: needs ' . join(', ', @missing) . ' via VOXGIG_SOLARDEMO_TEST_MOON_ENTID');
+      last DIRECT_LOAD;
+    }
   }
   my $client = $setup->{client};
 
   my $params = {};
   my $query = {};
-  unless ($setup->{live}) {
+  if ($setup->{live}) {
+    my $list_result = $client->direct({
+      'path' => 'api/planet/{planet_id}/moon',
+      'method' => 'GET',
+      'params' => {'planet_id' => $setup->{idmap}{'planet01'}},
+    });
+    if (!live_ok($list_result)) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-moon', 'Live list discovery failed: ' . VoxgigSolardemoTestRunner::live_describe($list_result));
+      last DIRECT_LOAD;
+    }
+    my $records = VoxgigSolardemoTestRunner::live_list($list_result->{data});
+    if (!defined $records) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-moon', 'Live list discovery returned no list: ' . VoxgigSolardemoTestRunner::live_describe($list_result));
+      last DIRECT_LOAD;
+    }
+    if (!@$records) {
+      VoxgigSolardemoTestRunner::live_empty('direct-load-moon', 'The account has no moon record to load');
+      last DIRECT_LOAD;
+    }
+    my $first = ref $records->[0] eq 'HASH' ? $records->[0] : {};
+    my $found = $first->{'id'} // $first->{'id'};
+    if (!defined $found) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-moon', 'Live load blocked: discovery returned no usable identity');
+      last DIRECT_LOAD;
+    }
+    $params->{'id'} = $found;
+    $params->{'planet_id'} = $setup->{idmap}{'planet01'};
+  }
+  else {
     $params->{'id'} = 'direct01';
     $params->{'planet_id'} = 'direct02';
   }
@@ -109,23 +133,12 @@ DIRECT_LOAD: {
     'query' => $query,
   });
   if ($setup->{live}) {
-    # Live mode is lenient: synthetic IDs frequently 4xx. Skip rather
-    # than fail when the load endpoint isn't reachable with the IDs
-    # we can construct from setup idmap.
-    if (defined $result->{err}) {
-      note("load call failed (likely synthetic IDs against live API): $result->{err}");
-      pass('direct-load-moon: skipped (live)');
+    if (!live_ok($result)) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-moon', 'Live load failed: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LOAD;
     }
-    unless ($result->{ok}) {
-      note('load call not ok (likely synthetic IDs against live API)');
-      pass('direct-load-moon: skipped (live)');
-      last DIRECT_LOAD;
-    }
-    my $status = VoxgigSolardemoHelpers::to_int($result->{status});
-    if ($status < 200 || $status >= 300) {
-      note("expected 2xx status, got $status");
-      pass('direct-load-moon: skipped (live)');
+    if (!defined $result->{data}) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-moon', 'Live load returned no data: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LOAD;
     }
     pass('direct-load-moon: live ok');
@@ -163,11 +176,12 @@ sub moon_direct_setup {
     my $client = VoxgigSolardemoSDK->new({
       %{ VoxgigSolardemoTestRunner::live_client_options() },
     });
+    my $idmap = $env->{'VOXGIG_SOLARDEMO_TEST_MOON_ENTID'};
     return {
       'client' => $client,
       'calls' => $calls,
       'live' => 1,
-      'idmap' => {},
+      'idmap' => ref $idmap eq 'HASH' ? $idmap : {},
     };
   }
 

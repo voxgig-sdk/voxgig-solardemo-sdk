@@ -11,6 +11,18 @@ use Cwd ();
 use VoxgigSolardemoSDK;
 require(Cwd::abs_path("$FindBin::Bin/runner.pm"));
 
+# main.kit.test.live.strict is true (the default is true): a live
+# request that fails, or a live test missing an input it needs,
+# fails the test.
+# An account with no record for a test to read skips it either way.
+use constant LIVE_STRICT => 1;
+
+sub live_ok {
+  my ($result) = @_;
+  my $status = VoxgigSolardemoHelpers::to_int($result->{status});
+  return !defined $result->{err} && $result->{ok} && $status >= 200 && $status < 300;
+}
+
 DIRECT_LIST: {
   my $setup = planet_direct_setup([
     { 'id' => 'direct01' },
@@ -25,29 +37,20 @@ DIRECT_LIST: {
   }
   my $client = $setup->{client};
 
+  my $params = {};
+
   my $result = $client->direct({
     'path' => 'api/planet',
     'method' => 'GET',
-    'params' => {},
+    'params' => $params,
   });
   if ($setup->{live}) {
-    # Live mode is lenient: synthetic IDs frequently 4xx and the list-
-    # response shape varies wildly across public APIs. Skip rather than
-    # fail when the call doesn't return a usable list.
-    if (defined $result->{err}) {
-      note("list call failed (likely synthetic IDs against live API): $result->{err}");
-      pass('direct-list-planet: skipped (live)');
+    if (!live_ok($result)) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-list-planet', 'Live list failed: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LIST;
     }
-    unless ($result->{ok}) {
-      note('list call not ok (likely synthetic IDs against live API)');
-      pass('direct-list-planet: skipped (live)');
-      last DIRECT_LIST;
-    }
-    my $status = VoxgigSolardemoHelpers::to_int($result->{status});
-    if ($status < 200 || $status >= 300) {
-      note("expected 2xx status, got $status");
-      pass('direct-list-planet: skipped (live)');
+    if (!defined VoxgigSolardemoTestRunner::live_list($result->{data})) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-list-planet', 'Live list returned no list: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LIST;
     }
     pass('direct-list-planet: live ok');
@@ -71,16 +74,38 @@ DIRECT_LOAD: {
     pass('direct-load-planet: skipped via sdk-test-control.json');
     last DIRECT_LOAD;
   }
-  if ($setup->{live}) {
-    note('live direct-load needs real ID - set *_ENTID env var with real IDs to run');
-    pass('direct-load-planet: skipped (live)');
-    last DIRECT_LOAD;
-  }
   my $client = $setup->{client};
 
   my $params = {};
   my $query = {};
-  unless ($setup->{live}) {
+  if ($setup->{live}) {
+    my $list_result = $client->direct({
+      'path' => 'api/planet',
+      'method' => 'GET',
+      'params' => {},
+    });
+    if (!live_ok($list_result)) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-planet', 'Live list discovery failed: ' . VoxgigSolardemoTestRunner::live_describe($list_result));
+      last DIRECT_LOAD;
+    }
+    my $records = VoxgigSolardemoTestRunner::live_list($list_result->{data});
+    if (!defined $records) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-planet', 'Live list discovery returned no list: ' . VoxgigSolardemoTestRunner::live_describe($list_result));
+      last DIRECT_LOAD;
+    }
+    if (!@$records) {
+      VoxgigSolardemoTestRunner::live_empty('direct-load-planet', 'The account has no planet record to load');
+      last DIRECT_LOAD;
+    }
+    my $first = ref $records->[0] eq 'HASH' ? $records->[0] : {};
+    my $found = $first->{'id'} // $first->{'id'};
+    if (!defined $found) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-planet', 'Live load blocked: discovery returned no usable identity');
+      last DIRECT_LOAD;
+    }
+    $params->{'id'} = $found;
+  }
+  else {
     $params->{'id'} = 'direct01';
   }
 
@@ -91,23 +116,12 @@ DIRECT_LOAD: {
     'query' => $query,
   });
   if ($setup->{live}) {
-    # Live mode is lenient: synthetic IDs frequently 4xx. Skip rather
-    # than fail when the load endpoint isn't reachable with the IDs
-    # we can construct from setup idmap.
-    if (defined $result->{err}) {
-      note("load call failed (likely synthetic IDs against live API): $result->{err}");
-      pass('direct-load-planet: skipped (live)');
+    if (!live_ok($result)) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-planet', 'Live load failed: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LOAD;
     }
-    unless ($result->{ok}) {
-      note('load call not ok (likely synthetic IDs against live API)');
-      pass('direct-load-planet: skipped (live)');
-      last DIRECT_LOAD;
-    }
-    my $status = VoxgigSolardemoHelpers::to_int($result->{status});
-    if ($status < 200 || $status >= 300) {
-      note("expected 2xx status, got $status");
-      pass('direct-load-planet: skipped (live)');
+    if (!defined $result->{data}) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-planet', 'Live load returned no data: ' . VoxgigSolardemoTestRunner::live_describe($result));
       last DIRECT_LOAD;
     }
     pass('direct-load-planet: live ok');
@@ -145,11 +159,12 @@ sub planet_direct_setup {
     my $client = VoxgigSolardemoSDK->new({
       %{ VoxgigSolardemoTestRunner::live_client_options() },
     });
+    my $idmap = $env->{'VOXGIG_SOLARDEMO_TEST_PLANET_ENTID'};
     return {
       'client' => $client,
       'calls' => $calls,
       'live' => 1,
-      'idmap' => {},
+      'idmap' => ref $idmap eq 'HASH' ? $idmap : {},
     };
   }
 

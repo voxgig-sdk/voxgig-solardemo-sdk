@@ -17,46 +17,8 @@ void tests() {
       ok(null != ent);
     });
 
-test('stream', (t) async {
-      // stream() runs the list op through the full pipeline and yields each
-      // result item. Seed two entities via test mode; with the `streaming`
-      // feature active it yields the feature's incremental items, else it
-      // falls back to the materialised items — either way every item yields.
-      final seed = <String, dynamic>{
-        'entity': {
-          'moon': {
-            'strm01': <String, dynamic>{'id': 'strm01'},
-            'strm02': <String, dynamic>{'id': 'strm02'},
-          }
-        }
-      };
 
-      final sdkopts = <String, dynamic>{};
-      if (null != config.feature['streaming']) {
-        sdkopts['feature'] = {
-          'streaming': {'active': true}
-        };
-      }
 
-      final testsdk = VoxgigSolardemoSDK.test(seed, sdkopts);
-      final ent = testsdk.Moon();
-
-      final seen = [];
-      await for (final item in ent.stream('list', <String, dynamic>{})) {
-        seen.add(item);
-      }
-      equal(2, seen.length);
-
-      // Fallback: with streaming inactive, stream() still yields both items
-      // from the materialised result.
-      final plainsdk = VoxgigSolardemoSDK.test(seed);
-      final plainent = plainsdk.Moon();
-      final seen2 = [];
-      await for (final item in plainent.stream('list', <String, dynamic>{})) {
-        seen2.add(item);
-      }
-      equal(2, seen2.length);
-    });
 
 
     test('basic', (t) async {
@@ -106,7 +68,7 @@ test('stream', (t) async {
       // UPDATE
       final moon_ref01_data_up0 = <String, dynamic>{};
       moon_ref01_data_up0['id'] = moon_ref01_data['id'];
-      moon_ref01_data_up0['planet_id'] = setup['idmap']['planet_id'];
+      moon_ref01_data_up0['planet_id'] = setup['idmap']['planet_id'] ?? setup['idmap']['planet01'];
 
       final moon_ref01_markdef_up0 = <String, dynamic>{
         'name': 'kind',
@@ -123,12 +85,14 @@ test('stream', (t) async {
       // LOAD
       final moon_ref01_match_dt0 = <String, dynamic>{};
       moon_ref01_match_dt0['id'] = moon_ref01_data['id'];
+      moon_ref01_match_dt0['planet_id'] = setup['idmap']['planet_id'] ?? setup['idmap']['planet01'];
       final moon_ref01_data_dt0 = (await moon_ref01_ent.load(moon_ref01_match_dt0)).data();
       ok(moon_ref01_data_dt0['id'] == moon_ref01_data['id']);
 
 
       // REMOVE
       final moon_ref01_match_rm0 = <String, dynamic>{'id': moon_ref01_data['id']};
+      moon_ref01_match_rm0['planet_id'] = setup['idmap']['planet_id'] ?? setup['idmap']['planet01'];
       await moon_ref01_ent.remove(moon_ref01_match_rm0);
 
 

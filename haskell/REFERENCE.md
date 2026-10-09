@@ -106,7 +106,7 @@ Prepare a fetch definition without sending. Returns the `fetchdef` and raises on
 
 #### `eCreate ent data ctrl :: IO Entity`
 
-Create a new entity with the given data. Resolves to the ENTITY (read the record with `eDataGet`) and raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
@@ -124,7 +124,7 @@ Create a new entity with the given data. Resolves to the ENTITY (read the record
 
 #### `eList ent match ctrl :: IO [Entity]`
 
-List entities matching the given criteria. The match is optional — pass an empty map to list all records. Resolves to one ENTITY per record and raises on error.
+List entities matching the given criteria. The match is optional — pass an empty map to list all records. Resolves to one entity per record and raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
@@ -136,7 +136,7 @@ List entities matching the given criteria. The match is optional — pass an emp
 
 #### `eLoad ent match ctrl :: IO Entity`
 
-Load a single entity matching the given criteria. Resolves to the ENTITY (read the record with `eDataGet`) and raises on error.
+Load a single entity matching the given criteria. Resolves to the entity, whose record `eDataGet` reads, and raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
@@ -147,7 +147,7 @@ Load a single entity matching the given criteria. Resolves to the ENTITY (read t
 
 #### `eRemove ent match ctrl :: IO Entity`
 
-Remove the entity matching the given criteria. Resolves to the ENTITY, marked deleted (`eDeleted`); it keeps the data it held. Raises on error.
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`eDeleted`); it keeps the data it held. Raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
@@ -158,7 +158,7 @@ Remove the entity matching the given criteria. Resolves to the ENTITY, marked de
 
 #### `eUpdate ent data ctrl :: IO Entity`
 
-Update an existing entity. The data must include the entity `id`. Resolves to the ENTITY (read the record with `eDataGet`) and raises on error.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity and raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
@@ -218,7 +218,7 @@ The entity name.
 
 #### `eCreate ent data ctrl :: IO Entity`
 
-Create a new entity with the given data. Resolves to the ENTITY (read the record with `eDataGet`) and raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```haskell
   ent <- Sdk.planet sdk VNoval
@@ -235,7 +235,7 @@ Create a new entity with the given data. Resolves to the ENTITY (read the record
 
 #### `eList ent match ctrl :: IO [Entity]`
 
-List entities matching the given criteria. The match is optional — pass an empty map to list all records. Resolves to one ENTITY per record and raises on error.
+List entities matching the given criteria. The match is optional — pass an empty map to list all records. Resolves to one entity per record and raises on error.
 
 ```haskell
   ent <- Sdk.planet sdk VNoval
@@ -247,7 +247,7 @@ List entities matching the given criteria. The match is optional — pass an emp
 
 #### `eLoad ent match ctrl :: IO Entity`
 
-Load a single entity matching the given criteria. Resolves to the ENTITY (read the record with `eDataGet`) and raises on error.
+Load a single entity matching the given criteria. Resolves to the entity, whose record `eDataGet` reads, and raises on error.
 
 ```haskell
   ent <- Sdk.planet sdk VNoval
@@ -258,7 +258,7 @@ Load a single entity matching the given criteria. Resolves to the ENTITY (read t
 
 #### `eRemove ent match ctrl :: IO Entity`
 
-Remove the entity matching the given criteria. Resolves to the ENTITY, marked deleted (`eDeleted`); it keeps the data it held. Raises on error.
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`eDeleted`); it keeps the data it held. Raises on error.
 
 ```haskell
   ent <- Sdk.planet sdk VNoval
@@ -269,7 +269,7 @@ Remove the entity matching the given criteria. Resolves to the ENTITY, marked de
 
 #### `eUpdate ent data ctrl :: IO Entity`
 
-Update an existing entity. The data must include the entity `id`. Resolves to the ENTITY (read the record with `eDataGet`) and raises on error.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity and raises on error.
 
 ```haskell
   ent <- Sdk.planet sdk VNoval

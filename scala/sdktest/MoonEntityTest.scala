@@ -5,16 +5,36 @@
 
 import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
 
-import voxgig.voxgigsolardemosdk.core.{Helpers, SdkEntity, VoxgigSolardemoSDK}
+import voxgig.voxgigsolardemosdk.core.{Config, Context, Helpers, SdkEntity, SdkError, VoxgigSolardemoSDK}
+import voxgig.voxgigsolardemosdk.feature.BaseFeature
 import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 object MoonEntityTest {
+
+  import SdkTestSupport.{B, I, jl, om}
+
+  private def hasFeature(name: String): Boolean = {
+    val fm = Helpers.toMapAny(Config.sharedConfig().get("feature"))
+    fm != null && fm.get(name) != null
+  }
 
   def run(rep: SdkTestReport): Unit = {
     rep.scope("moon.instance") {
       val testsdk = VoxgigSolardemoSDK.testSDK()
       val ent = testsdk.moon(null)
       rep.check("moon.instance", ent != null, "expected non-null moon entity")
+    }
+
+    rep.scope("moon.validate") {
+      if (hasFeature("validate")) {
+        val client = VoxgigSolardemoSDK.testSDK(null, om("feature" -> om("validate" -> om("active" -> B(true)))))
+        val err = try {
+          client.moon(null).list(om("planet_id" -> I(1)), null)
+          null
+        } catch { case e: SdkError => e }
+        rep.check("moon.validate", err != null && "validate_failed" == err.code,
+          "expected validate_failed, got " + err)
+      }
     }
 
     rep.scope("moon.basic") {
@@ -70,6 +90,7 @@ object MoonEntityTest {
       // LOAD
       val moonRef01MatchDt0 = new LinkedHashMap[String, Object]()
       moonRef01MatchDt0.put("id", moonRef01Data.get("id"))
+      moonRef01MatchDt0.put("planet_id", Option(idmap.get("planet_id")).getOrElse(idmap.get("planet01")))
       val moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null)
       val moonRef01DataDt0LoadResult = Helpers.toMapAny(moonRef01DataDt0Loaded match { case e: SdkEntity => e.data(); case o => o })
       rep.check("moon.load.map", moonRef01DataDt0LoadResult != null, "expected load result to be a map")
@@ -78,6 +99,7 @@ object MoonEntityTest {
       // REMOVE
       val moonRef01MatchRm0 = new LinkedHashMap[String, Object]()
       moonRef01MatchRm0.put("id", moonRef01Data.get("id"))
+      moonRef01MatchRm0.put("planet_id", Option(idmap.get("planet_id")).getOrElse(idmap.get("planet01")))
       moonRef01Ent.remove(moonRef01MatchRm0, null)
 
       // LIST

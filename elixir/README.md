@@ -16,7 +16,7 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to [Hex](https://hex.pm). Install it from
-the GitHub release tag (`elixir/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases))
+the GitHub release tag (`elixir/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags))
 by adding a git dependency to your `mix.exs`:
 
 ```elixir
@@ -55,13 +55,17 @@ sdk = VoxgigSolardemo.new()
 
 ### 2. List moon records
 
-`list/2` returns a list value node and raises on error.
+`list/2` returns a `Voxgig.Struct` list of entities, one per record, and
+raises on error; `Voxgig.Struct.getelem/2` reads an item, and `data_get/1`
+an entity's record.
 
 ```elixir
 try do
   moon = VoxgigSolardemo.moon(sdk)
-  records = VoxgigSolardemo.Entity.Moon.list(moon)
-  IO.inspect(records)
+  moons = VoxgigSolardemo.Entity.Moon.list(moon, VoxgigSolardemo.Helpers.deep(%{"planet_id" => "example"}))
+  for i <- 0..(Voxgig.Struct.size(moons) - 1)//1 do
+    IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Moon.data_get(Voxgig.Struct.getelem(moons, i))))
+  end
 rescue
   err -> IO.puts("list failed: " <> inspect(err))
 end
@@ -70,13 +74,14 @@ end
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`load/2` returns the bare record and raises on error.
+`load/2` returns the entity and raises on error; `data_get/1` reads its
+record.
 
 ```elixir
 try do
   moon = VoxgigSolardemo.moon(sdk)
-  record = VoxgigSolardemo.Entity.Moon.load(moon, H.deep(%{"planet_id" => "example_planet_id", "id" => "example_id"}))
-  IO.inspect(record)
+  moon = VoxgigSolardemo.Entity.Moon.load(moon, H.deep(%{"planet_id" => "example_planet_id", "id" => "example_id"}))
+  IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Moon.data_get(moon)))
 rescue
   err -> IO.puts("load failed: " <> inspect(err))
 end
@@ -87,14 +92,14 @@ end
 ```elixir
 moon = VoxgigSolardemo.moon(sdk)
 
-# Create — returns the bare created record
+# Create — returns the created entity
 created = VoxgigSolardemo.Entity.Moon.create(moon, H.deep(%{"planet_id" => "example_planet_id", "diameter" => 1, "id" => "example_id", "kind" => "example_kind", "name" => "example_name"}))
 
 # Update
-VoxgigSolardemo.Entity.Moon.update(moon, H.deep(%{"id" => Voxgig.Struct.getprop(created, "id"), "planet_id" => "example_planet_id", "diameter" => 1}))
+VoxgigSolardemo.Entity.Moon.update(moon, H.deep(%{"id" => Voxgig.Struct.getprop(VoxgigSolardemo.Entity.Moon.data_get(created), "id"), "planet_id" => "example_planet_id", "diameter" => 1}))
 
 # Remove
-VoxgigSolardemo.Entity.Moon.remove(moon, H.deep(%{"id" => Voxgig.Struct.getprop(created, "id"), "planet_id" => "example_planet_id"}))
+VoxgigSolardemo.Entity.Moon.remove(moon, H.deep(%{"id" => Voxgig.Struct.getprop(VoxgigSolardemo.Entity.Moon.data_get(created), "id"), "planet_id" => "example_planet_id"}))
 ```
 
 
@@ -104,15 +109,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -121,8 +127,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -179,10 +185,12 @@ alias VoxgigSolardemo.Helpers, as: H
 
 sdk = VoxgigSolardemo.test()
 
-# Entity ops return the bare record (raise on error).
-moon = VoxgigSolardemo.moon(sdk)
-records = VoxgigSolardemo.Entity.Moon.list(moon, H.deep(%{}))
-IO.inspect(records)
+# Entity ops return the entity, and list one per record (raise on error).
+planet = VoxgigSolardemo.planet(sdk)
+planets = VoxgigSolardemo.Entity.Planet.list(planet, H.deep(%{}))
+for i <- 0..(Voxgig.Struct.size(planets) - 1)//1 do
+  IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Planet.data_get(Voxgig.Struct.getelem(planets, i))))
+end
 ```
 
 ### Use a custom fetch function
@@ -270,11 +278,11 @@ Every entity's `VoxgigSolardemo.Entity.<Name>` module shares the same interface.
 
 | Function | Signature | Description |
 | --- | --- | --- |
-| `load` | `(entity, reqmatch, ctrl \\ nil) :: map()` | Load a single entity by match criteria. Raises on error. |
-| `list` | `(entity, reqmatch \\ nil, ctrl \\ nil) :: list()` | List entities matching the criteria. Raises on error. |
-| `create` | `(entity, reqdata, ctrl \\ nil) :: map()` | Create a new entity. Raises on error. |
-| `update` | `(entity, reqdata, ctrl \\ nil) :: map()` | Update an existing entity. Raises on error. |
-| `remove` | `(entity, reqmatch \\ nil, ctrl \\ nil) :: map()` | Remove an entity. Raises on error. |
+| `load` | `(entity, reqmatch, ctrl \\ nil) :: entity` | Load a single entity by match criteria, and return it. Raises on error. |
+| `list` | `(entity, reqmatch \\ nil, ctrl \\ nil) :: list()` | List entities matching the criteria, one per record. Raises on error. |
+| `create` | `(entity, reqdata, ctrl \\ nil) :: entity` | Create a new entity, and return it. Raises on error. |
+| `update` | `(entity, reqdata, ctrl \\ nil) :: entity` | Update an existing entity, and return it. Raises on error. |
+| `remove` | `(entity, reqmatch \\ nil, ctrl \\ nil) :: entity` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `data_get` | `(entity) :: map()` | Get entity data. |
 | `data_set` | `(entity, data)` | Set entity data. |
 | `match_get` | `(entity) :: map()` | Get entity match criteria. |
@@ -284,9 +292,10 @@ Every entity's `VoxgigSolardemo.Entity.<Name>` module shares the same interface.
 
 ### Result shape
 
-Entity operations return the bare result data (a value node — a map for
-single-entity ops, a list for `list`) and raise a `VoxgigSolardemo.Error` on
-failure. Wrap calls in `try`/`rescue` to handle errors.
+Entity operations return the entity, and `list` a list of entities, one per
+record; an entity module's `data_get/1` reads an entity's record. They raise
+a `VoxgigSolardemo.Error` on failure, so wrap calls in `try`/`rescue` to handle
+errors.
 
 The `direct/2` escape hatch never raises — it returns a result node you
 branch on via `Voxgig.Struct.getprop(result, "ok")`:
@@ -368,21 +377,21 @@ Create a handle: `moon = VoxgigSolardemo.moon(sdk)`
 
 ```elixir
 moon = VoxgigSolardemo.moon(sdk)
-record = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
+moon = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
 ```
 
 #### Example: List
 
 ```elixir
 moon = VoxgigSolardemo.moon(sdk)
-records = VoxgigSolardemo.Entity.Moon.list(moon)
+moons = VoxgigSolardemo.Entity.Moon.list(moon, VoxgigSolardemo.Helpers.deep(%{"planet_id" => "example"}))
 ```
 
 #### Example: Create
 
 ```elixir
 moon = VoxgigSolardemo.moon(sdk)
-record = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%{
+moon = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%{
   "planet_id" => "example_planet_id",  # String.t()
   "diameter" => 1,  # float()
   "id" => "example_id",  # String.t()
@@ -422,21 +431,21 @@ Create a handle: `planet = VoxgigSolardemo.planet(sdk)`
 
 ```elixir
 planet = VoxgigSolardemo.planet(sdk)
-record = VoxgigSolardemo.Entity.Planet.load(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
+planet = VoxgigSolardemo.Entity.Planet.load(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
 ```
 
 #### Example: List
 
 ```elixir
 planet = VoxgigSolardemo.planet(sdk)
-records = VoxgigSolardemo.Entity.Planet.list(planet)
+planets = VoxgigSolardemo.Entity.Planet.list(planet)
 ```
 
 #### Example: Create
 
 ```elixir
 planet = VoxgigSolardemo.planet(sdk)
-record = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
+planet = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
   "diameter" => 1,  # float()
   "id" => "example_id",  # String.t()
   "kind" => "example_kind",  # String.t()
@@ -661,7 +670,8 @@ that every later pipeline stage observes — the immutable-Elixir way to honour
 the shared-mutable hook contract.
 
 Build inputs from native Elixir maps with `VoxgigSolardemo.Helpers.deep/1`,
-and read fields off results with `Voxgig.Struct.getprop/2`.
+and read fields off a record, which an entity's `data_get/1` returns, with
+`Voxgig.Struct.getprop/2`.
 
 ### Module structure
 
@@ -697,11 +707,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

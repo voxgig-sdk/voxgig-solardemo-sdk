@@ -215,6 +215,7 @@ class Config {
       },
       'optspec': <String, dynamic>{
         'clearTimer': '`\$FUNCTION`',
+        'now': '`\$FUNCTION`',
         'setTimer': '`\$FUNCTION`',
       },
       'strict': false,
@@ -329,6 +330,10 @@ class Config {
                   'planet_id',
                 ],
               },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
+              },
             },
           ],
         },
@@ -380,6 +385,10 @@ class Config {
                 'exist': <dynamic>[
                   'planet_id',
                 ],
+              },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
               },
             },
           ],
@@ -448,6 +457,10 @@ class Config {
                   'id',
                   'planet_id',
                 ],
+              },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
               },
             },
           ],
@@ -584,6 +597,10 @@ class Config {
                   'id',
                   'planet_id',
                 ],
+              },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
               },
             },
           ],
@@ -706,6 +723,10 @@ class Config {
                   'id',
                 ],
               },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
+              },
             },
             <String, dynamic>{
               'kind': 'http',
@@ -757,6 +778,10 @@ class Config {
                   'id',
                 ],
               },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
+              },
             },
             <String, dynamic>{
               'kind': 'http',
@@ -781,6 +806,10 @@ class Config {
               },
               'args': <String, dynamic>{},
               'select': <String, dynamic>{},
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
+              },
             },
           ],
         },
@@ -811,6 +840,10 @@ class Config {
               },
               'args': <String, dynamic>{},
               'select': <String, dynamic>{},
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
+              },
             },
           ],
         },
@@ -862,6 +895,10 @@ class Config {
                 'exist': <dynamic>[
                   'id',
                 ],
+              },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
               },
             },
           ],
@@ -966,6 +1003,10 @@ class Config {
                 'exist': <dynamic>[
                   'id',
                 ],
+              },
+              'response': <String, dynamic>{
+                'kind': 'json',
+                'media': 'application/json',
               },
             },
           ],

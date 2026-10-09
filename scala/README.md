@@ -17,7 +17,7 @@ keeps the cognitive load low.
 This package is not yet published to Maven Central. The generated SDK is a
 plain-source scala-cli project (no build tool, no third-party runtime
 dependencies). Install it from the GitHub release tag
-(`scala/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or from a source
+(`scala/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or from a source
 checkout — compile it with scala-cli:
 
 ```bash
@@ -34,19 +34,20 @@ loading a specific record.
 
 ```scala
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.SdkEntity
 
 val client = new VoxgigSolardemoSDK()
 ```
 
 ### 2. List moon records
 
-`list(null, null)` returns an aggregate list of records (as `Object`, an
-aggregate list) and raises on error.
+`list(null, null)` returns a list of entities, one per record (as `Object`),
+and raises on error; an entity's `data()` reads its record.
 
 ```scala
 try {
-    val moonList = client.moon(null).list(null, null)
-    println(moonList)
+    val moonList = client.moon(null).list(java.util.Map.of("planet_id", "example"), null).asInstanceOf[java.util.List[SdkEntity]]
+    moonList.forEach(moonItem => println(moonItem.data()))
 }
 catch {
     case err: RuntimeException => println("list failed: " + err.getMessage)
@@ -60,8 +61,8 @@ Moon is nested under planet, so provide the `planet_id`.
 
 ```scala
 try {
-    val moon = client.moon(null).load(java.util.Map.of("planet_id", "example_planet_id", "id", "example_id"), null)
-    println(moon)
+    val moon = client.moon(null).load(java.util.Map.of("planet_id", "example_planet_id", "id", "example_id"), null).asInstanceOf[SdkEntity]
+    println(moon.data())
 }
 catch {
     case err: RuntimeException => println("load failed: " + err.getMessage)
@@ -88,15 +89,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -105,8 +107,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -156,11 +158,9 @@ Create a mock client for unit testing — no server required:
 ```scala
 val client = VoxgigSolardemoSDK.testSDK(null, null)
 
-// Entity ops return the ENTITY and raises on error;
-// call data() for the record.
-val moon = client.moon(null).list(null, null)
-// moon holds the mock response record
-println(moon)
+// list returns a list of entities, one per mock record; it raises on error.
+val planetList = client.planet(null).list(null, null).asInstanceOf[java.util.List[SdkEntity]]
+planetList.forEach(planetItem => println(planetItem.data()))
 ```
 
 ### Use a custom fetch function
@@ -243,11 +243,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, ctrl) -> Object` | Load a single entity by match criteria. Raises on error. |
-| `list` | `(reqmatch, ctrl) -> Object` | List entities matching the criteria (an aggregate list). Raises on error. |
-| `create` | `(reqdata, ctrl) -> Object` | Create a new entity. Raises on error. |
-| `update` | `(reqdata, ctrl) -> Object` | Update an existing entity. Raises on error. |
-| `remove` | `(reqmatch, ctrl) -> Object` | Remove an entity. Raises on error. |
+| `load` | `(reqmatch, ctrl) -> Object` | Load a single entity by match criteria, and return it. Raises on error. |
+| `list` | `(reqmatch, ctrl) -> Object` | List entities matching the criteria, one per record. Raises on error. |
+| `create` | `(reqdata, ctrl) -> Object` | Create a new entity, and return it. Raises on error. |
+| `update` | `(reqdata, ctrl) -> Object` | Update an existing entity, and return it. Raises on error. |
+| `remove` | `(reqmatch, ctrl) -> Object` | Remove an entity, and return it marked as deleted. Raises on error. |
 | `data` | `(newdata*) -> Object` | Get or set entity data. |
 | `matchArgs` | `(newmatch*) -> Object` | Get or set entity match criteria. |
 | `make` | `() -> Entity` | Create a new instance with the same options. |
@@ -255,9 +255,10 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the ENTITY (call data() for the record) (a `Map` for single-entity
-ops, an aggregate `List` for `list`) as `Object` and raise on error. Wrap
-calls in `try`/`catch` to handle failures.
+Entity operations return the entity, and `list` a list of entities, one per
+record, as `Object`; an entity is an `SdkEntity`, whose `data()` reads its
+record. They raise on error, so wrap calls in `try`/`catch` to handle
+failures.
 
 The `direct()` escape hatch never raises — it returns a result
 `java.util.Map[String, Object]` you branch on via `result.get("ok")`:
@@ -341,7 +342,7 @@ val moon = client.moon(null).load(java.util.Map.of("id", "moon_id", "planet_id",
 #### Example: List
 
 ```scala
-val moonList = client.moon(null).list(null, null)
+val moonList = client.moon(null).list(java.util.Map.of("planet_id", "example"), null)
 ```
 
 #### Example: Create
@@ -650,11 +651,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

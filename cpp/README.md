@@ -21,7 +21,7 @@ The C++ SDK is **header-only** — there is no package to install
 from a registry. Vendor the `cpp/` directory into your project (or add the
 repository as a git submodule) and put it on your compiler's include path.
 Releases are cut as the git tag `cpp/vX.Y.Z` (see
-[Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)).
+[Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)).
 
 ```bash
 # Add the SDK as a submodule (or copy the cpp/ directory into your tree).
@@ -56,14 +56,14 @@ auto client = VoxgigSolardemoSDK::create();
 
 ### 2. List moon records
 
-`list()` returns an `sdk::Value` list and throws `sdk::SdkErrorPtr`
-on error — iterate it directly.
+`list()` returns a `std::vector` of entities, one per record, and throws
+`sdk::SdkErrorPtr` on error; `data()` reads an entity's record.
 
 ```cpp
 try {
-  Value moons = client->moon()->list(Value::undef(), Value::undef());
-  for (const auto& moon : *moons.as_list()) {
-    std::cout << Struct::jsonify(moon) << std::endl;
+  std::vector<SdkEntityPtr> moons = client->moon()->list(vmap({{"planet_id", Value("example")}}), Value::undef());
+  for (const auto& moon : moons) {
+    std::cout << Struct::jsonify(moon->data()) << std::endl;
   }
 } catch (const SdkErrorPtr& err) {
   std::cerr << "list failed: " << err->msg << std::endl;
@@ -73,12 +73,12 @@ try {
 ### 3. Load a moon
 
 Moon is nested under planet, so provide the `planet_id`.
-`load()` returns the bare record and throws on error.
+`load()` returns the entity and throws on error; `data()` reads its record.
 
 ```cpp
 try {
-  Value moon = client->moon()->load(vmap({{"planet_id", Value("example_planet_id")}, {"id", Value("example_id")}}), Value::undef());
-  std::cout << Struct::jsonify(moon) << std::endl;
+  SdkEntityPtr moon = client->moon()->load(vmap({{"planet_id", Value("example_planet_id")}, {"id", Value("example_id")}}), Value::undef());
+  std::cout << Struct::jsonify(moon->data()) << std::endl;
 } catch (const SdkErrorPtr& err) {
   std::cerr << "load failed: " << err->msg << std::endl;
 }
@@ -87,14 +87,14 @@ try {
 ### 4. Create, update, and remove
 
 ```cpp
-// Create — returns the bare created record.
-Value created = client->moon()->create(vmap({{"planet_id", Value("example_planet_id")}, {"diameter", Value(1)}, {"id", Value("example_id")}, {"kind", Value("example_kind")}, {"name", Value("example_name")}}), Value::undef());
+// Create — returns the created entity.
+SdkEntityPtr created = client->moon()->create(vmap({{"planet_id", Value("example_planet_id")}, {"diameter", Value(1)}, {"id", Value("example_id")}, {"kind", Value("example_kind")}, {"name", Value("example_name")}}), Value::undef());
 
 // Update — reuse the created record's id
-client->moon()->update(vmap({{"id", getp(created, "id")}, {"planet_id", Value("example_planet_id")}, {"diameter", Value(1)}}), Value::undef());
+client->moon()->update(vmap({{"id", getp(created->data(), "id")}, {"planet_id", Value("example_planet_id")}, {"diameter", Value(1)}}), Value::undef());
 
 // Remove
-client->moon()->remove(vmap({{"id", getp(created, "id")}, {"planet_id", Value("example_planet_id")}}), Value::undef());
+client->moon()->remove(vmap({{"id", getp(created->data(), "id")}, {"planet_id", Value("example_planet_id")}}), Value::undef());
 ```
 
 
@@ -104,15 +104,16 @@ Entity operations reject on failure, so wrap them in `try` / `catch`:
 
 ```ts
 try {
-  const moons = await client.Moon().list()
-  console.log(moons)
+  const planets = await client.Planet().list()
+  console.log(planets.map((item) => item.data()))
 } catch (err) {
   console.error('list failed:', err)
 }
 ```
 
 The low-level `direct()` method does **not** throw — it returns the
-value or an `Error`, so check the result before using it:
+result envelope. Branch on `ok`; on failure `status` holds the HTTP status
+(for error responses) and `err` holds the error:
 
 ```ts
 const result = await client.direct({
@@ -121,8 +122,8 @@ const result = await client.direct({
   params: { id: 'example_id' },
 })
 
-if (result instanceof Error) {
-  throw result
+if (!result.ok) {
+  console.error('request failed:', result.status, result.err)
 }
 ```
 
@@ -177,10 +178,10 @@ feature installs an in-memory mock transport:
 ```cpp
 auto client = VoxgigSolardemoSDK::testSDK();
 
-// Entity ops return the bare record and throw on error.
-Value moon = client->moon()->list(Value::undef(), Value::undef());
-// moon contains the mock response record
-std::cout << Struct::jsonify(moon) << std::endl;
+// list returns one entity per mock record, and throws on error.
+for (const auto& planet : client->planet()->list(Value::undef(), Value::undef())) {
+  std::cout << Struct::jsonify(planet->data()) << std::endl;
+}
 ```
 
 You can seed the mock store by passing test options — see the generated
@@ -250,11 +251,11 @@ All entities share the same interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `load` | `(reqmatch, ctrl) -> Value` | Load a single entity by match criteria. Throws on error. |
-| `list` | `(reqmatch, ctrl) -> Value` | List entities matching the criteria (a Value list). Throws on error. |
-| `create` | `(reqdata, ctrl) -> Value` | Create a new entity. Throws on error. |
-| `update` | `(reqdata, ctrl) -> Value` | Update an existing entity. Throws on error. |
-| `remove` | `(reqmatch, ctrl) -> Value` | Remove an entity. Throws on error. |
+| `load` | `(reqmatch, ctrl) -> SdkEntityPtr` | Load a single entity by match criteria. Throws on error. |
+| `list` | `(reqmatch, ctrl) -> std::vector<SdkEntityPtr>` | List entities matching the criteria, one per record. Throws on error. |
+| `create` | `(reqdata, ctrl) -> SdkEntityPtr` | Create a new entity. Throws on error. |
+| `update` | `(reqdata, ctrl) -> SdkEntityPtr` | Update an existing entity. Throws on error. |
+| `remove` | `(reqmatch, ctrl) -> SdkEntityPtr` | Remove an entity, which is returned marked as deleted. Throws on error. |
 | `data` | `(arg) -> Value` | Get (no arg) or set (with arg) entity data. |
 | `match` | `(arg) -> Value` | Get (no arg) or set (with arg) entity match criteria. |
 | `make` | `() -> EntityPtr` | Create a new instance with the same options. |
@@ -262,9 +263,9 @@ All entities share the same interface.
 
 ### Result shape
 
-Entity operations return the bare result data (a map `Value` for
-single-entity ops, a list `Value` for `list`) and throw
-`sdk::SdkErrorPtr` on error. Wrap calls in `try`/`catch` to handle
+Entity operations return the entity, and `list` a `std::vector` of
+entities, one per record; `data()` reads an entity's record. They throw
+`sdk::SdkErrorPtr` on error, so wrap calls in `try`/`catch` to handle
 failures.
 
 The `direct()` escape hatch never throws — it returns a result `Value`
@@ -324,11 +325,11 @@ Create an instance: `auto moon = client->moon();`
 
 | Method | Description |
 | --- | --- |
-| `create(data, ctrl)` | Create a new entity with the given data. |
-| `list(match, ctrl)` | List entities, optionally matching the given criteria. |
-| `load(match, ctrl)` | Load a single entity by match criteria. |
-| `remove(match, ctrl)` | Remove the matching entity. |
-| `update(data, ctrl)` | Update an existing entity. |
+| `create(data, ctrl) -> SdkEntityPtr` | Create a new entity with the given data. |
+| `list(match, ctrl) -> std::vector<SdkEntityPtr>` | List entities, optionally matching the given criteria: one entity per record. |
+| `load(match, ctrl) -> SdkEntityPtr` | Load a single entity by match criteria. |
+| `remove(match, ctrl) -> SdkEntityPtr` | Remove the matching entity, which is returned marked as deleted. |
+| `update(data, ctrl) -> SdkEntityPtr` | Update an existing entity. |
 
 #### Fields
 
@@ -343,19 +344,23 @@ Create an instance: `auto moon = client->moon();`
 #### Example: Load
 
 ```cpp
-Value moon = client->moon()->load(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+SdkEntityPtr moon = client->moon()->load(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(moon->data()) << std::endl;
 ```
 
 #### Example: List
 
 ```cpp
-Value moons = client->moon()->list(Value::undef(), Value::undef());
+std::vector<SdkEntityPtr> moons = client->moon()->list(vmap({{"planet_id", Value("example")}}), Value::undef());
+for (const auto& moon : moons) {
+  std::cout << Struct::jsonify(moon->data()) << std::endl;
+}
 ```
 
 #### Example: Create
 
 ```cpp
-Value moon = client->moon()->create(vmap({
+SdkEntityPtr moon = client->moon()->create(vmap({
     {"planet_id", Value("example_planet_id")},  // std::string
     {"diameter", Value(1)},  // double
     {"id", Value("example_id")},  // std::string
@@ -373,11 +378,11 @@ Create an instance: `auto planet = client->planet();`
 
 | Method | Description |
 | --- | --- |
-| `create(data, ctrl)` | Create a new entity with the given data. |
-| `list(match, ctrl)` | List entities, optionally matching the given criteria. |
-| `load(match, ctrl)` | Load a single entity by match criteria. |
-| `remove(match, ctrl)` | Remove the matching entity. |
-| `update(data, ctrl)` | Update an existing entity. |
+| `create(data, ctrl) -> SdkEntityPtr` | Create a new entity with the given data. |
+| `list(match, ctrl) -> std::vector<SdkEntityPtr>` | List entities, optionally matching the given criteria: one entity per record. |
+| `load(match, ctrl) -> SdkEntityPtr` | Load a single entity by match criteria. |
+| `remove(match, ctrl) -> SdkEntityPtr` | Remove the matching entity, which is returned marked as deleted. |
+| `update(data, ctrl) -> SdkEntityPtr` | Update an existing entity. |
 
 #### Fields
 
@@ -394,19 +399,23 @@ Create an instance: `auto planet = client->planet();`
 #### Example: Load
 
 ```cpp
-Value planet = client->planet()->load(vmap({{"id", Value("planet_id")}}), Value::undef());
+SdkEntityPtr planet = client->planet()->load(vmap({{"id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(planet->data()) << std::endl;
 ```
 
 #### Example: List
 
 ```cpp
-Value planets = client->planet()->list(Value::undef(), Value::undef());
+std::vector<SdkEntityPtr> planets = client->planet()->list(Value::undef(), Value::undef());
+for (const auto& planet : planets) {
+  std::cout << Struct::jsonify(planet->data()) << std::endl;
+}
 ```
 
 #### Example: Create
 
 ```cpp
-Value planet = client->planet()->create(vmap({
+SdkEntityPtr planet = client->planet()->create(vmap({
     {"diameter", Value(1)},  // double
     {"id", Value("example_id")},  // std::string
     {"kind", Value("example_kind")},  // std::string
@@ -658,11 +667,11 @@ stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
 ```ts
-const moon = client.Moon()
-await moon.list()
+const planet = client.Planet()
+await planet.list()
 
-// moon.data() now returns the moon data from the last `list`
-// moon.match() returns the last match criteria
+// planet.data() now returns the planet data from the last `list`
+// planet.match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration

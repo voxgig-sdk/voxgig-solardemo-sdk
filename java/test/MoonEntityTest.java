@@ -3,6 +3,7 @@ package voxgig.voxgigsolardemosdk.sdktest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -16,14 +17,24 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import voxgig.voxgigsolardemosdk.core.Config;
+import voxgig.voxgigsolardemosdk.core.Context;
 import voxgig.voxgigsolardemosdk.core.Helpers;
 import voxgig.voxgigsolardemosdk.core.SdkEntity;
+import voxgig.voxgigsolardemosdk.core.SdkError;
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.feature.BaseFeature;
 import voxgig.voxgigsolardemosdk.utility.Json;
 import voxgig.voxgigsolardemosdk.utility.struct.Struct;
 
 @SuppressWarnings({"unchecked", "unused"})
 public class MoonEntityTest {
+
+  // main.kit.test.live.strict is true (the default is true): a live
+  // request that fails, or a live test missing an input it needs,
+  // fails the test.
+  // An account with no record for a test to read skips it either way.
+  static final boolean LIVE_STRICT = true;
 
   @Test
   public void instance() {
@@ -44,10 +55,13 @@ public class MoonEntityTest {
           reason == null || "".equals(reason)
               ? "skipped via sdk-test-control.json" : reason);
     }
-    // The basic flow consumes synthetic IDs from the fixture. In live mode
-    // without an *_ENTID env override, those IDs hit the live API and 4xx.
-    Assumptions.assumeFalse(setup.syntheticOnly,
-        "live entity test uses synthetic IDs from fixture — set VOXGIG_SOLARDEMO_TEST_MOON_ENTID JSON to run live");
+    if (setup.live) {
+      for (String liveKey : new String[] { "planet01" }) {
+        if (setup.syntheticOnly || setup.idmap.get(liveKey) == null) {
+          RunnerSupport.liveMiss(LIVE_STRICT, "Live entity test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
+        }
+      }
+    }
     VoxgigSolardemoSDK client = setup.client;
 
     // CREATE
@@ -95,6 +109,8 @@ public class MoonEntityTest {
     // LOAD
     Map<String, Object> moonRef01MatchDt0 = new LinkedHashMap<>();
     moonRef01MatchDt0.put("id", moonRef01Data.get("id"));
+    moonRef01MatchDt0.put("planet_id", null != setup.idmap.get("planet_id")
+        ? setup.idmap.get("planet_id") : setup.idmap.get("planet01"));
     Object moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null);
     Map<String, Object> moonRef01DataDt0LoadResult = Helpers.toMapAny(moonRef01DataDt0Loaded instanceof SdkEntity ? ((SdkEntity) moonRef01DataDt0Loaded).data() : moonRef01DataDt0Loaded);
     assertNotNull(moonRef01DataDt0LoadResult, "expected load result to be a map");
@@ -104,6 +120,8 @@ public class MoonEntityTest {
     // REMOVE
     Map<String, Object> moonRef01MatchRm0 = new LinkedHashMap<>();
     moonRef01MatchRm0.put("id", moonRef01Data.get("id"));
+    moonRef01MatchRm0.put("planet_id", null != setup.idmap.get("planet_id")
+        ? setup.idmap.get("planet_id") : setup.idmap.get("planet01"));
     moonRef01Ent.remove(moonRef01MatchRm0, null);
 
     // LIST
@@ -122,42 +140,19 @@ public class MoonEntityTest {
 
   }
 
+  static boolean hasFeature(String name) {
+    Map<String, Object> fm = Helpers.toMapAny(Config.makeConfig().get("feature"));
+    return fm != null && fm.get(name) != null;
+  }
+
   @Test
-  public void stream() {
-    Map<String, Object> streamingActive = new LinkedHashMap<>();
-    Map<String, Object> streamingOpts = new LinkedHashMap<>();
-    streamingOpts.put("active", true);
-    Map<String, Object> featureOpts = new LinkedHashMap<>();
-    featureOpts.put("streaming", streamingOpts);
-    streamingActive.put("feature", featureOpts);
-
-    RunnerSupport.EntityTestSetup setup = moonBasicSetup(streamingActive);
-    Assumptions.assumeFalse(setup.live,
-        "stream test streams the seeded fixture data (unit mode only)");
-
-    SdkEntity ent = setup.client.moon(null);
-    Map<String, Object> match = new LinkedHashMap<>();
-
-    // Materialised list result for the same op.
-    Object listedResult = ent.list(match, null);
-    List<Object> listed = listedResult instanceof List
-        ? (List<Object>) listedResult : new ArrayList<>();
-
-    // stream("list") yields items via the streaming feature's iterator.
-    List<Object> streamed = ent.stream("list", match, null)
-        .collect(Collectors.toList());
-    assertTrue(streamed.size() > 0, "expected stream to yield items");
-    assertEquals(listed.size(), streamed.size(),
-        "expected stream to yield the same item count as list");
-
-    // Fallback: with streaming inactive, stream still yields the
-    // materialised items.
-    RunnerSupport.EntityTestSetup setup2 = moonBasicSetup(null);
-    SdkEntity ent2 = setup2.client.moon(null);
-    List<Object> streamed2 = ent2.stream("list", match, null)
-        .collect(Collectors.toList());
-    assertEquals(listed.size(), streamed2.size(),
-        "expected fallback stream to yield the materialised items");
+  public void validate() {
+    Assumptions.assumeTrue(hasFeature("validate"), "feature not present in this SDK: validate");
+    VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(null,
+        Struct.jm("feature", Struct.jm("validate", Struct.jm("active", true))));
+    SdkError err = assertThrows(SdkError.class, () ->
+        client.moon(null).list(Struct.jm("planet_id", 1), null));
+    assertEquals("validate_failed", err.code);
   }
 
   static RunnerSupport.EntityTestSetup moonBasicSetup(Map<String, Object> extra) {
@@ -192,10 +187,8 @@ public class MoonEntityTest {
         + "\"`$VAL`\": [\"`$FORMAT`\", \"upper\", \"`$COPY`\"]"
         + "}]}"));
 
-    // Detect ENTID env override before envOverride consumes it. When live
-    // mode is on without a real override, the basic test runs against
-    // synthetic IDs from the fixture and 4xx's. Surface this so the test
-    // can skip.
+    // Whether *_ENTID supplied the idmap, read before envOverride consumes
+    // it: without it, the ids a live flow binds are the fixture's synthetic ones.
     String entidEnvRaw = RunnerSupport.getenv("VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
     boolean idmapOverridden = entidEnvRaw != null
         && entidEnvRaw.trim().startsWith("{");

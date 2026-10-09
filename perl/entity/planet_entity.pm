@@ -52,6 +52,19 @@ sub get_name {
   return $self->{_name};
 }
 
+# The entity serialises and prints as its data (clean honours TO_JSON),
+# never as the client it holds or the match it absorbed: a query
+# credential comes back in resmatch.
+sub TO_JSON {
+  my ($self) = @_;
+  return Voxgig::Struct::clone($self->{_data});
+}
+
+sub to_string {
+  my ($self) = @_;
+  return 'Planet ' . Voxgig::Struct::jsonify($self->{_data});
+}
+
 sub make {
   my ($self) = @_;
   my $opts = { %{ $self->{_entopts} } };
@@ -112,8 +125,8 @@ sub match_get {
 # reqmatch: match criteria hashref (id/query fields; PlanetLoadMatch
 # shape); optional - an entity with no id-like key loads with no match
 # (undef is treated as an empty match). ctrl: optional per-call control.
-# Returns the loaded Planet data (hashref); dies with VoxgigSolardemoError
-# on failure.
+# Returns the loaded Planet entity (data_get reads its record); dies
+# with VoxgigSolardemoError on failure.
 sub load {
   my ($self, $reqmatch, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -146,8 +159,8 @@ sub load {
 # reqmatch: match filter hashref (any subset of Planet fields;
 # PlanetListMatch shape); defaults to undef, treated as an empty match
 # that lists all. ctrl: optional per-call control.
-# Returns the matching Planet items as an arrayref; dies with
-# VoxgigSolardemoError on failure.
+# Returns the matching Planet items as an arrayref of entities, one per
+# record (data_get reads the record); dies with VoxgigSolardemoError on failure.
 sub list {
   my ($self, $reqmatch, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -167,17 +180,6 @@ sub list {
     return;
   });
 
-  # list yields the BARE arrayref of records - each an accessible hashref -
-  # so callers can index $item->{id} directly, matching py/lua/go/rb.
-  # make_result wraps each entry as an Entity instance for internal use;
-  # unwrap those back to their bare record hashrefs here (load/create/etc.
-  # are unaffected).
-  if (Voxgig::Struct::islist($records)) {
-    $records = [map {
-      (Scalar::Util::blessed($_) && $_->can('data_get')) ? $_->data_get : $_
-    } @$records];
-  }
-
   return $records;
 }
 
@@ -187,8 +189,8 @@ sub list {
 # Create a new Planet.
 #
 # reqdata: body data hashref (PlanetCreateData shape). ctrl: optional
-# per-call control. Returns the created Planet data (hashref); dies
-# with VoxgigSolardemoError on failure.
+# per-call control. Returns the created Planet entity (data_get reads
+# its record); dies with VoxgigSolardemoError on failure.
 sub create {
   my ($self, $reqdata, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -218,8 +220,8 @@ sub create {
 # Update an existing Planet.
 #
 # reqdata: body data hashref (PlanetUpdateData shape). ctrl: optional
-# per-call control. Returns the updated Planet data (hashref); dies
-# with VoxgigSolardemoError on failure.
+# per-call control. Returns the updated Planet entity (data_get reads
+# its record); dies with VoxgigSolardemoError on failure.
 sub update {
   my ($self, $reqdata, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -247,11 +249,13 @@ sub update {
 
 
 
+
+
 # Remove an Planet matching the given criteria.
 #
 # reqmatch: match criteria hashref (id/query fields; PlanetRemoveMatch
 # shape). ctrl: optional per-call control. Returns the removed Planet
-# data (hashref); dies with VoxgigSolardemoError on failure.
+# entity, marked as deleted; dies with VoxgigSolardemoError on failure.
 sub remove {
   my ($self, $reqmatch, $ctrl) = @_;
   my $utility = $self->{_utility};
@@ -285,7 +289,7 @@ sub remove {
 # result). When the streaming feature is active the result carries a `stream`
 # coderef and this yields from it (honouring chunkSize / chunkDelay); else it
 # falls back to yielding the materialised items so stream() always yields.
-# Yielded records are unwrapped to bare hashrefs (matching list()).
+# An entity is yielded as its record, the hashref its data_get returns.
 #
 # $callopts parameterises the call:
 #   - ctrl:   per-call pipeline control (threaded onto the op ctx);
@@ -298,8 +302,9 @@ sub stream {
   my $utility = $self->{_utility};
   $callopts = VoxgigSolardemoHelpers::to_map($callopts) || {};
   my $signal = VoxgigSolardemoHelpers::gp($callopts, 'signal');
-  my $ctrl = VoxgigSolardemoHelpers::to_map(
-    VoxgigSolardemoHelpers::gp($callopts, 'ctrl')) || {};
+  # A copy: the caller's ctrl gains no key, and explain stays its own record.
+  my $ctrl = { %{ VoxgigSolardemoHelpers::to_map(
+    VoxgigSolardemoHelpers::gp($callopts, 'ctrl')) || {} } };
   $ctrl->{stream} = $callopts;
 
   my $ctx = $utility->{make_context}->({
@@ -341,13 +346,35 @@ sub stream {
 
   # Inbound: prefer the streaming feature's incremental iterator; else fall
   # back to the materialised items so stream() always yields.
+  # Each pull runs the source, so what it dies with leaves through the same
+  # catch path as the operation, and ends the stream.
   if ($result && ref $result->{stream} eq 'CODE') {
     my $src = $result->{stream};
     return sub {
       return undef if $aborted->();
-      my $item = $src->();
-      return undef unless defined $item;
-      return $unwrap->($item);
+      my $item = eval {
+        my $next = $src->();
+        defined $next ? $unwrap->($next) : undef;
+      };
+      if (my $operr = $@) {
+        $src = sub { return undef };
+        $ctx->{ctrl}{err} = $operr;
+
+        # What a hook dies with here must not escape the cleaning below.
+        my $fired = eval {
+          $utility->{feature_hook}->($ctx, 'PreUnexpected');
+          1;
+        };
+        if (!$fired) {
+          $operr = $@;
+          $ctx->{ctrl}{err} = $operr;
+        }
+
+        my $e = $self->_unexpected($ctx, $operr);
+        die $e if defined $e;
+        return undef;
+      }
+      return $item;
     };
   }
 
@@ -422,11 +449,49 @@ sub _run_op {
     $out;
   };
   if (my $operr = $@) {
-    $utility->{feature_hook}->($ctx, "PreUnexpected");
+    $ctx->{ctrl}{err} = $operr;
 
-    die $operr;
+    # What a hook dies with here must not escape the cleaning below.
+    my $fired = eval {
+      $utility->{feature_hook}->($ctx, "PreUnexpected");
+      1;
+    };
+    if (!$fired) {
+      $operr = $@;
+      $ctx->{ctrl}{err} = $operr;
+    }
+
+    my $e = $self->_unexpected($ctx, $operr);
+    die $e if defined $e;
+    return undef;
   }
   return $out;
+}
+
+# An exception the pipeline did not build still leaves through the
+# caller: it is cleaned, and so is the explain record it interrupted.
+# Answers undef when throwing is disabled, as the pipeline's own errors do.
+sub _unexpected {
+  my ($self, $ctx, $err) = @_;
+  my $clean = $self->{_utility}{clean};
+  my $explain = $ctx->{ctrl}{explain};
+  if (Voxgig::Struct::ismap($explain)) {
+    $self->{_utility}{clean_explain}->($ctx);
+    my $msg = "$err";
+    $msg =~ s/\s+\z//;
+    my $cleanerr = $clean->($ctx, {
+      'message' => $msg,
+      'class' => (Scalar::Util::blessed($err) || ref($err) || 'die'),
+    });
+    if (!Voxgig::Struct::ismap($explain->{err})) {
+      $explain->{err} = $cleanerr;
+    }
+    elsif (($explain->{err}{message} // '') ne $cleanerr->{message}) {
+      $explain->{unexpected} = $cleanerr;
+    }
+  }
+  return undef if defined $ctx->{ctrl}{throw_err} && !$ctx->{ctrl}{throw_err};
+  return $clean->($ctx, $err);
 }
 
 1;

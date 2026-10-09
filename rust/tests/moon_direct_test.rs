@@ -12,7 +12,13 @@ use common::*;
 
 use voxgig_solardemo_sdk::core::helpers::{getp, ja, jo, json_thunk, setp, to_int, to_map};
 use voxgig_solardemo_sdk::utility::voxgigstruct as vs;
-use voxgig_solardemo_sdk::{Value, VoxgigSolardemoSDK};
+use voxgig_solardemo_sdk::{json_parse, Value, VoxgigSolardemoSDK};
+
+// main.kit.test.live.strict is true (the default is true): a live
+// request that fails, or a live test missing an input it needs,
+// fails the test.
+// An account with no record for a test to read skips it either way.
+const LIVE_STRICT: bool = true;
 
 struct MoonDirectSetup {
     client: Rc<VoxgigSolardemoSDK>,
@@ -109,7 +115,7 @@ fn moon_direct_list() {
     if setup.live {
         for live_key in ["planet01"] {
             if getp(&setup.idmap, live_key).is_noval() {
-                eprintln!("skip: live test needs {} via *_ENTID env var (synthetic IDs only)", live_key);
+                live_miss(LIVE_STRICT, &format!("Live test blocked: needs {} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID", live_key));
                 return;
             }
         }
@@ -123,24 +129,26 @@ fn moon_direct_list() {
         setp(&params, "planet_id", Value::str("direct01"));
     }
 
-    let result = client
-        .direct(jo(vec![
-            ("path", Value::str("api/planet/{planet_id}/moon")),
-            ("method", Value::str("GET")),
-            ("params", params.clone()),
-        ]))
-        .expect("direct failed");
-
-    if setup.live {
-        // Live mode is lenient: synthetic IDs frequently 4xx and the
-        // list-response shape varies wildly across public APIs.
-        if getp(&result, "ok") != Value::Bool(true) {
-            eprintln!("skip: list call not ok (likely synthetic IDs against live API)");
+    let result = match client.direct(jo(vec![
+        ("path", Value::str("api/planet/{planet_id}/moon")),
+        ("method", Value::str("GET")),
+        ("params", params.clone()),
+    ])) {
+        Ok(result) => result,
+        Err(err) if setup.live => {
+            live_miss(LIVE_STRICT, &format!("Live list failed: {}", err));
             return;
         }
-        let status = to_int(&getp(&result, "status"));
-        if !(200..300).contains(&status) {
-            eprintln!("skip: expected 2xx status, got {}", status);
+        Err(err) => panic!("direct failed: {}", err),
+    };
+
+    if setup.live {
+        if !live_ok(&result) {
+            live_miss(LIVE_STRICT, &format!("Live list failed: {}", live_describe(&result)));
+            return;
+        }
+        if live_list(&getp(&result, "data")).is_none() {
+            live_miss(LIVE_STRICT, &format!("Live list returned no list: {}", live_describe(&result)));
             return;
         }
     } else {
@@ -191,9 +199,9 @@ fn moon_direct_load() {
         return;
     }
     if setup.live {
-        for live_key in ["moon01", "planet01"] {
+        for live_key in ["planet01"] {
             if getp(&setup.idmap, live_key).is_noval() {
-                eprintln!("skip: live test needs {} via *_ENTID env var (synthetic IDs only)", live_key);
+                live_miss(LIVE_STRICT, &format!("Live test blocked: needs {} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID", live_key));
                 return;
             }
         }
@@ -202,33 +210,68 @@ fn moon_direct_load() {
 
     let params = Value::empty_map();
     if setup.live {
-        setp(&params, "id", getp(&setup.idmap, "moon01"));
-    } else {
-        setp(&params, "id", Value::str("direct01"));
-    }
-    if setup.live {
+        let list_result = match client.direct(jo(vec![
+            ("path", Value::str("api/planet/{planet_id}/moon")),
+            ("method", Value::str("GET")),
+            ("params", jo(vec![("planet_id", getp(&setup.idmap, "planet01"))])),
+        ])) {
+            Ok(list_result) => list_result,
+            Err(err) => {
+                live_miss(LIVE_STRICT, &format!("Live list discovery failed: {}", err));
+                return;
+            }
+        };
+        if !live_ok(&list_result) {
+            live_miss(LIVE_STRICT, &format!("Live list discovery failed: {}", live_describe(&list_result)));
+            return;
+        }
+        let records = match live_list(&getp(&list_result, "data")) {
+            Some(records) => records,
+            None => {
+                live_miss(LIVE_STRICT, &format!("Live list discovery returned no list: {}", live_describe(&list_result)));
+                return;
+            }
+        };
+        let first = vs::get_elem(&records, &Value::Num(0.0), Value::Noval);
+        if first.is_noval() {
+            live_empty("The account has no moon record to load");
+            return;
+        }
+        let mut found = getp(&first, "id");
+        if found.is_noval() {
+            found = getp(&first, "id");
+        }
+        if found.is_noval() {
+            live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
+            return;
+        }
+        setp(&params, "id", found);
         setp(&params, "planet_id", getp(&setup.idmap, "planet01"));
     } else {
+        setp(&params, "id", Value::str("direct01"));
         setp(&params, "planet_id", Value::str("direct02"));
     }
 
-    let result = client
-        .direct(jo(vec![
-            ("path", Value::str("api/planet/{planet_id}/moon/{id}")),
-            ("method", Value::str("GET")),
-            ("params", params.clone()),
-        ]))
-        .expect("direct failed");
-
-    if setup.live {
-        // Live mode is lenient: synthetic IDs frequently 4xx.
-        if getp(&result, "ok") != Value::Bool(true) {
-            eprintln!("skip: load call not ok (likely synthetic IDs against live API)");
+    let result = match client.direct(jo(vec![
+        ("path", Value::str("api/planet/{planet_id}/moon/{id}")),
+        ("method", Value::str("GET")),
+        ("params", params.clone()),
+    ])) {
+        Ok(result) => result,
+        Err(err) if setup.live => {
+            live_miss(LIVE_STRICT, &format!("Live load failed: {}", err));
             return;
         }
-        let status = to_int(&getp(&result, "status"));
-        if !(200..300).contains(&status) {
-            eprintln!("skip: expected 2xx status, got {}", status);
+        Err(err) => panic!("direct failed: {}", err),
+    };
+
+    if setup.live {
+        if !live_ok(&result) {
+            live_miss(LIVE_STRICT, &format!("Live load failed: {}", live_describe(&result)));
+            return;
+        }
+        if getp(&result, "data").is_noval() {
+            live_miss(LIVE_STRICT, &format!("Live load returned no data: {}", live_describe(&result)));
             return;
         }
     } else {

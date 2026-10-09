@@ -1,7 +1,7 @@
 # VoxgigSolardemo SDK Moon entity
 #
 # Per-entity module. Generic construction/data/match operations delegate to
-# EntityBase; each active op (load/list/create/update/remove) builds a ctx
+# EntityBase; each active op (load/list/create/update/patch/remove) builds a ctx
 # and drives it through VoxgigSolardemo.Pipeline.run_op.
 
 defmodule VoxgigSolardemo.Entity.Moon do
@@ -26,9 +26,10 @@ defmodule VoxgigSolardemo.Entity.Moon do
     do: EntityBase.stream(ent, action, args, callopts)
 
   
-  # Returns the moon entity map (VoxgigSolardemo.Types.moon/0) on
-  # success; pipeline errors surface as the error value built by
-  # Utility.make_error (shape is utility-configurable), hence term().
+  # Returns the moon entity, whose data_get/1 reads its record
+  # (VoxgigSolardemo.Types.moon/0), on success; pipeline errors surface as
+  # the error value built by Utility.make_error (shape is
+  # utility-configurable), hence term().
   @spec load(map(), VoxgigSolardemo.Types.moon_load_match() | nil, map() | nil) :: term()
   def load(ent, reqmatch \\ nil, ctrl \\ nil) do
     reqmatch = if reqmatch == nil, do: S.jm([]), else: reqmatch
@@ -63,9 +64,10 @@ defmodule VoxgigSolardemo.Entity.Moon do
 
 
   
-  # Returns a list of moon entity maps (VoxgigSolardemo.Types.moon/0)
-  # on success; pipeline errors surface as the error value built by
-  # Utility.make_error (shape is utility-configurable), hence term().
+  # Returns a list of moon entities, one per record, whose data_get/1
+  # reads each record (VoxgigSolardemo.Types.moon/0), on success; pipeline
+  # errors surface as the error value built by Utility.make_error (shape is
+  # utility-configurable), hence term().
   @spec list(map(), VoxgigSolardemo.Types.moon_list_match() | nil, map() | nil) :: term()
   def list(ent, reqmatch \\ nil, ctrl \\ nil) do
     reqmatch = if reqmatch == nil, do: S.jm([]), else: reqmatch
@@ -98,9 +100,10 @@ defmodule VoxgigSolardemo.Entity.Moon do
 
 
   
-  # Returns the created moon entity map (VoxgigSolardemo.Types.moon/0)
-  # on success; pipeline errors surface as the error value built by
-  # Utility.make_error (shape is utility-configurable), hence term().
+  # Returns the created moon entity, whose data_get/1 reads its record
+  # (VoxgigSolardemo.Types.moon/0), on success; pipeline errors surface as
+  # the error value built by Utility.make_error (shape is
+  # utility-configurable), hence term().
   @spec create(map(), VoxgigSolardemo.Types.moon_create_data() | nil, map() | nil) :: term()
   def create(ent, reqdata, ctrl \\ nil) do
     ctx =
@@ -131,9 +134,10 @@ defmodule VoxgigSolardemo.Entity.Moon do
 
 
   
-  # Returns the updated moon entity map (VoxgigSolardemo.Types.moon/0)
-  # on success; pipeline errors surface as the error value built by
-  # Utility.make_error (shape is utility-configurable), hence term().
+  # Returns the updated moon entity, whose data_get/1 reads its record
+  # (VoxgigSolardemo.Types.moon/0), on success; pipeline errors surface as
+  # the error value built by Utility.make_error (shape is
+  # utility-configurable), hence term().
   @spec update(map(), VoxgigSolardemo.Types.moon_update_data() | nil, map() | nil) :: term()
   def update(ent, reqdata, ctrl \\ nil) do
     ctx =
@@ -166,9 +170,12 @@ defmodule VoxgigSolardemo.Entity.Moon do
 
 
   
-  # Returns the removed moon entity map (VoxgigSolardemo.Types.moon/0)
-  # on success; pipeline errors surface as the error value built by
-  # Utility.make_error (shape is utility-configurable), hence term().
+
+  
+  # Returns the removed moon entity, marked as deleted, whose data_get/1
+  # reads the record it held (VoxgigSolardemo.Types.moon/0), on success;
+  # pipeline errors surface as the error value built by Utility.make_error
+  # (shape is utility-configurable), hence term().
   @spec remove(map(), VoxgigSolardemo.Types.moon_remove_match() | nil, map() | nil) :: term()
   def remove(ent, reqmatch \\ nil, ctrl \\ nil) do
     reqmatch = if reqmatch == nil, do: S.jm([]), else: reqmatch

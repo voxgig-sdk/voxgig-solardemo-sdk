@@ -96,13 +96,13 @@ Entity* moon = voxgigsolardemo_moon(client, NULL);
 
 ### Operations
 
-#### `vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Create a new entity with the given data. Returns the created entity data and sets `*err` on failure.
+Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* result = moon->vt->create(moon, cmap(5,
+Entity* result = moon->vt->create(moon, cmap(5,
     "planet_id", v_str("example_planet_id"),  // char*
     "diameter", v_num(1),  // double
     "id", v_str("example_id"),  // char*
@@ -111,43 +111,49 @@ voxgig_value* result = moon->vt->create(moon, cmap(5,
 , NULL, &err);
 ```
 
-#### `vt->list(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity** vt->list(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-List entities matching the given criteria. The match is optional — pass `NULL` to list all records. Returns a List.
+List entities matching the given criteria. The match is optional — pass `NULL` to list all records. Returns a `NULL`-terminated array of entities, one per record, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* results = moon->vt->list(moon, NULL, NULL, &err);
-for (size_t i = 0; i < (size_t)voxgig_size(results); i++) {
-    printf("%s\n", voxgig_to_json(voxgig_getelem(results, v_int(i), NULL)));
+Entity** results = moon->vt->list(moon, cmap(1, "planet_id", v_str("example")), NULL, &err);
+for (size_t i = 0; results && results[i]; i++) {
+    printf("%s\n", voxgig_to_json(results[i]->vt->data(results[i], NULL)));
 }
 ```
 
-#### `vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-Load a single entity matching the given criteria. Returns the entity data and sets `*err` on failure.
+Load a single entity matching the given criteria. Returns the entity, whose record `vt->data` reads, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* result = moon->vt->load(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+Entity* result = moon->vt->load(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
-#### `vt->remove(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->remove(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-Remove the entity matching the given criteria. Sets `*err` on failure.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* result = moon->vt->remove(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+Entity* result = moon->vt->remove(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
-#### `vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Update an existing entity. The data must include the entity id. Returns the updated entity data.
+Update an existing entity. The data must include the entity id. Returns the updated entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* result = moon->vt->update(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+Entity* result = moon->vt->update(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
 ```
 
 ### Common Methods
@@ -191,13 +197,13 @@ Entity* planet = voxgigsolardemo_planet(client, NULL);
 
 ### Operations
 
-#### `vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Create a new entity with the given data. Returns the created entity data and sets `*err` on failure.
+Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* result = planet->vt->create(planet, cmap(4,
+Entity* result = planet->vt->create(planet, cmap(4,
     "diameter", v_num(1),  // double
     "id", v_str("example_id"),  // char*
     "kind", v_str("example_kind"),  // char*
@@ -205,43 +211,49 @@ voxgig_value* result = planet->vt->create(planet, cmap(4,
 , NULL, &err);
 ```
 
-#### `vt->list(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity** vt->list(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-List entities matching the given criteria. The match is optional — pass `NULL` to list all records. Returns a List.
+List entities matching the given criteria. The match is optional — pass `NULL` to list all records. Returns a `NULL`-terminated array of entities, one per record, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* results = planet->vt->list(planet, NULL, NULL, &err);
-for (size_t i = 0; i < (size_t)voxgig_size(results); i++) {
-    printf("%s\n", voxgig_to_json(voxgig_getelem(results, v_int(i), NULL)));
+Entity** results = planet->vt->list(planet, NULL, NULL, &err);
+for (size_t i = 0; results && results[i]; i++) {
+    printf("%s\n", voxgig_to_json(results[i]->vt->data(results[i], NULL)));
 }
 ```
 
-#### `vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->load(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-Load a single entity matching the given criteria. Returns the entity data and sets `*err` on failure.
+Load a single entity matching the given criteria. Returns the entity, whose record `vt->data` reads, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* result = planet->vt->load(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+Entity* result = planet->vt->load(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
-#### `vt->remove(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->remove(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-Remove the entity matching the given criteria. Sets `*err` on failure.
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* result = planet->vt->remove(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+Entity* result = planet->vt->remove(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+if (result) {
+    printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
+}
 ```
 
-#### `vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
 
-Update an existing entity. The data must include the entity id. Returns the updated entity data.
+Update an existing entity. The data must include the entity id. Returns the updated entity, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* planet = voxgigsolardemo_planet(client, NULL);
-voxgig_value* result = planet->vt->update(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+Entity* result = planet->vt->update(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
 ```
 
 ### Common Methods
@@ -581,6 +593,7 @@ Timeout.
 | Option | Type |
 |---|---|
 | `clearTimer` | function |
+| `now` | function |
 | `setTimer` | function |
 
 These take no default: the feature behaves one way when you supply them and

@@ -8,7 +8,7 @@ Learn more about Voxgig SDKs at [voxgig.com/sdk](https://voxgig.com/sdk/).
 
 > TypeScript, Python, PHP, Golang, Ruby, Lua, C, Clojure, C++, C#, Dart, Elixir, Haskell, Java, JavaScript, Kotlin, Lean, OCaml, Perl, Python Data, Rust, Scala, Seneca Provider, Swift, Zig SDKs, a CLI with an interactive REPL, and an MCP server for AI agents — all generated from one OpenAPI spec by [@voxgig/sdkgen](https://github.com/voxgig/sdkgen).
 
-> **Features:** `undefined`, `undefined`, `undefined`, `undefined`, `undefined`, `undefined`, `undefined`, `undefined`, `undefined` — opt-in,
+> **Features:** `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `secrets`, `test`, `timeout` — opt-in,
 > inactive until switched on, and configured per client. See the Features
 > section of any SDK README below for what each one does.
 
@@ -40,23 +40,22 @@ network, and no credentials:
 // Shape: { entity: { <entity-name>: { <id>: <record> } } }
 const client = VoxgigSolardemoSDK.test({
   entity: {
-    moon: {
-      test01: { id: 'test01', planet_id: 'example_planet_id', diameter: 1 },
+    planet: {
+      test01: { id: 'test01', diameter: 1, kind: 'example_kind' },
     },
   },
 })
-const moons = await client.Moon().list()
-// moons is an array of Moon entities, populated with mock data
-// — call moons[0].data() for the record itself
-console.log(moons)
+const planets = await client.Planet().list()
+// planets is an array of Planet entities, one per mock record
+console.log(planets.map((planet) => planet.data()))
 ```
 
 ### Python
 
 ```python
 client = VoxgigSolardemoSDK.test()
-moons = client.Moon().list()
-print(moons)
+planets = client.Planet().list()
+print([item.data_get() for item in planets])
 ```
 
 ### PHP
@@ -64,16 +63,16 @@ print(moons)
 ```php
 // Seed fixture data so offline calls resolve without a live server.
 $client = VoxgigSolardemoSDK::test([
-    "entity" => ["moon" => ["test01" => ["id" => "test01"]]],
+    "entity" => ["planet" => ["test01" => ["id" => "test01"]]],
 ]);
-$moons = $client->Moon()->list();
+$planets = $client->Planet()->list();
 ```
 
 ### Golang
 
 ```go
 client := sdk.Test()
-result, err := client.Moon(nil).List(
+result, err := client.Planet(nil).List(
     nil, nil,
 )
 ```
@@ -83,16 +82,16 @@ result, err := client.Moon(nil).List(
 ```ruby
 # Seed fixture data so offline calls resolve without a live server.
 client = VoxgigSolardemoSDK.test({
-  "entity" => { "moon" => { "test01" => { "id" => "test01" } } },
+  "entity" => { "planet" => { "test01" => { "id" => "test01" } } },
 })
-moons = client.Moon.list()
+planets = client.Planet.list()
 ```
 
 ### Lua
 
 ```lua
 local client = sdk.test()
-local results, err = client:Moon():list()
+local results, err = client:Planet():list()
 ```
 
 ### C
@@ -102,37 +101,44 @@ local results, err = client:Moon():list()
 
 VoxgigSolardemoSDK* client = test_sdk(NULL, NULL);
 PNError* err = NULL;
-Entity* moon = voxgigsolardemo_moon(client, NULL);
-voxgig_value* moons = moon->vt->list(moon, NULL, NULL, &err);
-printf("%s\n", voxgig_to_json(moons));
+Entity* planet = voxgigsolardemo_planet(client, NULL);
+Entity** planets = planet->vt->list(planet, NULL, NULL, &err);
+for (size_t i = 0; planets && planets[i]; i++) {
+    printf("%s\n", voxgig_to_json(planets[i]->vt->data(planets[i], NULL)));
+}
 ```
 
 ### Clojure
 
 ```clojure
 (require '[sdk.api :as api]
-         '[sdk.entity.moon :as e-moon]
+         '[sdk.entity.planet :as e-planet]
          '[voxgig.struct :as vs])
 
 (def client (api/test-sdk nil nil))
-(def moons (e-moon/list (api/moon client nil) nil nil))
-(println moons)
+(def planets (e-planet/list (api/planet client nil) nil nil))
+(doseq [item planets]
+  (println ((:data-get item))))
 ```
 
 ### C++
 
 ```cpp
 auto client = VoxgigSolardemoSDK::testSDK();
-Value moons = client->moon()->list(Value::undef(), Value::undef());
-std::cout << Struct::jsonify(moons) << std::endl;
+for (const auto& planet : client->planet()->list(Value::undef(), Value::undef())) {
+  std::cout << Struct::jsonify(planet->data()) << std::endl;
+}
 ```
 
 ### C#
 
 ```csharp
 var client = VoxgigSolardemoSDK.TestSDK(null, null);
-var moonList = client.Moon().List(null);
-Console.WriteLine(moonList);
+var planetList = (List<object?>)client.Planet().List(null)!;
+foreach (var planetItem in planetList)
+{
+    Console.WriteLine(StructUtils.Jsonify(((IEntity)planetItem!).Data()));
+}
 ```
 
 ### Dart
@@ -142,8 +148,10 @@ import 'package:voxgig_solardemo_sdk/VoxgigSolardemoSDK.dart';
 
 Future<void> main() async {
   final client = VoxgigSolardemoSDK.test();
-  final moons = await client.Moon().list();
-  print(moons);
+  final planets = await client.Planet().list();
+  for (final item in planets) {
+    print(item.data());
+  }
 }
 ```
 
@@ -153,52 +161,57 @@ Future<void> main() async {
 alias VoxgigSolardemo.Helpers, as: H
 
 sdk = VoxgigSolardemo.test()
-moon = VoxgigSolardemo.moon(sdk)
-records = VoxgigSolardemo.Entity.Moon.list(moon, H.deep(%{}))
-IO.inspect(records)
+planet = VoxgigSolardemo.planet(sdk)
+planets = VoxgigSolardemo.Entity.Planet.list(planet, H.deep(%{}))
+for i <- 0..(Voxgig.Struct.size(planets) - 1)//1 do
+  IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Planet.data_get(Voxgig.Struct.getelem(planets, i))))
+end
 ```
 
 ### Haskell
 
 ```haskell
 import qualified SdkClient as Sdk
-import VoxgigStruct (Value (..), emptyMap)
+import VoxgigStruct (Value (..), emptyMap, stringify)
 import SdkHelpers (jo)
 
 main :: IO ()
 main = do
   sdk <- Sdk.testSdk0
-  ent <- Sdk.moon sdk VNoval
+  ent <- Sdk.planet sdk VNoval
   arg <- emptyMap
   ctrl <- emptyMap
-  moons <- Sdk.eList ent arg ctrl
-  print moons
+  planets <- Sdk.eList ent arg ctrl
+  mapM_ (\en -> putStrLn =<< stringify =<< Sdk.eDataGet en) planets
 ```
 
 ### Java
 
 ```java
 VoxgigSolardemoSDK client = VoxgigSolardemoSDK.testSDK(null, null);
-Object moonList = client.moon(null).list(null, null);
-System.out.println(moonList);
+List<?> planetList = (List<?>) client.planet(null).list(null, null);
+for (Object planetItem : planetList) {
+    System.out.println(((SdkEntity) planetItem).data());
+}
 ```
 
 ### JavaScript
 
 ```js
 const client = VoxgigSolardemoSDK.test()
-const moons = await client.Moon().list()
-// moons is an array of entities, populated with mock data
-// — call moons[0].data() for the record itself
-console.log(moons)
+const planets = await client.Planet().list()
+// planets is an array of Planet entities, one per mock record
+console.log(planets.map((planet) => planet.data()))
 ```
 
 ### Kotlin
 
 ```kotlin
 val client = VoxgigSolardemoSDK.testSDK(null, null)
-val moonList = client.moon(null).list(null, null)
-println(moonList)
+val planetList = client.planet(null).list(null, null) as List<*>
+for (planetItem in planetList) {
+    println((planetItem as SdkEntity).data())
+}
 ```
 
 ### Lean
@@ -208,6 +221,7 @@ cd lean
 lake build
 lake exe omnismoke      # the vendored @voxgig/omni corpus engine itself
 lake exe primary        # shared corpus: request-shaping utilities
+lake exe pipeline       # request shaping driven directly: header, cookie and query arguments
 lake exe feature        # the feature catalog (retry, cache, rbac, netsim, …)
 lake exe structcorpus   # shared corpus: the vendored struct model
 lake exe runner         # entity behaviour (offline; add SDK_TEST_BASE for live)
@@ -219,7 +233,7 @@ lake exe runner         # entity behaviour (offline; add SDK_TEST_BASE for live)
 ```ocaml
 let () =
   let client = Sdk_client.test () in
-  let results = (Sdk_client.moon client Noval).e_list (empty_map ()) Noval in
+  let results = (Sdk_client.planet client Noval).e_list (empty_map ()) Noval in
   List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) results
 ```
 
@@ -230,34 +244,39 @@ use lib 'perl/lib';
 use VoxgigSolardemoSDK;
 
 my $client = VoxgigSolardemoSDK->test(undef, undef);
-my $moons = $client->Moon->list();
-print scalar(@$moons), " records\n";
+my $planets = $client->Planet->list();
+print $_->data_get->{id}, "\n" for @$planets;
 ```
 
 ### Rust
 
 ```rust
-use voxgig_solardemo_sdk::{jo, test_sdk, Value};
+use voxgig_solardemo_sdk::{jo, test_sdk, VoxgigSolardemoEntity, Entity, Value};
 
 let client = test_sdk(Value::Noval, Value::Noval);
-let moons = client.moon(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
-println!("{:?}", moons);
+for planet in client.planet(Value::Noval).list(Value::Noval, Value::Noval).unwrap() {
+    println!("{:?}", planet.data(None));
+}
 ```
 
 ### Scala
 
 ```scala
 val client = VoxgigSolardemoSDK.testSDK(null, null)
-val moonList = client.moon(null).list(null, null)
-println(moonList)
+val planetList = client.planet(null).list(null, null).asInstanceOf[java.util.List[SdkEntity]]
+planetList.forEach(planetItem => println(planetItem.data()))
 ```
 
 ### Swift
 
 ```swift
 let client = VoxgigSolardemoSDK.testSDK(nil, nil)
-let moonList = try client.Moon().list(nil, nil)
-print(moonList)
+let planetList = try client.Planet().list(nil, nil)
+for planetItem in planetList.asList?.items ?? [] {
+    if let planetEntity = planetItem.asNative as? Entity {
+        print(planetEntity.data())
+    }
+}
 ```
 
 ### Zig
@@ -268,8 +287,12 @@ const sdk = @import("sdk");
 const h = sdk.h;
 
 const client = sdk.test_sdk(h.vnull(), h.vnull());
-switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |moons| std.debug.print("{s}\n", .{h.stringify(moons)}),
+switch (client.planet(h.vnull()).list(h.vnull(), h.vnull())) {
+    .ok => |planets| {
+        for (planets) |planet| {
+            std.debug.print("{s}\n", .{h.stringify(planet.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
@@ -278,33 +301,33 @@ switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
 
 | Language | Package | Install |
 | --- | --- | --- |
-| TypeScript | `@voxgig-sdk/voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Python | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| PHP | `voxgig-sdk/voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
+| TypeScript | `@voxgig-sdk/voxgig-solardemo-sdk` | publish pending — [install from source](ts/README.md#install) |
+| Python | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](py/README.md#install) |
+| PHP | `voxgig-sdk/voxgig-solardemo-sdk` | publish pending — [install from source](php/README.md#install) |
 | Golang | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go` | `go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go@latest` |
-| Ruby | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Lua | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| C | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Clojure | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| C++ | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| C# | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Dart | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Elixir | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Haskell | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Java | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| JavaScript | `@voxgig-sdk/voxgig-solardemo-sdk-js` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Kotlin | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Lean | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| OCaml | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Perl | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Python Data | `voxgig-sdk-voxgig-solardemo-sdk-data` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Rust | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Scala | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Seneca Provider | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Swift | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Zig | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from git tag](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags) |
-| Go CLI | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go-cli` | `go install github.com/voxgig-sdk/voxgig-solardemo-sdk/go-cli/cmd/voxgig-solardemo@latest` |
-| Go MCP server | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go-mcp` | `go get github.com/voxgig-sdk/voxgig-solardemo-sdk/go-mcp@latest` |
+| Ruby | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](rb/README.md#install) |
+| Lua | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](lua/README.md#install) |
+| C | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](c/README.md#install) |
+| Clojure | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](clojure/README.md#install) |
+| C++ | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](cpp/README.md#install) |
+| C# | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](csharp/README.md#install) |
+| Dart | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](dart/README.md#install) |
+| Elixir | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](elixir/README.md#install) |
+| Haskell | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](haskell/README.md#install) |
+| Java | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](java/README.md#install) |
+| JavaScript | `@voxgig-sdk/voxgig-solardemo-sdk-js` | publish pending — [install from source](js/README.md#install) |
+| Kotlin | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](kotlin/README.md#install) |
+| Lean | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](lean/README.md#install) |
+| OCaml | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](ocaml/README.md#install) |
+| Perl | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](perl/README.md#install) |
+| Python Data | `voxgig-sdk-voxgig-solardemo-sdk-data` | publish pending — [install from source](py-data/README.md#install) |
+| Rust | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](rust/README.md#install) |
+| Scala | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](scala/README.md#install) |
+| Seneca Provider | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](seneca-provider/README.md#install) |
+| Swift | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](swift/README.md#install) |
+| Zig | `voxgig-sdk-voxgig-solardemo-sdk` | publish pending — [install from source](zig/README.md#install) |
+| Go CLI | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go-cli` | build from source — [go-cli/README.md](go-cli/README.md) |
+| Go MCP server | `github.com/voxgig-sdk/voxgig-solardemo-sdk/go-mcp` | build from source — [go-mcp/README.md](go-mcp/README.md) |
 
 ## Quickstart
 
@@ -315,18 +338,18 @@ import { VoxgigSolardemoSDK } from '@voxgig-sdk/voxgig-solardemo-sdk'
 
 const client = new VoxgigSolardemoSDK()
 
-// List all moons (returns MoonEntity[] — .data() for the record)
+// List all moons (returns MoonEntity[], one entity per record)
 const moons = await client.Moon().list({ planet_id: "example" })
 for (const moon of moons) {
-  console.log(moon)
+  console.log(moon.data())
 }
 
-// Load a specific moon (returns a Moon)
+// Load a specific moon (returns the entity, a MoonEntity)
 const moon = await client.Moon().load({
   planet_id: 'example_planet_id',
   id: 'example_id',
 })
-console.log(moon)
+console.log(moon.data())
 ```
 
 See the [TypeScript README](ts/README.md) for the full guide.
@@ -341,9 +364,10 @@ See the [TypeScript README](ts/README.md) for the full guide.
 
 ## Use it from an AI agent (MCP)
 
-The generated MCP server exposes every operation in this SDK as an
-[MCP](https://modelcontextprotocol.io) tool that Claude, Cursor or Cline
-can call directly. Build and register it:
+The generated MCP server exposes this SDK's list and load operations as
+[MCP](https://modelcontextprotocol.io) tools that Claude, Cursor or Cline
+can call directly. It only reads: create, update, patch and remove become tools when the SDK's model sets
+`main: kit: target: 'go-mcp': tool: write: true`. Build and register it:
 
 ```bash
 cd go-mcp && go build -o voxgig-solardemo-mcp .
@@ -382,14 +406,14 @@ from voxgigsolardemo_sdk import VoxgigSolardemoSDK
 
 client = VoxgigSolardemoSDK()
 
-# List all moons (returns a list, raises on error)
+# List all moons (a list of entities, one per record; raises on error)
 moons = client.Moon().list({"planet_id": "example"})
 for moon in moons:
-    print(moon)
+    print(moon.data_get())
 
-# Load a specific moon (returns the record, raises on error)
+# Load a specific moon (returns the entity, raises on error)
 moon = client.Moon().load({"id": "example_id", "planet_id": "example_planet_id"})
-print(moon)
+print(moon.data_get())
 ```
 
 ### PHP
@@ -400,11 +424,11 @@ require_once 'voxgigsolardemo_sdk.php';
 
 $client = new VoxgigSolardemoSDK();
 
-// List all moons (returns an array; throws on error)
-$moons = $client->Moon()->list();
+// List all moons (an array of entities, one per record; throws on error)
+$moons = $client->Moon()->list(["planet_id" => "example"]);
 print_r(array_map(fn($item) => $item->data_get(), $moons));
 
-// Load a specific moon (returns the ENTITY; call data_get() for the record; throws on error)
+// Load a specific moon (returns the entity; data_get() reads its record; throws on error)
 $moon = $client->Moon()->load(["id" => "example_id", "planet_id" => "example_planet_id"]);
 print_r($moon->data_get());
 ```
@@ -416,21 +440,23 @@ import sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
 
 client := sdk.New()
 
-// List all moons
-moons, err := client.Moon(nil).List(nil, nil)
+// List all moons (one entity per record; err is non-nil on failure)
+moons, err := client.Moon(nil).List(map[string]any{"planet_id": "example"}, nil)
 if err != nil {
     panic(err)
 }
-fmt.Println(moons)
+for _, moon := range moons.([]any) {
+    fmt.Println(moon.(sdk.Entity).Data())
+}
 
-// Load a specific moon
+// Load a specific moon (returns the entity; err is non-nil on failure)
 moon, err := client.Moon(nil).Load(
     map[string]any{"planet_id": "example_planet_id", "id": "example_id"}, nil,
 )
 if err != nil {
     panic(err)
 }
-fmt.Println(moon)
+fmt.Println(moon.(sdk.Entity).Data())
 ```
 
 ### Ruby
@@ -440,29 +466,34 @@ require_relative "VoxgigSolardemo_sdk"
 
 client = VoxgigSolardemoSDK.new
 
-# List all moons (returns an Array; raises on error)
-moons = client.Moon.list
-puts moons
+# List all moons (an Array of entities, one per record; raises on error)
+moons = client.Moon.list({ "planet_id" => "example" })
+moons.each { |item| puts item.data_get }
 
-# Load a specific moon (returns the ENTITY; call data_get for the record)
+# Load a specific moon (returns the entity; data_get reads its record; raises on error)
 moon = client.Moon.load({ "id" => "example_id", "planet_id" => "example_planet_id" })
-puts moon
+puts moon.data_get
 ```
 
 ### Lua
 
 ```lua
 local sdk = require("voxgig-solardemo_sdk")
+local json = require("dkjson")
 
 local client = sdk.new()
 
--- List all moons
-local moons, err = client:Moon():list()
-print(moons)
+-- List all moons (an array of entities, one per record; err on failure)
+local moons, err = client:Moon():list({ planet_id = "example" })
+if err then error(err) end
+for _, moon in ipairs(moons) do
+  print(json.encode(moon:data_get()))
+end
 
--- Load a specific moon
+-- Load a specific moon (returns the entity; err on failure)
 local moon, err = client:Moon():load({ id = "example_id", planet_id = "example_planet_id" })
-print(moon)
+if err then error(err) end
+print(json.encode(moon:data_get()))
 ```
 
 ### C
@@ -475,15 +506,17 @@ PNError* err = NULL;
 
 Entity* moon = voxgigsolardemo_moon(client, NULL);
 
-// List all moons (returns a List, sets *err on failure)
-voxgig_value* moons = moon->vt->list(moon, NULL, NULL, &err);
-for (size_t i = 0; i < (size_t)voxgig_size(moons); i++) {
-    printf("%s\n", voxgig_to_json(voxgig_getelem(moons, v_int(i), NULL)));
+// List all moons (one entity per record, sets *err on failure)
+Entity** moons = moon->vt->list(moon, cmap(1, "planet_id", v_str("example")), NULL, &err);
+for (size_t i = 0; moons && moons[i]; i++) {
+    printf("%s\n", voxgig_to_json(moons[i]->vt->data(moons[i], NULL)));
 }
 
-// Load a specific moon (returns the record, sets *err on failure)
-voxgig_value* moon_rec = moon->vt->load(moon, cmap(2, "id", v_str("example_id"), "planet_id", v_str("example_planet_id")), NULL, &err);
-printf("%s\n", voxgig_to_json(moon_rec));
+// Load a specific moon (returns the entity, sets *err on failure)
+Entity* loaded = moon->vt->load(moon, cmap(2, "id", v_str("example_id"), "planet_id", v_str("example_planet_id")), NULL, &err);
+if (loaded) {
+    printf("%s\n", voxgig_to_json(loaded->vt->data(loaded, NULL)));
+}
 ```
 
 ### Clojure
@@ -495,13 +528,13 @@ printf("%s\n", voxgig_to_json(moon_rec));
 
 (def client (api/make-sdk nil))
 
-;; List all moons (returns a vector, raises on error)
-(doseq [moon (e-moon/list (api/moon client nil) nil nil)]
-  (println moon))
+;; List all moons (a vector of entities, one per record; raises on error)
+(doseq [moon (e-moon/list (api/moon client nil) (vs/jm "planet_id" "example") nil)]
+  (println ((:data-get moon))))
 
-;; Load a specific moon (returns the record, raises on error)
+;; Load a specific moon (returns the entity, raises on error)
 (def moon (e-moon/load (api/moon client nil) (vs/jm "id" "example_id" "planet_id" "example_planet_id") nil))
-(println moon)
+(println ((:data-get moon)))
 ```
 
 ### C++
@@ -513,31 +546,35 @@ using namespace sdk;
 
 auto client = VoxgigSolardemoSDK::create();
 
-// List all moons (returns a Value list, throws on error)
-Value moons = client->moon()->list(Value::undef(), Value::undef());
-for (const auto& moon : *moons.as_list()) {
-  std::cout << Struct::jsonify(moon) << std::endl;
+// List all moons (one entity per record, throws on error)
+std::vector<SdkEntityPtr> moons = client->moon()->list(vmap({{"planet_id", Value("example")}}), Value::undef());
+for (const auto& moon : moons) {
+  std::cout << Struct::jsonify(moon->data()) << std::endl;
 }
 
-// Load a specific moon (returns the record, throws on error)
-Value moon = client->moon()->load(vmap({{"id", Value("example_id")}, {"planet_id", Value("example_planet_id")}}), Value::undef());
-std::cout << Struct::jsonify(moon) << std::endl;
+// Load a specific moon (returns the entity, throws on error)
+SdkEntityPtr moon = client->moon()->load(vmap({{"id", Value("example_id")}, {"planet_id", Value("example_planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(moon->data()) << std::endl;
 ```
 
 ### C#
 
 ```csharp
 using VoxgigSolardemoSdk;
+using Voxgig.Struct;
 
 var client = new VoxgigSolardemoSDK();
 
-// List all moons (returns object?, an aggregate list; raises on error)
-var moonList = client.Moon().List(null);
-Console.WriteLine(moonList);
+// List all moons (a list of entities, one per record, as object?; raises on error)
+var moonList = (List<object?>)client.Moon().List(new Dictionary<string, object?> { ["planet_id"] = "example" })!;
+foreach (var moonItem in moonList)
+{
+    Console.WriteLine(StructUtils.Jsonify(((IEntity)moonItem!).Data()));
+}
 
-// Load a specific moon (returns the record, raises on error)
-var moon = client.Moon().Load(new Dictionary<string, object?> { ["id"] = "example_id", ["planet_id"] = "example_planet_id" });
-Console.WriteLine(moon);
+// Load a specific moon (returns the entity, raises on error)
+var moon = (IEntity)client.Moon().Load(new Dictionary<string, object?> { ["id"] = "example_id", ["planet_id"] = "example_planet_id" })!;
+Console.WriteLine(StructUtils.Jsonify(moon.Data()));
 ```
 
 ### Dart
@@ -548,15 +585,15 @@ import 'package:voxgig_solardemo_sdk/VoxgigSolardemoSDK.dart';
 Future<void> main() async {
   final client = VoxgigSolardemoSDK();
 
-  // List all moons (returns a list of entities, throws on error)
+  // List all moons (one entity per record, throws on error)
   final moons = await client.Moon().list({ planet_id: "example" });
   for (final item in moons) {
     print(item.data());
   }
 
-  // Load a specific moon (returns the record, throws on error)
+  // Load a specific moon (returns the entity, throws on error)
   final moon = await client.Moon().load({'id': 'example_id', 'planet_id': 'example_planet_id'});
-  print(moon);
+  print(moon.data());
 }
 ```
 
@@ -569,55 +606,62 @@ sdk = VoxgigSolardemo.new()
 
 moon = VoxgigSolardemo.moon(sdk)
 
-# List all moon records (raises on error)
-records = VoxgigSolardemo.Entity.Moon.list(moon)
-IO.inspect(records)
+# List all moons (a list of entities, one per record; raises on error)
+moons = VoxgigSolardemo.Entity.Moon.list(moon, VoxgigSolardemo.Helpers.deep(%{"planet_id" => "example"}))
+for i <- 0..(Voxgig.Struct.size(moons) - 1)//1 do
+  IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Moon.data_get(Voxgig.Struct.getelem(moons, i))))
+end
 
-# Load a specific moon (returns the record, raises on error)
-record = VoxgigSolardemo.Entity.Moon.load(moon, H.deep(%{"id" => "example_id", "planet_id" => "example_planet_id"}))
-IO.inspect(record)
+# Load a specific moon (returns the entity, raises on error)
+moon = VoxgigSolardemo.Entity.Moon.load(moon, H.deep(%{"id" => "example_id", "planet_id" => "example_planet_id"}))
+IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Moon.data_get(moon)))
 ```
 
 ### Haskell
 
 ```haskell
 import qualified SdkClient as Sdk
-import VoxgigStruct (Value (..), emptyMap)
+import VoxgigStruct (Value (..), emptyMap, stringify)
 import SdkHelpers (jo)
 
 main :: IO ()
 main = do
   sdk <- Sdk.newSdk0
 
-  -- List all moons (one ENTITY per record, raises on error)
+  -- List all moons (one entity per record, raises on error)
   ent <- Sdk.moon sdk VNoval
   match <- emptyMap
   ctrl <- emptyMap
   moons <- Sdk.eList ent match ctrl
-  mapM_ (\en -> print =<< Sdk.eDataGet en) moons
+  mapM_ (\en -> putStrLn =<< stringify =<< Sdk.eDataGet en) moons
 
-  -- Load a specific moon (returns the ENTITY, raises on error)
+  -- Load a specific moon (returns the entity, raises on error)
   ent2 <- Sdk.moon sdk VNoval
   m <- jo [("id", VStr "example_id"), ("planet_id", VStr "example_planet_id")]
   ctrl2 <- emptyMap
   moon <- Sdk.eLoad ent2 m ctrl2
-  print =<< Sdk.eDataGet moon
+  putStrLn =<< stringify =<< Sdk.eDataGet moon
 ```
 
 ### Java
 
 ```java
+import java.util.List;
+import java.util.Map;
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK;
+import voxgig.voxgigsolardemosdk.core.SdkEntity;
 
 VoxgigSolardemoSDK client = new VoxgigSolardemoSDK();
 
-// List all moons (returns Object, an aggregate list; raises on error)
-Object moonList = client.moon(null).list(null, null);
-System.out.println(moonList);
+// List all moons (a list of entities, one per record; raises on error)
+List<?> moonList = (List<?>) client.moon(null).list(Map.of("planet_id", "example"), null);
+for (Object moonItem : moonList) {
+    System.out.println(((SdkEntity) moonItem).data());
+}
 
-// Load a specific moon (returns the record, raises on error)
-Object moon = client.moon(null).load(Map.of("id", "example_id", "planet_id", "example_planet_id"), null);
-System.out.println(moon);
+// Load a specific moon (returns the entity, raises on error)
+SdkEntity moon = (SdkEntity) client.moon(null).load(Map.of("id", "example_id", "planet_id", "example_planet_id"), null);
+System.out.println(moon.data());
 ```
 
 ### JavaScript
@@ -627,10 +671,10 @@ const { VoxgigSolardemoSDK } = require('@voxgig-sdk/voxgig-solardemo-sdk-js')
 
 const client = new VoxgigSolardemoSDK()
 
-// List all moons (returns an array)
+// List all moons (an array of entities, one per record)
 const moons = await client.Moon().list({ planet_id: "example" })
 for (const moon of moons) {
-  console.log(moon)
+  console.log(moon.data())
 }
 
 // Load a specific moon (returns the entity)
@@ -638,23 +682,26 @@ const moon = await client.Moon().load({
   planet_id: 'example_planet_id',
   id: 'example_id',
 })
-console.log(moon)
+console.log(moon.data())
 ```
 
 ### Kotlin
 
 ```kotlin
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.SdkEntity
 
 val client = VoxgigSolardemoSDK()
 
-// List all moons (returns Any?, an aggregate list; raises on error)
-val moonList = client.moon(null).list(null, null)
-println(moonList)
+// List all moons (a list of entities, one per record; raises on error)
+val moonList = client.moon(null).list(mutableMapOf<String, Any?>("planet_id" to "example"), null) as List<*>
+for (moonItem in moonList) {
+    println((moonItem as SdkEntity).data())
+}
 
-// Load a specific moon (returns the record, raises on error)
-val moon = client.moon(null).load(mutableMapOf<String, Any?>("id" to "example_id", "planet_id" to "example_planet_id"), null)
-println(moon)
+// Load a specific moon (returns the entity, raises on error)
+val moon = client.moon(null).load(mutableMapOf<String, Any?>("id" to "example_id", "planet_id" to "example_planet_id"), null) as SdkEntity
+println(moon.data())
 ```
 
 ### Lean
@@ -679,11 +726,12 @@ Build it with `cd lean && lake build`.
 ```ocaml
 open Voxgig_struct
 open Sdk_helpers
+open Sdk_types
 
 let () =
   let client = Sdk_client.make0 () in
   (* List all moon records (one ENTITY per record; raises on error) *)
-  let moons = (Sdk_client.moon client Noval).e_list (empty_map ()) Noval in
+  let moons = (Sdk_client.moon client Noval).e_list (jo [("planet_id", (Str "example"))]) Noval in
   List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) moons;
   (* Load a specific moon (returns the ENTITY; raises on error) *)
   let moon = (Sdk_client.moon client Noval).e_load (jo [("id", (Str "example_id")); ("planet_id", (Str "example_planet_id"))]) Noval in
@@ -698,51 +746,50 @@ use VoxgigSolardemoSDK;
 
 my $client = VoxgigSolardemoSDK->new;
 
-# List all moons (returns an arrayref; dies on error)
-my $moons = $client->Moon->list;
+# List all moons (an arrayref of entities, one per record; dies on error)
+my $moons = $client->Moon->list({ 'planet_id' => 'example' });
 for my $moon (@$moons) {
-    print "$moon->{id}\n";
+    print $moon->data_get->{id}, "\n";
 }
 
-# Load a specific moon (returns the ENTITY; call data_get for the record; dies on error)
+# Load a specific moon (returns the entity; data_get reads its record; dies on error)
 my $moon = $client->Moon->load({ 'id' => 'example_id', 'planet_id' => 'example_planet_id' });
-print "$moon->{id}\n";
+print $moon->data_get->{id}, "\n";
 ```
 
 ### Rust
 
 ```rust
-use voxgig_solardemo_sdk::{jo, VoxgigSolardemoSDK, Value};
+use voxgig_solardemo_sdk::{jo, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Entity, Value};
 
 let client = VoxgigSolardemoSDK::new(Value::Noval);
 
-// List all moons (returns a Value::List, Err on failure)
-let moons = client.moon(Value::Noval).list(Value::Noval, Value::Noval).unwrap();
-if let Value::List(items) = &moons {
-    for moon in items.borrow().iter() {
-        println!("{:?}", moon);
-    }
+// List all moons (one entity per record, Err on failure)
+let moons = client.moon(Value::Noval).list(jo(vec![("planet_id", Value::str("example"))]), Value::Noval).unwrap();
+for moon in &moons {
+    println!("{:?}", moon.data(None));
 }
 
-// Load a specific moon (returns the record, Err on failure)
+// Load a specific moon (returns the entity, Err on failure)
 let moon = client.moon(Value::Noval).load(jo(vec![("id", Value::str("example_id")), ("planet_id", Value::str("example_planet_id"))]), Value::Noval).unwrap();
-println!("{:?}", moon);
+println!("{:?}", moon.data(None));
 ```
 
 ### Scala
 
 ```scala
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.SdkEntity
 
 val client = new VoxgigSolardemoSDK()
 
-// List all moons (returns Object, an aggregate list; raises on error)
-val moonList = client.moon(null).list(null, null)
-println(moonList)
+// List all moons (a list of entities, one per record; raises on error)
+val moonList = client.moon(null).list(java.util.Map.of("planet_id", "example"), null).asInstanceOf[java.util.List[SdkEntity]]
+moonList.forEach(moonItem => println(moonItem.data()))
 
-// Load a specific moon (returns the record, raises on error)
-val moon = client.moon(null).load(java.util.Map.of("id", "example_id", "planet_id", "example_planet_id"), null)
-println(moon)
+// Load a specific moon (returns the entity, raises on error)
+val moon = client.moon(null).load(java.util.Map.of("id", "example_id", "planet_id", "example_planet_id"), null).asInstanceOf[SdkEntity]
+println(moon.data())
 ```
 
 ### Swift
@@ -752,15 +799,19 @@ import VoxgigSolardemoSdk
 
 let client = VoxgigSolardemoSDK()
 
-// List all moons (returns a Value list, throws on error)
-let moonList = try client.Moon().list(nil, nil)
-for moon in moonList.asList?.items ?? [] {
-    print(moon)
+// List all moons (a Value list of entities, one per record; throws on error)
+let moonList = try client.Moon().list(VMap([("planet_id", .string("example"))]), nil)
+for moonItem in moonList.asList?.items ?? [] {
+    if let moonEntity = moonItem.asNative as? Entity {
+        print(moonEntity.data())
+    }
 }
 
-// Load a specific moon (returns the record, throws on error)
+// Load a specific moon (returns the entity, throws on error)
 let moon = try client.Moon().load(VMap([("id", .string("example_id")), ("planet_id", .string("example_planet_id"))]), nil)
-print(moon)
+if let moonEntity = moon.asNative as? Entity {
+    print(moonEntity.data())
+}
 ```
 
 ### Zig
@@ -772,15 +823,19 @@ const h = sdk.h;
 
 const client = sdk.VoxgigSolardemoSDK.new(h.vnull());
 
-// List all moons (Ok is a Value array, .err on failure)
-switch (client.moon(h.vnull()).list(h.vnull(), h.vnull())) {
-    .ok => |moons| std.debug.print("{s}\n", .{h.stringify(moons)}),
+// List all moons (one entity per record, .err on failure)
+switch (client.moon(h.vnull()).list(h.jo(&.{.{ "planet_id", h.vstr("example") }}), h.vnull())) {
+    .ok => |moons| {
+        for (moons) |moon| {
+            std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))});
+        }
+    },
     .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 
-// Load a specific moon (Ok is the record, .err on failure)
+// Load a specific moon (.ok is the entity, .err on failure)
 switch (client.moon(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("example_id") }, .{ "planet_id", h.vstr("example_planet_id") }}), h.vnull())) {
-    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon)}),
+    .ok => |moon| std.debug.print("{s}\n", .{h.stringify(moon.asEntity().data(null))}),
     .err => |e| std.debug.print("load failed: {s}\n", .{e.msg}),
 }
 ```
@@ -808,10 +863,9 @@ const result = await client.direct({
   method: 'GET',
   params: { id: 'example' },
 })
-if (result instanceof Error) {
-  throw result
+if (result.ok) {
+  console.log(result.data)
 }
-console.log(result.data)
 ```
 
 **Python:**
@@ -922,7 +976,7 @@ result = VoxgigSolardemo.direct(sdk, VoxgigSolardemo.Helpers.deep(%{
 ```haskell
 import qualified SdkClient as Sdk
 import qualified SdkFeatures as F
-import VoxgigStruct (Value (..))
+import VoxgigStruct (Value (..), stringify)
 import SdkHelpers (jo)
 
 main :: IO ()
@@ -931,7 +985,7 @@ main = do
   params <- jo [("id", VStr "example")]
   args <- jo [("path", VStr "/api/resource/{id}"), ("method", VStr "GET"), ("params", params)]
   result <- F.direct sdk args
-  print result
+  putStrLn =<< stringify result
 ```
 
 **Java:**
@@ -949,10 +1003,9 @@ const result = await client.direct({
   method: 'GET',
   params: { id: 'example' },
 })
-if (result instanceof Error) {
-  throw result
+if (result.ok) {
+  console.log(result.data)
 }
-console.log(result.data)
 ```
 
 **Kotlin:**
@@ -1071,10 +1124,12 @@ customizable without forking any upstream tool:
 - **Templates** (`.sdk/tm/`) and **components** (`.sdk/src/cmp/`) are
   the two layers of generation, copied into this repo: templates are the
   literal per-language source, components generate the API-shaped parts.
-- **Regeneration merges.** By default, newly generated content is
-  three-way merged into existing files, so generator updates and local
-  edits usually converge without manual conflict handling. A project can
-  opt for plain overwrite instead.
+- **Regeneration overwrites.** Each run rewrites every generated file from
+  the model, the templates and the components, so an edit made to
+  generated output is lost. Say what this project needs in its own model
+  (`.sdk/model/sdk.aontu`), or extend a target with a component of its
+  own in `.sdk/src/cmp/<target>/`, registered with `registerComponent`,
+  which `voxgig-sdkgen doctor` reports as an addition rather than drift.
 - **Custom features and entire custom targets** arrive through sdkgen
   packages (`voxgig-sdkgen package add`), on the same rails as the
   bundled languages, and `voxgig-sdkgen doctor` reports any drift from
