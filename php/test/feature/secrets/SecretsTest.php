@@ -275,7 +275,9 @@ class VoxgigSolardemoSecretsTest extends TestCase
         $this->driveUntil($client, 'returned an SDK error',
             function () use (&$caught) { return $caught !== null; },
             function (\Throwable $error) use (&$caught) {
-                if ($error instanceof VoxgigSolardemoError) {
+                // A call whose route it cannot fill is refused before the
+                // chain is consulted, so it is not the refusal under test.
+                if ($error instanceof VoxgigSolardemoError && 'url_param_missing' !== $error->sdk_code) {
                     $caught = $error;
                 }
             });

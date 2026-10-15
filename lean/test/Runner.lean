@@ -355,7 +355,11 @@ def main : IO UInt32 := do
           if gid == wid then pass s!"moon.load offline (id={wid})"
           else fail s!"moon.load offline: got {gid}, want {wid}"
         -- create -> load back -> remove, all in the store
-        let created ← Moon.create tclient (← newRefData seed "moon") (← emptyMap)
+        let cd ← newRefData seed "moon"
+        if ids.size > 0 then do
+          let rec0 ← SdkUtility.gp existing ids[0]!
+          SdkUtility.sp cd "planet_id" (← SdkUtility.gp rec0 "planet_id")
+        let created ← Moon.create tclient cd (← emptyMap)
         let cid ← SdkRuntime.gpS created "id"
         if cid == "" then fail "moon.create offline returned no id" else do
           let m2 ← newMap #[("id", Value.str cid)]
@@ -395,7 +399,8 @@ def main : IO UInt32 := do
           if gid == wid then pass s!"planet.load offline (id={wid})"
           else fail s!"planet.load offline: got {gid}, want {wid}"
         -- create -> load back -> remove, all in the store
-        let created ← Planet.create tclient (← newRefData seed "planet") (← emptyMap)
+        let cd ← newRefData seed "planet"
+        let created ← Planet.create tclient cd (← emptyMap)
         let cid ← SdkRuntime.gpS created "id"
         if cid == "" then fail "planet.create offline returned no id" else do
           let m2 ← newMap #[("id", Value.str cid)]

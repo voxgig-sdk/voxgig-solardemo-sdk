@@ -96,6 +96,9 @@ moonBasicTest c = do
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
     d <- newRefData fixture "moon"
+    entmap <- getp existing "moon"
+    rec0 <- keysof entmap >>= \ids -> case ids of { (i : _) -> getp entmap i; [] -> emptyMap }
+    setp d "planet_id" =<< getp rec0 "planet_id"
     ctrl <- emptyMap
     created <- eCreate ent d ctrl
     cd <- eDataGet created
@@ -110,6 +113,9 @@ moonBasicTest c = do
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
     d <- newRefData fixture "moon"
+    entmap <- getp existing "moon"
+    rec0 <- keysof entmap >>= \ids -> case ids of { (i : _) -> getp entmap i; [] -> emptyMap }
+    setp d "planet_id" =<< getp rec0 "planet_id"
     ctrl <- emptyMap
     created <- eCreate ent d ctrl
     cd <- eDataGet created
@@ -127,6 +133,9 @@ moonBasicTest c = do
     sdk <- C.testSdk opts VNoval
     ent <- C.moon sdk VNoval
     d <- newRefData fixture "moon"
+    entmap <- getp existing "moon"
+    rec0 <- keysof entmap >>= \ids -> case ids of { (i : _) -> getp entmap i; [] -> emptyMap }
+    setp d "planet_id" =<< getp rec0 "planet_id"
     ctrl <- emptyMap
     created <- eCreate ent d ctrl
     cd <- eDataGet created

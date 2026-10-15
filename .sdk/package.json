@@ -33,7 +33,7 @@
     "@voxgig/model": "~12.0.1",
     "@voxgig/sdkgen": "~4.34.3",
     "@voxgig/sdkgen-infrapack": "^0.0.18",
-    "@voxgig/sdkgen-langpack": "^0.0.13",
+    "@voxgig/sdkgen-langpack": "^0.0.14",
     "@voxgig/struct": ">=0.2",
     "@voxgig/util": ">=0.5",
     "aontu": ">=0.75.0",

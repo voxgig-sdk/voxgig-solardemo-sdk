@@ -20,6 +20,7 @@ SERIES_ACCESSORS = [
     "moon",
     "planet",
 ]
+TEST_ACCESSOR = "planets"
 
 
 class TestAccessorSurface:
@@ -48,8 +49,8 @@ class TestAccessorSurface:
                 f"accessor {a} would shadow the client surface"
 
 
-@pytest.mark.skipif(len(FRAME_ACCESSORS) == 0,
-                    reason="this API exposes no list operations")
+@pytest.mark.skipif(TEST_ACCESSOR is None,
+                    reason="this API exposes no list operation without a parent")
 class TestFramesAgainstTestMode:
 
     def _client(self):
@@ -58,18 +59,18 @@ class TestFramesAgainstTestMode:
 
     def test_first_frame_accessor_returns_a_dataframe(self):
         ad = self._client()
-        df = getattr(ad, FRAME_ACCESSORS[0])(quiet=True)
+        df = getattr(ad, TEST_ACCESSOR)(quiet=True)
         assert isinstance(df, pd.DataFrame)
 
     def test_declared_columns_have_their_model_dtypes(self):
         # Any column the model declared AND the API returned must carry the
         # model's dtype — this is what makes groupby/merge behave.
         ad = self._client()
-        df = getattr(ad, FRAME_ACCESSORS[0])(quiet=True)
+        df = getattr(ad, TEST_ACCESSOR)(quiet=True)
         for col in df.columns:
             assert str(df[col].dtype) != "float64" or True  # dtypes applied
 
     def test_limit_is_respected(self):
         ad = self._client()
-        df = getattr(ad, FRAME_ACCESSORS[0])(limit=1, quiet=True)
+        df = getattr(ad, TEST_ACCESSOR)(limit=1, quiet=True)
         assert len(df) <= 1
