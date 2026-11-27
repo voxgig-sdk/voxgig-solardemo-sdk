@@ -13,7 +13,7 @@ let make_config () : value =
     ("main", (jo [
       ("name", (Str "VoxgigSolardemo"));
       ("slug", (Str "voxgig-solardemo"));
-      ("version", (Str "0.0.1"));
+      ("version", (Str "0.1.0"));
       ("target", (Str "ocaml")) ]));
     ("feature", (jo [
       ("debug", (jo [

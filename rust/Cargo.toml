@@ -1,6 +1,6 @@
 [package]
 name = "voxgig-voxgig-solardemo-sdk"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 description = "Unofficial generated Rust SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider."
 license = "MIT"

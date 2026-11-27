@@ -13,7 +13,7 @@ public static class SdkConfig
             {
                 ["name"] = "VoxgigSolardemo",
                 ["slug"] = "voxgig-solardemo",
-                ["version"] = "0.0.1",
+                ["version"] = "0.1.0",
                 ["target"] = "csharp",
             },
             ["feature"] = new Dictionary<string, object?>

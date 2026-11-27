@@ -1,6 +1,6 @@
 {
   "name": "@seneca/voxgig-solardemo-provider",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "dist/voxgig-solardemo-provider.js",
   "type": "commonjs",
   "types": "dist/voxgig-solardemo-provider.d.ts",
@@ -46,7 +46,7 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@voxgig-sdk/voxgig-solardemo-sdk": "^0.0.1"
+    "@voxgig-sdk/voxgig-solardemo-sdk": "^0.1.0"
   },
   "peerDependencies": {
     "@seneca/env": ">=0.4",

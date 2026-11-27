@@ -34,7 +34,7 @@ class VoxgigSolardemoConfig
             "main" => [
                 "name" => "VoxgigSolardemo",
                 "slug" => "voxgig-solardemo",
-                "version" => "0.0.1",
+                "version" => "0.1.0",
                 "target" => "php",
             ],
             "feature" => [

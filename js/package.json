@@ -1,6 +1,6 @@
 {
   "name": "@voxgig-sdk/voxgig-solardemo-sdk-js",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Unofficial generated JavaScript SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
   "keywords": [
     "voxgig",

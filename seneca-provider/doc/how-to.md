@@ -259,8 +259,8 @@ const info = await seneca.post(
 {
   ok: true,
   name: 'voxgig-solardemo',
-  version: '0.0.1',
-  sdk: { name: '@voxgig-sdk/voxgig-solardemo-sdk', version: '0.0.1' },
+  version: '0.1.0',
+  sdk: { name: '@voxgig-sdk/voxgig-solardemo-sdk', version: '0.1.0' },
 }
 ```
 

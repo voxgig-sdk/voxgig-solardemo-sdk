@@ -12,7 +12,7 @@ func MakeConfig() map[string]any {
 		"main": map[string]any{
 			"name": "VoxgigSolardemo",
 			"slug": "voxgig-solardemo",
-			"version": "0.0.1",
+			"version": "0.1.0",
 			"target": "go",
 		},
 		"feature": map[string]any{

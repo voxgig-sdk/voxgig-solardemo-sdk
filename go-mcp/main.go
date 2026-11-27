@@ -33,7 +33,7 @@ func main() {
 	server := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "voxgig-solardemo",
-			Version: "0.0.1",
+			Version: "0.1.0",
 		},
 		nil,
 	)

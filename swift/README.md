@@ -23,7 +23,7 @@ your `Package.swift`:
 ```swift
 dependencies: [
     // From the git release tag:
-    .package(url: "https://github.com/voxgig-sdk/voxgig-solardemo-sdk", exact: "0.0.1"),
+    .package(url: "https://github.com/voxgig-sdk/voxgig-solardemo-sdk", exact: "0.1.0"),
 ],
 ```
 

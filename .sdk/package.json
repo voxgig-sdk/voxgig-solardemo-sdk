@@ -28,10 +28,10 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": ">=25.6",
-    "@voxgig/apidef": "~8.35.0",
+    "@voxgig/apidef": "~8.36.0",
     "@voxgig/docgen": "~0.30.11",
     "@voxgig/model": "~12.0.2",
-    "@voxgig/sdkgen": "~4.49.0",
+    "@voxgig/sdkgen": "~4.49.1",
     "@voxgig/sdkgen-infrapack": "^0.0.20",
     "@voxgig/sdkgen-langpack": "^0.1.0",
     "@voxgig/struct": ">=0.2",

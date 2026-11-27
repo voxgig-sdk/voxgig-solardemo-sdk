@@ -11,7 +11,7 @@ pub fn make_config() -> Value {
         ("main".to_string(), Value::map_of([
             ("name".to_string(), Value::str("VoxgigSolardemo")),
             ("slug".to_string(), Value::str("voxgig-solardemo")),
-            ("version".to_string(), Value::str("0.0.1")),
+            ("version".to_string(), Value::str("0.1.0")),
             ("target".to_string(), Value::str("rust")),
         ])),
         ("feature".to_string(), Value::map_of([

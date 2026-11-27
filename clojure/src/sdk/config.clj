@@ -694,7 +694,7 @@
       "name" "VoxgigSolardemo"
       "slug" "voxgig-solardemo"
       "target" "clojure"
-      "version" "0.0.1")
+      "version" "0.1.0")
     "options" (vs/jm
       "base" "http://localhost:8901"
       "entity" (vs/jm

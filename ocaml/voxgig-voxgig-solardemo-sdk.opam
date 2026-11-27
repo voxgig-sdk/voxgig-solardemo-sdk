@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "voxgig-voxgig-solardemo-sdk"
-version: "0.0.1"
+version: "0.1.0"
 synopsis: "Unofficial generated OCaml SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider."
 maintainer: "Voxgig"
 authors: "Voxgig"

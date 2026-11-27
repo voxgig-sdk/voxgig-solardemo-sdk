@@ -9,7 +9,7 @@ voxgig_value* make_config(void) {
     "main", cmap(4,
       "name", v_str("VoxgigSolardemo"),
       "slug", v_str("voxgig-solardemo"),
-      "version", v_str("0.0.1"),
+      "version", v_str("0.1.0"),
       "target", v_str("c")),
     "feature", cmap(9,
       "debug", cmap(4,

@@ -19,7 +19,7 @@ my $CONFIG_JSON = <<'END_CONFIG_JSON';
   "main": {
     "name": "VoxgigSolardemo",
     "slug": "voxgig-solardemo",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "target": "perl"
   },
   "feature": {

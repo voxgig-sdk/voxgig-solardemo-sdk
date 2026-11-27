@@ -24,7 +24,7 @@ dependencies:
     git:
       url: https://github.com/voxgig-sdk/voxgig-solardemo-sdk
       path: dart
-      ref: dart/v0.0.1
+      ref: dart/v0.1.0
 ```
 
 Or depend on it from a local source checkout:

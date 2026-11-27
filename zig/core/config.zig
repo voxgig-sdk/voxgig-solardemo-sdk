@@ -11,7 +11,7 @@ pub fn make_config() Value {
         .{ "main", h.jo(&.{
             .{ "name", h.vstr("VoxgigSolardemo") },
             .{ "slug", h.vstr("voxgig-solardemo") },
-            .{ "version", h.vstr("0.0.1") },
+            .{ "version", h.vstr("0.1.0") },
             .{ "target", h.vstr("zig") },
         }) },
         .{ "feature", h.jo(&.{

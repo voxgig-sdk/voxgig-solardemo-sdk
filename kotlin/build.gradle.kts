@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.voxgig"
-version = "0.0.1"
+version = "0.1.0"
 description = "Unofficial generated Kotlin SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider."
 
 repositories {

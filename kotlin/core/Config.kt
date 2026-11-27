@@ -56,7 +56,7 @@ object Config {
     b.append(" \"main\": {")
     b.append("  \"name\": \"VoxgigSolardemo\",")
     b.append("  \"slug\": \"voxgig-solardemo\",")
-    b.append("  \"version\": \"0.0.1\",")
+    b.append("  \"version\": \"0.1.0\",")
     b.append("  \"target\": \"kotlin\"")
     b.append(" },")
     b.append(" \"feature\": {")
