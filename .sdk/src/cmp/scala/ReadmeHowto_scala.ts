@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems, javaMapOf } from '@voxgig/sdkgen'
+import { cmp, Content, entityIdField, pickExampleEntity, requiredItems, javaMapOf, matchExampleItems, javaMapItems, requestExampleItems, cdTarget, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -11,6 +11,7 @@ import { scalaVarName, scalaLit } from './utility_scala'
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
 
   const SDK = model.const.Name + 'SDK'
 
@@ -26,13 +27,18 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = 'null'
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `java.util.Map.of("${idF}", "test01")` : 'null'
+    const items = javaMapItems(matchExampleItems(exampleEntity, primaryOp, idF))
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = 0 < items.length
+      ? javaMapOf(items.map((it: any) =>
+        `${JSON.stringify(it.name)}, ${it.name === idF ? '"test01"' : scalaLit(it.type)}`), 'java.util.')
+      : 'null'
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
-    const chosen = requiredItems(exampleEntity, 'list')
+    const chosen = javaMapItems(requiredItems(exampleEntity, 'list'))
     testArg = javaMapOf(chosen.map((it: any) =>
       `${JSON.stringify(it.name)}, ${scalaLit(it.type)}`), 'java.util.')
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = javaMapItems(requestExampleItems(exampleEntity, primaryOp))
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -56,19 +62,15 @@ println(${eVar}.data())`
     "method", "GET"))
 println(result)`
 
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
-    : ''
-
   Content(`### Make a direct HTTP request
 
 For endpoints not covered by entity methods:
 
 \`\`\`scala
 val result = client.direct(java.util.Map.of(
-    "path", "/api/resource/{id}",
-    "method", "GET",
-    "params", java.util.Map.of("id", "example")))
+    "path", "${dx.path}",
+    "method", "${dx.method}",
+    "params", java.util.Map.of("${dx.param}", "example")))
 
 if (java.lang.Boolean.TRUE == result.get("ok")) {
     println(result.get("status"))  // 200
@@ -87,9 +89,9 @@ else {
 \`\`\`scala
 // prepare() returns the fetch definition and raises on error.
 val fetchdef = client.prepare(java.util.Map.of(
-    "path", "/api/resource/{id}",
-    "method", "DELETE",
-    "params", java.util.Map.of("id", "example")))
+    "path", "${dx.path}",
+    "method", "${dx.method}",
+    "params", java.util.Map.of("${dx.param}", "example")))
 
 println(fetchdef.get("url"))
 println(fetchdef.get("method"))
@@ -127,18 +129,13 @@ options.put("system", java.util.Map.of("fetch", mockFetch))
 val client = new ${SDK}(options)
 \`\`\`
 
-### Run live tests
+### Run the test suite
 
-Create a \`.env.local\` file at the project root:
-
-\`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
-\`\`\`
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 \`\`\`bash
-cd scala && make test
+${cdTarget(target)}make test
 \`\`\`
 
 `)

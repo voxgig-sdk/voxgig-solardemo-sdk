@@ -28,7 +28,8 @@
 // This file lives in the `feature/` container on purpose: it is per-feature
 // source, and travels with the feature.
 
-import java.util.{ArrayList, LinkedHashMap, List => JList, Map => JMap}
+import java.nio.charset.StandardCharsets
+import java.util.{ArrayList, Base64, LinkedHashMap, List => JList, Map => JMap}
 import java.util.function.{BiFunction, Supplier}
 
 import scala.collection.mutable.ListBuffer
@@ -44,6 +45,18 @@ object SecretsTestMain {
   private var npass = 0
   private val failures = new ArrayList[String]()
 
+  // The header the credential travels in: the DEFAULT client's auth.name,
+  // lower-cased as prepareAuth sends it. Read from a default client because
+  // a test's `auth: null` leaves no name to read.
+  private lazy val CREDHEADER: String =
+    VoxgigSolardemoSDK.testSDK(null, null).optionsMap().get("auth") match {
+      case auth: JMap[_, _] => auth.asInstanceOf[JMap[String, Object]].get("name") match {
+        case s: String if s.nonEmpty => s.toLowerCase(java.util.Locale.ROOT)
+        case _ => "authorization"
+      }
+      case _ => "authorization"
+    }
+
   private def pass(): Unit = { npass += 1 }
   private def fail(name: String, msg: String): Unit = failures.add(name + ": " + msg)
   private def check(name: String, cond: Boolean, msg: String): Unit =
@@ -56,22 +69,28 @@ object SecretsTestMain {
   private def eqi(name: String, exp: Int, act: Int): Unit =
     check(name, exp == act, "expected " + exp + ", got " + act)
 
-  // The Authorization header carries the SPEC's credential prefix, which a
-  // TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives `Bearer
-  // <token>`, an apiKey scheme the raw token. So assert on the CREDENTIAL and
-  // let the prefix be whatever this SDK's API declares - pinning the whole
-  // header value passes only for a prefix-less API, and this file ships to
-  // every project that selects the feature.
-  // HTTP Basic carries base64(key:secret) instead, and scala ships this suite
-  // untrimmed, so it also runs for a Basic API.
-  private def credentialIs(name: String, header: String, token: String): Unit = {
-    val got = if (header == null) "" else header
-    val basic = got.startsWith("Basic ") && (try {
-      new String(java.util.Base64.getDecoder.decode(got.substring(6)), "UTF-8").startsWith(token + ":")
-    } catch { case _: IllegalArgumentException => false })
-    check(name, got == token || got.endsWith(" " + token) || basic,
-      "expected the authorization header to carry " + token + ", got \"" + got + "\"")
+  // The form prepareAuth writes, from the DEFAULT client's auth: under Basic
+  // the token is the key half of the encoded pair, and a prefix is
+  // space-joined.
+  private lazy val CREDFORM: (String, Boolean) =
+    VoxgigSolardemoSDK.testSDK(null, null).optionsMap().get("auth") match {
+      case auth: JMap[_, _] =>
+        (auth.get("prefix") match { case s: String => s; case _ => "" },
+          java.lang.Boolean.TRUE == auth.get("basic"))
+      case _ => ("", false)
+    }
+
+  // The header value prepareAuth writes for a token.
+  private def credential(token: String, secret: String): String = {
+    val value =
+      if (CREDFORM._2) Base64.getEncoder.encodeToString((token + ":" + secret).getBytes(StandardCharsets.UTF_8))
+      else token
+    if ("" == CREDFORM._1) value else CREDFORM._1 + " " + value
   }
+
+  private def credentialIs(name: String, header: String, token: String, secret: String = ""): Unit =
+    eqs(name, credential(token, secret), if (header == null) "" else header,
+      "the " + CREDHEADER + " header carries " + token)
 
   // ---- the recording transport --------------------------------------------
   //
@@ -98,12 +117,14 @@ object SecretsTestMain {
         }
         val call = new LinkedHashMap[String, Object]()
         call.put("url", url)
-        call.put("has", java.lang.Boolean.valueOf(headers.containsKey("authorization")))
-        call.put("auth", headers.get("authorization") match {
+        call.put("has", java.lang.Boolean.valueOf(headers.containsKey(CREDHEADER)))
+        call.put("auth", headers.get(CREDHEADER) match {
           case s: String => s
           case _ => ""
         })
+        call.put("values", headers.values().toArray.map(v => String.valueOf(v)).mkString("\n"))
         call.put("body", fetchdef.get("body") match { case s: String => s; case _ => "" })
+        call.put("redirect", fetchdef.get("redirect"))
         calls.add(call)
 
         if (url.endsWith("/" + tokenpath)) {
@@ -327,7 +348,7 @@ object SecretsTestMain {
     val client = VoxgigSolardemoSDK.testSDK(null, jmap("apikey" -> "OPTKEY01"))
     val fetchdef = client.prepare(jmap("path" -> "/"))
     val headers = fetchdef.get("headers").asInstanceOf[JMap[String, Object]]
-    credentialIs("inactive.apikey", headers.get("authorization").asInstanceOf[String], "OPTKEY01")
+    credentialIs("inactive.apikey", headers.get(CREDHEADER).asInstanceOf[String], "OPTKEY01")
 
     check("inactive.nofeature", null == secretsFeatureOf(client),
       "no model activation and no extend: the feature must not be installed")
@@ -335,8 +356,8 @@ object SecretsTestMain {
     val bare = VoxgigSolardemoSDK.testSDK(null, null)
     val bareheaders = bare.prepare(jmap("path" -> "/"))
       .get("headers").asInstanceOf[JMap[String, Object]]
-    check("inactive.noapikey", !bareheaders.containsKey("authorization"),
-      "unexpected authorization header: " + bareheaders.get("authorization"))
+    check("inactive.noapikey", !bareheaders.containsKey(CREDHEADER),
+      "unexpected " + CREDHEADER + " header: " + bareheaders.get(CREDHEADER))
   }
 
   // =========================================================================
@@ -381,6 +402,16 @@ object SecretsTestMain {
     eqs("chain.omitted.state", "CHAINKEY02", secretsFeatureOf(client).credential())
     eqs("chain.omitted.optionsfrozen", "",
       client.optionsMap().get("apikey") match { case s: String => s; case _ => "" })
+  }
+
+  private def testResolvedKeyPaired(): Unit = {
+    val w = new Wire()
+    val client = secretsClient(w,
+      "secret" -> "PASS01",
+      "feature" -> secretsOpts(memchain("APIKEY" -> "CHAINKEY05")))
+
+    check("chain.paired.drive", driveOneCall(client, w), "no entity op reached the transport")
+    if (w.api().nonEmpty) credentialIs("chain.paired", w.authof(w.api().head), "CHAINKEY05", "PASS01")
   }
 
   private def testCustomProvider(): Unit = {
@@ -880,6 +911,10 @@ object SecretsTestMain {
     val res = client.direct(jmap("path" -> "/thing"))
 
     eqi("exchange.purchases", 2, w.token().length)
+    if (w.token().nonEmpty) {
+      eqs("exchange.redirect", "manual", String.valueOf(w.token().head.get("redirect")),
+        "the exchange must ask its transport to follow no redirect")
+    }
     eqi("exchange.retried", 2, w.api().length)
     if (2 <= w.api().length) {
       credentialIs("exchange.first", w.authof(w.api()(0)), "ACCESS01")
@@ -888,6 +923,21 @@ object SecretsTestMain {
     }
     check("exchange.result", java.lang.Boolean.TRUE == res.get("ok"),
       "the caller sees the successful retry, got " + res)
+  }
+
+  private def testExchangeRetryPaired(): Unit = {
+    val w = new Wire()
+    w.apistatus = List(401, 200)
+
+    val client = secretsClient(w, "secret" -> "PASS01",
+      "allow" -> jmap("op" -> "direct"), "feature" -> exchangeOpts())
+    client.direct(jmap("path" -> "/thing"))
+
+    eqi("exchange.paired.retried", 2, w.api().length)
+    if (2 <= w.api().length) {
+      credentialIs("exchange.paired.first", w.authof(w.api()(0)), "ACCESS01", "PASS01")
+      credentialIs("exchange.paired.retry", w.authof(w.api()(1)), "ACCESS02", "PASS01")
+    }
   }
 
   private def testExchangeOnePurchaseManyRequests(): Unit = {
@@ -993,6 +1043,176 @@ object SecretsTestMain {
       "an empty chain must refuse rather than send unauthenticated, got " + res)
   }
 
+  // Two real listeners and the SDK's raw HTTP path: a stub follows nothing.
+  // The origin answers the exchange as `answer` says and records what else
+  // it gets.
+  private final class Origins {
+    val elsewhere = java.util.Collections.synchronizedList(new ArrayList[String]())
+    val followed = java.util.Collections.synchronizedList(new ArrayList[String]())
+    val exchanged = new java.util.concurrent.atomic.AtomicInteger()
+    @volatile var answer: (Int, String) = (307, "")
+    var origin = ""
+    var base = ""
+    var away = ""
+  }
+
+  private def withOrigins(run: Origins => Unit): Unit = {
+    val o = new Origins()
+
+    val other = com.sun.net.httpserver.HttpServer.create(
+      new java.net.InetSocketAddress("127.0.0.1", 0), 0)
+    other.createContext("/", (ex: com.sun.net.httpserver.HttpExchange) => {
+      val body = new String(ex.getRequestBody.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+      o.elsewhere.add(ex.getRequestMethod + " " + ex.getRequestURI.getRawPath + " " + body)
+      val out = "{\"access_token\":\"ELSEWHERE01\"}".getBytes
+      ex.getResponseHeaders.set("Content-Type", "application/json")
+      ex.sendResponseHeaders(200, out.length.toLong)
+      ex.getResponseBody.write(out)
+      ex.close()
+    })
+    val origin = com.sun.net.httpserver.HttpServer.create(
+      new java.net.InetSocketAddress("127.0.0.1", 0), 0)
+    origin.createContext("/", (ex: com.sun.net.httpserver.HttpExchange) => {
+      val body = new String(ex.getRequestBody.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+      val query = ex.getRequestURI.getRawQuery
+      val path = ex.getRequestURI.getRawPath + (if (query == null) "" else "?" + query)
+      if ("/api/auth/token" == path) {
+        o.exchanged.incrementAndGet()
+        val answer = o.answer
+        ex.getResponseHeaders.set("Location", answer._2)
+        ex.sendResponseHeaders(answer._1, -1)
+        ex.close()
+      } else {
+        o.followed.add((ex.getRequestMethod + " " + path + " " + body).trim)
+        val out = "{\"access_token\":\"MOVED01\"}".getBytes
+        ex.getResponseHeaders.set("Content-Type", "application/json")
+        ex.sendResponseHeaders(200, out.length.toLong)
+        ex.getResponseBody.write(out)
+        ex.close()
+      }
+    })
+    other.start()
+    origin.start()
+
+    o.origin = "http://127.0.0.1:" + origin.getAddress.getPort
+    o.base = o.origin + "/api"
+    o.away = "http://127.0.0.1:" + other.getAddress.getPort + "/api/auth/token"
+
+    try run(o)
+    finally {
+      origin.stop(0)
+      other.stop(0)
+    }
+  }
+
+  private def redirectClient(o: Origins, exchange: (String, Object)*): VoxgigSolardemoSDK =
+    withSecrets { extend =>
+      val x = jmap("active" -> java.lang.Boolean.TRUE, "refresh" -> "REFRESH01")
+      for ((k, v) <- exchange) x.put(k, v)
+      val opts = jmap(
+        "base" -> o.base,
+        "allow" -> jmap("op" -> "direct"),
+        "feature" -> jmap("secrets" -> jmap(
+          "active" -> java.lang.Boolean.TRUE,
+          "name" -> "refresh_token",
+          "exchange" -> x)))
+      if (extend) opts.put("extend", jlist(new SecretsFeature()))
+      new VoxgigSolardemoSDK(opts)
+    }
+
+  // The direct call's result, and its error message (the result when none).
+  private def directOutcome(client: VoxgigSolardemoSDK): (JMap[String, Object], String) =
+    try {
+      val res = client.direct(jmap("path" -> "/thing"))
+      res.get("err") match {
+        case err: Throwable => (res, errtext(err))
+        case _ => (res, String.valueOf(res))
+      }
+    }
+    catch { case err: RuntimeException => (null, errtext(err)) }
+
+  private def testExchangeRedirectRefused(): Unit = withOrigins { o =>
+    val answers = List((307, o.away), (308, o.away), (302, o.away), (307, "/api/moved/token"))
+    val allowed = ListBuffer.empty[String]
+    var refused = 0
+
+    for (a <- answers) {
+      o.answer = a
+      val message = directOutcome(redirectClient(o))._2
+
+      if (message.contains("token exchange failed: " + a._1 + " from " + o.base + "/auth/token")) {
+        refused += 1
+      } else {
+        allowed += (a._1.toString + " to " + a._2 + ": " + message)
+      }
+    }
+
+    println("secrets: exchange refused " + refused + " redirect(s), " +
+      (o.elsewhere.size() + o.followed.size()) + " followed")
+
+    check("exchange.redirect.elsewhere", o.elsewhere.isEmpty,
+      "the exchange reached another origin: " + o.elsewhere)
+    check("exchange.redirect.followed", o.followed.isEmpty,
+      "a request followed a refused exchange: " + o.followed)
+    check("exchange.redirect.allowed", allowed.isEmpty,
+      "a redirect was not a failed exchange: " + allowed.mkString("; "))
+    eqi("exchange.redirect.refused", answers.length, refused)
+  }
+
+  private def testExchangeRedirectSameOrigin(): Unit = withOrigins { o =>
+    val sent = " {\"refresh_token\":\"REFRESH01\"}"
+    // Each case: the status, the Location, and the path the exchange is
+    // asked again at, or null where the redirect is refused.
+    val cases: List[(Int, String, String)] = List(
+      (307, "/api/moved/token", "/api/moved/token"),
+      (308, o.origin + "/api/moved/token", "/api/moved/token"),
+      // A Location of a query alone keeps the path that answered.
+      (307, "?step=2", "/api/auth/token?step=2"),
+      (307, o.away, null),
+      (302, "/api/moved/token", null),
+      (307, "/api/auth/token", null),
+    )
+
+    val wrong = ListBuffer.empty[String]
+    var followed = 0
+    var refused = 0
+    var looped = 0
+
+    for ((status, location, path) <- cases) {
+      o.answer = (status, location)
+      o.followed.clear()
+      o.exchanged.set(0)
+
+      val (res, message) = directOutcome(redirectClient(o, "redirect" -> "same-origin"))
+      val seen = status.toString + " to " + location + ": " + message + " " + o.followed
+
+      if (path != null) {
+        if (res != null && java.lang.Boolean.TRUE == res.get("ok") &&
+          2 == o.followed.size() && ("POST " + path + sent) == o.followed.get(0)) followed += 1
+        else wrong += seen
+      } else if (o.followed.isEmpty && message.contains(
+          "token exchange failed: " + status + " from " + o.base + "/auth/token")) {
+        refused += 1
+      } else {
+        wrong += seen
+      }
+
+      if ("/api/auth/token" == location) looped = o.exchanged.get()
+    }
+
+    println("secrets: exchange opt-in followed " + followed +
+      " redirect(s) on its own origin, refused " + refused + ", " +
+      o.elsewhere.size() + " elsewhere")
+
+    check("exchange.sameorigin.elsewhere", o.elsewhere.isEmpty,
+      "the exchange reached another origin: " + o.elsewhere)
+    check("exchange.sameorigin.wrong", wrong.isEmpty, wrong.mkString("; "))
+    eqi("exchange.sameorigin.followed", 3, followed)
+    eqi("exchange.sameorigin.refused", 3, refused)
+    // A redirect to itself stops at the hop limit.
+    eqi("exchange.sameorigin.looped", 6, looped)
+  }
+
   // TEST MODE BUYS NOTHING and needs no token endpoint.
   private def testExchangeTestMode(): Unit = {
     val w = new Wire()
@@ -1004,10 +1224,61 @@ object SecretsTestMain {
     eqs("exchange.testmode.token", "test-access_token", secretsFeatureOf(client).credential())
   }
 
+  // Off by the config where it declares no auth, else by `auth: null`: either
+  // way the feature places no credential, buys no token and retries nothing.
+  private def testAuthOff(declared: Boolean): Unit = {
+    val secrets = List("OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01")
+    def carries(call: JMap[String, Object]): Boolean = {
+      val values = String.valueOf(call.get("values"))
+      java.lang.Boolean.TRUE == call.get("has") || secrets.exists(s => values.contains(s))
+    }
+    val sent = ListBuffer.empty[JMap[String, Object]]
+    var bought = 0
+
+    val scenarios: List[(String, List[(String, Object)], List[Int])] = List(
+      ("a key the chain resolves",
+        List("feature" -> secretsOpts(memchain("APIKEY" -> "OFFKEY01"))), List(200)),
+      ("an explicit apikey",
+        List("apikey" -> "OFFKEY02", "feature" -> secretsOpts(jlist())), List(200)),
+      ("a refusal", List("feature" -> secretsOpts(memchain("REFRESH_TOKEN" -> "OFFREFRESH01"),
+        "name" -> "refresh_token", "exchange" -> jmap("active" -> java.lang.Boolean.TRUE))), List(401)),
+    )
+
+    for ((what, opts, statuses) <- scenarios) {
+      val w = new Wire()
+      w.apistatus = statuses
+      val off: List[(String, Object)] = if (declared) List("auth" -> null) else Nil
+      val client = secretsClient(w, (("allow" -> jmap("op" -> "direct")) :: opts ++ off)*)
+
+      client.direct(jmap("path" -> "/thing"))
+
+      eqi("authoff.noretry: " + what, 1, w.api().length)
+      eqi("authoff.nobuy: " + what, 0, w.token().length)
+      check("authoff.nocred: " + what, w.api().nonEmpty && !carries(w.api().head),
+        "a credential was sent with auth off: " + w.report())
+      eqs("authoff.unresolved: " + what, "", secretsFeatureOf(client).credential())
+
+      sent ++= w.api()
+      bought += w.token().length
+    }
+
+    println("secrets: auth off by " + (if (declared) "option" else "config") + ": " +
+      sent.length + " request(s), " + sent.count(carries) + " credential(s), " +
+      bought + " token(s)")
+  }
+
   // =========================================================================
 
   def main(args: Array[String]): Unit = {
-    val cases: List[(String, () => Unit)] = List(
+    // Read from the config, never from a probe: an SDK whose config declares
+    // no auth places no credential, and these tests assert on the one it places.
+    val declared = SCALAPACKAGE.core.Config.sharedConfig().get("options").asInstanceOf[JMap[String, Object]]
+      .containsKey("auth")
+    if (!declared) {
+      println("SKIP secrets: this SDK's config declares no auth, so it places no credential")
+    }
+
+    val placing: List[(String, () => Unit)] = List(
       "inactive" -> testInactive,
       "optionWins" -> testOptionWins,
       "omittedDefers" -> testOmittedDefers,
@@ -1032,8 +1303,14 @@ object SecretsTestMain {
       "exchangeExplicitRefreshWins" -> testExchangeExplicitRefreshWins,
       "exchangeAuthNullNotRetried" -> testExchangeAuthNullNotRetried,
       "exchangeNoRefresh" -> testExchangeNoRefresh,
+      "exchangeRedirectRefused" -> testExchangeRedirectRefused,
+      "exchangeRedirectSameOrigin" -> testExchangeRedirectSameOrigin,
       "exchangeTestMode" -> testExchangeTestMode,
+      "resolvedKeyPaired" -> testResolvedKeyPaired,
+      "exchangeRetryPaired" -> testExchangeRetryPaired,
     )
+    val cases: List[(String, () => Unit)] =
+      (if (declared) placing else Nil) :+ ("authOff" -> (() => testAuthOff(declared)))
 
     for ((name, body) <- cases) {
       try body()

@@ -63,6 +63,8 @@
 
 (def ^:private ERROR-CODE "secrets_provider")
 
+(def ^:private REDIRECT-MAX 5)
+
 
 ;; ---------------------------------------------------------------------------
 ;; Option reading. Options arrive as vendored struct nodes (LinkedHashMap /
@@ -169,6 +171,22 @@
   (let [o (liveopts fa)] (when (vs/ismap o) (vs/getprop o "auth"))))
 
 
+;; u-prepare-auth's decision: auth the config declares, not suppressed by
+;; `auth: nil`.
+(defn- authon? [fa]
+  (and (st fa :declared) (some? (auth-of fa))))
+
+
+;; Under Basic the token is the key half, as apikey is: u-prepare-auth's pair.
+(defn- pair! [fa token]
+  (let [secret (vs/getprop (liveopts fa) "secret")
+        joined (.encodeToString (java.util.Base64/getEncoder)
+                                (.getBytes (str token ":" (if (string? secret) secret ""))
+                                           "UTF-8"))]
+    (register! fa joined)
+    joined))
+
+
 ;; The resolved credential ("" when none). Callers and tests read it here
 ;; rather than from the options map, which this feature never mutates.
 (defn credential [fa] (or (st fa :cred) ""))
@@ -197,6 +215,25 @@
 ;; ---------------------------------------------------------------------------
 ;; The access-token exchange.
 ;; ---------------------------------------------------------------------------
+
+(defn- origin [^java.net.URI u]
+  (let [scheme (str/lower-case (str (.getScheme u)))
+        port (.getPort u)]
+    [scheme (str/lower-case (str (.getHost u)))
+     (if (neg? port) (get {"http" 80 "https" 443} scheme -1) (long port))]))
+
+;; Where a redirect keeping method and body (307 or 308) points, on the
+;; exchange's own origin. Any other would drop the body or leave the origin.
+(defn- moved [url at res]
+  (let [status (core/to-int (vs/getprop res "status"))
+        location (vs/getprop (vs/getprop res "headers") "location")]
+    (when (and (contains? #{307 308} status) (string? location) (seq location))
+      (try
+        (let [next (core/resolve-location (java.net.URI/create at) location)]
+          (when (= (origin next) (origin (java.net.URI/create url)))
+            (str next)))
+        (catch Exception _ nil)))))
+
 
 (defn- buy-once [fa]
   (let [x (st fa :exchange)
@@ -228,9 +265,21 @@
           ;; a configured request-field name) carrying a quote, backslash or
           ;; newline must arrive as that literal value, not as broken JSON.
           body (vs/jsonify (vs/jm (:request x) refresh) (vs/jm "indent" 0))
-          [res err] (fetch url (vs/jm "method" (:method x)
-                                      "headers" (vs/jm "content-type" "application/json")
-                                      "body" body))]
+          ;; Never followed by the client: a redirect would carry the refresh token on.
+          fetchdef (vs/jm "method" (:method x)
+                          "headers" (vs/jm "content-type" "application/json")
+                          "body" body
+                          "redirect" "manual")
+          ;; By option alone, and only while the exchange stays on its own origin.
+          [res err] (loop [at url
+                           answer (fetch url fetchdef)
+                           hops 0]
+                      (let [next (when (and (= "same-origin" (:redirect x)) (< hops REDIRECT-MAX)
+                                            (nil? (second answer)))
+                                   (moved url at (first answer)))]
+                        (if next
+                          (recur next (fetch next fetchdef) (inc hops))
+                          answer)))]
 
       (when (some? err)
         (throw (sekreto/sekretoerror
@@ -282,7 +331,7 @@
 ;; boolean is the whole of what resolve! needs to tell a cacheable HIT from
 ;; a miss it must not keep.
 (defn- resolve-once [fa]
-  (if-let [s (st fa :sek)]
+  (if-let [s (and (authon? fa) (st fa :sek))]
     ;; tryget: nil for a MISS, THROWS for a provider ERROR.
     (let [found (sekreto/tryget s (st fa :secretname))]
       (register! fa found)
@@ -310,16 +359,6 @@
             (swap! fa assoc :cred apikey)
             (cond
               (seq apikey) true
-
-              ;; `auth: nil` is the documented way to send NO credential,
-              ;; and a purchase is a credential-bearing call: the refresh
-              ;; token goes to the token endpoint in the request body.
-              ;; with-refresh honours suppression for the RETRY, but it runs
-              ;; after this - by then the refresh token has already left the
-              ;; process, and no later check can call it back. The
-              ;; suppression has to be honoured here, before the first
-              ;; purchase, or it only ever half-held.
-              (nil? (auth-of fa)) false
 
               :else
               ;; No starting access token: buy one now. A failure here is a
@@ -369,16 +408,24 @@
 (defn- reauth! [fa fetchdef token]
   (let [headers (vs/getprop fetchdef "headers")]
     (when (vs/ismap headers)
-      (if (nil? (auth-of fa))
-        ;; Suppressed auth means NO header, the same answer u-prepare-auth
-        ;; gives. Reached defensively - nothing calls this with auth
-        ;; suppressed - but this is the function that writes the
-        ;; credential, so it is where the rule has to hold.
-        (vs/delprop headers core/HEADER-AUTH)
-        (let [prefix (let [p (vs/getpath (liveopts fa) "auth.prefix")]
-                       (if (string? p) p ""))]
-          (.put ^java.util.Map headers core/HEADER-AUTH
-                (if (= "" prefix) token (str prefix " " token))))))))
+      ;; The header u-prepare-auth writes: auth.name, lower-cased, else the
+      ;; name the API declares.
+      (let [given (vs/getpath (liveopts fa) "auth.name")
+            name (if (and (string? given) (not= "" given))
+                   (.toLowerCase ^String given java.util.Locale/ROOT)
+                   core/HEADER-AUTH)]
+        (if (not (authon? fa))
+          ;; Suppressed auth means NO header, the same answer u-prepare-auth
+          ;; gives.
+          (vs/delprop headers name)
+          (let [value (if (and (st fa :basic)
+                               (= true (vs/getpath (liveopts fa) "auth.basic")))
+                        (pair! fa token)
+                        token)
+                prefix (let [p (vs/getpath (liveopts fa) "auth.prefix")]
+                         (if (string? p) p ""))]
+            (.put ^java.util.Map headers name
+                  (if (= "" prefix) value (str prefix " " value)))))))))
 
 
 (defn- spent? [fa res]
@@ -392,11 +439,9 @@
 ;; Buy a token and try the request again when the API says the current one
 ;; is spent.
 (defn- with-refresh [fa ctx url fetchdef inner]
-  ;; `auth: nil` is the documented way to send NO credential. A refusal of
-  ;; a deliberately unauthenticated request is not an expired token and
-  ;; cannot be fixed by buying one - retrying would transmit exactly the
-  ;; credential the caller withheld.
-  (if (nil? (auth-of fa))
+  ;; A refusal of an unauthenticated request is not an expired token, and
+  ;; retrying would transmit the credential that auth off withholds.
+  (if (not (authon? fa))
     (inner ctx url fetchdef)
     (let [max (:retries (st fa :exchange))]
       (loop [attempt 0]
@@ -460,7 +505,8 @@
                    (if (and (vs/islist s) (pos? (vs/size s)))
                      (mapv (fn [v] (core/to-int v)) (vec s))
                      [401]))
-       :retries (let [r (vs/getprop xopts "retries")] (if (number? r) (long r) 1))})))
+       :retries (let [r (vs/getprop xopts "retries")] (if (number? r) (long r) 1))
+       :redirect (if (= "same-origin" (vs/getprop xopts "redirect")) "same-origin" "refuse")})))
 
 
 (defn- init! [fa ctx options]
@@ -470,6 +516,13 @@
            :options options
            :liveopts (core/oget ctx :options)
            :active (= true (vs/getprop options "active")))
+
+    ;; What u-prepare-auth was generated from: the config declares auth only
+    ;; where it places a credential, and Basic only where it composes one.
+    (let [declared (vs/getpath (core/oget ctx :config) "options.auth")]
+      (swap! fa assoc
+             :declared (vs/ismap declared)
+             :basic (and (vs/ismap declared) (= true (vs/getprop declared "basic")))))
 
     (when (st fa :active)
       (let [secretname (sopt options "name" "apikey")
@@ -533,7 +586,7 @@
   ([] (secrets-feature nil))
   ([plugins]
    (let [fa (atom {:name "secrets" :active false :version "0.1.0" :_options nil
-                   :client nil :options (vs/jm) :liveopts nil
+                   :client nil :options (vs/jm) :liveopts nil :declared false :basic false
                    :plugins (vec (or plugins []))
                    :secretname "apikey" :cache true :sek nil
                    :exchange nil :refresh "" :cred "" :initerr nil :resolved false

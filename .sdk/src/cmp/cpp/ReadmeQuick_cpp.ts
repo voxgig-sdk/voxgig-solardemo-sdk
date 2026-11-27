@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps, matchExampleItems, requiredItems, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,11 +7,12 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { cppVarName, cppListMatch } from './utility_cpp'
+import { cppVarName, cppListMatch, cppEscape } from './utility_cpp'
 
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
@@ -30,18 +31,26 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
 
   const Name = model.const.Name
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `const char* apikey = std::getenv("${envName(model)}_APIKEY");
-auto client = std::make_shared<${Name}SDK>(vmap({
-    {"apikey", Value(apikey ? apikey : "")},
-}));`
-    : `auto client = ${Name}SDK::create();`
+  // The constructor refuses a templated URL it has no value for, so the quick
+  // start passes each variable the URL uses with no default.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`{"apikey", Value(apikey ? apikey : "")},`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`{"secret", Value(secret ? secret : "")},`] : []),
+    ...(0 === svars.length ? [] : [`{"server", vmap({` +
+      svars.map((v: any) => `{"${v.name}", Value("<${v.name}>")}`).join(', ') + `})},`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `auto client = ${Name}SDK::create();`
+    : (authActive ? `const char* apikey = std::getenv("${envName(model)}_APIKEY");\n` : '') +
+      (fact(model.main[KIT], 'auth').secret ? `const char* secret = std::getenv("${envName(model)}_SECRET");\n` : '') +
+      `auto client = std::make_shared<${Name}SDK>(vmap({${ctorFields.map((f: string) => '\n    ' + f).join('')}\n}));`
   const ctorIncludes = authActive
     ? `#include <cstdlib>
 #include "core/sdk.hpp"`
     : `#include "core/sdk.hpp"`
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`cpp
 ${ctorIncludes}
@@ -62,7 +71,7 @@ ${ctor}
     if ('BOOLEAN' === k) return 'Value(true)'
     if ('ARRAY' === k) return 'vlist()'
     if ('OBJECT' === k) return 'vmap()'
-    return `Value("${placeholder}")`
+    return `Value("${cppEscape(placeholder)}")`
   }
 
   if (exampleEntity) {
@@ -78,7 +87,7 @@ ${ctor}
     const dataIdF = entityDataIdField(exampleEntity)
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${eName.toLowerCase()} records
+      Content(`### ${++step}. List ${eName.toLowerCase()} records
 
 \`list()\` returns a \`std::vector\` of entities, one per record, and throws
 \`sdk::SdkErrorPtr\` on error; \`data()\` reads an entity's record.
@@ -107,18 +116,17 @@ try {
       // the runtime resolves path params from, so the example always works.
       // Parent keys (e.g. page_id) first, the entity's own id last.
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
       const parentParam = parentItem && parentItem.name
       const parentName = parentParam ? parentParam.replace(/_id$/, '') : 'its parent'
       const neMatch = neRequired.map((it: any) =>
-        `{"${it.name}", ${cppLit(it.type,
+        `{"${cppEscape(it.name)}", ${cppLit(it.type,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)}}`)
 
-      Content(`### 3. Load ${neArticle} ${neName.toLowerCase()}
+      Content(`### ${++step}. Load ${neArticle} ${neName.toLowerCase()}
 
 ${neName} is nested under ${parentName}, so provide the \`${parentParam}\`.
 \`load()\` returns the entity and throws on error; \`data()\` reads its record.
@@ -135,17 +143,16 @@ try {
 `)
     }
     else if (opnames.includes('load')) {
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
         ? `vmap({${loadRequired.map((it: any) =>
-          `{"${it.name}", ${cppLit(it.type,
+          `{"${cppEscape(it.name)}", ${cppLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}}`).join(', ')}})`
         : 'Value::undef()'
 
-      Content(`### 3. Load ${article} ${eName.toLowerCase()}
+      Content(`### ${++step}. Load ${article} ${eName.toLowerCase()}
 
 \`load()\` returns the entity and throws on error; \`data()\` reads its record.
 
@@ -162,15 +169,15 @@ try {
     }
 
     const examplePairs = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
-      return chosen.map((it: any) => `{"${it.name}", ${cppLit(it.type, 'example_' + it.name)}}`)
+      return chosen.map((it: any) => `{"${cppEscape(it.name)}", ${cppLit(it.type, 'example_' + it.name)}}`)
     }
 
     // The id VALUE for an update/remove match: read off the created entity's
@@ -181,12 +188,13 @@ try {
       return it && it.type
     }
     const idValueFor = (opname: string): string => (null != dataIdF && opnames.includes('create'))
-      ? `getp(created->data(), "${dataIdF}")`
+      ? `getp(created->data(), "${cppEscape(dataIdF)}")`
       : cppLit(idParamType(opname), 'example_id')
 
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`cpp
 `)
@@ -197,7 +205,7 @@ SdkEntityPtr created = client->${acc}()->create(vmap({${examplePairs('create').j
 `)
       }
       if (opnames.includes('update')) {
-        const updatePairs = (idF ? [`{"${idF}", ${idValueFor('update')}}`] : []).concat(examplePairs('update'))
+        const updatePairs = (sendsId(exampleEntity, 'update', idF) ? [`{"${cppEscape(idF)}", ${idValueFor('update')}}`] : []).concat(examplePairs('update'))
         const fromCreated = null != dataIdF && opnames.includes('create')
         Content(`// Update${fromCreated ? " — reuse the created record's id" : ''}
 client->${acc}()->update(vmap({${updatePairs.join(', ')}}), Value::undef());
@@ -205,20 +213,19 @@ client->${acc}()->update(vmap({${updatePairs.join(', ')}}), Value::undef());
 `)
       }
       if (opnames.includes('patch')) {
-        const patchPairs = (idF ? [`{"${idF}", ${idValueFor('patch')}}`] : []).concat(examplePairs('patch'))
+        const patchPairs = (sendsId(exampleEntity, 'patch', idF) ? [`{"${cppEscape(idF)}", ${idValueFor('patch')}}`] : []).concat(examplePairs('patch'))
         Content(`// Patch — sends only the fields given
 client->${acc}()->patch(vmap({${patchPairs.join(', ')}}), Value::undef());
 
 `)
       }
       if (opnames.includes('remove')) {
-        const removePairs = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removePairs = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF
-            ? `{"${it.name}", ${idValueFor('remove')}}`
-            : `{"${it.name}", ${cppLit(it.type, 'example_' + it.name)}}`)
+            ? `{"${cppEscape(it.name)}", ${idValueFor('remove')}}`
+            : `{"${cppEscape(it.name)}", ${cppLit(it.type, 'example_' + it.name)}}`)
         Content(`// Remove
 client->${acc}()->remove(${removePairs.length ? `vmap({${removePairs.join(', ')}})` : 'Value::undef()'}, Value::undef());
 `)

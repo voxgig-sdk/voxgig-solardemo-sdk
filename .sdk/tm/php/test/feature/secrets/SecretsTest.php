@@ -38,6 +38,22 @@ use PHPUnit\Framework\TestCase;
 // exchange tests.
 class VoxgigSolardemoSecretsWire
 {
+    private static ?string $credheader = null;
+
+    // The header the credential travels in: the DEFAULT client's auth.name,
+    // lower-cased as prepare_auth sends it. Read from a default client
+    // because a test's `auth: null` leaves no name to read.
+    public static function credheader(): string
+    {
+        if (null === self::$credheader) {
+            $client = VoxgigSolardemoSDK::test(null, null);
+            $name = $client->options_map()['auth']['name'] ?? null;
+            self::$credheader = is_string($name) && '' !== $name
+                ? strtolower($name) : 'authorization';
+        }
+        return self::$credheader;
+    }
+
     /** @var array<int,array<string,mixed>> */
     public array $calls = [];
     /** @var array<int,int> */
@@ -63,9 +79,11 @@ class VoxgigSolardemoSecretsWire
         $headers = is_array($fetchdef['headers'] ?? null) ? $fetchdef['headers'] : [];
         $this->calls[] = [
             'url' => $fullurl,
-            'auth' => $headers['authorization'] ?? null,
-            'has' => array_key_exists('authorization', $headers),
+            'auth' => $headers[self::credheader()] ?? null,
+            'has' => array_key_exists(self::credheader(), $headers),
+            'values' => implode("\n", array_map(fn($v) => is_scalar($v) ? (string)$v : '', $headers)),
             'body' => $fetchdef['body'] ?? null,
+            'redirect' => $fetchdef['redirect'] ?? null,
         ];
 
         if ($this->istoken($fullurl)) {
@@ -115,6 +133,20 @@ class VoxgigSolardemoSecretsTest extends TestCase
     /** @var array<int,string> */
     private array $touched = [];
 
+    // Read from the config, never from a probe: an SDK whose config declares no
+    // auth places no credential, and these tests assert on the one it places.
+    // The auth-off test asserts it places none.
+    protected function setUp(): void
+    {
+        $test = method_exists($this, 'name') ? $this->name() : $this->getName();
+        if ('testAuthOffPlacesNoCredentialAndBuysNoToken' === $test) {
+            return;
+        }
+        if (!array_key_exists('auth', VoxgigSolardemoConfig::shared_config()['options'] ?? [])) {
+            $this->markTestSkipped("this SDK's config declares no auth, so it places no credential");
+        }
+    }
+
     protected function tearDown(): void
     {
         foreach ($this->touched as $name) {
@@ -138,16 +170,23 @@ class VoxgigSolardemoSecretsTest extends TestCase
     // -----------------------------------------------------------------
     // Support.
 
-    // The Authorization header carries the SPEC's credential prefix, which
-    // a TEMPLATE cannot know - so assert on the CREDENTIAL and let the
-    // prefix be whatever this SDK's API declares.
-    private function assertCredential(mixed $header, string $token): void
+    // The header value prepare_auth writes for a token, in the form the
+    // DEFAULT client's auth gives: under Basic the token is the key half of
+    // the encoded pair, and a prefix is space-joined.
+    private function credential(string $token, string $secret = ''): string
     {
-        $ok = $header === $token
-            || (is_string($header) && str_ends_with($header, ' ' . $token));
-        $this->assertTrue($ok,
-            'expected the authorization header to carry ' . $token .
-            ', got: ' . var_export($header, true));
+        $auth = VoxgigSolardemoSDK::test(null, null)->options_map()['auth'] ?? [];
+        $prefix = is_string($auth['prefix'] ?? null) ? $auth['prefix'] : '';
+        $value = true === ($auth['basic'] ?? null)
+            ? base64_encode($token . ':' . $secret) : $token;
+        return '' === $prefix ? $value : $prefix . ' ' . $value;
+    }
+
+    private function assertCredential(mixed $header, string $token, string $secret = ''): void
+    {
+        $this->assertSame($this->credential($token, $secret), $header,
+            'expected the ' . VoxgigSolardemoSecretsWire::credheader() .
+            ' header to carry ' . $token);
     }
 
     private function secretsFeatureOf($client): ?VoxgigSolardemoSecretsFeature
@@ -277,7 +316,8 @@ class VoxgigSolardemoSecretsTest extends TestCase
             function (\Throwable $error) use (&$caught) {
                 // A call whose route it cannot fill is refused before the
                 // chain is consulted, so it is not the refusal under test.
-                if ($error instanceof VoxgigSolardemoError && 'url_param_missing' !== $error->sdk_code) {
+                if ($error instanceof VoxgigSolardemoError &&
+                    !in_array($error->sdk_code, ['url_param_missing', 'point_no_match', 'point_action_required'], true)) {
                     $caught = $error;
                 }
             });
@@ -299,17 +339,18 @@ class VoxgigSolardemoSecretsTest extends TestCase
     {
         $client = VoxgigSolardemoSDK::test(null, ['apikey' => 'OPTKEY01']);
         $fetchdef = $client->prepare(['path' => '/']);
-        $this->assertCredential($fetchdef['headers']['authorization'] ?? null, 'OPTKEY01');
+        $this->assertCredential($fetchdef['headers'][VoxgigSolardemoSecretsWire::credheader()] ?? null, 'OPTKEY01');
 
         $this->assertNull($this->secretsFeatureOf($client),
             'no activation and no extend: the feature must not be installed');
     }
 
-    public function testInactiveNoApikeyMeansNoAuthorizationHeader(): void
+    public function testInactiveNoApikeyMeansNoCredentialHeader(): void
     {
         $client = VoxgigSolardemoSDK::test(null, null);
         $fetchdef = $client->prepare(['path' => '/']);
-        $this->assertArrayNotHasKey('authorization', $fetchdef['headers']);
+        $this->assertArrayNotHasKey(VoxgigSolardemoSecretsWire::credheader(),
+            $fetchdef['headers']);
     }
 
     // -----------------------------------------------------------------
@@ -366,6 +407,19 @@ class VoxgigSolardemoSecretsTest extends TestCase
             'the chain credential must never be written into the client options');
     }
 
+    public function testAResolvedKeyIsPlacedAsPrepareAuthPlacesItTheSecretKept(): void
+    {
+        $this->setenv('APIKEY', 'ENVKEY04');
+        $wire = new VoxgigSolardemoSecretsWire();
+        $client = $this->secretsClient($wire, [
+            'secret' => 'PASS01',
+            'feature' => $this->secretsOpts(),
+        ]);
+
+        $this->driveOp($client, $wire);
+        $this->assertCredential($wire->api()[0]['auth'], 'ENVKEY04', 'PASS01');
+    }
+
     // The same pin where it matters most: `auth: null` is the caller saying
     // NO credential may be sent. Nothing goes on the wire - and nothing is
     // parked in the options map either, where it would outlive the request
@@ -389,7 +443,8 @@ class VoxgigSolardemoSecretsTest extends TestCase
 
         // Nor may it surface through the fetchdef prepare() builds.
         $fetchdef = $client->prepare(['path' => '/']);
-        $this->assertArrayNotHasKey('authorization', $fetchdef['headers']);
+        $this->assertArrayNotHasKey(VoxgigSolardemoSecretsWire::credheader(),
+            $fetchdef['headers']);
     }
 
     public function testCustomProvidersAreAcceptedVerbatim(): void
@@ -779,12 +834,36 @@ class VoxgigSolardemoSecretsTest extends TestCase
         $this->assertCount(2, $wire->token(),
             'expected the initial purchase plus one rebuy');
         $this->assertStringContainsString('REFRESH01', (string)$wire->token()[0]['body']);
+        $this->assertSame('manual', $wire->token()[0]['redirect'],
+            'the exchange must ask system.fetch to follow no redirect');
 
         $api = $wire->api();
         $this->assertCount(2, $api, 'expected the request to be retried exactly once');
         $this->assertCredential($api[0]['auth'], 'ACCESS01');
         // The retry must carry the NEW token, not the spent one.
         $this->assertCredential($api[1]['auth'], 'ACCESS02');
+    }
+
+    public function testATokenBoughtOnARefusalIsPlacedAsPrepareAuthPlacesIt(): void
+    {
+        $this->setenv('REFRESH_TOKEN', 'REFRESH01');
+        $wire = new VoxgigSolardemoSecretsWire();
+        $wire->apistatus = [401, 200];
+
+        $client = $this->secretsClient($wire, [
+            'secret' => 'PASS01',
+            'feature' => $this->secretsOpts([
+                'name' => 'refresh_token',
+                'exchange' => ['active' => true],
+            ]),
+        ]);
+
+        $this->driveOp($client, $wire);
+
+        $api = $wire->api();
+        $this->assertCount(2, $api, 'expected the request to be retried exactly once');
+        $this->assertCredential($api[0]['auth'], 'ACCESS01', 'PASS01');
+        $this->assertCredential($api[1]['auth'], 'ACCESS02', 'PASS01');
     }
 
     // `auth: null` SUPPRESSES THE PURCHASE, not just the retry.
@@ -962,6 +1041,196 @@ class VoxgigSolardemoSecretsTest extends TestCase
         $this->assertNull($leak, 'the stub outlived stop(): ' . (string)$leak);
     }
 
+    // Real listeners and the SDK's raw HTTP function: a stub follows
+    // nothing. The origin answers the exchange as its `answer.txt` says and
+    // records what else it gets; `exchanged.txt` counts the exchanges.
+    private function withOrigins(callable $run): void
+    {
+        $record = <<<'ROUTER'
+<?php
+// The request target, query included: only the bare token path is the exchange.
+$path = (string)($_SERVER['REQUEST_URI'] ?? '/');
+$answer = @file_get_contents(__DIR__ . '/answer.txt');
+if (false !== $answer && '/api/auth/token' === $path) {
+    file_put_contents(__DIR__ . '/exchanged.txt', 'x', FILE_APPEND);
+    [$status, $location] = explode(' ', $answer, 2);
+    header('location: ' . $location, true, (int)$status);
+    return;
+}
+file_put_contents(__DIR__ . '/seen.txt', json_encode([
+    'method' => $_SERVER['REQUEST_METHOD'] ?? '', 'path' => $path,
+    'body' => (string)file_get_contents('php://input'),
+]) . "\n", FILE_APPEND);
+header('content-type: application/json');
+echo false === $answer ? '{"access_token":"ELSEWHERE01"}' : '{"access_token":"MOVED01"}';
+ROUTER;
+
+        $origin = new VoxgigSolardemoSecretsHttpStub($record);
+        $other = new VoxgigSolardemoSecretsHttpStub($record);
+        $oport = $origin->start();
+        $aport = $other->start();
+
+        try {
+            if (0 === $oport || 0 === $aport) {
+                $this->markTestSkipped('could not start the local HTTP stubs');
+            }
+            $run((object)[
+                'origin' => $origin,
+                'other' => $other,
+                'at' => 'http://127.0.0.1:' . $oport,
+                'base' => 'http://127.0.0.1:' . $oport . '/api',
+                'away' => 'http://127.0.0.1:' . $aport . '/api/auth/token',
+            ]);
+        } finally {
+            $origin->stop();
+            $other->stop();
+        }
+    }
+
+    private function redirectClient(string $base, array $exchange = [])
+    {
+        return $this->withSecrets(function (bool $adopt) use ($base, $exchange) {
+            $opts = [
+                'base' => $base,
+                'feature' => ['secrets' => [
+                    'active' => true,
+                    'name' => 'refresh_token',
+                    'exchange' => array_merge(['active' => true, 'refresh' => 'REFRESH01'], $exchange),
+                ]],
+            ];
+            if ($adopt) {
+                $opts['extend'] = [new VoxgigSolardemoSecretsFeature()];
+            }
+            return new VoxgigSolardemoSDK($opts);
+        });
+    }
+
+    private function redirectProbe($client): array
+    {
+        try {
+            $res = $client->direct(['path' => '/probe']);
+            $message = is_array($res) && null !== ($res['err'] ?? null)
+                ? (string)(($res['err'] instanceof \Throwable) ? $res['err']->getMessage() : $res['err'])
+                : json_encode($res);
+            return [$res, $message];
+        } catch (\Throwable $e) {
+            return [null, $e->getMessage()];
+        }
+    }
+
+    private static function lines(?string $text): array
+    {
+        return array_values(array_filter(explode("\n", (string)$text)));
+    }
+
+    // Its own process, for the reason the test above gives.
+    #[\PHPUnit\Framework\Attributes\RunInSeparateProcess]
+    #[\PHPUnit\Framework\Attributes\PreserveGlobalState(false)]
+    public function testARedirectAnsweringTheExchangeIsAFailureAndNothingFollowsIt(): void
+    {
+        $this->withOrigins(function (object $o) {
+            $base = $o->base;
+            $away = $o->away;
+            $answers = [[307, $away], [308, $away], [302, $away], [307, '/api/moved/token']];
+
+            $allowed = [];
+            $refused = 0;
+
+            foreach ($answers as [$status, $location]) {
+                $o->origin->put('answer.txt', $status . ' ' . $location);
+                [, $message] = $this->redirectProbe($this->redirectClient($base));
+
+                if (str_contains($message,
+                    'token exchange failed: ' . $status . ' from ' . $base . '/auth/token')) {
+                    $refused++;
+                } else {
+                    $allowed[] = $status . ' to ' . $location . ': ' . $message;
+                }
+            }
+
+            $elsewhere = self::lines($o->other->read('seen.txt'));
+            $followed = self::lines($o->origin->read('seen.txt'));
+
+            print("\nsecrets: exchange refused " . $refused . ' redirect(s), ' .
+                (count($elsewhere) + count($followed)) . " followed\n");
+
+            $this->assertSame([], $elsewhere, 'the exchange reached another origin');
+            $this->assertSame([], $followed, 'a request followed a refused exchange');
+            $this->assertSame([], $allowed, 'a redirect was not a failed exchange');
+            $this->assertSame(count($answers), $refused);
+        });
+    }
+
+    #[\PHPUnit\Framework\Attributes\RunInSeparateProcess]
+    #[\PHPUnit\Framework\Attributes\PreserveGlobalState(false)]
+    public function testWithTheOptionARedirectOnTheExchangesOwnOriginIsFollowedAndNoOther(): void
+    {
+        $this->withOrigins(function (object $o) {
+            $sent = ' {"refresh_token":"REFRESH01"}';
+            // Each case: the status, the Location, and the path the exchange
+            // is asked again at, or null where the redirect is refused.
+            $cases = [
+                [307, '/api/moved/token', '/api/moved/token'],
+                [308, $o->at . '/api/moved/token', '/api/moved/token'],
+                // A Location of a query alone keeps the path that answered.
+                [307, '?step=2', '/api/auth/token?step=2'],
+                [307, $o->away, null],
+                [302, '/api/moved/token', null],
+                [307, '/api/auth/token', null],
+            ];
+
+            $wrong = [];
+            $followed = 0;
+            $refused = 0;
+            $looped = 0;
+
+            foreach ($cases as [$status, $location, $path]) {
+                $o->origin->put('answer.txt', $status . ' ' . $location);
+                $o->origin->put('seen.txt', '');
+                $o->origin->put('exchanged.txt', '');
+
+                [$res, $message] = $this->redirectProbe(
+                    $this->redirectClient($o->base, ['redirect' => 'same-origin']));
+                $seen = array_map(function (string $line) {
+                    $r = json_decode($line, true);
+                    return trim($r['method'] . ' ' . $r['path'] . ' ' . $r['body']);
+                }, self::lines($o->origin->read('seen.txt')));
+                $shown = $status . ' to ' . $location . ': ' . $message . ' ' . json_encode($seen);
+
+                if (null !== $path) {
+                    if (is_array($res) && true === ($res['ok'] ?? null) &&
+                        2 === count($seen) && 'POST ' . $path . $sent === $seen[0]) {
+                        $followed++;
+                    } else {
+                        $wrong[] = $shown;
+                    }
+                } elseif (0 === count($seen) && str_contains($message,
+                    'token exchange failed: ' . $status . ' from ' . $o->base . '/auth/token')) {
+                    $refused++;
+                } else {
+                    $wrong[] = $shown;
+                }
+
+                if ('/api/auth/token' === $location) {
+                    $looped = strlen((string)$o->origin->read('exchanged.txt'));
+                }
+            }
+
+            $elsewhere = self::lines($o->other->read('seen.txt'));
+
+            print("\nsecrets: exchange opt-in followed " . $followed .
+                ' redirect(s) on its own origin, refused ' . $refused . ', ' .
+                count($elsewhere) . " elsewhere\n");
+
+            $this->assertSame([], $elsewhere, 'the exchange reached another origin');
+            $this->assertSame([], $wrong);
+            $this->assertSame(3, $followed);
+            $this->assertSame(3, $refused);
+            // A redirect to itself is followed up to the hop limit and no more.
+            $this->assertSame(6, $looped);
+        });
+    }
+
     // -----------------------------------------------------------------
     // The refusal is NOT retried. The gate lives at the transport, so a
     // provider ERROR must fail the operation once - never spin the chain,
@@ -987,6 +1256,66 @@ class VoxgigSolardemoSecretsTest extends TestCase
         $this->assertSame(1, $calls, 'the refusal must not be retried');
         $this->assertCount(0, $wire->calls);
     }
+
+    // -----------------------------------------------------------------
+    // Off by the config where it declares no auth, else by `auth: null`:
+    // either way the feature places no credential, buys no token and
+    // retries nothing.
+
+    public function testAuthOffPlacesNoCredentialAndBuysNoToken(): void
+    {
+        $declared = array_key_exists('auth', VoxgigSolardemoConfig::shared_config()['options'] ?? []);
+        $by = $declared ? 'option' : 'config';
+        $off = $declared ? ['auth' => null] : [];
+        $secrets = ['OFFKEY01', 'OFFKEY02', 'OFFREFRESH01', 'ACCESS01'];
+        $carries = function (array $call) use ($secrets): bool {
+            if ($call['has']) {
+                return true;
+            }
+            foreach ($secrets as $secret) {
+                if (str_contains((string)$call['values'], $secret)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        $sent = [];
+        $bought = 0;
+
+        $scenarios = [
+            ['a key the chain resolves', ['APIKEY' => 'OFFKEY01'], [], [], [200]],
+            ['an explicit apikey', [], ['apikey' => 'OFFKEY02'], [], [200]],
+            ['a refusal', ['REFRESH_TOKEN' => 'OFFREFRESH01'], [],
+                ['name' => 'refresh_token', 'exchange' => ['active' => true]], [401]],
+        ];
+
+        foreach ($scenarios as [$what, $env, $sdkopts, $fopts, $statuses]) {
+            foreach ($env as $name => $value) {
+                $this->setenv($name, $value);
+            }
+            $wire = new VoxgigSolardemoSecretsWire();
+            $wire->apistatus = $statuses;
+            $client = $this->secretsClient($wire,
+                array_merge($sdkopts, $off, ['feature' => $this->secretsOpts($fopts)]));
+
+            $this->driveOp($client, $wire);
+
+            $this->assertCount(1, $wire->api(), $what . ': a request was retried with auth off');
+            $this->assertCount(0, $wire->token(), $what . ': a token was bought with auth off');
+            $this->assertFalse($carries($wire->api()[0]), $what . ': a credential was sent with auth off');
+            $this->assertSame('', $this->secretsFeatureOf($client)->credential(),
+                $what . ': the feature resolved a credential with auth off');
+
+            $sent = array_merge($sent, $wire->api());
+            $bought += count($wire->token());
+            foreach ($env as $name => $value) {
+                $this->clearenv($name);
+            }
+        }
+
+        print("\nsecrets: auth off by " . $by . ': ' . count($sent) . ' request(s), ' .
+            count(array_filter($sent, $carries)) . ' credential(s), ' . $bought . " token(s)\n");
+    }
 }
 
 // A one-request-at-a-time HTTP stand-in, run as a child `php -S` process:
@@ -1006,6 +1335,10 @@ class VoxgigSolardemoSecretsHttpStub
     private ?string $refresh = null;
     private ?string $auth = null;
 
+    public function __construct(private ?string $router = null)
+    {
+    }
+
     public function start(): int
     {
         $this->dir = sys_get_temp_dir() . '/secrets-stub-' . bin2hex(random_bytes(6));
@@ -1014,7 +1347,7 @@ class VoxgigSolardemoSecretsHttpStub
             return 0;
         }
 
-        $router = <<<'ROUTER'
+        $router = $this->router ?? <<<'ROUTER'
 <?php
 $dir = __DIR__;
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
@@ -1029,12 +1362,15 @@ if (str_ends_with($path, '/auth/token')) {
 }
 $auth = '';
 foreach ($_SERVER as $k => $v) {
-    if ('HTTP_AUTHORIZATION' === $k) { $auth = (string)$v; }
+    if ('CREDKEY' === $k) { $auth = (string)$v; }
 }
 file_put_contents($dir . '/auth.txt', $auth);
 header('content-type: application/json');
 echo '{}';
 ROUTER;
+        // The server sees the credential header under its CGI name.
+        $router = str_replace('CREDKEY', 'HTTP_' . strtoupper(
+            str_replace('-', '_', VoxgigSolardemoSecretsWire::credheader())), $router);
         file_put_contents($this->dir . '/router.php', $router);
 
         // A free port: bind, read it, release it. The window between release
@@ -1066,8 +1402,10 @@ ROUTER;
         // harness that captures output must not end up waiting on the
         // server's.
         $pipes = [];
+        // Windows names its null device NUL, and has no /dev/null to open.
+        $null = '\\' === DIRECTORY_SEPARATOR ? 'NUL' : '/dev/null';
         $this->proc = @proc_open($cmd, [
-            0 => ['file', '/dev/null', 'r'],
+            0 => ['file', $null, 'r'],
             1 => ['file', $this->dir . '/out.log', 'a'],
             2 => ['file', $this->dir . '/err.log', 'a'],
         ], $pipes, $this->dir);
@@ -1146,6 +1484,17 @@ ROUTER;
         }
 
         return 'a server is still listening on 127.0.0.1:' . $this->port;
+    }
+
+    // A file beside the router, which a custom router reads or writes.
+    public function put(string $file, string $text): void
+    {
+        file_put_contents($this->dir . '/' . $file, $text);
+    }
+
+    public function read(string $file): ?string
+    {
+        return $this->slurp($file);
     }
 
     public function refresh(): ?string

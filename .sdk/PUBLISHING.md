@@ -9,7 +9,6 @@ it, and how this repo releases is none of their business.
 | target | package | workflow |
 |---|---|---|
 | `js/` | @voxgig-sdk/voxgig-solardemo-sdk-js | `.github/workflows/publish-js.yml` |
-| `seneca-provider/` | voxgig-sdk-voxgig-solardemo-sdk | `.github/workflows/publish-seneca-provider.yml` |
 | `ts/` | @voxgig-sdk/voxgig-solardemo-sdk | `.github/workflows/publish-ts.yml` |
 
 ## How a release happens
@@ -33,9 +32,9 @@ publish credential, and attaches SLSA provenance as it goes.
 `expect_sha` is optional and worth using: it refuses if `main` moved between
 the commit you checked and the run resolving.
 
-It is a DISPATCH rather than a tag push because the root `Makefile` also
-publishes, with a vault-injected token. A tag-triggered workflow racing it
-would publish one version by two mechanisms.
+It is a DISPATCH rather than a tag push. While the registry is pending, the
+root `Makefile` only cuts the git tag, and a tag-triggered workflow would
+turn every tag it cuts into a publish.
 
 ## The release is tagged for you
 
@@ -46,7 +45,6 @@ do by hand.
 | target | tag |
 |---|---|
 | `js/` | `js/v<version>` |
-| `seneca-provider/` | `seneca-provider/v<version>` |
 | `ts/` | `v<version>` |
 
 Re-dispatching a version that is already on the registry skips the publish
@@ -92,7 +90,7 @@ An npm with no `npm trust` command is bypassed for `npx npm@latest`.
 trusted-publisher settings once a version exists, so the FIRST release of a
 package goes out by hand from an authenticated machine:
 
-    cd ts && npm publish --access public
+    cd js && npm publish --access public
 
 After that, register the publisher and every later release is a dispatch.
 

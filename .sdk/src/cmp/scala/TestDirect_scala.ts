@@ -12,6 +12,10 @@ import {
   cmp,
   snakify,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
+  pointIsGraphql,
+  graphqlDirectSkip,
 } from '@voxgig/sdkgen'
 
 
@@ -80,17 +84,12 @@ const TestDirect = cmp(function TestDirect(props: any) {
   // Load point info.
   const loadPoint = loadOp?.points?.[0]
   const loadPath = loadPoint
-    ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param)
+    ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint)
     : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Only path params that actually appear in the URL template drive the
   // direct-test path-param setup and URL-substitution asserts.
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -105,7 +104,7 @@ const TestDirect = cmp(function TestDirect(props: any) {
   // List point info.
   const listPoint = listOp?.points?.[0]
   const listPath = listPoint
-    ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param)
+    ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint)
     : ''
   const listParams = listPoint?.g?.params || []
 
@@ -148,7 +147,12 @@ object ${EntityName}DirectTest {
 `)
 
     // ---- list test ----
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`    println("SKIP ${graphqlDirectSkip('list', entity.name)}")
+
+`)
+    }
+    else if (hasList && listPoint) {
       Content(`    rep.scope("direct-list-${ENTLOWER}") {
       val setup = directSetup(SdkTestSupport.jl(
           SdkTestSupport.om("id" -> "direct01"),
@@ -187,7 +191,12 @@ object ${EntityName}DirectTest {
     }
 
     // ---- load test ----
-    if (hasLoad && loadPoint) {
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`    println("SKIP ${graphqlDirectSkip('load', entity.name)}")
+
+`)
+    }
+    else if (hasLoad && loadPoint) {
       Content(`    rep.scope("direct-load-${ENTLOWER}") {
       val setup = directSetup(SdkTestSupport.om("id" -> "direct01"))
       val client = setup.client

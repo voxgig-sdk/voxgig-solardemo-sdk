@@ -59,9 +59,13 @@ public class MoonDirectTest {
         }
       }
     }
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     VoxgigSolardemoSDK client = setup.client;
 
     Map<String, Object> params = new LinkedHashMap<>();
+    Map<String, Object> query = new LinkedHashMap<>();
     if (setup.live) {
       params.put("planet_id", setup.idmap.get("planet01"));
     }
@@ -72,7 +76,8 @@ public class MoonDirectTest {
     Map<String, Object> result = client.direct(jm(
         "path", "api/planet/{planet_id}/moon",
         "method", "GET",
-        "params", params));
+        "params", params,
+        "query", query));
     if (setup.live) {
       if (!liveOk(result)) {
         RunnerSupport.liveMiss(LIVE_STRICT, "Live list failed: " + RunnerSupport.liveDescribe(result));
@@ -117,6 +122,9 @@ public class MoonDirectTest {
           RunnerSupport.liveMiss(LIVE_STRICT, "Live test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
         }
       }
+    }
+    if (setup.live) {
+      RunnerSupport.livePace();
     }
     VoxgigSolardemoSDK client = setup.client;
 

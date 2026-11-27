@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, opRequestShape, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, entityOps, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -32,7 +32,7 @@ function zigLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'h.vbool(true)'
   if ('ARRAY' === k) return 'h.olist()'
   if ('OBJECT' === k) return 'h.omap()'
-  return `h.vstr("${placeholder}")`
+  return `h.vstr(${JSON.stringify(placeholder)})`
 }
 
 
@@ -67,9 +67,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     const idF = entityIdField(entity)
     const eVar = zigVarName(entity.name)
@@ -80,8 +78,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -106,7 +104,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
       Content(`
 Each operation returns a result union — \`switch\` on it: \`.ok\` carries the
-entity (for \`list\`, a slice of entities, one per record), whose record
+entity${opnames.includes('list') ? ' (for `list`, a slice of entities, one per record)' : ''}, whose record
 \`asEntity().data(null)\` reads, and \`.err => |e|\` the branded error.
 
 `)
@@ -120,7 +118,7 @@ entity (for \`list\`, a slice of entities, one per record), whose record
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
         Content(`| \`${field.n}\` | \`${zigType(field.t)}\` | ${desc} |
 `)
       })
@@ -129,14 +127,13 @@ entity (for \`list\`, a slice of entities, one per record), whose record
 `)
     }
 
-    if (callable.includes('load')) {
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+    if (opnames.includes('load')) {
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `h.jo(&.{${loadItems.map((it: any) =>
-          `.{ "${it.name}", ${zigLit(it.type,
+          `.{ ${JSON.stringify(it.name)}, ${zigLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)} }`).join(', ')}})`
         : 'h.vnull()'
       Content(`#### Example: Load
@@ -151,7 +148,7 @@ switch (client.${method}(h.vnull()).load(${loadArg}, h.vnull())) {
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`zig
@@ -168,8 +165,8 @@ switch (client.${method}(h.vnull()).list(${zigListMatch(entity)}, h.vnull())) {
 `)
     }
 
-    if (callable.includes('create')) {
-      const createItems = opRequestShape(entity, 'create').items
+    if (opnames.includes('create')) {
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
@@ -177,7 +174,7 @@ switch (client.${method}(h.vnull()).list(${zigListMatch(entity)}, h.vnull())) {
 switch (client.${method}(h.vnull()).create(h.jo(&.{
 `)
       createItems.map((it: any) => {
-        Content(`    .{ "${it.name}", ${zigLit(it.type, 'example_' + it.name)} }, // ${zigType(it.type)}
+        Content(`    .{ ${JSON.stringify(it.name)}, ${zigLit(it.type, 'example_' + it.name)} }, // ${zigType(it.type)}
 `)
       })
       Content(`}), h.vnull())) {

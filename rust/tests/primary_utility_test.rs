@@ -3,10 +3,11 @@ mod common;
 mod omni_resolver;
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use common::*;
-use omni_resolver::{entrycount, jpath, tostruct, Run};
+use omni_resolver::{entrycount, jpath, tostruct, Json, Run};
 
 use voxgig_solardemo_sdk::core::helpers::{get_str, getp, ja, jo, setp, to_map, vfn};
 use voxgig_solardemo_sdk::utility::voxgigstruct as vs;
@@ -113,7 +114,7 @@ fn primary_utility_exists() {
     assert!(matches!(utility.prepare_headers(&ctx), Value::Map(_)));
     assert!(matches!(utility.prepare_query(&ctx), Value::Map(_)));
     assert!(matches!(utility.prepare_params(&ctx), Value::Map(_)));
-    assert!(matches!(utility.make_options(&ctx), Value::Map(_)));
+    assert!(matches!(utility.make_options(&ctx), Ok(Value::Map(_))));
     let _ = utility.clean(&ctx, &Value::str("x"));
 }
 
@@ -303,7 +304,7 @@ fn primary_feature_init_inactive() {
 fn primary_fetcher_live() {
     let calls: Rc<RefCell<Vec<Value>>> = Rc::new(RefCell::new(Vec::new()));
     let c = calls.clone();
-    let live_client = VoxgigSolardemoSDK::new(jo(vec![(
+    let live_client = VoxgigSolardemoSDK::new(jo(vec![("base", Value::str("http://localhost:8080")), (
         "system",
         jo(vec![(
             "fetch",
@@ -315,7 +316,7 @@ fn primary_fetcher_live() {
                 ])
             }),
         )]),
-    )]));
+    )])).unwrap();
     let live_utility = live_client.get_utility();
     let ctx = live_utility.make_context(
         CtxSpec {
@@ -343,10 +344,10 @@ fn primary_fetcher_live() {
 fn primary_fetcher_blocked_test_mode() {
     // A live SDK then set mode to test (not using test_sdk, which installs
     // the test feature's mock transport).
-    let blocked_client = VoxgigSolardemoSDK::new(jo(vec![(
-        "system",
-        jo(vec![("fetch", vfn(|_args| Value::empty_map()))]),
-    )]));
+    let blocked_client = VoxgigSolardemoSDK::new(jo(vec![
+        ("base", Value::str("http://localhost:8080")),
+        ("system", jo(vec![("fetch", vfn(|_args| Value::empty_map()))])),
+    ])).unwrap();
     *blocked_client.mode.borrow_mut() = "test".to_string();
 
     let blocked_utility = blocked_client.get_utility();
@@ -373,6 +374,362 @@ fn primary_fetcher_blocked_test_mode() {
         "expected error containing 'blocked', got {}",
         err.msg
     );
+}
+
+// A Django route answers its slashless form with a relative Location. The
+// transport follows each hop, and answers a "manual" fetch with the 3xx.
+#[test]
+fn primary_fetcher_redirect() {
+    use std::io::{BufRead, BufReader, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let log = seen.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming().take(4) {
+            let mut stream = stream.unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            let path = line.split(' ').nth(1).unwrap_or("").to_string();
+            let mut header = String::from("-");
+            while !header.trim().is_empty() {
+                header.clear();
+                if 0 == reader.read_line(&mut header).unwrap_or(0) {
+                    break;
+                }
+            }
+            let (status, location) = match path.as_str() {
+                "/redirect/r1" => (301, "Location: /redirect/r1/\r\n"),
+                "/redirect/r1/" => (308, "Location: done\r\n"),
+                "/redirect/r1/done" => (200, ""),
+                _ => (404, ""),
+            };
+            let body = if 200 == status { "{\"id\":\"r1\"}" } else { "" };
+            log.lock().unwrap().push(path);
+            let _ = write!(stream, "HTTP/1.1 {} X\r\n{}Content-Type: application/json\r\n\
+                Content-Length: {}\r\nConnection: close\r\n\r\n{}", status, location, body.len(), body);
+        }
+    });
+
+    let live_client = VoxgigSolardemoSDK::new(jo(vec![("base", Value::str(&base))])).unwrap();
+    let live_utility = live_client.get_utility();
+    let ctx = live_utility.make_context(
+        CtxSpec {
+            opname: Some("load".to_string()),
+            client: Some(live_client.clone()),
+            utility: Some(live_utility.clone()),
+            ..Default::default()
+        },
+        None,
+    );
+    let url = format!("{}/redirect/r1", base);
+    let res = live_utility
+        .fetch(&ctx, &url, &jo(vec![("method", Value::str("GET")), ("headers", Value::empty_map())]))
+        .expect("expected the redirect followed");
+    assert!(matches!(getp(&res, "status"), Value::Num(n) if 200.0 == n), "{:?}", getp(&res, "status"));
+    assert_eq!(get_str(&res, "body").as_deref(), Some("{\"id\":\"r1\"}"));
+    assert_eq!(*seen.lock().unwrap(), vec!["/redirect/r1", "/redirect/r1/", "/redirect/r1/done"]);
+
+    let manual = live_utility
+        .fetch(&ctx, &url, &jo(vec![
+            ("method", Value::str("GET")),
+            ("headers", Value::empty_map()),
+            ("redirect", Value::str("manual")),
+        ]))
+        .expect("expected the 301");
+    assert!(matches!(getp(&manual, "status"), Value::Num(n) if 301.0 == n), "{:?}", getp(&manual, "status"));
+}
+
+const REDIRECT_SECRET: &str = "REDIRECT-SECRET-q7w3e9r1";
+const REDIRECT_CREDENTIALS: [&str; 5] =
+    ["authorization", "cookie", "x-api-key", "private-token", "x-acme-auth"];
+
+// The GET-only guard is read from the environment, which every test thread
+// shares: held by the test that sets it and by one sending another method.
+static GETONLY_ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+struct Arrived {
+    origin: &'static str,
+    method: String,
+    path: String,
+    headers: BTreeMap<String, String>,
+    body: String,
+}
+
+type Arrivals = std::sync::Arc<std::sync::Mutex<Vec<Arrived>>>;
+
+// One origin: it records each request, and answers the paths named here with
+// a redirect, to the other origin (/out...) or to itself.
+fn redirect_origin(
+    origin: &'static str,
+    listener: std::net::TcpListener,
+    other: String,
+    log: Arrivals,
+) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = match stream {
+                Ok(stream) => stream,
+                Err(_) => continue,
+            };
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap_or(0);
+            let mut words = line.split(' ');
+            let method = words.next().unwrap_or("").trim().to_string();
+            let path = words.next().unwrap_or("").to_string();
+            if method.is_empty() {
+                continue;
+            }
+            let mut headers = BTreeMap::new();
+            loop {
+                let mut header = String::new();
+                if 0 == reader.read_line(&mut header).unwrap_or(0) || header.trim().is_empty() {
+                    break;
+                }
+                if let Some((name, value)) = header.split_once(':') {
+                    headers.insert(name.trim().to_lowercase(), value.trim().to_string());
+                }
+            }
+            let size = headers
+                .get("content-length")
+                .and_then(|n| n.parse::<usize>().ok())
+                .unwrap_or(0);
+            let mut body = vec![0u8; size];
+            let _ = reader.read_exact(&mut body);
+            let (status, location) = match path.as_str() {
+                "/out" => (302, format!("Location: {}/landed\r\n", other)),
+                "/out307" => (307, format!("Location: {}/landed\r\n", other)),
+                "/in" => (302, "Location: /landed\r\n".to_string()),
+                "/in303" => (303, "Location: /landed\r\n".to_string()),
+                "/in307" => (307, "Location: /landed\r\n".to_string()),
+                "/round" => (302, "Location: /round\r\n".to_string()),
+                _ => (200, String::new()),
+            };
+            let answer = if 200 == status { "{\"id\":\"r1\"}" } else { "" };
+            log.lock().unwrap().push(Arrived {
+                origin,
+                method,
+                path,
+                headers,
+                body: String::from_utf8_lossy(&body).to_string(),
+            });
+            let _ = write!(stream, "HTTP/1.1 {} X\r\n{}Content-Type: application/json\r\n\
+                Content-Length: {}\r\nConnection: close\r\n\r\n{}", status, location, answer.len(), answer);
+        }
+    });
+}
+
+// The API's origin and another: a second port on its host is another origin.
+fn redirect_origins() -> (String, Arrivals) {
+    let api = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let other = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let apibase = format!("http://{}", api.local_addr().unwrap());
+    let otherbase = format!("http://{}", other.local_addr().unwrap());
+    let log = Arrivals::default();
+    redirect_origin("api", api, otherbase, log.clone());
+    redirect_origin("other", other, apibase.clone(), log.clone());
+    (apibase, log)
+}
+
+// A live client holding the secret as its apikey, as a caller's would, sends
+// it under each name a credential travels by.
+fn redirect_fetch(
+    base: &str,
+    clean: bool,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+) -> Result<Value, VoxgigSolardemoError> {
+    let client = VoxgigSolardemoSDK::new(jo(vec![
+        ("base", Value::str(base)),
+        ("apikey", Value::str(REDIRECT_SECRET)),
+        ("clean", jo(vec![("active", Value::Bool(clean))])),
+    ])).unwrap();
+    let utility = client.get_utility();
+    let ctx = utility.make_context(
+        CtxSpec {
+            opname: Some("load".to_string()),
+            client: Some(client.clone()),
+            utility: Some(utility.clone()),
+            ..Default::default()
+        },
+        Some(&client.get_root_ctx()),
+    );
+    let headers = jo(vec![
+        ("authorization", Value::str(format!("Bearer {}", REDIRECT_SECRET))),
+        ("cookie", Value::str(format!("sid={}", REDIRECT_SECRET))),
+        ("x-api-key", Value::str(REDIRECT_SECRET)),
+        ("private-token", Value::str("pt-12345")),
+        // Not a sensitive name: a credential by the value it holds.
+        ("x-acme-auth", Value::str(format!("v1 {}", REDIRECT_SECRET))),
+        ("x-tenant", Value::str("acme")),
+    ]);
+    let mut fetchdef = vec![("method", Value::str(method))];
+    if let Some(body) = body {
+        setp(&headers, "content-type", Value::str("application/json"));
+        fetchdef.push(("body", Value::str(body)));
+    }
+    fetchdef.push(("headers", headers));
+    utility.fetch(&ctx, &format!("{}{}", base, path), &jo(fetchdef))
+}
+
+fn redirect_status(res: &Result<Value, VoxgigSolardemoError>) -> i64 {
+    match res {
+        Ok(res) => match getp(res, "status") {
+            Value::Num(n) => n as i64,
+            _ => -1,
+        },
+        Err(err) => panic!("expected a response, got {}: {}", err.code, err.msg),
+    }
+}
+
+fn redirect_trail(arrived: &[Arrived]) -> Vec<String> {
+    arrived
+        .iter()
+        .map(|a| format!("{} {} {}", a.origin, a.method, a.path))
+        .collect()
+}
+
+// Another origin is sent no credential, under any name, with clean active or
+// not; the API's own origin was sent each one.
+#[test]
+fn primary_fetcher_redirect_other_origin() {
+    for clean in [true, false] {
+        let (base, log) = redirect_origins();
+        let res = redirect_fetch(&base, clean, "GET", "/out", None);
+        assert_eq!(redirect_status(&res), 200);
+        let arrived = log.lock().unwrap();
+        assert_eq!(redirect_trail(&arrived), vec!["api GET /out", "other GET /landed"]);
+        let unsent: Vec<&str> = REDIRECT_CREDENTIALS
+            .into_iter()
+            .filter(|name| !arrived[0].headers.contains_key(*name))
+            .collect();
+        assert!(unsent.is_empty(), "the API itself was not sent {:?}", unsent);
+        let leaked: Vec<&str> = REDIRECT_CREDENTIALS
+            .into_iter()
+            .filter(|name| arrived[1].headers.contains_key(*name))
+            .collect();
+        assert!(leaked.is_empty(), "another origin was sent {:?} (clean active: {})", leaked, clean);
+        assert_eq!(arrived[1].headers.get("x-tenant").map(String::as_str), Some("acme"));
+        assert!(!arrived[1].headers.values().any(|v| v.contains(REDIRECT_SECRET)));
+    }
+}
+
+#[test]
+fn primary_fetcher_redirect_same_origin() {
+    let (base, log) = redirect_origins();
+    let res = redirect_fetch(&base, true, "GET", "/in", None);
+    assert_eq!(redirect_status(&res), 200);
+    let arrived = log.lock().unwrap();
+    assert_eq!(redirect_trail(&arrived), vec!["api GET /in", "api GET /landed"]);
+    let lost: Vec<&str> = REDIRECT_CREDENTIALS
+        .into_iter()
+        .chain(["x-tenant"])
+        .filter(|name| !arrived[1].headers.contains_key(*name))
+        .collect();
+    assert!(lost.is_empty(), "the same origin lost {:?}", lost);
+}
+
+// A body is never sent on. A 307 answering a PUT is the answer, on either
+// origin; what becomes a GET carries neither the body nor its type.
+#[test]
+fn primary_fetcher_redirect_body() {
+    let _env = GETONLY_ENV.lock().unwrap_or_else(|held| held.into_inner());
+    for path in ["/out307", "/in307"] {
+        let (base, log) = redirect_origins();
+        let body = format!("BODY-{}", REDIRECT_SECRET);
+        let res = redirect_fetch(&base, true, "PUT", path, Some(&body));
+        assert_eq!(redirect_status(&res), 307);
+        assert_eq!(redirect_trail(&log.lock().unwrap()), vec![format!("api PUT {}", path)]);
+    }
+    for (method, path) in [("PUT", "/in303"), ("POST", "/in")] {
+        let (base, log) = redirect_origins();
+        let res = redirect_fetch(&base, true, method, path, Some("{\"a\":1}"));
+        assert_eq!(redirect_status(&res), 200);
+        let arrived = log.lock().unwrap();
+        assert_eq!(
+            redirect_trail(&arrived),
+            vec![format!("api {} {}", method, path), "api GET /landed".to_string()]
+        );
+        assert_eq!(arrived[0].body, "{\"a\":1}");
+        assert_eq!(arrived[1].body, "");
+        assert_eq!(arrived[1].headers.get("content-type"), None, "{} {}", method, path);
+        assert!(arrived[1].headers.contains_key("x-api-key"), "{} {}", method, path);
+    }
+    let (base, log) = redirect_origins();
+    let res = redirect_fetch(&base, true, "POST", "/out", Some("{\"a\":1}"));
+    assert_eq!(redirect_status(&res), 200);
+    let arrived = log.lock().unwrap();
+    assert_eq!(redirect_trail(&arrived), vec!["api POST /out", "other GET /landed"]);
+    assert_eq!(arrived[1].body, "");
+    assert_eq!(arrived[1].headers.get("content-type"), None);
+    assert!(!arrived[1].headers.values().any(|v| v.contains(REDIRECT_SECRET)));
+}
+
+#[test]
+fn primary_fetcher_redirect_limit() {
+    let (base, log) = redirect_origins();
+    let res = redirect_fetch(&base, true, "GET", "/round", None);
+    assert_eq!(redirect_status(&res), 302);
+    assert_eq!(log.lock().unwrap().len(), 6);
+}
+
+// What a redirect asks of the registry: a secret by its name, or by a
+// registered value held in a form the registry stores, clean active or not.
+#[test]
+fn primary_clean_secret() {
+    let encoded = voxgig_solardemo_sdk::utility::clean::base64_encode(REDIRECT_SECRET.as_bytes());
+    for clean in [true, false] {
+        let client = VoxgigSolardemoSDK::new(jo(vec![
+            ("base", Value::str("http://localhost:8080")),
+            ("apikey", Value::str(REDIRECT_SECRET)),
+            ("clean", jo(vec![("active", Value::Bool(clean))])),
+        ])).unwrap();
+        let utility = client.get_utility();
+        let ctx = client.get_root_ctx();
+        assert!(utility.clean_secret(&ctx, "X-Api-Key", "anything"));
+        assert!(utility.clean_secret(&ctx, "x-acme-auth", &format!("v1 {}", REDIRECT_SECRET)));
+        assert!(utility.clean_secret(&ctx, "x-acme-auth", &format!("Basic {}", encoded)));
+        assert!(!utility.clean_secret(&ctx, "x-tenant", "acme"));
+    }
+}
+
+// Nothing listens on port 9: a request the guard let through fails there.
+#[test]
+fn primary_fetcher_getonly_guard() {
+    let _env = GETONLY_ENV.lock().unwrap_or_else(|held| held.into_inner());
+    let live_client = VoxgigSolardemoSDK::new(jo(vec![("base", Value::str("http://127.0.0.1:9"))])).unwrap();
+    let live_utility = live_client.get_utility();
+    let ctx = live_utility.make_context(
+        CtxSpec {
+            opname: Some("create".to_string()),
+            client: Some(live_client.clone()),
+            utility: Some(live_utility.clone()),
+            ..Default::default()
+        },
+        None,
+    );
+    let url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01";
+    let def = |method: &str| jo(vec![("method", Value::str(method)), ("headers", Value::empty_map())]);
+
+    let prior = std::env::var("VOXGIG_GETONLY_GUARD").ok();
+    std::env::set_var("VOXGIG_GETONLY_GUARD", "TRUE");
+    let refused = live_utility.fetch(&ctx, url, &def("POST")).err();
+    let sent = live_utility.fetch(&ctx, url, &def("GET")).err();
+    match prior {
+        Some(v) => std::env::set_var("VOXGIG_GETONLY_GUARD", v),
+        None => std::env::remove_var("VOXGIG_GETONLY_GUARD"),
+    }
+
+    let refused = refused.expect("expected the POST to be refused");
+    assert_eq!(refused.code, "fetch_getonly_block");
+    assert!(refused.msg.contains("[GET-ONLY GUARD] blocked POST /planet/p1"), "{}", refused.msg);
+    assert!(!refused.msg.contains("GUARDKEY01"), "{}", refused.msg);
+    let sent = sent.expect("expected the GET to reach the closed port");
+    assert_ne!(sent.code, "fetch_getonly_block", "{}", sent.msg);
 }
 
 #[test]
@@ -488,7 +845,7 @@ fn primary_make_options_basic() {
         );
         *ctx.client.borrow_mut() = Some(client.clone());
         *ctx.utility.borrow_mut() = Some(utility.clone());
-        Ok(utility.make_options(&ctx))
+        utility.make_options(&ctx)
     });
 }
 
@@ -741,9 +1098,101 @@ fn primary_param_basic() {
     });
 }
 
+// Where this SDK's prepare_auth puts the credential, probed once over empty
+// headers and query. `pair` is the `<scheme>=` lead-in of a cookie
+// credential, which rides the header bag under "cookie".
+struct AuthCred {
+    query: bool,
+    name: String,
+    pair: String,
+}
+
+fn auth_credential() -> Option<AuthCred> {
+    let client = test_sdk(
+        Value::Noval,
+        jo(vec![
+            ("apikey", Value::str("PROBE")),
+            ("auth", jo(vec![("prefix", Value::str("")), ("basic", Value::Bool(false))])),
+        ]),
+    );
+    let utility = client.get_utility();
+    let ctx = make_test_ctx(&client, &utility);
+    let spec = Rc::new(RefCell::new(Spec::new(&jo(vec![("step", Value::str("s"))]))));
+    *ctx.spec.borrow_mut() = Some(spec.clone());
+    utility.prepare_auth(&ctx).ok()?;
+    for query in [false, true] {
+        let bag = if query { spec.borrow().query.clone() } else { spec.borrow().headers.clone() };
+        let first = vs::keysof_vec(&bag).into_iter().next()
+            .map(|k| { let v = vs::lookup(&bag, &vs::Value::str(k.clone())); (k, v) });
+        if let Some((name, value)) = first {
+            let text = value.as_str().unwrap_or("");
+            let pair = if !query && "cookie" == name && text.ends_with("=PROBE") {
+                text[..text.len() - "PROBE".len()].to_string()
+            } else {
+                String::new()
+            };
+            return Some(AuthCred { query, name, pair });
+        }
+    }
+    None
+}
+
+// The corpus states the credential as `headers.authorization`, a placeholder
+// for wherever this SDK puts it. Only that entry moves, under the real name
+// and into the real container, and a cookie credential's value becomes its
+// pair: every other header and query parameter stays where it was.
+fn auth_retarget(node: &Json, cred: &AuthCred) -> Json {
+    match node {
+        Json::List(items) => Json::List(items.iter().map(|n| auth_retarget(n, cred)).collect()),
+        Json::Map(entries) => {
+            let mut out = BTreeMap::new();
+            let mut placed = None;
+            for (key, val) in entries {
+                match val {
+                    Json::Map(inner) if "headers" == key => {
+                        let mut bag = inner.clone();
+                        placed = bag.remove("authorization").map(|v| match v {
+                            Json::Str(text) => Json::Str(format!("{}{}", cred.pair, text)),
+                            other => other,
+                        });
+                        out.insert(key.clone(), Json::Map(bag));
+                    }
+                    _ => {
+                        out.insert(key.clone(), auth_retarget(val, cred));
+                    }
+                }
+            }
+            if let Some(value) = placed {
+                let to = if cred.query { "query" } else { "headers" };
+                let dest = out.entry(to.to_string()).or_insert_with(|| Json::Map(BTreeMap::new()));
+                if !matches!(dest, Json::Map(_)) {
+                    *dest = Json::Map(BTreeMap::new());
+                }
+                if let Json::Map(bag) = dest {
+                    bag.insert(cred.name.clone(), value);
+                }
+            }
+            Json::Map(out)
+        }
+        other => other.clone(),
+    }
+}
+
+// Read from the config, never from a probe: a probe that finds no credential
+// is the regression this section exists to catch.
 #[test]
 fn primary_prepare_auth_basic() {
+    if !matches!(getp(&getp(&voxgig_solardemo_sdk::make_config(), "options"), "auth"), Value::Map(_)) {
+        println!("SKIP prepareAuth: this SDK's config declares no auth, so it places no credential");
+        return;
+    }
     let mut run = primary_run();
+    let cred = auth_credential().expect("prepare_auth placed no credential in headers or query");
+    if let Json::Map(sections) = &mut run.spec {
+        if let Some(section) = sections.get_mut("prepareAuth") {
+            *section = auth_retarget(section, &cred);
+        }
+    }
     let setup_opts = tostruct(&jpath(&run.spec, &["prepareAuth", "DEF", "setup", "a"]));
     let auth_client = test_sdk(Value::Noval, setup_opts);
     let auth_utility = auth_client.get_utility();
@@ -757,10 +1206,11 @@ fn primary_prepare_auth_basic() {
 
         // Update entry ctx for match.
         if let (Value::Map(_), Some(spec)) = (&ctxmap, ctx.spec.borrow().clone()) {
+            let spec = spec.borrow();
             setp(
                 &ctxmap,
                 "spec",
-                jo(vec![("headers", spec.borrow().headers.clone())]),
+                jo(vec![("headers", spec.headers.clone()), ("query", spec.query.clone())]),
             );
         }
 
@@ -963,7 +1413,10 @@ fn primary_transform_response_basic() {
 // keep new_sdk / to_map referenced (parity helpers).
 #[test]
 fn primary_new_sdk_smoke() {
-    let client = new_sdk();
-    assert_eq!(*client.mode.borrow(), "live");
+    // A templated base URL with no default refuses a client with no options.
+    match new_sdk() {
+        Ok(client) => assert_eq!(*client.mode.borrow(), "live"),
+        Err(err) => assert_eq!(err.code, "server_var_required"),
+    }
     let _ = to_map(&Value::Noval);
 }

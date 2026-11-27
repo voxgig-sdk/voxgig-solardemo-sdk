@@ -251,6 +251,7 @@ let make_context_impl (cs : ctxspec) (basectx : ctx option) : ctx =
     c_opmap = opmap; c_response = response; c_result = result; c_spec = spec;
     c_data = data; c_reqdata = reqdata; c_match = mtch; c_reqmatch = reqmatch;
     c_entity = entity; c_shared = shared; c_scratch = Hashtbl.create 8;
+    c_unexpected_fired = false;
   } in
   let opname = match cs.cs_opname with Some s -> s | None -> "" in
   ctx.c_op <- resolve_op ctx opname;
@@ -259,6 +260,10 @@ let make_context_impl (cs : ctxspec) (basectx : ctx option) : ctx =
 (* ------------------------------------------------------------------ *)
 (* utilities                                                           *)
 (* ------------------------------------------------------------------ *)
+
+(* The data key holding a raw request body. Like `$action`, it can never be a
+ * declared argument name. Defined here because clean reads it before media. *)
+let raw_body_key = "$body"
 
 (* ----- clean -----
  * Everything that leaves the pipeline passes through clean; inside it data
@@ -403,12 +408,69 @@ let clean_name (cfg : value) (out : value) (key : string) : string =
       if List.mem n taken then next (i + 1) else n in
     next 1
 
+(* A type whose body is text: none declared, text/*, or a structured text
+ * format. A body of any other type is bytes, which no message quotes. *)
+let is_text_media (media : string) : bool =
+  let base = match String.index_opt media ';' with
+    | Some i -> String.sub media 0 i
+    | None -> media in
+  let m = String.lowercase_ascii (String.trim base) in
+  m = "" || (String.length m >= 5 && String.sub m 0 5 = "text/")
+  || List.exists (substr_contains m)
+    ["json"; "xml"; "html"; "javascript"; "ecmascript"; "yaml"; "urlencoded"; "graphql"]
+
+(* A response whose body is bytes: by the model, or by the type it declares. *)
+let is_binary_response (point : value) (ctype : string) : bool =
+  getp (getp point "response") "binary" = Bool true || not (is_text_media ctype)
+
+(* A live body of this call that is bytes, and its type. A response read as
+ * text does not say how many bytes it was, so it is not sized. *)
+type binary_body = { bin_live : string list; bin_type : string option; bin_sized : bool }
+
+(* The request body of a point the model marks binary, and a response body
+ * that is bytes. A Str shorter than the registry accepts is not told from
+ * ordinary text. *)
+let binary_bodies (ctx : ctx) (cfg : value) : binary_body list =
+  let minlen = match getp cfg "min" with Num n -> int_of_float n | _ -> 4 in
+  let live = List.filter_map (function Str s when minlen <= String.length s -> Some s | _ -> None) in
+  let body = getp ctx.c_point "body" in
+  let sent = match getp body "kind", getp body "binary" with
+    | Str "raw", Bool true ->
+      let spec_body = match ctx.c_spec with Some sp -> sp.sp_body | None -> Noval in
+      [{ bin_live = live [spec_body; getp ctx.c_reqdata raw_body_key];
+         bin_type = (match getp body "media" with Str m -> Some m | _ -> None); bin_sized = true }]
+    | _ -> [] in
+  let answered = match ctx.c_response with
+    | Some r ->
+      let ctype = vstring (header_ci r.rs_headers "content-type") in
+      if is_binary_response ctx.c_point ctype then
+        [{ bin_live = live [r.rs_body]; bin_type = (if ctype = "" then None else Some ctype);
+           bin_sized = false }]
+      else []
+    | None -> [] in
+  List.filter (fun b -> b.bin_live <> []) (sent @ answered)
+
+(* Bytes are described, never copied (ADR-006): the kind, and the size and
+ * media type where they are known. A Str is the only carrier here, and it
+ * is bytes only as a live body. *)
+let describe_binary (bins : binary_body list) (s : string) : value option =
+  match List.find_opt (fun b -> List.mem s b.bin_live) bins with
+  | Some b ->
+    let desc = jo [("binary$", Str "bytes")] in
+    if b.bin_sized then setp desc "size" (vint_of (String.length s));
+    (match b.bin_type with Some m -> setp desc "type" (Str m) | None -> ());
+    Some desc
+  | None -> None
+
 (* A masked plain-data COPY: functions dropped, cycles cut, and nothing
  * shared with the live value, whose spec must stay raw. *)
-let rec clean_snapshot (cfg : value) (v : value) (key : string option) (depth : int) (seen : value list) : value =
+let rec clean_snapshot (cfg : value) (bin : binary_body list) (v : value) (key : string option)
+    (depth : int) (seen : value list) : value =
   match v with
   | Noval | Null -> v
-  | Str s -> Str (if sensitive_key cfg key then mask_value cfg s else clean_string cfg s)
+  | Str s ->
+    if sensitive_key cfg key then Str (mask_value cfg s)
+    else (match describe_binary bin s with Some desc -> desc | None -> Str (clean_string cfg s))
   | Func _ | Sentinel _ -> clean_drop
   | Bool _ | Num _ -> if sensitive_key cfg key then getp cfg "mask" else v
   | Map _ | List _ ->
@@ -420,13 +482,13 @@ let rec clean_snapshot (cfg : value) (v : value) (key : string option) (depth : 
       | Map m ->
         let out = empty_map () in
         List.iter (fun (k, x) ->
-            match clean_snapshot cfg x (Some k) (depth + 1) seen with
+            match clean_snapshot cfg bin x (Some k) (depth + 1) seen with
             | Sentinel "clean_drop" -> ()
             | c -> setp out (clean_name cfg out k) c) m.entries;
         out
       | List r ->
         lst (List.map (fun x ->
-            match clean_snapshot cfg x None (depth + 1) seen with
+            match clean_snapshot cfg bin x None (depth + 1) seen with
             | Sentinel "clean_drop" -> Null
             | c -> c) !r)
       | _ -> v
@@ -437,7 +499,10 @@ let clean_util (ctx : ctx) (v : value) : value =
   if getp cfg "active" = Bool false then v
   else match v with
     | Str s -> Str (clean_string cfg s)
-    | _ -> (match clean_snapshot cfg v None 0 [] with Sentinel "clean_drop" -> Noval | c -> c)
+    | _ ->
+      (match clean_snapshot cfg (binary_bodies ctx cfg) v None 0 [] with
+       | Sentinel "clean_drop" -> Noval
+       | c -> c)
 
 (* An exception is immutable and of any shape, so one that never passed
  * through make_error (a hook's, a fetcher's) leaves as a cleaned copy: a
@@ -532,10 +597,11 @@ let make_error_util (ctx : ctx) (err_opt : sdk_error option) : value =
     err_spec = (match ctx.c_spec with Some s -> (cu ctx).u_clean ctx (spec_to_value s) | None -> Noval);
   } in
   ctx.c_ctrl.ctrl_err <- Some sdk_err;
-  (* Fire PreUnexpected so observability features (metrics, telemetry, audit,
-     debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-     rbac short-circuit). Fires after ctrl_err is set so hooks can read the
-     error; features guard against double-recording when PreDone already fired. *)
+  (* Fire PreUnexpected so features hooked on it close/record error paths
+     that never reach PreDone (e.g. a PrePoint short-circuit). Fires after
+     ctrl_err is set so hooks can read the error; features guard against
+     double-recording when PreDone already fired. *)
+  ctx.c_unexpected_fired <- true;
   (cu ctx).u_feature_hook ctx "PreUnexpected";
   if ctx.c_ctrl.ctrl_throw = Some false then result.rt_resdata
   else raise (Sdk_error_exc sdk_err)
@@ -636,10 +702,6 @@ let call_args (ctx : ctx) (kind : string) : (string * string * value) list =
 (* ---- media ----
  * The media types a point declares: `response` (the model's `rs`) for the
  * Accept header, and `body` (the model's `rb`) for the request body. *)
-
-(* The data key holding a raw request body. Like `$action`, it can never be a
- * declared argument name. *)
-let raw_body_key = "$body"
 
 let is_json_media (media : string) : bool =
   let base = match String.index_opt media ';' with
@@ -813,8 +875,9 @@ let prepare_query_util (ctx : ctx) : value =
     | _ -> []
   in
   (* A header or cookie parameter travels in the headers, which
-   * prepare_headers fills, unless a query parameter shares its name: then
-   * both are sent. *)
+   * prepare_headers fills, and a field the point's body declares travels in
+   * the body, which prepare_body fills, unless a query parameter shares its
+   * name: then both are sent. *)
   let declared =
     match getp (getp ctx.c_point "args") "query" with
     | List r -> List.map (fun qd -> getp qd "name") !r
@@ -830,7 +893,9 @@ let prepare_query_util (ctx : ctx) : value =
     | List r -> List.map (fun cd -> getp cd "name") !r
     | _ -> []
   in
-  let elsewhere = List.filter (fun n -> not (List.mem n declared)) (header_names @ cookie_names) in
+  let fields = match getp ctx.c_point "fields" with List r -> !r | _ -> [] in
+  let elsewhere =
+    List.filter (fun n -> not (List.mem n declared)) (header_names @ cookie_names @ fields) in
   let params = params @ arg_names @ elsewhere in
   let contains_param s = List.exists (fun v -> match v with Str x -> x = s | _ -> false) params in
   (* A query parameter travels under the name the definition gives it, its
@@ -859,8 +924,40 @@ let prepare_query_util (ctx : ctx) : value =
     (call_args ctx "query");
   out
 
+(* A list, load or remove routed to a method with a body sends the match
+ * fields that body declares, never a path parameter, and never a header,
+ * cookie or query argument the body does not also declare as a field. *)
+let match_body (ctx : ctx) (fields : value list) : value =
+  let point = ctx.c_point in
+  let arg_names kind keep =
+    match getp (getp point "args") kind with
+    | List r ->
+      List.filter_map (fun ad ->
+          match getp ad "name" with Str n when keep ad -> Some n | _ -> None) !r
+    | _ -> []
+  in
+  let unkept ad = match getp ad "field" with Bool true -> false | _ -> true in
+  let routed =
+    (match getp point "params" with
+     | List r -> List.filter_map (function Str s -> Some s | _ -> None) !r
+     | _ -> [])
+    @ arg_names "params" (fun _ -> true)
+    @ List.concat_map (fun kind -> arg_names kind unkept) ["header"; "cookie"; "query"]
+  in
+  let body = empty_map () in
+  List.iter (function
+      | Str name when name <> "$action" && not (List.mem name routed) ->
+        (match getp ctx.c_reqmatch name with
+         | Noval | Null -> ()
+         | v -> setp body name v)
+      | _ -> ()) fields;
+  body
+
 let prepare_body_util (ctx : ctx) : value =
-  if ctx.c_op.op_input <> "data" then Noval
+  if ctx.c_op.op_input <> "data" then
+    (match getp ctx.c_point "fields" with
+     | List { contents = _ :: _ as fields } -> match_body ctx fields
+     | _ -> Noval)
   else if is_raw_request ctx.c_point then raw_body ctx.c_reqdata
   else (cu ctx).u_transform_request ctx
 
@@ -1110,10 +1207,13 @@ let unreadable_body (ctx : ctx) (status : int) (headers : value) (text : value) 
     (failed : sdk_error option) : sdk_error =
   let ctype = vstring (header_ci headers "content-type") in
   let agent = vstring (clean_util ctx (Str (vstring (header_ci sent "user-agent")))) in
+  (* Only text is quoted: bytes are a file's, by the model or by their type. *)
+  let quoted = (match text with Noval | Null -> false | _ -> true)
+               && not (is_binary_response ctx.c_point ctype) in
   let detail = "HTTP " ^ string_of_int status ^ ", content-type " ^
                (if ctype = "" then "none" else ctype) ^ ", user-agent " ^
                (if agent = "" then "transport default" else agent) ^
-               (match text with Noval | Null -> "" | _ -> ", body: " ^ body_preview ctx text) in
+               (if quoted then ", body: " ^ body_preview ctx text else "") in
   match failed with
   | Some e -> e.err_msg <- e.err_msg ^ " (" ^ detail ^ ")"; e
   | None ->
@@ -1188,14 +1288,18 @@ let make_point_util (ctx : ctx) : (value * sdk_error option) =
         ("Operation \"" ^ op.op_name ^ "\" not allowed by SDK option allow.op value: \"" ^ allow_op ^ "\"")))
     else begin
       let points = match op.op_points with List r -> !r | _ -> [] in
+      let reqselector, selector =
+        if op.op_input = "data" then ctx.c_reqdata, ctx.c_data
+        else ctx.c_reqmatch, ctx.c_match in
+      (* A lone point still needs the call's action to agree with its own; the
+         selection below refuses a mismatch either way. *)
+      let agrees single =
+        getp reqselector "$action" = getp (to_map (getp single "select")) "$action" in
       match points with
       | [] -> (Noval, Some (ctx_make_error ctx "point_no_points"
           ("Operation \"" ^ op.op_name ^ "\" has no endpoint definitions.")))
-      | [single] -> ctx.c_point <- single; (ctx.c_point, None)
+      | [single] when agrees single -> ctx.c_point <- single; (ctx.c_point, None)
       | _ ->
-        let reqselector, selector =
-          if op.op_input = "data" then ctx.c_reqdata, ctx.c_data
-          else ctx.c_reqmatch, ctx.c_match in
         let chosen = ref Noval in
         let matched = ref false in
         let n = List.length points in
@@ -1314,7 +1418,7 @@ let make_spec_util (ctx : ctx) : (spec option * sdk_error option) =
       if get_str_d ctx.c_point "kind" "" = "graphql" then begin
         (* GraphQL addresses one endpoint: no path parts, no query string, and
          * the body carries the operation. prepare_body is skipped
-         * deliberately — it only emits a body for data-input ops, whereas
+         * deliberately — it builds only a REST body, whereas
          * every GraphQL op posts one, including load/list/remove. *)
         sp.sp_body <- u.u_graphql_body ctx;
         sp.sp_path <- "";
@@ -1335,7 +1439,7 @@ let make_spec_util (ctx : ctx) : (spec option * sdk_error option) =
       let note (s : spec) =
         s.sp_authquery <- List.filter (fun k ->
             match List.assoc_opt k query with
-            | Some was -> not (veq was (getp s.sp_query k))
+            | Some was -> not (deepequal was (getp s.sp_query k))
             | None -> true) (keysof s.sp_query) in
       match u.u_prepare_auth ctx with
       | (_, Some err) -> (None, Some err)
@@ -1349,12 +1453,19 @@ let make_url_util (ctx : ctx) : (string * sdk_error option) =
   | _, None -> ("", Some (ctx_make_error ctx "url_no_result" "Expected context result property to be defined."))
   | Some spec, Some result ->
     let url = ref (join ~sep:(Str "/") ~url:true (ja [Str spec.sp_base; Str spec.sp_prefix; Str spec.sp_path; Str spec.sp_suffix])) in
-    (* A route the definition ends with a slash keeps it: a server such as a
-     * Django REST one redirects or refuses the route without it. *)
+    (* A route ending in a slash keeps it, as defined or as passed to direct(), for
+     * Django, and a host with no path takes /, or luasocket reads a query as the host. *)
     let ends_slash s = String.length s > 0 && '/' = s.[String.length s - 1] in
-    (match getp ctx.c_point "orig" with
-     | Str o when ends_slash o && spec.sp_suffix = "" && not (ends_slash !url) -> url := !url ^ "/"
-     | _ -> ());
+    let orig_slash = match getp ctx.c_point "orig" with Str o -> ends_slash o | _ -> false in
+    if (orig_slash || ends_slash spec.sp_path) && spec.sp_suffix = "" && not (ends_slash !url)
+    then url := !url ^ "/";
+    let ulen = String.length !url in
+    let rec scheme_end i =
+      if i + 3 > ulen then -1 else if String.sub !url i 3 = "://" then i else scheme_end (i + 1) in
+    let authority = scheme_end 0 in
+    if 0 < authority && not (String.exists (fun c -> c = '/' || c = '?' || c = '#')
+                               (String.sub !url (authority + 3) (ulen - authority - 3)))
+    then url := !url ^ "/";
     let resmatch = empty_map () in
     List.iter (fun key ->
         let v = getp spec.sp_params key in
@@ -1372,6 +1483,15 @@ let make_url_util (ctx : ctx) : (string * sdk_error option) =
     let route =
       if String.length !url >= blen && String.sub !url 0 blen = base
       then String.sub !url blen (String.length !url - blen) else !url in
+    (* A whole . or .. is a dot segment, which moves the request to another route. *)
+    let dot = List.find_opt (fun key ->
+        let v = getp spec.sp_params key in
+        not (is_noval v) && List.mem (vstring v) ["."; ".."]) (keysof spec.sp_params) in
+    match dot with
+    | Some key ->
+      ("", Some (ctx_make_error ctx "url_param_invalid"
+         ("URL path parameter " ^ key ^ " cannot be \"" ^ vstring (getp spec.sp_params key) ^ "\".")))
+    | None ->
     match placeholders route with
     | _ :: _ as unfilled ->
       ("", Some (ctx_make_error ctx "url_param_missing"
@@ -1501,7 +1621,7 @@ let make_result_util (ctx : ctx) : (result option * sdk_error option) =
              | List r, Some entity ->
                let entries = List.map (fun entry ->
                    let ent = entity.e_make () in
-                   (match entry with Map _ -> ent.e_data_set entry | _ -> ());
+                   ent.e_data_set entry;
                    entry) !r in
                result.rt_resdata <- lst entries
              | _ -> ())
@@ -1510,6 +1630,28 @@ let make_result_util (ctx : ctx) : (result option * sdk_error option) =
           (Some result, None)))
 
 (* ----- fetcher (innermost transport) ----- *)
+
+(* A GET-only live run refuses any other method before it is sent. The error
+ * names the path alone: the query can carry a credential. *)
+let getonly_refusal (ctx : ctx) (fullurl : string) (fetchdef : value) : sdk_error option =
+  let meth = match get_str fetchdef "method" with
+    | Some m when m <> "" -> String.uppercase_ascii m
+    | _ -> "GET" in
+  if Sys.getenv_opt "VOXGIG_GETONLY_GUARD" <> Some "TRUE" || meth = "GET" then None
+  else begin
+    let index_from s i pred =
+      let rec go j = if j >= String.length s || pred s.[j] then j else go (j + 1) in go i in
+    let n = String.length fullurl in
+    let rec scheme i = if i + 3 > n then None
+      else if String.sub fullurl i 3 = "://" then Some (i + 3) else scheme (i + 1) in
+    let start = match scheme 0 with
+      | Some a -> index_from fullurl a (fun c -> c = '/' || c = '?' || c = '#')
+      | None -> 0 in
+    let stop = index_from fullurl start (fun c -> c = '?' || c = '#') in
+    let path = if stop = start then "/" else String.sub fullurl start (stop - start) in
+    Some (ctx_make_error ctx "fetch_getonly_block"
+      ("[GET-ONLY GUARD] blocked " ^ meth ^ " " ^ path))
+  end
 
 let fetcher_util (ctx : ctx) (fullurl : string) (fetchdef : value) : (value * sdk_error option) =
   let client = cc ctx in
@@ -1532,8 +1674,11 @@ let fetcher_util (ctx : ctx) (fullurl : string) (fetchdef : value) : (value * sd
       | Noval | Null ->
         (* No live HTTP transport is bundled (dependency-free build); tests
          * run against the test-feature mock or a system.fetch injection. *)
-        (Noval, Some (ctx_make_error ctx "fetch_no_transport"
-          "No live HTTP transport in this build; provide options.system.fetch."))
+        (match getonly_refusal ctx fullurl fetchdef with
+         | Some refused -> (Noval, Some refused)
+         | None ->
+           (Noval, Some (ctx_make_error ctx "fetch_no_transport"
+             "No live HTTP transport in this build; provide options.system.fetch.")))
       | _ -> (Noval, Some (ctx_make_error ctx "fetch_invalid" "system.fetch is not a valid function"))
   end
 

@@ -36,7 +36,7 @@ class PlanetEntityTest < Minitest::Test
     end
   end
 
-  # Feature #4: the entity stream(action, ...) method runs the op pipeline and
+  # The entity stream(action, ...) method runs the op pipeline and
   # returns an Enumerator over result items. With the streaming feature active
   # it yields the feature's incremental output; otherwise it falls back to the
   # materialised list so stream always yields.
@@ -134,6 +134,20 @@ class PlanetEntityTest < Minitest::Test
     assert_operator hook.unexpected, :>, fired
   end
 
+  def test_validate_list_response
+    cfg = VoxgigSolardemoConfig.shared_config
+    unless cfg["feature"].is_a?(Hash) && cfg["feature"].key?("validate")
+      skip("feature not present in this SDK: validate")
+    end
+    opts = { "feature" => { "validate" => { "active" => true, "request" => false, "response" => true } } }
+    listed = VoxgigSolardemoSDK.test({ "entity" => { "planet" => { "v1" => { "diameter" => 1, "kind" => "x", "name" => "x" } } } }, opts).Planet(nil).list(nil, nil)
+    assert_equal ["v1"], listed.map { |ent| ent.data_get["id"] }
+    err = assert_raises(StandardError) do
+      VoxgigSolardemoSDK.test({ "entity" => { "planet" => { "v1" => { "diameter" => "x", "kind" => "x", "name" => "x" } } } }, opts).Planet(nil).list(nil, nil)
+    end
+    assert_equal "validate_failed", err.code
+  end
+
   def test_validate
     cfg = VoxgigSolardemoConfig.shared_config
     unless cfg["feature"].is_a?(Hash) && cfg["feature"].key?("validate")
@@ -157,8 +171,52 @@ class PlanetEntityTest < Minitest::Test
         return
       end
     end
+    if setup[:live] && ENV["VOXGIG_GETONLY_GUARD"] == "TRUE"
+      puts "LIVE STEP {\"id\":\"planet.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/forbid\"}"
+      puts "LIVE STEP {\"id\":\"planet.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}\"}"
+      puts "LIVE STEP {\"id\":\"planet.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}\"}"
+      puts "LIVE STEP {\"id\":\"planet.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}"
+    client = setup[:client]
+    if setup[:live]
+      _live_id = setup[:synthetic_only] ? nil : setup[:idmap]["planet01"]
+      Runner.live_pace
+      Runner.live_existing(setup, LIVE_STRICT, "planet", "id", _live_id) do
+        client.Planet(nil).list({}, nil)
+      end
+    end
+
+    # Bootstrap entity data from existing test data.
+    planet_ref01_data_raw = Vs.items(Helpers.to_map(
+      Vs.getpath(setup[:data], "existing.planet")))
+    planet_ref01_data = nil
+    if planet_ref01_data_raw.length > 0
+      planet_ref01_data = Helpers.to_map(planet_ref01_data_raw[0][1])
+    end
+
+    Runner.live_pace if setup[:live]
+    # LIST
+    planet_ref01_ent = client.Planet(nil)
+    planet_ref01_match = {}
+
+    planet_ref01_list_result = planet_ref01_ent.list(planet_ref01_match, nil)
+    assert planet_ref01_list_result.is_a?(Array)
+
+    Runner.live_pace if setup[:live]
+    # LOAD
+    planet_ref01_match_dt0 = {
+      "id" => planet_ref01_data["id"],
+    }
+    planet_ref01_data_dt0_loaded = planet_ref01_ent.load(planet_ref01_match_dt0, nil)
+    planet_ref01_data_dt0_load_result = Helpers.to_map(planet_ref01_data_dt0_loaded.respond_to?(:data_get) ? planet_ref01_data_dt0_loaded.data_get : planet_ref01_data_dt0_loaded)
+    assert !planet_ref01_data_dt0_load_result.nil?
+    assert Runner.live_same_id(planet_ref01_data_dt0_load_result["id"], planet_ref01_data["id"])
+
+      return
+    end
+
     client = setup[:client]
 
+    Runner.live_pace if setup[:live]
     # CREATE
     planet_ref01_ent = client.Planet(nil)
     planet_ref01_data = Helpers.to_map(Vs.getprop(
@@ -169,6 +227,7 @@ class PlanetEntityTest < Minitest::Test
     assert !planet_ref01_data.nil?
     assert !planet_ref01_data["id"].nil?
 
+    Runner.live_pace if setup[:live]
     # LIST
     planet_ref01_match = {}
 
@@ -180,6 +239,7 @@ class PlanetEntityTest < Minitest::Test
       { "id" => planet_ref01_data["id"] })
     assert !Vs.isempty(found_item)
 
+    Runner.live_pace if setup[:live]
     # UPDATE
     planet_ref01_data_up0_up = {
       "id" => planet_ref01_data["id"],
@@ -192,9 +252,10 @@ class PlanetEntityTest < Minitest::Test
     planet_ref01_resdata_up0_result = planet_ref01_ent.update(planet_ref01_data_up0_up, nil)
     planet_ref01_resdata_up0 = Helpers.to_map(planet_ref01_resdata_up0_result.respond_to?(:data_get) ? planet_ref01_resdata_up0_result.data_get : planet_ref01_resdata_up0_result)
     assert !planet_ref01_resdata_up0.nil?
-    assert_equal planet_ref01_resdata_up0["id"], planet_ref01_data_up0_up["id"]
+    assert Runner.live_same_id(planet_ref01_resdata_up0["id"], planet_ref01_data_up0_up["id"])
     assert_equal planet_ref01_resdata_up0[planet_ref01_markdef_up0_name], planet_ref01_markdef_up0_value
 
+    Runner.live_pace if setup[:live]
     # LOAD
     planet_ref01_match_dt0 = {
       "id" => planet_ref01_data["id"],
@@ -202,14 +263,16 @@ class PlanetEntityTest < Minitest::Test
     planet_ref01_data_dt0_loaded = planet_ref01_ent.load(planet_ref01_match_dt0, nil)
     planet_ref01_data_dt0_load_result = Helpers.to_map(planet_ref01_data_dt0_loaded.respond_to?(:data_get) ? planet_ref01_data_dt0_loaded.data_get : planet_ref01_data_dt0_loaded)
     assert !planet_ref01_data_dt0_load_result.nil?
-    assert_equal planet_ref01_data_dt0_load_result["id"], planet_ref01_data["id"]
+    assert Runner.live_same_id(planet_ref01_data_dt0_load_result["id"], planet_ref01_data["id"])
 
+    Runner.live_pace if setup[:live]
     # REMOVE
     planet_ref01_match_rm0 = {
       "id" => planet_ref01_data["id"],
     }
     planet_ref01_ent.remove(planet_ref01_match_rm0, nil)
 
+    Runner.live_pace if setup[:live]
     # LIST
     planet_ref01_match_rt0 = {}
 

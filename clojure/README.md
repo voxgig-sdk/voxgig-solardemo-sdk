@@ -6,7 +6,7 @@ The Clojure SDK for the VoxgigSolardemo API — an entity-oriented client
 following idiomatic Clojure conventions (plain functions, immutable data, and
 the vendored `voxgig.struct` value model).
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `(api/moon client nil)` — each
+The SDK exposes the API as semantic **Entities** — for example `(api/moon client nil)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -33,14 +33,13 @@ Or from a local source checkout:
 
 ```clojure
 ;; deps.edn
-{:deps {voxgigsolardemo/sdk {:local/root "../clojure"}}}
+{:deps {voxgigsolardemo/sdk {:local/root "../voxgig-solardemo-sdk/clojure"}}}
 ```
 
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -95,31 +94,33 @@ Moon is nested under planet, so provide the
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations throw on failure, so wrap them in `try` / `catch`:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
-}
+```clojure
+(require '[sdk.api :as api]
+         '[sdk.entity.planet :as e-planet]
+         '[voxgig.struct :as vs])
+
+(try
+  (doseq [planet (e-planet/list (api/planet client nil) nil nil)]
+    (println ((:data-get planet))))
+  (catch Exception err
+    (println "list failed:" (.getMessage err))))
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`api/direct` does **not** throw — it
+returns the result map. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```clojure
+(def result
+  (api/direct client
+    (vs/jm "path" "/api/planet/{planet_id}/moon"
+           "method" "GET"
+           "params" (vs/jm "planet_id" "example_id"))))
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
-}
+(when-not (vs/getprop result "ok")
+  (println "request failed:" (vs/getprop result "status") (vs/getprop result "err")))
 ```
 
 
@@ -132,9 +133,9 @@ For endpoints not covered by entity operations:
 ```clojure
 (def result
   (api/direct client
-    (vs/jm "path" "/api/resource/{id}"
+    (vs/jm "path" "/api/planet/{planet_id}/moon"
            "method" "GET"
-           "params" (vs/jm "id" "example"))))
+           "params" (vs/jm "planet_id" "example"))))
 
 (if (vs/getprop result "ok")
   (do
@@ -151,9 +152,9 @@ For endpoints not covered by entity operations:
 ;; prepare returns the fetch definition and raises on error.
 (def fetchdef
   (api/prepare client
-    (vs/jm "path" "/api/resource/{id}"
-           "method" "DELETE"
-           "params" (vs/jm "id" "example"))))
+    (vs/jm "path" "/api/planet/{planet_id}/moon"
+           "method" "GET"
+           "params" (vs/jm "planet_id" "example"))))
 
 (println (vs/getprop fetchdef "url"))
 (println (vs/getprop fetchdef "method"))
@@ -229,9 +230,10 @@ Creates a new SDK client. `options` is a `voxgig.struct` map (or `nil`).
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
 | `feature` | `map` | Feature activation flags. |
-| `extend` | `vector` | Additional feature atoms to load. |
-| `system` | `map` | System overrides (e.g. custom `fetch` fn). |
+| `extend` | `vector` | Additional feature instances to load. |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 ### test-sdk
 
@@ -306,7 +308,7 @@ On error, `ok` is `false` and `err` contains the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -322,9 +324,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -339,11 +341,11 @@ Create an instance: `(def moon (api/moon client nil))`
 
 | Method | Description |
 | --- | --- |
-| `(create ent data ctrl)` | Create a new entity with the given data. |
 | `(list ent match ctrl)` | List entities, optionally matching the given criteria. |
 | `(load ent match ctrl)` | Load a single entity by match criteria. |
-| `(remove ent match ctrl)` | Remove the matching entity. |
+| `(create ent data ctrl)` | Create a new entity with the given data. |
 | `(update ent data ctrl)` | Update an existing entity. |
+| `(remove ent match ctrl)` | Remove the matching entity. |
 
 #### Fields
 
@@ -358,6 +360,8 @@ Create an instance: `(def moon (api/moon client nil))`
 #### Example: Load
 
 ```clojure
+(require '[sdk.entity.moon :as e-moon])
+
 (def moon (e-moon/load (api/moon client nil) (vs/jm "id" "moon_id" "planet_id" "planet_id") nil))
 ```
 
@@ -391,11 +395,11 @@ Create an instance: `(def planet (api/planet client nil))`
 
 | Method | Description |
 | --- | --- |
-| `(create ent data ctrl)` | Create a new entity with the given data. |
 | `(list ent match ctrl)` | List entities, optionally matching the given criteria. |
 | `(load ent match ctrl)` | Load a single entity by match criteria. |
-| `(remove ent match ctrl)` | Remove the matching entity. |
+| `(create ent data ctrl)` | Create a new entity with the given data. |
 | `(update ent data ctrl)` | Update an existing entity. |
+| `(remove ent match ctrl)` | Remove the matching entity. |
 
 #### Fields
 
@@ -412,6 +416,8 @@ Create an instance: `(def planet (api/planet client nil))`
 #### Example: Load
 
 ```clojure
+(require '[sdk.entity.planet :as e-planet])
+
 (def planet (e-planet/load (api/planet client nil) (vs/jm "id" "planet_id") nil))
 ```
 
@@ -437,12 +443,11 @@ Create an instance: `(def planet (api/planet client nil))`
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -555,7 +560,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -606,16 +611,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -623,9 +624,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is an atom wrapping a
+map, with a function under the name of each pipeline stage it implements
+(e.g. `"PrePoint"`). Each function receives the context.
 
 The SDK ships with built-in features:
 
@@ -669,35 +670,39 @@ clojure/
 ```
 
 Require `[sdk.api :as api]` for the public surface, and an entity
-namespace (e.g. `[sdk.entity.voxgigsolardemo :as e-voxgigsolardemo]`)
+namespace (e.g. `[sdk.entity.moon :as e-moon]`)
 only when you call its operations directly.
 
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```clojure
+(require '[sdk.api :as api]
+         '[sdk.entity.planet :as e-planet]
+         '[voxgig.struct :as vs])
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+(def planet (api/planet client nil))
+(e-planet/list planet nil nil)
+
+;; ((:data-get planet)) now returns the planet data from the last list
+;; ((:match-get planet)) returns the last match criteria
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `((:make planet))` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`api/direct` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `api/prepare` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

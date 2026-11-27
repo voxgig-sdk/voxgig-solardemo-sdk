@@ -16,7 +16,7 @@ type VoxgigSolardemoSDK struct {
 	rootctx  *Context
 }
 
-func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK {
+func NewVoxgigSolardemoSDK(options map[string]any) (*VoxgigSolardemoSDK, error) {
 	sdk := &VoxgigSolardemoSDK{
 		Mode:     "live",
 		Features: []Feature{},
@@ -34,7 +34,11 @@ func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK {
 		"shared":  map[string]any{},
 	}, nil)
 
-	sdk.options = sdk.utility.MakeOptions(sdk.rootctx)
+	opts, err := sdk.utility.MakeOptions(sdk.rootctx)
+	if err != nil {
+		return nil, err
+	}
+	sdk.options = opts
 
 	if vs.GetPath(sdk.options, []any{"feature", "test", "active"}) == true {
 		sdk.Mode = "test"
@@ -44,8 +48,8 @@ func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK {
 
 	// Add features in the resolved order (MakeOptions puts an explicit array
 	// order first, else defaults to test-first). Ordering matters: the `test`
-	// feature installs the base mock transport and the transport features
-	// (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
+	// feature installs the base mock transport and the features whose model
+	// declares `transport: 'wrap'` wrap whatever is current, so `test`
 	// must be added before them to sit at the base of the chain.
 	featureOpts := ToMapAny(vs.GetProp(sdk.options, "feature"))
 	if featureOpts != nil {
@@ -82,7 +86,7 @@ func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK {
 
 	sdk.utility.FeatureHook(sdk.rootctx, "PostConstruct")
 
-	return sdk
+	return sdk, nil
 }
 
 // The client holds the credential in its options, so a print or a JSON dump
@@ -190,6 +194,20 @@ func (sdk *VoxgigSolardemoSDK) Prepare(fetchargs map[string]any) (map[string]any
 				ctx.Spec.Headers[k] = v
 			}
 		}
+	}
+
+	// A raw request has no point to declare its response type, so it asks
+	// for the JSON it reads: an API that negotiates on Accept otherwise
+	// answers in its own default format. A caller's own accept wins.
+	hasAccept := false
+	for k := range ctx.Spec.Headers {
+		if strings.ToLower(k) == "accept" {
+			hasAccept = true
+			break
+		}
+	}
+	if !hasAccept {
+		ctx.Spec.Headers["accept"] = "application/json"
 	}
 
 	_, err := utility.PrepareAuth(ctx)
@@ -375,7 +393,7 @@ func (sdk *VoxgigSolardemoSDK) Graphql(
 // Moon returns a Moon entity bound to this client.
 // Idiomatic usage: client.Moon(nil).List(nil, nil) or
 // client.Moon(nil).Load(map[string]any{"id": ...}, nil).
-func (sdk *VoxgigSolardemoSDK) Moon(data map[string]any) VoxgigSolardemoEntity {
+func (sdk *VoxgigSolardemoSDK) Moon(data map[string]any) VoxgigSolardemoEntityBase {
 	return NewMoonEntityFunc(sdk, data)
 }
 
@@ -383,7 +401,7 @@ func (sdk *VoxgigSolardemoSDK) Moon(data map[string]any) VoxgigSolardemoEntity {
 // Planet returns a Planet entity bound to this client.
 // Idiomatic usage: client.Planet(nil).List(nil, nil) or
 // client.Planet(nil).Load(map[string]any{"id": ...}, nil).
-func (sdk *VoxgigSolardemoSDK) Planet(data map[string]any) VoxgigSolardemoEntity {
+func (sdk *VoxgigSolardemoSDK) Planet(data map[string]any) VoxgigSolardemoEntityBase {
 	return NewPlanetEntityFunc(sdk, data)
 }
 
@@ -403,7 +421,11 @@ func TestSDK(testopts map[string]any, sdkopts map[string]any) *VoxgigSolardemoSD
 
 	vs.SetPath(sdkopts, []any{"feature", "test"}, testopts)
 
-	sdk := NewVoxgigSolardemoSDK(sdkopts)
+	sdk, err := NewVoxgigSolardemoSDK(sdkopts)
+	if err != nil {
+		// Test mode fills every server variable, so only a custom makeOptions refuses.
+		panic(err)
+	}
 	sdk.Mode = "test"
 
 	return sdk

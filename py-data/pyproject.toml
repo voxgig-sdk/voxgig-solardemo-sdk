@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "voxgig-sdk-voxgig-solardemo-sdk-data"
 version = "0.1.0"
-description = "Unofficial generated Python Data SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider."
+description = "Unofficial generated Python Data package for the Solar System public API. Not affiliated with or endorsed by the upstream API provider."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"

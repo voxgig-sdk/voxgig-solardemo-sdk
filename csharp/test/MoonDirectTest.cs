@@ -41,9 +41,14 @@ public class MoonDirectTest
                 }
             }
         }
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         var client = setup.Client;
 
         var pathParams = new Dictionary<string, object?>();
+        var query = new Dictionary<string, object?>();
         if (setup.Live)
         {
             pathParams["planet_id"] = setup.Idmap["planet01"];
@@ -58,6 +63,7 @@ public class MoonDirectTest
             ["path"] = "api/planet/{planet_id}/moon",
             ["method"] = "GET",
             ["params"] = pathParams,
+            ["query"] = query,
         });
         if (setup.Live)
         {
@@ -117,6 +123,10 @@ public class MoonDirectTest
                     return;
                 }
             }
+        }
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
         }
         var client = setup.Client;
 

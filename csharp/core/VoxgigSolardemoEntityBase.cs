@@ -16,13 +16,13 @@ public abstract class VoxgigSolardemoEntityBase : IEntity
     protected VoxgigSolardemoSDK client;
     protected Utility utility;
     protected Dictionary<string, object?> entopts;
-    protected Dictionary<string, object?> data = new();
+    protected object? data = new Dictionary<string, object?>();
     protected Dictionary<string, object?> match = new();
     protected Context entctx;
 
-    // Every operation resolves to the entity; `remove` additionally marks
-    // it. The instance KEEPS the data it held — a caller can still read what
-    // was deleted — but it is no longer a live record. See AGENTS.md.
+    // Every operation resolves to the entity; a remove additionally marks it
+    // deleted. The instance KEEPS the data it held — a caller can still read
+    // what was deleted — but it is no longer a live record.
     private bool _deleted = false;
 
     public void MarkDeleted()
@@ -76,8 +76,8 @@ public abstract class VoxgigSolardemoEntityBase : IEntity
     {
         if (newdata != null)
         {
-            data = Helpers.ToMapAny(StructUtils.Clone(newdata))
-                ?? new Dictionary<string, object?>();
+            var cloned = StructUtils.Clone(newdata);
+            data = (object?)Helpers.ToMapAny(cloned) ?? cloned;
             utility.FeatureHook(entctx, "SetData");
         }
 
@@ -227,9 +227,9 @@ public abstract class VoxgigSolardemoEntityBase : IEntity
         // instance, and the caller reaches the record through Data(). Two
         // structural exceptions: `list` resolves to the ARRAY of entity
         // instances MakeResult built, and a failed op with throwing disabled
-        // hands back the error payload unchanged. `remove` additionally marks
+        // hands back the error payload unchanged. A remove additionally marks
         // the entity deleted; it KEEPS its data, so a caller can still read
-        // what was removed. See AGENTS.md "Entity operations return ENTITIES".
+        // what was removed.
         var opname = ctx.Op?.Name;
 
         if (ctx.Result != null && ctx.Result.Ok && "list" != opname)
@@ -246,12 +246,11 @@ public abstract class VoxgigSolardemoEntityBase : IEntity
 
     // Streaming operations. Runs `action` through the full pipeline and returns
     // an async iterator over result items, so the `streaming` feature's
-    // incremental output is reachable from a generated entity (a normal op call
-    // materialises the whole result). `callopts` parameterises the call:
+    // incremental output, when that feature is active, is reachable from a
+    // generated entity (a normal op call materialises the whole result).
+    // `callopts` parameterises the call:
     //   - inbound (download): iterate the yielded items/chunks (from the
     //     streaming feature when active, else the materialised items);
-    //   - outbound (upload): pass a streamable payload as callopts["body"] - it
-    //     is attached to the request so the transport can send it;
     //   - callopts["ctrl"] threads pipeline control and callopts["signal"] (a
     //     CancellationToken) is honoured between yields.
     public async IAsyncEnumerable<object?> Stream(
@@ -292,15 +291,6 @@ public abstract class VoxgigSolardemoEntityBase : IEntity
         }
 
         var ctx = utility.MakeContext(ctxmap, entctx);
-
-        // Outbound: expose the caller's streamable payload so the request
-        // builder / transport can stream it as the request body.
-        var body = StructUtils.GetProp(callopts, "body");
-        if (body != null)
-        {
-            ctx.Reqdata["body$"] = body;
-            ctx.Ctrl.Stream_out = body;
-        }
 
         // Run the same pipeline the op methods run.
         var materialised = RunOp(ctx, () =>

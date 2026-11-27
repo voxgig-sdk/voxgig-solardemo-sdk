@@ -27,10 +27,14 @@ func makeUrlUtil(ctx *core.Context) (string, error) {
 	url := vs.Join([]any{spec.Base, spec.Prefix, spec.Path, spec.Suffix}, "/", true)
 	resmatch := map[string]any{}
 
-	// A route the definition ends with a slash keeps it: a server such as a
-	// Django REST one redirects or refuses the route without it.
-	if orig, _ := vs.GetProp(ctx.Point, "orig").(string); strings.HasSuffix(orig, "/") &&
+	// A route ending in a slash keeps it, as defined or as passed to direct(), for
+	// Django, and a host with no path takes /, or luasocket reads a query as the host.
+	orig, _ := vs.GetProp(ctx.Point, "orig").(string)
+	if (strings.HasSuffix(orig, "/") || strings.HasSuffix(spec.Path, "/")) &&
 		spec.Suffix == "" && !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
+	if authority := strings.Index(url, "://"); 0 < authority && !strings.ContainsAny(url[authority+3:], "/?#") {
 		url += "/"
 	}
 
@@ -39,8 +43,14 @@ func makeUrlUtil(ctx *core.Context) (string, error) {
 		key, _ := item[0].(string)
 		val := item[1]
 		if val != nil {
+			// A whole . or .. is a dot segment, which moves the request to another route.
+			text := vs.Stringify(val)
+			if text == "." || text == ".." {
+				return "", ctx.MakeError("url_param_invalid",
+					"URL path parameter "+key+" cannot be \""+text+"\".")
+			}
 			re := regexp.MustCompile("\\{" + vs.EscRe(key) + "\\}")
-			url = re.ReplaceAllString(url, vs.EscUrl(vs.Stringify(val)))
+			url = re.ReplaceAllString(url, vs.EscUrl(text))
 			resmatch[key] = val
 		}
 	}

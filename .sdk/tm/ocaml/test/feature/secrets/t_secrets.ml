@@ -14,7 +14,7 @@
  *     test-mode mock, which replaces the fetcher and hides the seam;
  *   - every assertion reads what the RECORDER received, never the options
  *     map, which this feature never writes. The FEATURE writes the
- *     authorization header (see the header-only note on placed_cred_of
+ *     credential header (see the header-only note on placed_cred_of
  *     below), so its cases read that; the three cases where the feature is
  *     inactive or missed read whatever the generated prepare_auth placed;
  *   - a refusal must carry the PROVIDER'S OWN message (sekreto's wording),
@@ -37,11 +37,22 @@ open Sdk_types
 open Sdk_helpers
 open Testutil
 
+(* Read from the config, never from a probe: an SDK whose config declares no
+ * auth places no credential, and these tests assert on the one it places. *)
+let places_credential =
+  match getp (getp (Sdk_config.make_config ()) "options") "auth" with Map _ -> true | _ -> false
+
+let () =
+  if not places_credential then
+    print_endline "SKIP secrets: this SDK's config declares no auth, so it places no credential"
+
 (* Executed-case count, for the line the lane reads. *)
 let ran = ref 0
 let test (name : string) (f : unit -> unit) : unit =
-  incr ran;
-  Testutil.test ("secrets." ^ name) f
+  if places_credential then begin
+    incr ran;
+    Testutil.test ("secrets." ^ name) f
+  end
 
 let envprefix = "PROJECTENV_TEST_SECRETS_"
 
@@ -102,10 +113,11 @@ let token_calls (r : recorder) : value list =
  * perfectly well.
  *
  * KNOWN GAP, DELIBERATELY NOT PAPERED OVER HERE: the FEATURE'S own rewrite
- * (secrets_feature.ml) still writes `authorization` whatever the scheme
- * says, so a chain-resolved secret does NOT follow the placement. Every
- * target's secrets feature does the same. The cases below that exercise the
- * feature therefore keep reading the header - which is what the code
+ * (secrets_feature.ml) always writes a HEADER - the one auth.name names -
+ * whatever the scheme's placement says, so on a query or cookie scheme a
+ * chain-resolved secret does NOT follow the placement. Every target's
+ * secrets feature does the same. The cases below that exercise the feature
+ * therefore keep reading the credential header - which is what the code
  * actually does - and only the three cases where the feature is inactive or
  * missed read the placed bag. Making the feature placement-aware is a
  * separate change, across every target at once. *)
@@ -176,12 +188,20 @@ let placed_cred_of (fd : value) : value =
      | Map _ -> Sdk_features.header_ci headers Sdk_prepare_auth.cred_name
      | _ -> Noval)
 
-(* The AUTHORIZATION HEADER the i-th API call carried, or Noval - what the
+(* The header the credential travels in: the DEFAULT client's auth.name,
+ * lower-cased as prepare_auth sends it. Read from a default client because
+ * a test's `auth: null` leaves no name to read. *)
+let credheader : string =
+  match getpath_s (Sdk_client.test ()).cl_options "auth.name" with
+  | Str s when s <> "" -> String.lowercase_ascii s
+  | _ -> "authorization"
+
+(* The CREDENTIAL HEADER the i-th API call carried, or Noval - what the
  * feature's own rewrite writes (see the note above). *)
 let auth_of (r : recorder) (i : int) : value =
   match List.nth_opt (api_calls r) i with
   | Some c -> (match getp (getp c "fetchdef") "headers" with
-      | Map _ as h -> Sdk_features.header_ci h "authorization"
+      | Map _ as h -> Sdk_features.header_ci h credheader
       | _ -> Noval)
   | None -> Noval
 
@@ -193,19 +213,33 @@ let placed_of (r : recorder) (i : int) : value =
   | Some c -> placed_cred_of (getp c "fetchdef")
   | None -> Noval
 
-(* A header credential carries the SPEC's prefix, which a TEMPLATE cannot
- * know - so assert on the CREDENTIAL and let the prefix be whatever this
- * SDK's API declares. A query parameter and a cookie carry no prefix at all,
- * which the bare equality already covers. *)
-let credential_is (header : value) (token : string) : bool =
+(* The header value prepare_auth writes for a token, in the form the DEFAULT
+ * client's auth gives: under Basic the token is the key half of the encoded
+ * pair, and a prefix is space-joined. *)
+let credential ?(secret = "") (token : string) : string =
+  let opts = (Sdk_client.test ()).cl_options in
+  let value = match getpath_s opts "auth.basic" with
+    | Bool true -> base64_encode (token ^ ":" ^ secret)
+    | _ -> token in
+  match getpath_s opts "auth.prefix" with
+  | Str p when p <> "" -> p ^ " " ^ value
+  | _ -> value
+
+let credential_is ?(secret = "") (header : value) (token : string) : bool =
   match header with
-  | Str s -> s = token || Sdk_features.ends_with s (" " ^ token)
+  | Str s -> s = credential ~secret token
   | _ -> false
+
+(* What prepare_auth placed: the header form, or the bare value in a query
+ * parameter or a cookie. *)
+let placed_is (placed : value) (token : string) : bool =
+  if Sdk_prepare_auth.cred_where = "header" then credential_is placed token
+  else placed = Str token
 
 let absent (header : value) : bool = is_nullish header
 
 (* SUPPRESSION IS ABOUT EVERY BAG, not just the header. `auth: null` must
- * leave nothing anywhere, so a suppression case asserts the authorization
+ * leave nothing anywhere, so a suppression case asserts the credential
  * header AND the bag this API's scheme places its credential in - otherwise
  * a query-placement SDK could leak `?token=...` and still read green,
  * because the header it never uses was empty. *)
@@ -291,7 +325,9 @@ let drive_entity (client : sdk_client) (r : recorder) : (unit, string) Stdlib.re
                 (* An op the entity does not define, or a route the call
                  * cannot fill, fails before the chain is consulted: keep
                  * going. Anything else is the answer. *)
-                if e.err_code = "unsupported_op" || e.err_code = "url_param_missing" then ops more
+                if List.mem e.err_code
+                     ["unsupported_op"; "url_param_missing"; "point_no_match"; "point_action_required"]
+                then ops more
                 else (out := Error e.err_msg)
               | exception e -> out := Error (Printexc.to_string e))
          in
@@ -329,7 +365,7 @@ let () =
          what the generated prepare_auth placed - in the bag this API's
          scheme names, which for an apiKey-in-query SDK is the query string
          and not a header. *)
-      check "carries OPTKEY01" (credential_is (placed_of r 0) "OPTKEY01"));
+      check "carries OPTKEY01" (placed_is (placed_of r 0) "OPTKEY01"));
 
   test "inactive.no_apikey_no_header" (fun () ->
       let (r, fetch) = recorder () in
@@ -570,6 +606,14 @@ let () =
       check "options.auth survives as a present null"
         (getprop_raw client.cl_options "auth" = Null));
 
+  test "chain.a_resolved_key_is_placed_as_prepare_auth_places_it" (fun () ->
+      let (r, fetch) = recorder () in
+      let client = live ~sdkopts:[("secret", Str "PASS01")] fetch
+          [("providers", ja [working "CHAINKEY05"])] in
+      check "ok" (res_ok (direct client));
+      check "carries CHAINKEY05, the secret kept"
+        (credential_is ~secret:"PASS01" (auth_of r 0) "CHAINKEY05"));
+
   test "auth.null_suppresses_an_explicit_apikey_too" (fun () ->
       let (r, fetch) = recorder () in
       let client = live ~sdkopts:[("auth", Null); ("apikey", Str "OPTKEY01")] fetch
@@ -645,7 +689,7 @@ let () =
           ok200 (jo [("access_token", Str ("ACCESS" ^ string_of_int (List.length (token_calls r))))])
         else
           let token = match getp fd "headers" with
-            | Map _ as h -> (match Sdk_features.header_ci h "authorization" with Str s -> s | _ -> "")
+            | Map _ as h -> (match Sdk_features.header_ci h credheader with Str s -> s | _ -> "")
             | _ -> "" in
           status_res (api token) (jo [("id", Str "r01")])) in
 
@@ -666,7 +710,9 @@ let () =
       check "POSTed to base + exchange.path"
         ((match getp tc "url" with Str u -> u | _ -> "") = "http://secrets.test/api/auth/token");
       check "the body is JSON-marshalled with the refresh token"
-        (getp (body_of tc) "refresh_token" = Str "R1"));
+        (getp (body_of tc) "refresh_token" = Str "R1");
+      check "the exchange follows no redirect"
+        (getp (getp tc "fetchdef") "redirect" = Str "manual"));
 
   test "exchange.body_is_marshalled_not_concatenated" (fun () ->
       let (r, fetch) = recorder () in
@@ -685,6 +731,23 @@ let () =
       check_int "two purchases" (List.length (token_calls r)) 2;
       check_int "two API calls: the refusal and the retry" (List.length (api_calls r)) 2;
       check "the retry carries the fresh token" (credential_is (auth_of r 1) "ACCESS2"));
+
+  test "exchange.a_token_bought_on_a_refusal_is_placed_as_prepare_auth_places_it" (fun () ->
+      let (r, fetch) = recorder () in
+      (* Read as each request left: the retry rewrites the fetchdef it shares. *)
+      let sent = ref [] in
+      token_server r (fun token ->
+          sent := !sent @ [Str token];
+          if credential_is ~secret:"PASS01" (Str token) "ACCESS1" then 401 else 200);
+      let client = live ~sdkopts:[("secret", Str "PASS01")] fetch
+          [refresh_chain "R1"; ("name", Str "refresh_token"); xchg []] in
+      check "ok" (res_ok (direct client));
+      check_int "two API calls: the refusal and the retry" (List.length (api_calls r)) 2;
+      let nth i = match List.nth_opt !sent i with Some v -> v | None -> Noval in
+      check "the first carries ACCESS1, the secret kept"
+        (credential_is ~secret:"PASS01" (nth 0) "ACCESS1");
+      check "the retry carries ACCESS2, the secret kept"
+        (credential_is ~secret:"PASS01" (nth 1) "ACCESS2"));
 
   test "exchange.a_second_refusal_surfaces_rather_than_spinning" (fun () ->
       let (r, fetch) = recorder () in
@@ -749,6 +812,205 @@ let () =
         (contains msg "secrets: the token exchange has no HTTP transport"
          || contains msg "sekreto: cannot reach"));
 
+  (* Real listeners and the bundled transport: a stub follows nothing. The
+   * listeners are a forked child, which reports each request on a pipe. *)
+  test "exchange.a_redirect_answering_the_exchange_is_a_failure_and_nothing_follows_it" (fun () ->
+      let index_of (hay : string) (needle : string) : int option =
+        let lh = String.length hay and ln = String.length needle in
+        let rec go i = if i + ln > lh then None
+          else if String.sub hay i ln = needle then Some i else go (i + 1) in
+        go 0 in
+      let read_request (c : Unix.file_descr) : string * string * string =
+        let buf = Buffer.create 512 and chunk = Bytes.create 4096 in
+        let more () =
+          let n = Unix.read c chunk 0 4096 in
+          Buffer.add_subbytes buf chunk 0 n;
+          n > 0 in
+        let rec head () = match index_of (Buffer.contents buf) "\r\n\r\n" with
+          | Some i -> i
+          | None -> if more () then head () else Buffer.length buf in
+        let i = head () in
+        let lines = List.map String.trim
+            (String.split_on_char '\n' (String.sub (Buffer.contents buf) 0 i)) in
+        let (meth, path) = match String.split_on_char ' ' (List.hd lines) with
+          | m :: p :: _ -> (m, p) | _ -> ("", "") in
+        let length = List.fold_left (fun acc l -> match String.index_opt l ':' with
+            | Some k when String.lowercase_ascii (String.sub l 0 k) = "content-length" ->
+              int_of_string (String.trim (String.sub l (k + 1) (String.length l - k - 1)))
+            | _ -> acc) 0 lines in
+        let rec rest () = if Buffer.length buf - (i + 4) < length && more () then rest () in
+        rest ();
+        let all = Buffer.contents buf in
+        let start = min (i + 4) (String.length all) in
+        (meth, path, String.sub all start (min length (String.length all - start))) in
+      let bind () =
+        let s = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+        Unix.setsockopt s Unix.SO_REUSEADDR true;
+        Unix.bind s (Unix.ADDR_INET (Unix.inet_addr_loopback, 0));
+        Unix.listen s 8;
+        (s, match Unix.getsockname s with Unix.ADDR_INET (_, p) -> p | _ -> 0) in
+      let serve origin other wr status location =
+        let rec loop () =
+          match Unix.select [origin; other] [] [] 20. with
+          | ([], _, _) -> ()
+          | (s :: _, _, _) ->
+            let (c, _) = Unix.accept s in
+            let where = if s = origin then "origin" else "other" in
+            let (meth, path, body) = read_request c in
+            if path = "/stop" then Unix.close c
+            else begin
+              let line = String.concat "\t" [where; meth; path; body] ^ "\n" in
+              ignore (Unix.write_substring wr line 0 (String.length line));
+              let (code, moved, answer) =
+                if where = "origin" && path = "/api/auth/token" then
+                  (status, "Location: " ^ location ^ "\r\n", "")
+                else if where = "origin" then (200, "", "{\"access_token\":\"MOVED01\"}")
+                else (200, "", "{\"access_token\":\"ELSEWHERE01\"}") in
+              let resp = Printf.sprintf
+                  "HTTP/1.1 %d X\r\n%sContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+                  code moved (String.length answer) answer in
+              ignore (Unix.write_substring c resp 0 (String.length resp));
+              Unix.close c;
+              loop ()
+            end in
+        loop () in
+      let run_case (status, location) =
+        let (origin, oport) = bind () in
+        let (other, xport) = bind () in
+        let location = if "" = location
+          then "http://127.0.0.1:" ^ string_of_int xport ^ "/api/auth/token" else location in
+        let (rd, wr) = Unix.pipe () in
+        match Unix.fork () with
+        | 0 ->
+          Unix.close rd;
+          (try serve origin other wr status location with _ -> ());
+          Unix._exit 0
+        | pid ->
+          Unix.close wr;
+          Unix.close origin;
+          Unix.close other;
+          let base = "http://127.0.0.1:" ^ string_of_int oport ^ "/api" in
+          let client = Sdk_client.make (jo [
+              ("base", Str base);
+              ("feature", jo [("secrets", jo [("active", Bool true); ("name", Str "refresh_token");
+                                              xchg [("refresh", Str "REFRESH01")]])])]) in
+          let message = res_err (direct client) in
+          let stop = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+          (try
+             Unix.connect stop (Unix.ADDR_INET (Unix.inet_addr_loopback, oport));
+             ignore (Unix.write_substring stop "GET /stop HTTP/1.0\r\n\r\n" 0 22)
+           with _ -> ());
+          let seen = Buffer.create 256 and chunk = Bytes.create 4096 in
+          let rec drain () =
+            let n = Unix.read rd chunk 0 4096 in
+            if n > 0 then (Buffer.add_subbytes seen chunk 0 n; drain ()) in
+          drain ();
+          Unix.close rd;
+          Unix.close stop;
+          ignore (Unix.waitpid [] pid);
+          let followed = List.filter (fun line ->
+              match String.split_on_char '\t' line with
+              | where :: _ :: path :: _ -> where = "other" || path <> "/api/auth/token"
+              | _ -> false) (String.split_on_char '\n' (Buffer.contents seen)) in
+          let want = "token exchange failed: " ^ string_of_int status ^ " from " ^ base ^ "/auth/token" in
+          (string_of_int status ^ " to " ^ location, contains message want, message, followed) in
+      (* Built without an HTTP client, the exchange rides system.fetch alone. *)
+      let stub_case (status, location) =
+        let (r, fetch) = recorder () in
+        let location = if "" = location then "http://elsewhere.test/api/auth/token" else location in
+        r.reply <- Some (fun _ _ _ ->
+            jo [("status", vint_of status); ("statusText", Str "X");
+                ("headers", jo [("location", Str location)]); ("body", Str "");
+                ("json", json_thunk Noval)]);
+        let base = "http://secrets.test/api" in
+        let client = live ~base fetch [("name", Str "refresh_token"); xchg [("refresh", Str "REFRESH01")]] in
+        let message = res_err (direct client) in
+        let want = "token exchange failed: " ^ string_of_int status ^ " from " ^ base ^ "/auth/token" in
+        let calls = !(r.calls) in
+        let first_ok = match calls with
+          | c :: _ -> getp c "url" = Str (base ^ "/auth/token")
+                      && getp (getp c "fetchdef") "redirect" = Str "manual"
+          | [] -> false in
+        let followed = match calls with
+          | _ :: more -> List.map (fun c -> stringify (getp c "url")) more
+          | [] -> [] in
+        (string_of_int status ^ " to " ^ location, first_ok && contains message want, message, followed) in
+      let cases = [(307, ""); (308, ""); (302, ""); (307, "/api/moved/token")] in
+      let results = List.map run_case cases in
+      let results =
+        if List.exists (fun (_, _, m, _) -> contains m "has no HTTP transport") results then begin
+          print_endline "secrets: no HTTP client compiled; the redirect cases ride system.fetch";
+          List.map stub_case cases
+        end else results in
+      let refused = List.length (List.filter (fun (_, r, _, _) -> r) results) in
+      let followed = List.fold_left (fun n (_, _, _, f) -> n + List.length f) 0 results in
+      Printf.printf "secrets: exchange refused %d redirect(s), %d followed\n" refused followed;
+      List.iter (fun (label, r, message, f) ->
+          check (label ^ ": followed by " ^ String.concat "; " f) ([] = f);
+          check (label ^ ": not a failed exchange: " ^ message) r) results;
+      check_int "redirects refused" refused 4);
+
+  (* On system.fetch alone: the vendored HTTP client answers no headers, so
+   * no Location reaches the feature through it. *)
+  test "exchange.with_the_option_a_redirect_on_its_own_origin_is_followed_and_no_other" (fun () ->
+      let base = "http://secrets.test/api" in
+      let exchange = base ^ "/auth/token" and moved = base ^ "/moved/token" in
+      let away = "http://elsewhere.test/api/auth/token" in
+      let url_of c = match getp c "url" with Str u -> u | _ -> "" in
+      let on_origin u = String.starts_with ~prefix:"http://secrets.test/" u in
+      (* Each case: the status, the Location, and the url the exchange is asked
+       * again at; a Location of a query alone keeps the path that answered. *)
+      let cases = [(307, "/api/moved/token", Some moved); (308, moved, Some moved);
+                   (307, "?step=2", Some (exchange ^ "?step=2")); (307, away, None);
+                   (302, "/api/moved/token", None); (307, "/api/auth/token", None)] in
+      let results = List.map (fun (status, location, next) ->
+          let (r, fetch) = recorder () in
+          r.reply <- Some (fun _ url _ ->
+              if url = exchange then
+                jo [("status", vint_of status); ("statusText", Str "X");
+                    ("headers", jo [("location", Str location)]); ("body", Str "");
+                    ("json", json_thunk Noval)]
+              else if url = base ^ "/thing" then ok200 (jo [("id", Str "r01")])
+              else if on_origin url then ok200 (jo [("access_token", Str "MOVED01")])
+              else ok200 (jo [("access_token", Str "ELSEWHERE01")]));
+          let client = live ~base fetch [("name", Str "refresh_token");
+                                         xchg [("refresh", Str "REFRESH01");
+                                               ("redirect", Str "same-origin")]] in
+          let res = direct client in
+          let message = res_err res in
+          let asked = List.filter (fun c -> url_of c <> base ^ "/thing") !(r.calls) in
+          let manual = List.for_all (fun c ->
+              getp (getp c "fetchdef") "redirect" = Str "manual") asked in
+          let same = match asked with
+            | first :: rest -> List.for_all (fun c ->
+                getp (getp c "fetchdef") "method" = getp (getp first "fetchdef") "method"
+                && getp (getp c "fetchdef") "body" = getp (getp first "fetchdef") "body") rest
+            | [] -> false in
+          let urls = List.map url_of asked in
+          let want = "token exchange failed: " ^ string_of_int status ^ " from " ^ exchange in
+          let verdict =
+            if None <> next && res_ok res && manual && same
+               && Some urls = Option.map (fun n -> [exchange; n]) next then `Followed
+            else if None = next && manual && contains message want
+                    && List.for_all (fun u -> u = exchange) urls then `Refused
+            else `Wrong (string_of_int status ^ " to " ^ location ^ ": " ^ message
+                         ^ " " ^ String.concat "; " urls) in
+          (verdict, location, List.length urls,
+           List.length (List.filter (fun c -> not (on_origin (url_of c))) !(r.calls))))
+          cases in
+      let count v = List.length (List.filter (fun (w, _, _, _) -> w = v) results) in
+      let elsewhere = List.fold_left (fun n (_, _, _, e) -> n + e) 0 results in
+      let looped = List.fold_left (fun n (_, l, a, _) ->
+          if l = "/api/auth/token" then a else n) 0 results in
+      Printf.printf "secrets: exchange opt-in followed %d redirect(s) on its own origin, refused %d, %d elsewhere\n"
+        (count `Followed) (count `Refused) elsewhere;
+      check_int "the exchange reached another origin" elsewhere 0;
+      List.iter (function (`Wrong m, _, _, _) -> check m false | _ -> ()) results;
+      check_int "followed" (count `Followed) 3;
+      check_int "refused" (count `Refused) 3;
+      (* A redirect to itself stops at the hop limit. *)
+      check_int "the loop's exchange count" looped 6);
+
   test "exchange.test_mode_buys_nothing" (fun () ->
       (* A non-live client: the credential becomes the deterministic
        * `test-<response>` and no purchase is attempted. Observed through
@@ -774,13 +1036,49 @@ let () =
         (entity_names ());
       check "an entity op recorded its fetchdef" !seen;
       let header = match getpath_s explain "fetchdef.headers" with
-        | Map _ as h -> Sdk_features.header_ci h "authorization"
+        | Map _ as h -> Sdk_features.header_ci h credheader
         | _ -> Noval in
       check ("carries the deterministic test token: " ^ stringify header)
         (credential_is header "test-access_token");
       check_vnum "one (fake) purchase, tracked" (getp (track_get client "secrets") "buys") 1.);
 
   ()
+
+(* Off by the config where it declares no auth, else by `auth: null`: either
+ * way the feature places no credential, buys no token and retries nothing. *)
+let () =
+  Testutil.test "secrets.auth_off.places_no_credential_and_buys_no_token" (fun () ->
+      let off = if places_credential then [("auth", Null)] else [] in
+      let secrets = ["OFFKEY01"; "OFFKEY02"; "OFFREFRESH01"; "ACCESS01"] in
+      let carries (c : value) : bool =
+        match getp (getp c "fetchdef") "headers" with
+        | Map _ as h ->
+          not (absent (Sdk_features.header_ci h credheader))
+          || List.exists (fun k -> match getp h k with
+              | Str v -> List.exists (contains v) secrets
+              | _ -> false) (keysof h)
+        | _ -> false in
+      let sent = ref [] and bought = ref 0 in
+      let refresh = ("providers", ja [memory ~name:"refresh" [("REFRESH_TOKEN", Str "OFFREFRESH01")]]) in
+      List.iter (fun (what, sdkopts, fopts, status) ->
+          let (r, fetch) = recorder () in
+          r.reply <- Some (fun _ url _ ->
+              if is_token url then ok200 (jo [("access_token", Str "ACCESS01")])
+              else status_res status (jo [("id", Str "r01")]));
+          let client = live ~sdkopts:(sdkopts @ off) fetch fopts in
+          ignore (direct client);
+          check_int (what ^ ": one request, not retried") (List.length (api_calls r)) 1;
+          check_int (what ^ ": no token bought") (List.length (token_calls r)) 0;
+          check (what ^ ": no credential sent") (not (List.exists carries (api_calls r)));
+          sent := !sent @ api_calls r;
+          bought := !bought + List.length (token_calls r))
+        [ ("a key the chain resolves", [], [("providers", ja [working "OFFKEY01"])], 200);
+          ("an explicit apikey", [("apikey", Str "OFFKEY02")], [], 200);
+          ("a refusal", [], [refresh; ("name", Str "refresh_token");
+                             ("exchange", jo [("active", Bool true)])], 401) ];
+      Printf.printf "secrets: auth off by %s: %d request(s), %d credential(s), %d token(s)\n"
+        (if places_credential then "option" else "config")
+        (List.length !sent) (List.length (List.filter carries !sent)) !bought)
 
 (* Printed from EXECUTIONS, for the generator's lane. *)
 let () = Printf.printf "feature.secrets: ran %d check(s)\n" !ran

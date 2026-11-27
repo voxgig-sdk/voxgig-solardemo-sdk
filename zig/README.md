@@ -4,7 +4,7 @@
 
 The Zig SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Zig conventions.
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `client.moon(h.vnull())` — each
+The SDK exposes the API as semantic **Entities** — for example `client.moon(h.vnull())` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -28,7 +28,7 @@ To depend on it from another project, add the tagged archive to
 ```zig
 .dependencies = .{
     .sdk = .{
-        .url = "<repo-url>/archive/refs/tags/zig/vX.Y.Z.tar.gz",
+        .url = "https://github.com/voxgig-sdk/voxgig-solardemo-sdk/archive/refs/tags/zig/vX.Y.Z.tar.gz",
         // .hash = "...", // filled in by `zig fetch`
     },
 },
@@ -37,8 +37,7 @@ To depend on it from another project, add the tagged archive to
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -47,7 +46,10 @@ const std = @import("std");
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = sdk.VoxgigSolardemoSDK.new(h.vnull());
+const client = switch (sdk.VoxgigSolardemoSDK.new(h.vnull())) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 ```
 
 ### 2. List moon records
@@ -104,30 +106,34 @@ switch (client.moon(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("example_id") }, .
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations return a union of `.ok` and `.err`, so `switch` on the result:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
+```zig
+switch (client.planet(h.vnull()).list(h.vnull(), h.vnull())) {
+    .ok => |planets| {
+        for (planets) |planet| {
+            std.debug.print("{s}\n", .{h.stringify(planet.asEntity().data(null))});
+        }
+    },
+    .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
 }
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`direct()` does **not** fail on an error response — it
+returns the result map. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```zig
+const result = client.direct(h.jo(&.{
+    .{ "path", h.vstr("/api/planet/{planet_id}/moon") },
+    .{ "method", h.vstr("GET") },
+    .{ "params", h.jo(&.{.{ "planet_id", h.vstr("example_id") }}) },
+}));
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
+if (!(h.get_bool(result, "ok") orelse false)) {
+    std.debug.print("request failed: {d} {s}\n", .{
+        h.to_int(h.getp(result, "status")), h.stringify(h.getp(result, "err")),
+    });
 }
 ```
 
@@ -140,9 +146,9 @@ For endpoints not covered by entity methods:
 
 ```zig
 const result = client.direct(h.jo(&.{
-    .{ "path", h.vstr("/api/resource/{id}") },
+    .{ "path", h.vstr("/api/planet/{planet_id}/moon") },
     .{ "method", h.vstr("GET") },
-    .{ "params", h.jo(&.{.{ "id", h.vstr("example") }}) },
+    .{ "params", h.jo(&.{.{ "planet_id", h.vstr("example") }}) },
 }));
 
 if (h.get_bool(result, "ok") orelse false) {
@@ -160,9 +166,9 @@ if (h.get_bool(result, "ok") orelse false) {
 ```zig
 // prepare() returns the fetch definition (an error union — use `catch`/`try`).
 const fetchdef = client.prepare(h.jo(&.{
-    .{ "path", h.vstr("/api/resource/{id}") },
-    .{ "method", h.vstr("DELETE") },
-    .{ "params", h.jo(&.{.{ "id", h.vstr("example") }}) },
+    .{ "path", h.vstr("/api/planet/{planet_id}/moon") },
+    .{ "method", h.vstr("GET") },
+    .{ "params", h.jo(&.{.{ "planet_id", h.vstr("example") }}) },
 })) catch unreachable;
 
 std.debug.print("{s}\n", .{h.get_str(fetchdef, "url") orelse ""});
@@ -193,20 +199,18 @@ switch (client.planet(h.vnull()).list(h.vnull(), h.vnull())) {
 Override the base URL to reach a local or staging server:
 
 ```zig
-const client = sdk.VoxgigSolardemoSDK.new(h.jo(&.{
+const client = switch (sdk.VoxgigSolardemoSDK.new(h.jo(&.{
     .{ "base", h.vstr("http://localhost:8080") },
-}));
+}))) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 ```
 
-### Run live tests
+### Run the test suite
 
-Create a `.env.local` file at the project root:
-
-```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
-```
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 ```bash
 cd zig && zig build test
@@ -218,10 +222,14 @@ cd zig && zig build test
 ### VoxgigSolardemoSDK
 
 ```zig
+const std = @import("std");
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = sdk.VoxgigSolardemoSDK.new(options);
+const client = switch (sdk.VoxgigSolardemoSDK.new(options)) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 ```
 
 Creates a new SDK client. `options` is a `Value` map (`h.vnull()` for
@@ -232,8 +240,9 @@ none) carrying any of the following keys:
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
 | `feature` | `map` | Feature activation flags. |
-| `system` | `map` | System overrides (e.g. a custom fetcher). |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 ### test_sdk
 
@@ -303,7 +312,7 @@ On error, `ok` is `false` and `err` carries the error message.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -319,9 +328,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -336,11 +345,11 @@ Create an instance: `const moon = client.moon(h.vnull());`
 
 | Method | Description |
 | --- | --- |
-| `create(reqdata, ctrl)` | Create a new entity with the given data. |
 | `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. |
 | `load(reqmatch, ctrl)` | Load a single entity by match criteria. |
-| `remove(reqmatch, ctrl)` | Remove the matching entity. |
+| `create(reqdata, ctrl)` | Create a new entity with the given data. |
 | `update(reqdata, ctrl)` | Update an existing entity. |
+| `remove(reqmatch, ctrl)` | Remove the matching entity. |
 
 Each operation returns a result union — `switch` on it: `.ok` carries the
 entity (for `list`, a slice of entities, one per record), whose record
@@ -402,11 +411,11 @@ Create an instance: `const planet = client.planet(h.vnull());`
 
 | Method | Description |
 | --- | --- |
-| `create(reqdata, ctrl)` | Create a new entity with the given data. |
 | `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. |
 | `load(reqmatch, ctrl)` | Load a single entity by match criteria. |
-| `remove(reqmatch, ctrl)` | Remove the matching entity. |
+| `create(reqdata, ctrl)` | Create a new entity with the given data. |
 | `update(reqdata, ctrl)` | Update an existing entity. |
+| `remove(reqmatch, ctrl)` | Remove the matching entity. |
 
 Each operation returns a result union — `switch` on it: `.ok` carries the
 entity (for `list`, a slice of entities, one per record), whose record
@@ -462,12 +471,11 @@ switch (client.planet(h.vnull()).create(h.jo(&.{
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -580,7 +588,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -631,16 +639,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -648,9 +652,8 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a `Feature` whose
+`dispatch` function receives each pipeline stage's name and the context.
 
 The SDK ships with built-in features:
 
@@ -688,7 +691,7 @@ zig/
 ├── build.zig                    -- Build + test wiring
 ├── core/                        -- Pipeline types, config, client (sdk.zig)
 ├── entity/                      -- Per-entity clients (one file each)
-├── feature/                     -- Built-in features (base, test, log)
+├── feature/                     -- Feature implementations
 ├── utility/                     -- Utilities + the vendored voxgig struct port
 └── test/                        -- Test suites
 ```
@@ -700,29 +703,32 @@ entity or utility modules only when needed.
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```zig
+const planet = client.planet(h.vnull());
+switch (planet.list(h.vnull(), h.vnull())) {
+    .ok => {},
+    .err => |e| std.debug.print("list failed: {s}\n", .{e.msg}),
+}
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+// planet.asEntity().data(null) now returns the planet data from the last list
+// planet.asEntity().matchv(null) returns the last match criteria
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `asEntity().makeEnt()` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`direct()` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `prepare()` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

@@ -109,6 +109,7 @@ let make_config () : value =
             ("active", (Bool false));
             ("method", (Str "POST"));
             ("path", (Str "auth/token"));
+            ("redirect", (Str "refuse"));
             ("refresh", (Str ""));
             ("request", (Str "refresh_token"));
             ("response", (Str "access_token"));

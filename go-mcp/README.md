@@ -2,11 +2,11 @@
 
 [MCP](https://modelcontextprotocol.io) server exposing the VoxgigSolardemo SDK as
 2 agent tools, `voxgig-solardemo_list` and `voxgig-solardemo_load`, built on the
-[official Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk) and the
-sibling Go SDK at `../go`. Runs over **stdio** (default, for spawnable installs)
+[official Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk) and
+the sibling Go SDK at `../go`. Runs over **stdio** (default, for spawnable installs)
 or **streamable HTTP** (one shared server for several agents).
 
-The server only reads. Create, update, patch and remove become tools too when the
+The server only reads. Create, update and remove become tools too when the
 SDK's own model sets `main: kit: target: 'go-mcp': tool: write: true`; they are off by default, as an agent calling
 them changes the API's data.
 
@@ -16,14 +16,11 @@ them changes the API's data.
 # 1. Build a native binary (-> dist/<os>-<arch>/voxgig-solardemo-mcp)
 make build
 
-# 2. Provide credentials via the environment
-export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx
-
-# 3a. Install into Claude Code over stdio (most common)
+# 2a. Install into Claude Code over stdio (most common)
 claude mcp add --scope user voxgig-solardemo \
   -- /absolute/path/to/voxgig-solardemo-mcp -transport stdio
 
-# 3b. …or run a shared HTTP server instead
+# 2b. …or run a shared HTTP server instead
 ./voxgig-solardemo-mcp -transport http -addr :8080
 ```
 
@@ -49,36 +46,29 @@ Tool-call arguments (what an agent sends):
    make build          # -> dist/<os>-<arch>/voxgig-solardemo-mcp
    ```
 
-2. **Set your API key:**
-
-   ```sh
-   export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx
-   ```
-
-3. **Install it into Claude Code** (stdio transport):
+2. **Install it into Claude Code** (stdio transport):
 
    ```sh
    claude mcp add --scope user voxgig-solardemo \
      -- "$PWD"/dist/*/voxgig-solardemo-mcp -transport stdio
    ```
 
-4. **Restart Claude Code.** The `voxgig-solardemo_list` and `voxgig-solardemo_load` tools now appear in new
+3. **Restart Claude Code.** The `voxgig-solardemo_list` and `voxgig-solardemo_load` tools now appear in new
    sessions. Ask the agent to *"list moon using voxgig-solardemo"*
    and it calls `voxgig-solardemo_list` with `{"entity":"moon","query":{"planet_id":"example"}}`.
 
 ## How-to guides
 
-### Authenticate and choose an environment
+### Choose an environment
 
 Configuration is read from the environment — nothing is written to disk:
 
 ```sh
-export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx            # API key
 export VOXGIG_SOLARDEMO_BASE=https://api.example.com  # optional: override the API base URL
 ```
 
-Set these in the shell that launches the server (or in the `claude mcp add`
-environment) so every tool call is authenticated.
+Set it in the shell that launches the server (or in the `claude mcp add`
+environment) so every tool call reaches the API.
 
 ### Run as a shared HTTP server
 
@@ -91,7 +81,7 @@ default) spawns a fresh process per client.
 
 ### Call the `voxgig-solardemo_list` tool
 
-Args: `entity` (required), `query` (optional: optional filter map; omit it for the first page).
+Args: `entity` (required), `query` (optional: filter map; moon needs one naming the parent, and for the others omit it for the first page).
 Returns the first page of records as JSON:
 
 ```jsonc
@@ -100,7 +90,7 @@ Returns the first page of records as JSON:
 
 ### Call the `voxgig-solardemo_load` tool
 
-Args: `entity` (required), `query` (required: match map naming the record, such as {"id":1}).
+Args: `entity` (required), `query` (required: match map naming the record by its identifying fields).
 Returns the record as JSON:
 
 ```jsonc
@@ -160,7 +150,6 @@ any other before it runs a call.
 
 | Variable | Purpose |
 |----------|---------|
-| `VOXGIG_SOLARDEMO_APIKEY` | API key sent with every request. |
 | `VOXGIG_SOLARDEMO_BASE` | Optional override of the API base URL. |
 
 ### Smoke test via HTTP (raw JSON-RPC)

@@ -85,22 +85,16 @@ struct PlanetListMatch {
 
 struct PlanetCreateData {
   double diameter;
-  std::string forbidReason;  // optional
-  std::string forbidState;  // optional
   std::string id;
   std::string kind;
   std::string name;
-  std::string terraformState;  // optional
 };
 
 struct PlanetUpdateData {
   std::string id;
   double diameter;  // optional
-  std::string forbidReason;  // optional
-  std::string forbidState;  // optional
   std::string kind;  // optional
   std::string name;  // optional
-  std::string terraformState;  // optional
 };
 
 struct PlanetRemoveMatch {

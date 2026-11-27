@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, isAuthActive, isHttpBasicAuth, packageName, envName, serverVariables, opRequestShape, entityIdField, entityDataIdField, entityOps, safeVarName, exampleVarName, jsKey, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, each, Content, isAuthActive, packageName, envName, opRequestShape, entityIdField, entityDataIdField, entityOps, safeVarName, exampleVarName, jsKey, listMatchArg, matchExampleItems, requiredItems, jsProp, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -12,6 +12,7 @@ import { exampleValue } from './utility_ts'
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
@@ -29,21 +30,21 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   // — makeOptions refuses rather than request a URL with a literal
   // `{account_id}` in it — so a quickstart that omits them is a quickstart
   // that throws on its first line.
-  const svarLines = serverVariables(model)
+  const svarLines = fact(model.main[KIT], 'server').filter((v: any) => v.required)
     .map((v: any) => `\n    ${v.name}: '<${v.name}>',`).join('')
   const serverField = '' === svarLines ? '' :
     `\n  // Required: this API's server URL is templated on these.\n  server: {${svarLines}\n  },`
 
   const ctorFields = (isAuthActive(model)
     ? `\n  apikey: process.env.${envName(model)}_APIKEY,${
-      isHttpBasicAuth(model) ? `\n  secret: process.env.${envName(model)}_SECRET,` : ''}`
+      fact(model.main[KIT], 'auth').secret ? `\n  secret: process.env.${envName(model)}_SECRET,` : ''}`
     : '') + serverField
 
   const ctor = '' === ctorFields
     ? `new ${model.const.Name}SDK()`
     : `new ${model.const.Name}SDK({${ctorFields}\n})`
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`ts
 import { ${model.const.Name}SDK } from '${packageName(model, target.name)}'
@@ -67,7 +68,7 @@ const client = ${ctor}
     const dataIdF = entityDataIdField(exampleEntity)
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${eName.toLowerCase()} records
+      Content(`### ${++step}. List ${eName.toLowerCase()} records
 
 \`list()\` resolves to an array of ${eName} ENTITIES — every operation
 resolves to entities, not raw records. Iterate them directly, and call
@@ -91,8 +92,7 @@ for (const ${eVar} of ${eVar}s) {
       const loadOp = nestedEntity.op && nestedEntity.op.load
 
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
@@ -102,7 +102,7 @@ for (const ${eVar} of ${eVar}s) {
         `    ${jsKey(it.name)}: ${exampleValue(nestedEntity, loadOp, it.name,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)},`)
 
-      Content(`### 3. Load ${neArticle} ${neName.toLowerCase()}
+      Content(`### ${++step}. Load ${neArticle} ${neName.toLowerCase()}
 
 ${neName} is nested under ${parentName}, so provide the \`${parentParam}\`.
 \`load()\` returns the entity and throws on failure; \`.data()\` reads its record:
@@ -121,8 +121,7 @@ ${neMatchLines.join('\n')}
 `)
     }
     else if (opnames.includes('load')) {
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
@@ -131,7 +130,7 @@ ${neMatchLines.join('\n')}
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')} }`
         : ''
 
-      Content(`### 3. Load ${article} ${eName.toLowerCase()}
+      Content(`### ${++step}. Load ${article} ${eName.toLowerCase()}
 
 \`load()\` returns the entity and throws on failure; \`.data()\` reads its record:
 
@@ -155,8 +154,8 @@ try {
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
       const exampleFields = (opname: string): string[] => {
-        const items = opRequestShape(exampleEntity, opname).items
-          .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+        const items = requestExampleItems(exampleEntity, opname)
+          .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
             ('create' === opname && !it.optional))
         const required = items.filter((it: any) => !it.optional)
         const optional = items.filter((it: any) => it.optional)
@@ -188,10 +187,11 @@ try {
         return null != matchType && null != dataIdType && matchType === dataIdType
       }
       const idValueFor = (opname: string): string => usesCreatedId(opname)
-        ? `created.data().${dataIdF}!`
+        ? `${jsProp('created.data()', dataIdF as string)}!`
         : exampleValue(exampleEntity, exampleEntity.op[opname], idF as string, 'example_id')
 
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`ts
 `)
@@ -204,7 +204,7 @@ const created = await client.${eName}().create({${createBody}})
 `)
       }
       if (opnames.includes('update')) {
-        const updateLines = (idF ? [`  ${idF}: ${idValueFor('update')},`] : []).concat(exampleFields('update'))
+        const updateLines = (sendsId(exampleEntity, 'update', idF) ? [`  ${jsKey(idF)}: ${idValueFor('update')},`] : []).concat(exampleFields('update'))
         const updateBody = updateLines.length ? '\n' + updateLines.join('\n') + '\n' : ''
         Content(`// Update${usesCreatedId('update') ? ' — the id comes off the returned entity\'s data()' : ''}
 const updated = await client.${eName}().update({${updateBody}})
@@ -212,7 +212,7 @@ const updated = await client.${eName}().update({${updateBody}})
 `)
       }
       if (opnames.includes('patch')) {
-        const patchLines = (idF ? [`  ${idF}: ${idValueFor('patch')},`] : []).concat(exampleFields('patch'))
+        const patchLines = (sendsId(exampleEntity, 'patch', idF) ? [`  ${jsKey(idF)}: ${idValueFor('patch')},`] : []).concat(exampleFields('patch'))
         const patchBody = patchLines.length ? '\n' + patchLines.join('\n') + '\n' : ''
         Content(`// Patch — sends only the fields given${usesCreatedId('patch') ? '; the id comes off the returned entity\'s data()' : ''}
 const patched = await client.${eName}().patch({${patchBody}})
@@ -220,8 +220,7 @@ const patched = await client.${eName}().patch({${patchBody}})
 `)
       }
       if (opnames.includes('remove')) {
-        const removeLines = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removeLines = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF

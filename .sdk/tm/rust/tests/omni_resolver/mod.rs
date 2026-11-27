@@ -346,7 +346,7 @@ fn utf8width(lead: u8) -> usize {
 /// the SDK's own `rust/` directory, and the corpus sits beside it.
 pub fn spec_path() -> String {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("..");
+    path.push("SDKREL");
     path.push(".sdk");
     path.push("test");
     path.push("test.json");
@@ -492,6 +492,7 @@ impl Run {
         let flags = Flags {
             null: nullflag,
             name: Some(label.to_string()),
+            ..Flags::default()
         };
         let count = entrycount(set);
         let usespec = retargetctx(set);
@@ -714,6 +715,7 @@ pub fn fix_json(val: &Value, nullflag: bool) -> Value {
         &Flags {
             null: nullflag,
             name: None,
+            ..Flags::default()
         },
     ))
 }

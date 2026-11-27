@@ -71,9 +71,9 @@ sub make {
   return EntyClass->new($self->{_client}, $opts);
 }
 
-# Every operation resolves to the entity; `remove` additionally marks
-# it. The instance KEEPS the data it held — a caller can still read what
-# was deleted — but it is no longer a live record. See AGENTS.md.
+# Every operation resolves to the entity; a remove additionally marks it
+# deleted. The instance KEEPS the data it held — a caller can still read
+# what was deleted — but it is no longer a live record.
 sub mark_deleted {
   my ($self) = @_;
   $self->{_deleted} = 1;
@@ -89,8 +89,8 @@ sub deleted {
 
 sub data_set {
   my ($self, $args) = @_;
-  if ($args) {
-    $self->{_data} = ProjectNameHelpers::to_map(Voxgig::Struct::clone($args)) || {};
+  if (defined $args) {
+    $self->{_data} = Voxgig::Struct::clone($args);
     $self->{_utility}{feature_hook}->($self->{_entctx}, 'SetData');
   }
   return;
@@ -133,18 +133,15 @@ sub match_get {
 
 # Streaming operation. Runs `action` (an op name, e.g. 'list') through the
 # full operation pipeline and returns an ITERATOR coderef: each call yields
-# the next item (undef when exhausted), so the `streaming` feature's
-# incremental output is reachable (a normal op call materialises the whole
-# result). When the streaming feature is active the result carries a `stream`
-# coderef and this yields from it (honouring chunkSize / chunkDelay); else it
-# falls back to yielding the materialised items so stream() always yields.
-# An entity is yielded as its record, the hashref its data_get returns.
+# the next item (undef when exhausted), so incremental output is reachable (a
+# normal op call materialises the whole result). When the streaming feature
+# is active the result carries a `stream` coderef and this yields from it
+# (honouring chunkSize / chunkDelay); else it falls back to yielding the
+# materialised items so stream() always yields. An entity is yielded as its
+# record, the hashref its data_get returns.
 #
 # $callopts parameterises the call:
 #   - ctrl:   per-call pipeline control (threaded onto the op ctx);
-#   - body:   an iterator coderef / arrayref payload for outbound (upload)
-#             streaming - attached to the request (reqdata.body$ + a
-#             stream_out marker on ctx) so the transport can stream it;
 #   - signal: an optional coderef; when it returns true the iterator stops.
 sub stream {
   my ($self, $action, $args, $callopts) = @_;
@@ -163,16 +160,6 @@ sub stream {
     'data' => $self->{_data},
     %{ ProjectNameHelpers::to_map($args) || {} },
   }, $self->{_entctx});
-
-  # Outbound: expose an async-iterable/list payload so the request builder /
-  # transport can stream it as the request body.
-  my $body = ProjectNameHelpers::gp($callopts, 'body');
-  if (defined $body) {
-    my $reqdata = ProjectNameHelpers::to_map($ctx->{reqdata}) || {};
-    $reqdata->{'body$'} = $body;
-    $ctx->{reqdata} = $reqdata;
-    $ctx->{stream_out} = $body;
-  }
 
   $self->_run_op($ctx, sub { return });
 
@@ -211,7 +198,8 @@ sub stream {
 
         # What a hook dies with here must not escape the cleaning below.
         my $fired = eval {
-          $utility->{feature_hook}->($ctx, 'PreUnexpected');
+          $utility->{feature_hook}->($ctx, 'PreUnexpected')
+            unless $ctx->{unexpected_fired};
           1;
         };
         if (!$fired) {
@@ -284,9 +272,9 @@ sub _run_op {
     # instance, and the caller reaches the record through data(). Two
     # structural exceptions: `list` resolves to the ARRAY of entity
     # instances make_result built, and a failed op with throwing disabled
-    # hands back the error payload unchanged. `remove` additionally marks
+    # hands back the error payload unchanged. A remove additionally marks
     # the entity deleted; it KEEPS its data, so a caller can still read
-    # what was removed. See AGENTS.md "Entity operations return ENTITIES".
+    # what was removed.
     my $opname = $ctx->{op} ? $ctx->{op}{name} : undef;
 
     if ($ctx->{result} && $ctx->{result}{ok}
@@ -302,7 +290,10 @@ sub _run_op {
 
     # What a hook dies with here must not escape the cleaning below.
     my $fired = eval {
-      # #PreUnexpected-Hook
+      # Once per operation: make_error fires it for its own error.
+      unless ($ctx->{unexpected_fired}) {
+        # #PreUnexpected-Hook
+      }
       1;
     };
     if (!$fired) {
@@ -340,6 +331,15 @@ sub _unexpected {
     }
   }
   return undef if defined $ctx->{ctrl}{throw_err} && !$ctx->{ctrl}{throw_err};
+  # An exception object of another class leaves as the SDK's error carrying
+  # its message cleaned; the object itself is the cause.
+  if (Scalar::Util::blessed($err) && !$err->isa('ProjectNameError')) {
+    my $msg = "$err";
+    $msg =~ s/\s+\z//;
+    my $sdkerr = ProjectNameError->new('', $clean->($ctx, $msg), $ctx);
+    $sdkerr->cause($err);
+    return $sdkerr;
+  }
   return $clean->($ctx, $err);
 }
 

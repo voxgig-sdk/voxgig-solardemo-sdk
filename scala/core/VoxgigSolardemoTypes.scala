@@ -34,9 +34,9 @@ object VoxgigSolardemoTypes {
 
   final case class PlanetListMatch(diameter: java.lang.Double, forbidReason: String, forbidState: String, id: String, kind: String, name: String, terraformState: String)
 
-  final case class PlanetCreateData(diameter: java.lang.Double, forbidReason: String, forbidState: String, id: String, kind: String, name: String, terraformState: String)
+  final case class PlanetCreateData(diameter: java.lang.Double, id: String, kind: String, name: String)
 
-  final case class PlanetUpdateData(id: String, diameter: java.lang.Double, forbidReason: String, forbidState: String, kind: String, name: String, terraformState: String)
+  final case class PlanetUpdateData(id: String, diameter: java.lang.Double, kind: String, name: String)
 
   final case class PlanetRemoveMatch(id: String)
 

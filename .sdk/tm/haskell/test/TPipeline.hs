@@ -146,6 +146,34 @@ tests c = do
     isRefused <- case refused of Just e -> errCodeIs e "point_op_allow"; Nothing -> pure False
     pure (isRefused && isNothing named)
 
+  let pointCode declared called = do
+        cl <- client; ctx <- mkCtx cl "load"
+        let selectOf a = maybe (jo []) (\v -> jo [("$action", VStr v)]) a
+        pts <- mapM (\a -> do
+                       parts <- ja [VStr "items", VStr "all"]
+                       sel <- selectOf a
+                       jo [("method", VStr "DELETE"), ("parts", parts), ("select", sel)]) declared
+        ptsv <- ja pts
+        op <- newOperation =<< jo [("name", VStr "load"), ("points", ptsv)]
+        writeIORef (cOp ctx) op
+        writeIORef (cReqmatch ctx) =<< selectOf called
+        (_, merr) <- makePointUtil ctx
+        maybe (pure "ok") errCode merr
+
+  runTest c "make_point.lone_action_needs_its_action" $ do
+    codes <- mapM (uncurry pointCode)
+      [([Just "purge"], Nothing), ([Just "purge"], Just "purge"), ([Just "purge"], Just "other")]
+    pure (codes == ["point_action_required", "ok", "point_action_invalid"])
+
+  runTest c "make_point.lone_plain_refuses_an_action" $ do
+    codes <- mapM (uncurry pointCode) [([Nothing], Just "nope"), ([Nothing], Nothing)]
+    pure (codes == ["point_action_invalid", "ok"])
+
+  runTest c "make_point.all_actions_need_one" $ do
+    codes <- mapM (uncurry pointCode)
+      [([Just "purge", Just "archive"], Nothing), ([Just "purge", Just "archive"], Just "archive")]
+    pure (codes == ["point_action_required", "ok"])
+
   runTest c "make_context.patch_takes_data" $ do
     cl <- client
     ins <- mapM (\name -> do ctx <- mkCtx cl name; opInput <$> readIORef (cOp ctx)) ["patch", "update", "load"]
@@ -343,6 +371,21 @@ tests c = do
     out <- F.mockEnvelope ctx =<< jo [("id", VStr "i1")]
     i <- getp out "item" >>= \r -> getp r "id"
     pure (case i of VStr "i1" -> True; _ -> False)
+
+  runTest c "test_mock.deep_body_envelope" $ do
+    cl <- client
+    let answer op res dat = do
+          ctx <- mkCtx cl op
+          tm <- jo [("res", VStr res)]; point <- jo [("transform", tm)]
+          writeIORef (cPoint ctx) point
+          out <- F.mockEnvelope ctx dat
+          (\b -> transform INone b (VStr res)) =<< jo [("body", out)]
+    g1 <- jo [("id", VStr "g1")]; g2 <- jo [("id", VStr "g2")]
+    one <- answer "load" "`body.data.thing`" g1
+    many <- answer "list" "`body.data.things`" =<< ja [g1, g2]
+    oid <- getp one "id"
+    ids <- mapM (\r -> getp r "id") =<< listItems many
+    pure (vstring oid == "g1" && [s | VStr s <- ids] == ["g1", "g2"])
 
   runTest c "make_response.guard_no_spec" $ do
     cl <- client; ctx <- mkCtx cl "load"
@@ -555,6 +598,53 @@ tests c = do
     _ <- prepareAuthUtil ctx
     spv <- readIORef (cSpec ctx); h <- getp spv "headers"; av <- getp h "authorization"
     pure (isNoval av)
+
+  runTest c "prepare_auth.query_placement_named_key_no_header" $ do
+    cl <- client; ctx <- mkCtx cl "load"
+    ap <- jo [("prefix", VStr ""), ("in", VStr "query"), ("name", VStr "api_key")]
+    o <- jo [("apikey", VStr "K"), ("auth", ap)]; writeIORef (clOptions cl) o
+    hm <- emptyMap; qm <- emptyMap; sp <- newSpec =<< jo [("headers", hm), ("query", qm)]; writeIORef (cSpec ctx) sp
+    _ <- prepareAuthUtil ctx
+    spv <- readIORef (cSpec ctx); h <- getp spv "headers"; q <- getp spv "query"
+    av <- getp h "authorization"; kv <- getp q "api_key"
+    pure (isNoval av && vstring kv == "K")
+
+  runTest c "prepare_auth.basic_header_joins_key_and_secret" $ do
+    cl <- client; ctx <- mkCtx cl "load"
+    ap <- jo [("prefix", VStr "Basic"), ("basic", VBool True)]
+    o <- jo [("apikey", VStr "user"), ("secret", VStr "pass"), ("auth", ap)]; writeIORef (clOptions cl) o
+    hm <- emptyMap; sp <- newSpec =<< jo [("headers", hm)]; writeIORef (cSpec ctx) sp
+    _ <- prepareAuthUtil ctx
+    spv <- readIORef (cSpec ctx); h <- getp spv "headers"; av <- getp h "authorization"
+    pure (vstring av == "Basic dXNlcjpwYXNz")
+
+  runTest c "prepare_auth.basic_in_query_sets_no_authorization_header" $ do
+    cl <- client; ctx <- mkCtx cl "load"
+    ap <- jo [("prefix", VStr "Basic"), ("basic", VBool True), ("in", VStr "query"), ("name", VStr "api_key")]
+    o <- jo [("apikey", VStr "user"), ("secret", VStr "pass"), ("auth", ap)]; writeIORef (clOptions cl) o
+    hm <- emptyMap; qm <- emptyMap; sp <- newSpec =<< jo [("headers", hm), ("query", qm)]; writeIORef (cSpec ctx) sp
+    _ <- prepareAuthUtil ctx
+    spv <- readIORef (cSpec ctx); h <- getp spv "headers"; q <- getp spv "query"
+    av <- getp h "authorization"; kv <- getp q "api_key"
+    pure (isNoval av && vstring kv == "user")
+
+  runTest c "prepare_auth.cookie_placement_keeps_other_cookies" $ do
+    cl <- client; ctx <- mkCtx cl "load"
+    ap <- jo [("prefix", VStr ""), ("in", VStr "cookie"), ("name", VStr "session")]
+    o <- jo [("apikey", VStr "K"), ("auth", ap)]; writeIORef (clOptions cl) o
+    hm <- jo [("cookie", VStr "a=1; session=old")]; sp <- newSpec =<< jo [("headers", hm)]; writeIORef (cSpec ctx) sp
+    _ <- prepareAuthUtil ctx
+    spv <- readIORef (cSpec ctx); h <- getp spv "headers"; cv <- getp h "cookie"; av <- getp h "authorization"
+    pure (isNoval av && vstring cv == "a=1; session=K")
+
+  runTest c "prepare_auth.named_header_lower_cased" $ do
+    cl <- client; ctx <- mkCtx cl "load"
+    ap <- jo [("prefix", VStr ""), ("name", VStr "X-Api-Key")]
+    o <- jo [("apikey", VStr "K"), ("auth", ap)]; writeIORef (clOptions cl) o
+    hm <- emptyMap; sp <- newSpec =<< jo [("headers", hm)]; writeIORef (cSpec ctx) sp
+    _ <- prepareAuthUtil ctx
+    spv <- readIORef (cSpec ctx); h <- getp spv "headers"; kv <- getp h "x-api-key"; av <- getp h "authorization"
+    pure (isNoval av && vstring kv == "K")
 
   runTest c "result_headers.no_headers_empty_map" $ do
     cl <- client; ctx <- mkCtx cl "load"

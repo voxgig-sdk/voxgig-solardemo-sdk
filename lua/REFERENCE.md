@@ -19,12 +19,13 @@ Create a new SDK client instance.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `table` | SDK configuration options. |
-| `options.base` | `string` | Base URL for API requests. |
-| `options.prefix` | `string` | URL prefix appended after base. |
-| `options.suffix` | `string` | URL suffix appended after path. |
-| `options.headers` | `table` | Custom headers for all requests. |
-| `options.feature` | `table` | Feature configuration. |
-| `options.system` | `table` | System overrides (e.g. custom fetch). |
+| `options.base` | `string` | Base URL of the API server. |
+| `options.prefix` | `string` | URL path prefix prepended to all requests. |
+| `options.suffix` | `string` | URL path suffix appended to all requests. |
+| `options.headers` | `table` | Headers sent with every request. |
+| `options.feature` | `table` | Feature activation flags. |
+| `options.extend` | `table` | Additional feature instances to load. |
+| `options.system` | `table` | System overrides, such as a custom fetch function. |
 
 
 ### Static Methods
@@ -102,20 +103,6 @@ local moon = client:Moon(nil)
 
 ### Operations
 
-#### `create(reqdata, ctrl) -> any, err`
-
-Create a new entity with the given data. Returns the created entity, or `nil` and an error on failure.
-
-```lua
-local result, err = client:Moon():create({
-  planet_id = --[[ string ]],
-  diameter = --[[ number ]],
-  id = --[[ string ]],
-  kind = --[[ string ]],
-  name = --[[ string ]],
-})
-```
-
 #### `list(reqmatch, ctrl) -> any, err`
 
 List entities matching the given criteria. Returns an array of entities, one per record, or `nil` and an error on failure.
@@ -132,12 +119,18 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 local result, err = client:Moon():load({ id = "moon_id", planet_id = "planet_id" })
 ```
 
-#### `remove(reqmatch, ctrl) -> any, err`
+#### `create(reqdata, ctrl) -> any, err`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `nil` and an error on failure.
+Create a new entity with the given data. Returns the created entity, or `nil` and an error on failure.
 
 ```lua
-local result, err = client:Moon():remove({ id = "moon_id", planet_id = "planet_id" })
+local result, err = client:Moon():create({
+  planet_id = --[[ string ]],
+  diameter = --[[ number ]],
+  id = --[[ string ]],
+  kind = --[[ string ]],
+  name = --[[ string ]],
+})
 ```
 
 #### `update(reqdata, ctrl) -> any, err`
@@ -150,6 +143,14 @@ local result, err = client:Moon():update({
   planet_id = "planet_id",
   -- Fields to update
 })
+```
+
+#### `remove(reqmatch, ctrl) -> any, err`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `nil` and an error on failure.
+
+```lua
+local result, err = client:Moon():remove({ id = "moon_id", planet_id = "planet_id" })
 ```
 
 ### Common Methods
@@ -202,19 +203,6 @@ local planet = client:Planet(nil)
 
 ### Operations
 
-#### `create(reqdata, ctrl) -> any, err`
-
-Create a new entity with the given data. Returns the created entity, or `nil` and an error on failure.
-
-```lua
-local result, err = client:Planet():create({
-  diameter = --[[ number ]],
-  id = --[[ string ]],
-  kind = --[[ string ]],
-  name = --[[ string ]],
-})
-```
-
 #### `list(reqmatch, ctrl) -> any, err`
 
 List entities matching the given criteria. Returns an array of entities, one per record, or `nil` and an error on failure.
@@ -231,12 +219,17 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 local result, err = client:Planet():load({ id = "planet_id" })
 ```
 
-#### `remove(reqmatch, ctrl) -> any, err`
+#### `create(reqdata, ctrl) -> any, err`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `nil` and an error on failure.
+Create a new entity with the given data. Returns the created entity, or `nil` and an error on failure.
 
 ```lua
-local result, err = client:Planet():remove({ id = "planet_id" })
+local result, err = client:Planet():create({
+  diameter = --[[ number ]],
+  id = --[[ string ]],
+  kind = --[[ string ]],
+  name = --[[ string ]],
+})
 ```
 
 #### `update(reqdata, ctrl) -> any, err`
@@ -248,6 +241,14 @@ local result, err = client:Planet():update({
   id = "planet_id",
   -- Fields to update
 })
+```
+
+#### `remove(reqmatch, ctrl) -> any, err`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `nil` and an error on failure.
+
+```lua
+local result, err = client:Planet():remove({ id = "planet_id" })
 ```
 
 ### Common Methods
@@ -317,10 +318,10 @@ local client = sdk.new({
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -331,10 +332,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -537,7 +538,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -550,6 +551,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -577,10 +579,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

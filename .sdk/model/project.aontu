@@ -27,6 +27,10 @@
 # Chain: builtin env provider (prefix SOLARDEMO_) — no plugin groups
 # needed; the gated per-target secrets tests drive their own chains.
 main: kit: feature: secrets: active: true
+# --- cedar: copies (written by cedar-regen.sh, do not hand-edit)
+# Regenerated in full: not listed in admin data/customized.csv.
+main: kit: copies: 'overwrite'
+# --- end cedar: copies
 # --- cedar: release version (written by cedar-regen.sh, do not hand-edit)
 # Per target, because sdkgen keys the version per target; identical across
 # them because cedar tags a repo at one version.
@@ -56,4 +60,8 @@ main: kit: target: 'seneca-provider': publish: version: '0.1.0'
 main: kit: target: 'swift': publish: version: '0.1.0'
 main: kit: target: 'ts': publish: version: '0.1.0'
 main: kit: target: 'zig': publish: version: '0.1.0'
+main: kit: target: 'haskell': publish: version: '0.1.0'
 # --- end cedar: release version
+# --- cedar: secrets active (written by cedar-regen.sh, do not hand-edit)
+main: kit: feature: secrets: active: true
+# --- end cedar: secrets active

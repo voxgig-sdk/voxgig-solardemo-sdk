@@ -1,9 +1,12 @@
 
 import { Context, Response } from '../types'
 
+import { isStream } from './MediaUtility'
 
-// Several CDNs refuse a library's own agent, so outside a browser a request
-// without one carries the browser-shaped agent most other targets send.
+
+// Outside a browser a request without an agent carries the project's
+// (main.kit.http.useragent): browser-shaped unless the model says otherwise,
+// as several CDNs refuse a library's own.
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)'
 
 
@@ -18,6 +21,111 @@ function defaultUserAgent(fetchdef: Record<string, any>) {
     }
   }
   headers['user-agent'] = DEFAULT_USER_AGENT
+}
+
+
+const GETONLY_ENV = 'VOXGIG_GETONLY_GUARD'
+
+
+// A GET-only live run refuses any other method before it is sent. The error
+// names the path alone: the query can carry a credential.
+function getOnlyRefusal(ctx: Context, fullurl: string, fetchdef: Record<string, any>) {
+  const method = String(fetchdef.method || 'GET').toUpperCase()
+  if ('TRUE' !== (globalThis as any).process?.env?.[GETONLY_ENV] || 'GET' === method) {
+    return
+  }
+  const scheme = fullurl.indexOf('://')
+  const rest = scheme < 0 ? fullurl : fullurl.slice(scheme + 3).replace(/^[^/?#]*/, '')
+  const path = rest.split(/[?#]/)[0] || '/'
+  return ctx.error('fetch_getonly_block', '[GET-ONLY GUARD] blocked ' + method + ' ' + path)
+}
+
+
+const REDIRECT_STATUS = [301, 302, 303, 307, 308]
+const REDIRECT_MAX = 5
+const CREDENTIAL_HEADERS = ['authorization', 'cookie', 'proxy-authorization']
+
+
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin
+  }
+  catch (_e) {
+    return ''
+  }
+}
+
+
+// What another origin is not sent: a secret, by its name or by its value.
+function isCredential(ctx: Context, name: string, value: any): boolean {
+  return CREDENTIAL_HEADERS.includes(name.toLowerCase()) ||
+    true === (ctx.utility as any).cleanSecret?.(ctx, name, value)
+}
+
+
+// The platform sends a custom header, and a 307's body, wherever a redirect
+// points. Followed here instead: each hop passes the GET-only guard; past
+// REDIRECT_MAX hops, or where a body would change origin, the 3xx answers.
+async function followRedirects(
+  ctx: Context, fetch: any, fullurl: string, fetchdef: Record<string, any>
+): Promise<any> {
+  let url = fullurl
+  let def: Record<string, any> = { ...fetchdef, redirect: 'manual' }
+
+  for (let hops = 0; ; hops++) {
+    const res = await fetch(url, def)
+    const location = res?.headers?.get?.('location')
+    if (null == location || !REDIRECT_STATUS.includes(res.status) || REDIRECT_MAX <= hops) {
+      return res
+    }
+
+    let next: string
+    try {
+      next = new URL(location, url).href
+    }
+    catch (_e) {
+      return res
+    }
+
+    // As the platform does: a 303, or a 301 or 302 to a POST, becomes a GET.
+    const method = String(def.method || 'GET').toUpperCase()
+    const toget = 303 === res.status ? 'HEAD' !== method && 'GET' !== method :
+      'POST' === method && 307 !== res.status && 308 !== res.status
+    const cross = originOf(next) !== originOf(url)
+    const body = toget ? undefined : def.body
+
+    if (null != body && (cross || isStream(body))) {
+      return res
+    }
+
+    const headers: Record<string, any> = {}
+    for (const name of Object.keys(def.headers || {})) {
+      const dropped = (toget && /^content-/i.test(name)) ||
+        (cross && isCredential(ctx, name, def.headers[name]))
+      if (!dropped) {
+        headers[name] = def.headers[name]
+      }
+    }
+
+    const nextdef: Record<string, any> = { ...def, method: toget ? 'GET' : method, headers }
+    if (null == body) {
+      delete nextdef.body
+      delete nextdef.duplex
+    }
+
+    const refused = getOnlyRefusal(ctx, next, nextdef)
+    if (refused) {
+      return refused
+    }
+
+    try {
+      await res.body?.cancel?.()
+    }
+    catch (_e) { }
+
+    url = next
+    def = nextdef
+  }
 }
 
 
@@ -44,9 +152,25 @@ async function fetcher(
 
   const fetch = options.system.fetch
 
+  // The platform's fetch is the SDK's own transport; a supplied one is the
+  // caller's, and a mock sends nothing.
+  const refused = fetch === globalThis.fetch ? getOnlyRefusal(ctx, fullurl, fetchdef) : undefined
+  if (refused) {
+    return refused
+  }
+
   defaultUserAgent(fetchdef)
 
-  const response = await fetch(fullurl, fetchdef)
+  // Only where a manual redirect can be read: a browser hides its Location.
+  const readable = null != (globalThis as any).process?.versions?.node
+  const follows = fetch === globalThis.fetch &&
+    (null == fetchdef.redirect || 'follow' === fetchdef.redirect)
+
+  // Elsewhere a request with a body refuses a redirect: nothing could be dropped.
+  const refuses = follows && !readable && null != fetchdef.body
+
+  const response = follows && readable ? await followRedirects(ctx, fetch, fullurl, fetchdef) :
+    await fetch(fullurl, refuses ? { ...fetchdef, redirect: 'error' } : fetchdef)
 
   return response
 }

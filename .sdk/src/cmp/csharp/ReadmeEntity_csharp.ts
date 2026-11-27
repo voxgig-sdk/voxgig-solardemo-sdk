@@ -1,12 +1,12 @@
 
-import { cmp, each, Content, canonToType, canonKey, canonScalarKey, entityIdField, opRequestShape, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, canonKey, canonScalarKey, entityIdField, entityOps, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { csVarName, csListMatch } from './utility_csharp'
+import { csVarName, csListMatch, csStringLiteral } from './utility_csharp'
 
 
 // Type names come from the shared canonToType 'csharp' column (single source of truth).
@@ -20,7 +20,7 @@ function csLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return 'new List<object?>()'
   if ('OBJECT' === k) return 'new Dictionary<string, object?>()'
-  return `"${placeholder}"`
+  return csStringLiteral(placeholder)
 }
 
 
@@ -56,9 +56,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     const idF = entityIdField(entity)
     // Sanitise the local variable name — a camelCased C# keyword gets a
@@ -70,8 +68,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -106,8 +104,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
-        Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${desc} |
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
+        Content(`| \`${field.n}\` | \`${canonToType(field.t, 'csharp').replace(/\|/g, '\\|')}\` | ${desc} |
 `)
       })
 
@@ -115,17 +113,16 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
+    if (opnames.includes('load')) {
       // The id key plus every REQUIRED match key (parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `new Dictionary<string, object?> {${loadItems.map((it: any) =>
-          ` ["${it.name}"] = ${csLit(it.type,
+          ` [${csStringLiteral(it.name)}] = ${csLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)}`).join(',')} }`
         : 'null'
       Content(`#### Example: Load
@@ -137,7 +134,7 @@ var ${eVar} = client.${entity.Name}().Load(${loadArg});
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`csharp
@@ -147,11 +144,11 @@ var ${eVar}List = client.${entity.Name}().List(${csListMatch(entity)});
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member must appear — including a
       // required id and parent keys like page_id — with a real literal.
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
@@ -160,7 +157,7 @@ var ${eVar} = client.${entity.Name}().Create(new Dictionary<string, object?>
 {
 `)
       createItems.map((it: any) => {
-        Content(`    ["${it.name}"] = ${csLit(it.type, 'example_' + it.name)},  // ${canonToType(it.type, target.name)}
+        Content(`    [${csStringLiteral(it.name)}] = ${csLit(it.type, 'example_' + it.name)},  // ${canonToType(it.type, 'csharp')}
 `)
       })
       Content(`});

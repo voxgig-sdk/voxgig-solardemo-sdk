@@ -52,6 +52,62 @@ class MoonEntityTest extends TestCase
                 return;
             }
         }
+        if (!empty($setup["live"]) && getenv('VOXGIG_GETONLY_GUARD') === "TRUE") {
+            fwrite(STDOUT, 'LIVE STEP {"id":"moon.create.0","state":"excluded","attempted":false,"reason":"GET-only live run: needs POST /api/planet/{planet_id}/moon"}' . "\n");
+            fwrite(STDOUT, 'LIVE STEP {"id":"moon.update.2","state":"excluded","attempted":false,"reason":"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}"}' . "\n");
+            fwrite(STDOUT, 'LIVE STEP {"id":"moon.remove.4","state":"excluded","attempted":false,"reason":"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}"}' . "\n");
+            fwrite(STDOUT, 'LIVE STEP {"id":"moon.list.5","state":"excluded","attempted":false,"reason":"GET-only live run: checks a removal this run does not make"}' . "\n");
+        if (!empty($setup["live"])) {
+            foreach (["planet01"] as $_liveKey) {
+                if (!empty($setup["synthetic_only"]) || null === ($setup["idmap"][$_liveKey] ?? null)) {
+                    Runner::live_miss(self::LIVE_STRICT, "Live entity test blocked: needs " . $_liveKey . " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
+                }
+            }
+        }
+        $client = $setup["client"];
+        if (!empty($setup["live"])) {
+            $_liveId = empty($setup["synthetic_only"]) ? ($setup["idmap"]["moon01"] ?? null) : null;
+            Runner::live_pace();
+            Runner::live_existing($setup, self::LIVE_STRICT, "moon",
+                fn() => $client->Moon(null)->list(["planet_id" => $setup["idmap"]["planet01"] ?? null], null), "id", $_liveId);
+        }
+
+        // Bootstrap entity data from existing test data.
+        $moon_ref01_data_raw = Vs::items(Helpers::to_map(
+            Vs::getpath($setup["data"], "existing.moon")));
+        $moon_ref01_data = null;
+        if (count($moon_ref01_data_raw) > 0) {
+            $moon_ref01_data = Helpers::to_map($moon_ref01_data_raw[0][1]);
+        }
+
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
+        // LIST
+        $moon_ref01_ent = $client->Moon(null);
+        $moon_ref01_match = [
+            "planet_id" => $setup["idmap"]["planet01"],
+        ];
+
+        $moon_ref01_list_result = $moon_ref01_ent->list($moon_ref01_match, null);
+        $this->assertIsArray($moon_ref01_list_result);
+
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
+        // LOAD
+        $moon_ref01_match_dt0 = [
+            "id" => $moon_ref01_data["id"],
+        ];
+        $moon_ref01_match_dt0["planet_id"] = is_scalar($moon_ref01_data["planet_id"] ?? null) ? $moon_ref01_data["planet_id"] : ($setup["idmap"]["planet_id"] ?? $setup["idmap"]["planet01"] ?? null);
+        $moon_ref01_data_dt0_loaded = $moon_ref01_ent->load($moon_ref01_match_dt0, null);
+        $moon_ref01_data_dt0_load_result = Helpers::to_map(is_object($moon_ref01_data_dt0_loaded) && method_exists($moon_ref01_data_dt0_loaded, 'data_get') ? $moon_ref01_data_dt0_loaded->data_get() : $moon_ref01_data_dt0_loaded);
+        $this->assertNotNull($moon_ref01_data_dt0_load_result);
+        $this->assertTrue(Runner::live_same_id($moon_ref01_data_dt0_load_result["id"] ?? null, $moon_ref01_data["id"]));
+
+            return;
+        }
+
         if (!empty($setup["live"])) {
             foreach (["planet01"] as $_liveKey) {
                 if (!empty($setup["synthetic_only"]) || null === ($setup["idmap"][$_liveKey] ?? null)) {
@@ -61,6 +117,9 @@ class MoonEntityTest extends TestCase
         }
         $client = $setup["client"];
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // CREATE
         $moon_ref01_ent = $client->Moon(null);
         $moon_ref01_data = Helpers::to_map(Vs::getprop(
@@ -72,6 +131,9 @@ class MoonEntityTest extends TestCase
         $this->assertNotNull($moon_ref01_data);
         $this->assertNotNull($moon_ref01_data["id"]);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // LIST
         $moon_ref01_match = [
             "planet_id" => $setup["idmap"]["planet01"],
@@ -85,6 +147,9 @@ class MoonEntityTest extends TestCase
             ["id" => $moon_ref01_data["id"]]);
         $this->assertNotEmpty($found_item);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // UPDATE
         $moon_ref01_data_up0_up = [
             "id" => $moon_ref01_data["id"],
@@ -98,19 +163,25 @@ class MoonEntityTest extends TestCase
         $moon_ref01_resdata_up0_result = $moon_ref01_ent->update($moon_ref01_data_up0_up, null);
         $moon_ref01_resdata_up0 = Helpers::to_map(is_object($moon_ref01_resdata_up0_result) && method_exists($moon_ref01_resdata_up0_result, 'data_get') ? $moon_ref01_resdata_up0_result->data_get() : $moon_ref01_resdata_up0_result);
         $this->assertNotNull($moon_ref01_resdata_up0);
-        $this->assertEquals($moon_ref01_resdata_up0["id"], $moon_ref01_data_up0_up["id"]);
+        $this->assertTrue(Runner::live_same_id($moon_ref01_resdata_up0["id"] ?? null, $moon_ref01_data_up0_up["id"]));
         $this->assertEquals($moon_ref01_resdata_up0[$moon_ref01_markdef_up0_name], $moon_ref01_markdef_up0_value);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // LOAD
         $moon_ref01_match_dt0 = [
             "id" => $moon_ref01_data["id"],
         ];
-        $moon_ref01_match_dt0["planet_id"] = $setup["idmap"]["planet_id"] ?? $setup["idmap"]["planet01"] ?? null;
+        $moon_ref01_match_dt0["planet_id"] = is_scalar($moon_ref01_data["planet_id"] ?? null) ? $moon_ref01_data["planet_id"] : ($setup["idmap"]["planet_id"] ?? $setup["idmap"]["planet01"] ?? null);
         $moon_ref01_data_dt0_loaded = $moon_ref01_ent->load($moon_ref01_match_dt0, null);
         $moon_ref01_data_dt0_load_result = Helpers::to_map(is_object($moon_ref01_data_dt0_loaded) && method_exists($moon_ref01_data_dt0_loaded, 'data_get') ? $moon_ref01_data_dt0_loaded->data_get() : $moon_ref01_data_dt0_loaded);
         $this->assertNotNull($moon_ref01_data_dt0_load_result);
-        $this->assertEquals($moon_ref01_data_dt0_load_result["id"], $moon_ref01_data["id"]);
+        $this->assertTrue(Runner::live_same_id($moon_ref01_data_dt0_load_result["id"] ?? null, $moon_ref01_data["id"]));
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // REMOVE
         $moon_ref01_match_rm0 = [
             "id" => $moon_ref01_data["id"],
@@ -118,6 +189,9 @@ class MoonEntityTest extends TestCase
         $moon_ref01_match_rm0["planet_id"] = $setup["idmap"]["planet_id"] ?? $setup["idmap"]["planet01"] ?? null;
         $moon_ref01_ent->remove($moon_ref01_match_rm0, null);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // LIST
         $moon_ref01_match_rt0 = [
             "planet_id" => $setup["idmap"]["planet01"],

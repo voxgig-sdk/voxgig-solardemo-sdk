@@ -40,15 +40,20 @@ class MoonDirectTest extends TestCase
                 }
             }
         }
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         $client = $setup["client"];
 
         $params = [];
+        $query = [];
         $params["planet_id"] = $setup["live"] ? ($setup["idmap"]["planet01"] ?? null) : "direct01";
 
         $result = $client->direct([
             "path" => "api/planet/{planet_id}/moon",
             "method" => "GET",
             "params" => $params,
+            "query" => $query,
         ]);
         if ($setup["live"]) {
             if (!self::liveOk($result)) {
@@ -83,6 +88,9 @@ class MoonDirectTest extends TestCase
                 }
             }
         }
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         $client = $setup["client"];
 
         $params = [];
@@ -104,7 +112,7 @@ class MoonDirectTest extends TestCase
                 Runner::live_empty("The account has no moon record to load");
             }
             $first = is_array($records[0]) ? $records[0] : [];
-            $found = $first["id"] ?? $first["id"] ?? null;
+            $found = $first["id"] ?? null;
             if (null === $found) {
                 Runner::live_miss(self::LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
             }

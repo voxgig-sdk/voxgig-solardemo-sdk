@@ -46,7 +46,7 @@ describe("PlanetEntity", function()
     assert.is_not_nil(ent)
   end)
 
-  -- Feature #4: the entity stream(action, ...) method runs the op pipeline and
+  -- The entity stream(action, ...) method runs the op pipeline and
   -- returns an iterator over result items. With the streaming feature active it
   -- yields the feature's incremental output; otherwise it falls back to the
   -- materialised list so stream always yields.
@@ -154,8 +154,63 @@ describe("PlanetEntity", function()
         return
       end
     end
+    if setup.live and os.getenv("VOXGIG_GETONLY_GUARD") == "TRUE" then
+      print("LIVE STEP {\"id\":\"planet.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/forbid\"}")
+      print("LIVE STEP {\"id\":\"planet.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}\"}")
+      print("LIVE STEP {\"id\":\"planet.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}\"}")
+      print("LIVE STEP {\"id\":\"planet.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+    local client = setup.client
+    if setup.live then
+      local _live_id = nil
+      if not setup.synthetic_only then
+        _live_id = setup.idmap["planet01"]
+      end
+      runner.live_pace()
+      runner.live_existing(pending, setup, LIVE_STRICT, "planet", function()
+        return client:Planet(nil):list({}, nil)
+      end, "id", _live_id)
+    end
+
+    -- Bootstrap entity data from existing test data.
+    local planet_ref01_data_raw = vs.items(helpers.to_map(
+      vs.getpath(setup.data, "existing.planet")))
+    local planet_ref01_data = nil
+    if #planet_ref01_data_raw > 0 then
+      planet_ref01_data = helpers.to_map(planet_ref01_data_raw[1][2])
+    end
+
+    if setup.live then
+      runner.live_pace()
+    end
+    -- LIST
+    local planet_ref01_ent = client:Planet(nil)
+    local planet_ref01_match = {}
+
+    local planet_ref01_list_result, err = planet_ref01_ent:list(planet_ref01_match, nil)
+    assert.is_nil(err)
+    assert.is_table(planet_ref01_list_result)
+
+    if setup.live then
+      runner.live_pace()
+    end
+    -- LOAD
+    local planet_ref01_match_dt0 = {
+      id = planet_ref01_data["id"],
+    }
+    local planet_ref01_data_dt0_loaded, err = planet_ref01_ent:load(planet_ref01_match_dt0, nil)
+    assert.is_nil(err)
+    local planet_ref01_data_dt0_load_result = helpers.to_map(type(planet_ref01_data_dt0_loaded) == 'table' and planet_ref01_data_dt0_loaded.data_get and planet_ref01_data_dt0_loaded:data_get() or planet_ref01_data_dt0_loaded)
+    assert.is_not_nil(planet_ref01_data_dt0_load_result)
+    assert.is_true(runner.live_same_id(planet_ref01_data_dt0_load_result["id"], planet_ref01_data["id"]))
+
+      return
+    end
+
     local client = setup.client
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- CREATE
     local planet_ref01_ent = client:Planet(nil)
     local planet_ref01_data = helpers.to_map(vs.getprop(
@@ -167,6 +222,9 @@ describe("PlanetEntity", function()
     assert.is_not_nil(planet_ref01_data)
     assert.is_not_nil(planet_ref01_data["id"])
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- LIST
     local planet_ref01_match = {}
 
@@ -179,6 +237,9 @@ describe("PlanetEntity", function()
       { id = planet_ref01_data["id"] })
     assert.is_false(vs.isempty(found_item))
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- UPDATE
     local planet_ref01_data_up0_up = {
       id = planet_ref01_data["id"],
@@ -192,9 +253,12 @@ describe("PlanetEntity", function()
     assert.is_nil(err)
     local planet_ref01_resdata_up0 = helpers.to_map(type(planet_ref01_resdata_up0_result) == 'table' and planet_ref01_resdata_up0_result.data_get and planet_ref01_resdata_up0_result:data_get() or planet_ref01_resdata_up0_result)
     assert.is_not_nil(planet_ref01_resdata_up0)
-    assert.are.equal(planet_ref01_resdata_up0["id"], planet_ref01_data_up0_up["id"])
+    assert.is_true(runner.live_same_id(planet_ref01_resdata_up0["id"], planet_ref01_data_up0_up["id"]))
     assert.are.equal(planet_ref01_resdata_up0[planet_ref01_markdef_up0_name], planet_ref01_markdef_up0_value)
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- LOAD
     local planet_ref01_match_dt0 = {
       id = planet_ref01_data["id"],
@@ -203,8 +267,11 @@ describe("PlanetEntity", function()
     assert.is_nil(err)
     local planet_ref01_data_dt0_load_result = helpers.to_map(type(planet_ref01_data_dt0_loaded) == 'table' and planet_ref01_data_dt0_loaded.data_get and planet_ref01_data_dt0_loaded:data_get() or planet_ref01_data_dt0_loaded)
     assert.is_not_nil(planet_ref01_data_dt0_load_result)
-    assert.are.equal(planet_ref01_data_dt0_load_result["id"], planet_ref01_data["id"])
+    assert.is_true(runner.live_same_id(planet_ref01_data_dt0_load_result["id"], planet_ref01_data["id"]))
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- REMOVE
     local planet_ref01_match_rm0 = {
       id = planet_ref01_data["id"],
@@ -212,6 +279,9 @@ describe("PlanetEntity", function()
     local _, err = planet_ref01_ent:remove(planet_ref01_match_rm0, nil)
     assert.is_nil(err)
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- LIST
     local planet_ref01_match_rt0 = {}
 

@@ -1,4 +1,4 @@
-import { flowSteps, opReachable, invalidRequest } from '@voxgig/sdkgen'
+import { flowSteps, opReachable, invalidRequest, flowLoadRoute, flowLoadReadsRecord, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -18,10 +18,11 @@ import {
   each,
   buildIdNames,
   getMatchEntries,
-  isAuthActive, envName, envToken,
-  serverVarEnv,
-  serverVariables,
+  isAuthActive, entityRecordIdField,
   liveFlowNeeds, liveStrict, liveStrictNote,
+  liveGates, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveRouteExamples, liveStepExamples,
+  liveEntity, liveIdentity, liveRepeatsId, liveLoadComparesId, liveUnrouted,
 } from '@voxgig/sdkgen'
 
 
@@ -42,9 +43,15 @@ type OpGen = (ctx: GenCtx, step: ModelEntityFlowStep, index: number) => void
 // The live prologue of a flow built from offline fixtures: blocked without
 // the ids it binds, a create-less load reading the first listed record, and
 // a lenient run observing its checks rather than failing on them.
-function liveFlowGate(entity: any, needs: any, entidEnv: string, method: string,
+function liveFlowGate(entity: any, needs: any, identity: any, entidEnv: string, method: string,
   strict: boolean, hasSteps: boolean): string {
   let out = ''
+  for (const [k, ex] of needs.examples || []) {
+    out += `    if setup.live && (setup.synthetic_only || getp(&setup.idmap, ${JSON.stringify(k)}).is_noval()) {
+        setp(&setup.idmap, ${JSON.stringify(k)}, ${rustLit(ex)});
+    }
+`
+  }
   if (0 < needs.keys.length) {
     out += `    if setup.live {
         for live_key in [${needs.keys.map((k: string) => JSON.stringify(k)).join(', ')}] {
@@ -67,16 +74,38 @@ function liveFlowGate(entity: any, needs: any, entidEnv: string, method: string,
     return out
   }
   out += '    let client = setup.client.clone();\n'
-  if (null != needs.discover) {
-    const match = Object.entries(needs.discover)
-      .map(([k, v]: any) => `(${JSON.stringify(k)}, getp(&setup.idmap, ${JSON.stringify(v)}))`).join(', ')
-    out += `    if setup.live && !live_existing(&setup.data, LIVE_STRICT, ${JSON.stringify(entity.name)}, || {
-        client
-            .${method}(Value::Noval)
-            .list(jo(vec![${match}]), Value::Noval)
-            .map(|list| ja(list.iter().map(|e| e.data(None)).collect::<Vec<Value>>()))
-    }) {
+  if (null != needs.record) {
+    const id = `getp(&setup.idmap, ${JSON.stringify(needs.record)})`
+    out += `    if setup.live && !live_existing(&setup.data, LIVE_STRICT, ${JSON.stringify(entity.name)},
+        ${JSON.stringify(identity.field)}, ${id}, || Ok(ja(vec![jo(vec![("id", ${id})])])))
+    {
         return;
+    }
+`
+  }
+  if (null != needs.discover) {
+    const match = 'jo(vec![' + Object.entries(needs.discover)
+      .map(([k, v]: any) => `(${JSON.stringify(k)}, getp(&setup.idmap, ${JSON.stringify(v)}))`)
+      .concat(liveRouteExamples(entity, 'list', Object.keys(needs.discover))
+        .map(([k, ex]) => `(${JSON.stringify(k)}, ${rustLit(ex)})`)).join(', ') + '])'
+    const omit = needs.unrouted || []
+    const given = `if setup.synthetic_only { Value::Noval } else { getp(&setup.idmap, ${JSON.stringify(identity.key)}) }`
+    out += `    if setup.live {
+${undefined === identity.ex ? `        let live_id = ${given};
+` : `        let mut live_id = ${given};
+        if live_id.is_noval() || live_id.is_null() {
+            live_id = ${rustLit(identity.ex)};
+        }
+`}${0 === omit.length ? '' : `        let live_match = ${match};
+${liveOmit(omit, 'live_match', '        ')}`}        live_pace();
+        if !live_existing(&setup.data, LIVE_STRICT, ${JSON.stringify(entity.name)}, ${JSON.stringify(identity.field)}, live_id, || {
+            client
+                .${method}(Value::Noval)
+                .list(${0 === omit.length ? match : 'live_match.clone()'}, Value::Noval)
+                .map(|list| ja(list.iter().map(|e| e.data(None)).collect::<Vec<Value>>()))
+        }) {
+            return;
+        }
     }
 `
   }
@@ -92,7 +121,7 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const rustcrate: string = props.rustcrate
 
   const basicflow: ModelEntityFlow | undefined =
@@ -101,23 +130,24 @@ const TestEntity = cmp(function TestEntity(props: any) {
     return
   }
 
-  const PROJUPPER = envName(model)
-  const ENTUPPER = envToken(entity.name)
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJUPPER = ENVVAR.prefix
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n        ("${PROJUPPER}_APIKEY", Value::str("")),`
+    ? `\n        ("${ENVVAR.apikey}", Value::str("")),${authSecret ? `\n        ("${ENVVAR.secret}", Value::str("")),` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `("apikey", getp(&env, "${PROJUPPER}_APIKEY"))`
+    ? `("apikey", getp(&env, "${ENVVAR.apikey}"))${authSecret ? `, ("secret", getp(&env, "${ENVVAR.secret}"))` : ''}`
     : ''
 
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n        ("${serverVarEnv(PROJUPPER, v.name)}", Value::str(${JSON.stringify(v.dflt)})),`).join('')
+    .map((v: any) => `\n        ("${ENVVAR.server[v.name]}", Value::str(${JSON.stringify(v.dflt)})),`).join('')
   const serverLiveEntry = 0 === svars.length ? '' :
     `("server", jo(vec![${svars
-      .map((v: any) => `("${v.name}", getp(&env, "${serverVarEnv(PROJUPPER, v.name)}"))`).join(', ')}]))`
+      .map((v: any) => `("${v.name}", getp(&env, "${ENVVAR.server[v.name]}"))`).join(', ')}]))`
   const serverLiveField = '' === serverLiveEntry ? '' :
     ('' === apikeyLiveField ? serverLiveEntry : ', ' + serverLiveEntry)
 
@@ -126,16 +156,14 @@ const TestEntity = cmp(function TestEntity(props: any) {
 
   // All update data entries for alias generation.
   const allSteps = Object.values(flowSteps(basicflow)) as any[]
-  const updateStep = allSteps.find((s: any) => s.o === 'update')
-  const updateData = updateStep?.d
-    ? Object.entries(updateStep.d).filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
-    : []
+  const updateData = Object.entries(Object.assign({}, ...allSteps
+    .filter((s: any) => 'update' === s.o || 'patch' === s.o).map((s: any) => s.d || {})))
+    .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
   const aliases = updateData.map(([k, v]: any) => [k, v])
 
   const genCtx: GenCtx = { model, entity, rustcrate, flow: basicflow, PROJUPPER }
 
   const strict = liveStrict(model, target.name)
-  const needs = liveFlowNeeds(entity, basicflow)
 
   const opNames = Array.from(new Set(allSteps.map((s: any) => s.o).filter(Boolean)))
   const opsList = opNames.map(o => `"${o}"`).join(', ')
@@ -180,7 +208,7 @@ use common::*;
 
 use ${rustcrate}::core::helpers::{getp, getpath, ja, jo, now_ms, setp, to_map};
 use ${rustcrate}::utility::voxgigstruct as vs;
-use ${rustcrate}::{test_sdk, Entity, ${model.const.Name}Entity, ${model.const.Name}SDK, Value};
+use ${rustcrate}::{test_sdk, Entity, ${model.const.Name}EntityBase, ${model.const.Name}SDK, Value};
 
 ${liveStrictNote(strict, '//')}
 const LIVE_STRICT: bool = ${strict};
@@ -247,14 +275,18 @@ fn ${evar}_entity_stream() {
 #[test]
 fn ${evar}_entity_basic() {
     let setup = ${evar}_basic_setup(Value::Noval);
-${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_ENTID', method, strict,
-  allSteps.length > 0)}`)
+${skipBlock}`)
 
-    // No create step: bootstrap entity data from existing fixture data.
-    const flowHasCreate = allSteps.some((s: any) => s.o === 'create')
-    if (!flowHasCreate) {
-      const preambleVar = rustVarName(entity.name + '_ref01')
-      Content(`
+    const flowBody = (flow: any) => {
+      const steps = flowSteps(flow) as any[]
+      Content(liveFlowGate(entity, liveFlowNeeds(entity, flow), liveIdentity(entity, flow),
+        ENVVAR.entid[entity.name], method, strict, steps.length > 0))
+
+      // No create step: bootstrap entity data from existing fixture data.
+      const flowHasCreate = steps.some((s: any) => s.o === 'create')
+      if (!flowHasCreate) {
+        const preambleVar = rustVarName(entity.name + '_ref01')
+        Content(`
     // Bootstrap entity data from existing test data (no create step in flow).
     let ${preambleVar}_data_raw = vs::items(&to_map(&getpath(&["existing", "${entity.name}"], &setup.data)));
     let ${preambleVar}_data = to_map(&vs::get_elem(
@@ -263,22 +295,47 @@ ${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_EN
         Value::Noval,
     ));
 `)
-    }
-
-    // Model-driven step iteration.
-    each(flowSteps(basicflow), (step: any, index: any) => {
-      const opgen: OpGen = GENERATE_OP[step.o]
-      if (opgen) {
-        opgen(genCtx, step, index)
-        Content('\n')
       }
-    })
 
-    Content(`${strict || 0 === allSteps.length ? '' : `    }));
+      // Model-driven step iteration.
+      each(steps, (step: any, index: any) => {
+        const opgen: OpGen = GENERATE_OP[step.o]
+        if (opgen) {
+          Content(LIVE_PACE)
+          opgen({ ...genCtx, flow }, step, index)
+          Content('\n')
+        }
+      })
+
+      Content(strict || 0 === steps.length ? '' : `    }));
     if let Err(err) = outcome {
         live_observe(err, setup.live, LIVE_STRICT);
     }
-`}}
+`)
+    }
+
+    for (const { getOnly, plan, runs } of liveGates(entity, basicflow)) {
+      Content(`    if setup.live${getOnly ? ` && std::env::var(${JSON.stringify(LIVE_GETONLY_ENV)}).map(|v| v == "TRUE").unwrap_or(false)` : ''} {
+${liveExcludedLines(plan).map((line) => '        println!("{}", ' + JSON.stringify(line) + ');\n').join('')}`)
+      if (!runs) {
+        Content(`        eprintln!("skip: {}", ${JSON.stringify(liveExcludedSummary(plan))});
+        return;
+    }
+
+`)
+      }
+      else {
+        flowBody(plan.flow)
+        Content(`        return;
+    }
+
+`)
+      }
+    }
+
+    flowBody(basicflow)
+
+    Content(`}
 
 `)
 
@@ -287,7 +344,7 @@ ${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_EN
     load_env_local();
 
     let mut entity_data_file = manifest_dir();
-    entity_data_file.push("..");
+    entity_data_file.push("${ctx$.stdrep.SDKREL}");
     entity_data_file.push(".sdk");
     entity_data_file.push("test");
     entity_data_file.push("entity");
@@ -295,7 +352,7 @@ ${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_EN
     entity_data_file.push("${entity.Name}TestData.json");
 
     let entity_data = read_json(&entity_data_file);
-
+${fixtureIdentity(entity)}
     let options = jo(vec![("entity", getp(&entity_data, "existing"))]);
 
     let client = test_sdk(options, extra.clone());
@@ -326,17 +383,17 @@ ${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_EN
 
     // Whether *_ENTID supplied the idmap, read before env_override consumes
     // it: without it, the ids a live flow binds are the fixture's synthetic ones.
-    let entid_env_raw = std::env::var("${PROJUPPER}_TEST_${ENTUPPER}_ENTID").unwrap_or_default();
+    let entid_env_raw = std::env::var("${ENVVAR.entid[entity.name]}").unwrap_or_default();
     let idmap_overridden =
         !entid_env_raw.trim().is_empty() && entid_env_raw.trim().starts_with('{');
 
     let env = env_override(jo(vec![
-        ("${PROJUPPER}_TEST_${ENTUPPER}_ENTID", idmap.clone()),
-        ("${PROJUPPER}_TEST_LIVE", Value::str("FALSE")),
+        ("${ENVVAR.entid[entity.name]}", idmap.clone()),
+        ("${ENVVAR.live}", Value::str("FALSE")),
         ("${PROJUPPER}_TEST_EXPLAIN", Value::str("FALSE")),${apikeyEnvEntry}${serverEnvEntry}
     ]));
 
-    let idmap_resolved = match to_map(&getp(&env, "${PROJUPPER}_TEST_${ENTUPPER}_ENTID")) {
+    let idmap_resolved = match to_map(&getp(&env, "${ENVVAR.entid[entity.name]}")) {
         Value::Map(m) => Value::Map(m),
         _ => to_map(&idmap),
     };
@@ -354,7 +411,7 @@ ${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_EN
     }
 
     Content(`
-    let live = getp(&env, "${PROJUPPER}_TEST_LIVE") == Value::str("TRUE");
+    let live = getp(&env, "${ENVVAR.live}") == Value::str("TRUE");
 
     let client = if live {
         let merged = vs::merge(
@@ -376,7 +433,7 @@ ${skipBlock}${liveFlowGate(entity, needs, PROJUPPER + '_TEST_' + ENTUPPER + '_EN
             ]),
             None,
         );
-        ${model.const.Name}SDK::new(to_map(&merged))
+        ${model.const.Name}SDK::new(to_map(&merged)).unwrap()
     } else {
         client
     };
@@ -405,7 +462,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`    // CREATE
 `)
@@ -439,7 +496,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 `)
   if (null != ctx.entity.id) {
     Content(`    assert!(
-        !getp(&${datavar}, "id").is_noval(),
+        !getp(&${datavar}, ${rid(ctx.entity)}).is_noval(),
         "expected created entity to have an id"
     );
 `)
@@ -456,7 +513,7 @@ const generateList: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`    // LIST
 `)
@@ -478,6 +535,7 @@ const generateList: OpGen = (ctx, step, index) => {
 `)
     }
   }
+  Content(liveFill(entity, step, matchvar, flow))
 
   Content(`
     let ${listvar} = ${entvar}
@@ -501,7 +559,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
     let found_item = vs::select(
         &entity_list_to_data(&${listvar}),
-        &jo(vec![("id", getp(&${refDataVar}, "id"))]),
+        &jo(vec![(${rid(entity)}, getp(&${refDataVar}, ${rid(entity)}))]),
     );
     assert!(
         !vs::is_empty(&found_item),
@@ -513,7 +571,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
     let not_found_item = vs::select(
         &entity_list_to_data(&${listvar}),
-        &jo(vec![("id", getp(&${refDataVar}, "id"))]),
+        &jo(vec![(${rid(entity)}, getp(&${refDataVar}, ${rid(entity)}))]),
     );
     assert!(
         vs::is_empty(&not_found_item),
@@ -537,11 +595,11 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasEntIdU = null != entity.id
 
-  Content(`    // UPDATE
+  Content(`    // ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`    let ${entvar} = client.${rustMethodName(entity.name)}(Value::Noval);
@@ -550,7 +608,7 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   Content(`    let ${datavar}_up = Value::empty_map();
 `)
   if (hasEntIdU) {
-    Content(`    setp(&${datavar}_up, "id", getp(&${srcdatavar}, "id"));
+    Content(`    setp(&${datavar}_up, "id", getp(&${srcdatavar}, ${rid(entity)}));
 `)
   }
 
@@ -584,21 +642,17 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   Content(`
     let ${resdatavar}_result = ${entvar}
-        .update(${datavar}_up.clone(), Value::Noval)
-        .expect("update failed");
+        .${step.o}(${datavar}_up.clone(), Value::Noval)
+        .expect("${step.o} failed");
     let ${resdatavar} = to_map(&${resdatavar}_result.data(None));
     assert!(
         matches!(${resdatavar}, Value::Map(_)),
-        "expected update result to be a map"
+        "expected ${step.o} result to be a map"
     );
 `)
   if (hasEntIdU) {
-    Content(`    assert_eq!(
-        getp(&${resdatavar}, "id"),
-        getp(&${datavar}_up, "id"),
-        "expected update result id to match"
-    );
-`)
+    Content(sameId(liveRepeatsId(entity), `getp(&${resdatavar}, ${rid(entity)})`, `getp(&${datavar}_up, "id")`,
+      'expected ' + step.o + ' result id to match'))
   }
 
   // Assert TextFieldMark.
@@ -628,7 +682,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const hasEntVar = priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   // Was srcdatavar declared by a prior create step or the preamble?
   const flowHasCreate = Object.values(flowSteps(flow)).some((s: any) => (s as any).o === 'create')
@@ -651,7 +705,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
     Content(`    let ${entvar} = client.${rustMethodName(entity.name)}(Value::Noval);
 `)
   }
-  if (!hasSrcData && hasEntId) {
+  if (!hasSrcData && (hasEntId || flowLoadReadsRecord(entity, step))) {
     Content(`    let ${srcdatavar}_raw = vs::items(&to_map(&getpath(&["existing", "${entity.name}"], &setup.data)));
     let ${srcdatavar} = to_map(&vs::get_elem(
         &vs::get_elem(&${srcdatavar}_raw, &Value::Num(0.0), Value::Noval),
@@ -661,8 +715,8 @@ const generateLoad: OpGen = (ctx, step, index) => {
 `)
   }
   if (hasEntId) {
-    Content(`    let ${matchvar} = jo(vec![("id", getp(&${srcdatavar}, "id"))]);
-${parentMatch(step, matchvar)}    let ${datavar}_loaded = ${entvar}
+    Content(`    let ${matchvar} = jo(vec![("id", getp(&${srcdatavar}, ${rid(entity)}))]);
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}    let ${datavar}_loaded = ${entvar}
         .load(${matchvar}.clone(), Value::Noval)
         .expect("load failed");
     let ${datavar}_load_result = to_map(&${datavar}_loaded.data(None));
@@ -670,16 +724,12 @@ ${parentMatch(step, matchvar)}    let ${datavar}_loaded = ${entvar}
         matches!(${datavar}_load_result, Value::Map(_)),
         "expected load result to be a map"
     );
-    assert_eq!(
-        getp(&${datavar}_load_result, "id"),
-        getp(&${srcdatavar}, "id"),
-        "expected load result id to match"
-    );
-`)
+${sameId(liveLoadComparesId(entity, flow), `getp(&${datavar}_load_result, ${rid(entity)})`, `getp(&${srcdatavar}, ${rid(entity)})`,
+  'expected load result id to match')}`)
   }
   else {
     Content(`    let ${matchvar} = Value::empty_map();
-${parentMatch(step, matchvar)}    let ${datavar}_loaded = ${entvar}
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}    let ${datavar}_loaded = ${entvar}
         .load(${matchvar}.clone(), Value::Noval)
         .expect("load failed");
     // load resolves to the ENTITY; the record is reached through data().
@@ -701,7 +751,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`    // REMOVE
 `)
@@ -710,7 +760,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 `)
   }
   // Always match the prior-created entity by id to avoid mock-order flakes.
-  Content(`    let ${matchvar} = jo(vec![("id", getp(&${srcdatavar}, "id"))]);
+  Content(`    let ${matchvar} = jo(vec![("id", getp(&${srcdatavar}, ${rid(entity)}))]);
 ${parentMatch(step, matchvar)}    ${entvar}
         .remove(${matchvar}.clone(), Value::Noval)
         .expect("remove failed");
@@ -718,9 +768,75 @@ ${parentMatch(step, matchvar)}    ${entvar}
 }
 
 
+// The record field the entity's identity is read from, as a Rust string.
+function rid(entity: any): string {
+  return JSON.stringify(entityRecordIdField(entity))
+}
+
+
+const LIVE_PACE = `    if setup.live {
+        live_pace();
+    }
+`
+
+
+// A result's identity matches the one asked for, live only as the live
+// entity harness compares it.
+function sameId(compares: boolean, result: string, expected: string, message: string): string {
+  const check = `assert!(live_same_id(&${result}, &${expected}), ${JSON.stringify(message)});`
+  return !compares ? `    if !setup.live {
+        ${check}
+    }
+` : `    ${check}
+`
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  return 'id' === entityRecordIdField(entity) ? '' : `
+    let fixture_map = to_map(&getpath(&["existing", "${entity.name}"], &entity_data));
+    for fixture_key in vs::keysof_vec(&fixture_map) {
+        let fixture_rec = vs::lookup(&fixture_map, &Value::str(fixture_key));
+        if matches!(fixture_rec, Value::Map(_)) && !getp(&fixture_rec, "id").is_noval() {
+            setp(&fixture_rec, ${rid(entity)}, getp(&fixture_rec, "id"));
+        }
+    }
+`
+}
+
+
 // A child's route names its parents, and an entity no earlier step has
 // filled knows none of them, so the call itself gives each parent id. A live
 // ENTID may key a parent by its field name, the fixture by its own name.
+function rustLit(value: any): string {
+  if ('string' === typeof value) return `Value::str(${JSON.stringify(value)})`
+  if ('boolean' === typeof value) return `Value::Bool(${value})`
+  return `Value::Num(${Number.isInteger(value) ? value + '.0' : value})`
+}
+
+
+// A live step sends each example its route requires and the step leaves unbound.
+function liveFill(entity: any, step: any, matchvar: string, flow: any): string {
+  const fills = liveStepExamples(entity, step, flow)
+  const omit = liveUnrouted(entity, step, flow)
+  return 0 === fills.length + omit.length ? '' : `    if setup.live {
+${fills.map(([k, ex]) => `        setp(&${matchvar}, ${JSON.stringify(k)}, ${rustLit(ex)});\n`).join('')}${liveOmit(omit, matchvar, '        ')}    }
+`
+}
+
+
+// A binding the live route does not take is sent only as *_ENTID gives it.
+function liveOmit(omit: [string, string][], matchvar: string, indent: string): string {
+  return omit.map(([name, key]) =>
+    `${indent}if setup.synthetic_only || getp(&setup.idmap, ${JSON.stringify(key)}).is_noval() {
+${indent}    vs::del_prop(${matchvar}.clone(), &Value::str(${JSON.stringify(name)}));
+${indent}}
+`).join('')
+}
+
+
 function parentMatch(step: any, matchvar: string): string {
   return Object.entries(step.m || {})
     .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
@@ -732,10 +848,44 @@ function parentMatch(step: any, matchvar: string): string {
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding offline.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string): string {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar)
+  }
+  if (route.offline) {
+    const own = route.args.filter((arg) => null != arg.field)
+    return parentMatch(step, matchvar) + (0 === own.length ? '' : `    if !setup.live {
+${own.map((arg) => `        if let v @ (Value::Str(_) | Value::Num(_) | Value::Bool(_)) = getp(&${srcdatavar}, "${arg.field}") {
+            setp(&${matchvar}, "${arg.name}", v);
+        }
+`).join('')}    }
+`)
+  }
+  return route.args.map((arg) => {
+    const get = (key: string) => `getp(&setup.idmap, "${key}")`
+    const bound = 1 === arg.idmap.length ? get(arg.idmap[0]) : `match ${get(arg.idmap[0])} {
+            v if v.is_nullish() => ${get(arg.idmap[1])},
+            v => v,
+        }`
+    return `    setp(&${matchvar}, "${arg.name}", ${null == arg.field ? bound :
+      `match getp(&${srcdatavar}, "${arg.field}") {
+        v @ (Value::Str(_) | Value::Num(_) | Value::Bool(_)) => v,
+        _ => ${bound},
+    }`});
+`
+  }).join('')
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }

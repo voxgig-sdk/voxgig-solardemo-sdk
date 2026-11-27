@@ -1,5 +1,5 @@
 "use strict";
-// VoxgigSolardemo Ts SDK
+// VoxgigSolardemo TypeScript SDK
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -84,8 +84,8 @@ class VoxgigSolardemoSDK {
         const featureInit = this._utility.featureInit;
         // Add features in the resolved order (makeOptions puts an explicit
         // array order first, else defaults to test-first). Ordering matters:
-        // the `test` feature installs the base mock transport and the transport
-        // features (retry/cache/netsim/proxy/ratelimit) wrap whatever is current,
+        // the `test` feature installs the base mock transport and the features
+        // whose model declares `transport: 'wrap'` wrap whatever is current,
         // so `test` must be added before them to sit at the base of the chain.
         const extend = this._options.extend || [];
         const featureorder = getpath(this._options, '__derived__.featureorder') || [];
@@ -155,6 +155,12 @@ class VoxgigSolardemoSDK {
             for (let key in uheaders) {
                 spec.headers[key] = uheaders[key];
             }
+        }
+        // A raw request has no point to declare its response type, so it asks
+        // for the JSON it reads: an API that negotiates on Accept otherwise
+        // answers in its own default format. A caller's own accept wins.
+        if (!Object.keys(spec.headers).some((key) => 'accept' === key.toLowerCase())) {
+            spec.headers.accept = 'application/json';
         }
         if (null != this._secrets) {
             try {

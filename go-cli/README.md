@@ -3,8 +3,8 @@
 boru-driven command-line client **and** interactive REPL for the VoxgigSolardemo
 SDK. Each command line is parsed as a single [boru](https://github.com/boru-lang/boru)
 expression and evaluated against the live API; run it with no arguments to drop
-into a REPL. Built on `github.com/boru-lang/boru/eng/go` and the sibling Go SDK
-at `../go`.
+into a REPL. Built on `github.com/boru-lang/boru/eng/go` and
+the sibling Go SDK at `../go`.
 
 ## Examples
 
@@ -15,22 +15,18 @@ make build
 # 2. See usage (words, entities, env vars)
 ./voxgig-solardemo-cli --help
 
-# 3. Provide credentials once, via the environment
-export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx
-
-# 4. Each command line is ONE boru expression, run against the API:
-./voxgig-solardemo-cli list moon
-./voxgig-solardemo-cli load 1 moon            # {id:1} shorthand
-./voxgig-solardemo-cli load '{id:1}' moon       # explicit match map
-./voxgig-solardemo-cli update '{name:"x"}' moon
+# 3. Each command line is ONE boru expression, run against the API:
+./voxgig-solardemo-cli list '{planet_id:"example"}' moon
+./voxgig-solardemo-cli load '{id:"example_id",planet_id:"example"}' moon
+./voxgig-solardemo-cli update '{id:"example",planet_id:"example",diameter:1}' moon
 ./voxgig-solardemo-cli list planet
 
-# 5. Override the API base URL for a single call
-VOXGIG_SOLARDEMO_BASE=https://api.example.com ./voxgig-solardemo-cli list moon
+# 4. Override the API base URL for a single call
+VOXGIG_SOLARDEMO_BASE=https://api.example.com ./voxgig-solardemo-cli list '{planet_id:"example"}' moon
 
-# 6. No arguments -> interactive REPL
+# 5. No arguments -> interactive REPL
 ./voxgig-solardemo-cli
-voxgig-solardemo> list moon
+voxgig-solardemo> list {planet_id:"example"} moon
 voxgig-solardemo> /quit
 ```
 
@@ -46,65 +42,56 @@ voxgig-solardemo> /quit
    make build          # -> dist/<os>-<arch>/voxgig-solardemo-cli
    ```
 
-2. **Set your API key** (read from the environment):
-
-   ```sh
-   export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx
-   ```
-
-3. **Run a query.** Evaluate an boru expression against the API (or run with no
+2. **Run a query.** Evaluate an boru expression against the API (or run with no
    arguments to open the REPL):
 
    ```sh
-   ./dist/*/voxgig-solardemo-cli list moon
+   ./dist/*/voxgig-solardemo-cli list '{planet_id:"example"}' moon
    ```
 
-4. **Go interactive.** Run the binary with no arguments to open the REPL, then
+3. **Go interactive.** Run the binary with no arguments to open the REPL, then
    type `/help` for the word and entity lists and `/quit` to leave.
 
-That is the whole loop: *build → set key → evaluate boru expressions*.
+That is the whole loop: *build → evaluate boru expressions*.
 
 ## How-to guides
 
 ### List the records of an entity
 
 ```sh
-./voxgig-solardemo-cli list moon
+./voxgig-solardemo-cli list '{planet_id:"example"}' moon
 ```
 
-`list <entity>` returns the first page of records. `<entity>` is a bareword —
+`list <query> <entity>` returns the first page of records under the parent the query names. `<entity>` is a bareword —
 it is auto-quoted as an boru atom, so no quotes are needed.
 
 ### Load a single record
 
 ```sh
-./voxgig-solardemo-cli load 1 moon          # scalar shorthand for {id:1}
-./voxgig-solardemo-cli load '{id:1}' moon     # explicit match map
+./voxgig-solardemo-cli load '{id:"example_id",planet_id:"example"}' moon
 ```
 
-The query is either a **scalar** (`1`, treated as `{id:1}`) or a **match map**
-(`{id:1}`, `{slug:"acme"}`). Quote the map so your shell passes it through intact.
+The query is a **match map** naming the record (`{id:"example_id",planet_id:"example"}`). Quote the map so your shell passes it through intact.
 
 ### Update a record
 
 ```sh
-./voxgig-solardemo-cli update '{id:1,name:"new"}' moon
+./voxgig-solardemo-cli update '{id:"example",planet_id:"example",diameter:1}' moon
 ```
 
 The match map carries both the selector and the new field values; the updated
 record is printed back.
 
-### Authenticate and choose an environment
+### Choose an environment
 
 Configuration is read from the environment — nothing is written to disk:
 
 ```sh
-export VOXGIG_SOLARDEMO_APIKEY=sk_live_xxx            # API key
 export VOXGIG_SOLARDEMO_BASE=https://api.example.com  # optional: override the API base URL
-./voxgig-solardemo-cli list moon
+./voxgig-solardemo-cli list '{planet_id:"example"}' moon
 ```
 
-Both are injectable by a secrets vault, so the key never has to be typed inline.
+It is injectable by a secrets vault.
 
 ### Explore interactively with the REPL
 
@@ -113,7 +100,7 @@ evaluated as its own boru expression:
 
 ```text
 $ ./voxgig-solardemo-cli
-voxgig-solardemo> list moon
+voxgig-solardemo> list {planet_id:"example"} moon
 voxgig-solardemo> /help
 voxgig-solardemo> /quit
 ```
@@ -127,8 +114,8 @@ make build-all   # linux/darwin/windows x amd64/arm64, under dist/<os>-<arch>/
 
 ### Discover the available entities
 
-`/help` in the REPL prints the full entity list, or see [Entities](#entities)
-below — this SDK exposes 2 entities.
+`/help` in the REPL lists the entities a word runs on, as [Entities](#entities)
+below does — this SDK exposes 2 entities.
 
 ## Reference
 
@@ -143,14 +130,13 @@ The CLI registers these boru words, each bound to the SDK:
 | `update` | `update <query> <entity>`                     | Update a record, return it     |
 
 - `<entity>` is a bareword, auto-quoted as an boru atom (e.g. `moon`).
-- `<query>` is either a **Map** (`{id:1}`) or a **Scalar** (`1`, treated as
-  `{id:1}`). A scalar is always wrapped as `{id:<value>}`.
+- `<query>` is either a **Map** naming the record, or a **Scalar**, which is
+  always wrapped as `{id:<value>}`.
 
 ### Environment variables
 
 | Variable | Purpose |
 |----------|---------|
-| `VOXGIG_SOLARDEMO_APIKEY` | API key sent with every request. |
 | `VOXGIG_SOLARDEMO_BASE` | Optional override of the API base URL. |
 
 Unset variables fall back to the SDK's built-in defaults.
@@ -183,9 +169,12 @@ Meta-commands use the `/` prefix (everything else on a line is evaluated as boru
 
 ### Entities
 
-The 2 entities this SDK exposes (any is valid as `<entity>`):
+The entities a word runs on, each with its words:
 
-moon planet
+| Entity | Words |
+|--------|-------|
+| `moon` | `list`, `load`, `update` |
+| `planet` | `list`, `load`, `update` |
 
 ## Explanation
 

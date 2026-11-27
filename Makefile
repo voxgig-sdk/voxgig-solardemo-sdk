@@ -2,15 +2,16 @@
 # on every `npm run generate` in .sdk/; publication details live in the
 # model (.sdk/model/target/<target>.aontu, `publish` section).
 #
-# Every port gets a git release tag <target>/vX.Y.Z. Ports with an ACTIVE
-# registry also publish a package there. Credentials are injected at exec
-# time by the boru key vault (https://github.com/boru-lang/boru) — never
-# stored on disk or passed on the command line.
+# Every port gets a git release tag <target>/vX.Y.Z, except ts, tagged
+# vX.Y.Z. Ports with an ACTIVE registry and a publish recipe also publish
+# a package there. Credentials are injected at exec time by the boru key
+# vault (https://github.com/boru-lang/boru) — never stored on disk or
+# passed on the command line.
 #
 # Publication state (from the model):
-#   c        none (publish pending: deploy publishes the git tag only)
+#   c        tag-only
 #   clojure  clojars (publish pending: deploy publishes the git tag only) https://clojars.org
-#   cpp      none (publish pending: deploy publishes the git tag only)
+#   cpp      tag-only
 #   csharp   nuget (publish pending: deploy publishes the git tag only) https://www.nuget.org
 #   dart     pub.dev (publish pending: deploy publishes the git tag only) https://pub.dev
 #   elixir   hex (publish pending: deploy publishes the git tag only) https://hex.pm
@@ -34,7 +35,7 @@
 #   seneca-provider npm (publish pending: deploy publishes the git tag only) https://registry.npmjs.org
 #   swift    swiftpm (publish pending: deploy publishes the git tag only) https://swift.org/package-manager
 #   ts       npm (publish pending: deploy publishes the git tag only) https://registry.npmjs.org
-#   zig      none (publish pending: deploy publishes the git tag only)
+#   zig      tag-only
 #
 #   make deploy               list per-target deploy commands
 #   make deploy-<target>      deploy ONE target (no deploy-all: each
@@ -51,7 +52,6 @@
 SHELL := /bin/bash
 
 GITHUB_ALIAS ?= github
-NONE_ALIAS ?= none
 CLOJARS_ALIAS ?= clojars
 NUGET_ALIAS ?= nuget
 PUB_DEV_ALIAS ?= pubdev
@@ -81,9 +81,9 @@ deploy:
 	@echo "Deployment is per-target — pick one (each upload is irreversible):"
 	@echo "  make deploy-<target>    targets: $(TARGETS)"
 	@echo "Registry state is set in the model (.sdk/model/target/<t>.aontu):"
-	@echo "  deploy-c        none publish pending (deploy = git tag only)"
+	@echo "  deploy-c        tag-only"
 	@echo "  deploy-clojure  clojars publish pending (deploy = git tag only)"
-	@echo "  deploy-cpp      none publish pending (deploy = git tag only)"
+	@echo "  deploy-cpp      tag-only"
 	@echo "  deploy-csharp   nuget publish pending (deploy = git tag only)"
 	@echo "  deploy-dart     pub.dev publish pending (deploy = git tag only)"
 	@echo "  deploy-elixir   hex publish pending (deploy = git tag only)"
@@ -107,14 +107,14 @@ deploy:
 	@echo "  deploy-seneca-provider npm publish pending (deploy = git tag only)"
 	@echo "  deploy-swift    swiftpm publish pending (deploy = git tag only)"
 	@echo "  deploy-ts       npm publish pending (deploy = git tag only)"
-	@echo "  deploy-zig      none publish pending (deploy = git tag only)"
+	@echo "  deploy-zig      tag-only"
 	@echo "Rehearse everything safely first: make deploy-dry"
 
 deploy-dry: $(addprefix deploy-dry-,$(TARGETS))
 	@echo "deploy-dry: all targets rehearsed OK ($(TARGETS))"
 
 deploy-c:
-	@echo "deploy-c: none publication is pending — publishing the git tag only."
+	@echo "deploy-c: tag-only port — publishing the git tag."
 	boru vault exec --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-c
 
 deploy-dry-c:
@@ -132,7 +132,7 @@ tag-push-c:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (none publication pending — tag-only deploy)"
+	echo "pushed $$tag (tag-only port)"
 
 deploy-clojure:
 	@echo "deploy-clojure: clojars publication is pending — publishing the git tag only."
@@ -153,10 +153,10 @@ tag-push-clojure:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (clojars publication pending — tag-only deploy)"
+	echo "pushed $$tag (clojars publication is pending — tag-only deploy)"
 
 deploy-cpp:
-	@echo "deploy-cpp: none publication is pending — publishing the git tag only."
+	@echo "deploy-cpp: tag-only port — publishing the git tag."
 	boru vault exec --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-cpp
 
 deploy-dry-cpp:
@@ -174,7 +174,7 @@ tag-push-cpp:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (none publication pending — tag-only deploy)"
+	echo "pushed $$tag (tag-only port)"
 
 deploy-csharp:
 	@echo "deploy-csharp: nuget publication is pending — publishing the git tag only."
@@ -195,7 +195,7 @@ tag-push-csharp:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (nuget publication pending — tag-only deploy)"
+	echo "pushed $$tag (nuget publication is pending — tag-only deploy)"
 
 deploy-dart:
 	@echo "deploy-dart: pub.dev publication is pending — publishing the git tag only."
@@ -216,7 +216,7 @@ tag-push-dart:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (pub.dev publication pending — tag-only deploy)"
+	echo "pushed $$tag (pub.dev publication is pending — tag-only deploy)"
 
 deploy-elixir:
 	@echo "deploy-elixir: hex publication is pending — publishing the git tag only."
@@ -237,7 +237,7 @@ tag-push-elixir:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (hex publication pending — tag-only deploy)"
+	echo "pushed $$tag (hex publication is pending — tag-only deploy)"
 
 deploy-go:
 	boru vault exec --for=github=$(GITHUB_ALIAS) -- $(MAKE) -C go publish
@@ -295,7 +295,7 @@ deploy-dry-haskell:
 	boru vault exec --dry-run --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-haskell
 
 tag-push-haskell:
-	@set -e; tag="haskell/v0.0.1"; \
+	@set -e; tag="haskell/v0.1.0"; \
 	token="$${GITHUB_TOKEN:-$$GH_TOKEN}"; \
 	if [ "$$token" = "$(BORU_DRY_RUN_FILLER)" ]; then \
 	  echo "[dry-run] boru filler token detected: would create (if missing) and push tag $$tag; nothing pushed."; exit 0; fi; \
@@ -306,7 +306,7 @@ tag-push-haskell:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (hackage publication pending — tag-only deploy)"
+	echo "pushed $$tag (hackage publication is pending — tag-only deploy)"
 
 deploy-java:
 	@echo "deploy-java: maven-central publication is pending — publishing the git tag only."
@@ -327,7 +327,7 @@ tag-push-java:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (maven-central publication pending — tag-only deploy)"
+	echo "pushed $$tag (maven-central publication is pending — tag-only deploy)"
 
 deploy-js:
 	@echo "deploy-js: npm publication is pending — publishing the git tag only."
@@ -348,7 +348,7 @@ tag-push-js:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (npm publication pending — tag-only deploy)"
+	echo "pushed $$tag (npm publication is pending — tag-only deploy)"
 
 deploy-kotlin:
 	@echo "deploy-kotlin: maven-central publication is pending — publishing the git tag only."
@@ -369,7 +369,7 @@ tag-push-kotlin:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (maven-central publication pending — tag-only deploy)"
+	echo "pushed $$tag (maven-central publication is pending — tag-only deploy)"
 
 deploy-lean:
 	@echo "deploy-lean: reservoir publication is pending — publishing the git tag only."
@@ -390,7 +390,7 @@ tag-push-lean:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (reservoir publication pending — tag-only deploy)"
+	echo "pushed $$tag (reservoir publication is pending — tag-only deploy)"
 
 deploy-lua:
 	@echo "deploy-lua: luarocks publication is pending — publishing the git tag only."
@@ -411,7 +411,7 @@ tag-push-lua:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (luarocks publication pending — tag-only deploy)"
+	echo "pushed $$tag (luarocks publication is pending — tag-only deploy)"
 
 deploy-ocaml:
 	@echo "deploy-ocaml: opam publication is pending — publishing the git tag only."
@@ -432,7 +432,7 @@ tag-push-ocaml:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (opam publication pending — tag-only deploy)"
+	echo "pushed $$tag (opam publication is pending — tag-only deploy)"
 
 deploy-perl:
 	@echo "deploy-perl: cpan publication is pending — publishing the git tag only."
@@ -453,7 +453,7 @@ tag-push-perl:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (cpan publication pending — tag-only deploy)"
+	echo "pushed $$tag (cpan publication is pending — tag-only deploy)"
 
 deploy-php:
 	@echo "deploy-php: packagist publication is pending — publishing the git tag only."
@@ -474,7 +474,7 @@ tag-push-php:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (packagist publication pending — tag-only deploy)"
+	echo "pushed $$tag (packagist publication is pending — tag-only deploy)"
 
 deploy-py:
 	@echo "deploy-py: pypi publication is pending — publishing the git tag only."
@@ -495,7 +495,7 @@ tag-push-py:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (pypi publication pending — tag-only deploy)"
+	echo "pushed $$tag (pypi publication is pending — tag-only deploy)"
 
 deploy-py-data:
 	@echo "deploy-py-data: pypi publication is pending — publishing the git tag only."
@@ -516,7 +516,7 @@ tag-push-py-data:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (pypi publication pending — tag-only deploy)"
+	echo "pushed $$tag (pypi publication is pending — tag-only deploy)"
 
 deploy-rb:
 	@echo "deploy-rb: rubygems publication is pending — publishing the git tag only."
@@ -537,7 +537,7 @@ tag-push-rb:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (rubygems publication pending — tag-only deploy)"
+	echo "pushed $$tag (rubygems publication is pending — tag-only deploy)"
 
 deploy-rust:
 	@echo "deploy-rust: crates.io publication is pending — publishing the git tag only."
@@ -558,7 +558,7 @@ tag-push-rust:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (crates.io publication pending — tag-only deploy)"
+	echo "pushed $$tag (crates.io publication is pending — tag-only deploy)"
 
 deploy-scala:
 	@echo "deploy-scala: maven-central publication is pending — publishing the git tag only."
@@ -579,7 +579,7 @@ tag-push-scala:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (maven-central publication pending — tag-only deploy)"
+	echo "pushed $$tag (maven-central publication is pending — tag-only deploy)"
 
 deploy-seneca-provider:
 	@echo "deploy-seneca-provider: npm publication is pending — publishing the git tag only."
@@ -600,7 +600,7 @@ tag-push-seneca-provider:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (npm publication pending — tag-only deploy)"
+	echo "pushed $$tag (npm publication is pending — tag-only deploy)"
 
 deploy-swift:
 	@echo "deploy-swift: swiftpm publication is pending — publishing the git tag only."
@@ -621,7 +621,7 @@ tag-push-swift:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (swiftpm publication pending — tag-only deploy)"
+	echo "pushed $$tag (swiftpm publication is pending — tag-only deploy)"
 
 deploy-ts:
 	@echo "deploy-ts: npm publication is pending — publishing the git tag only."
@@ -631,7 +631,7 @@ deploy-dry-ts:
 	boru vault exec --dry-run --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-ts
 
 tag-push-ts:
-	@set -e; tag="ts/v0.1.0"; \
+	@set -e; tag="v0.1.0"; \
 	token="$${GITHUB_TOKEN:-$$GH_TOKEN}"; \
 	if [ "$$token" = "$(BORU_DRY_RUN_FILLER)" ]; then \
 	  echo "[dry-run] boru filler token detected: would create (if missing) and push tag $$tag; nothing pushed."; exit 0; fi; \
@@ -642,10 +642,10 @@ tag-push-ts:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (npm publication pending — tag-only deploy)"
+	echo "pushed $$tag (npm publication is pending — tag-only deploy)"
 
 deploy-zig:
-	@echo "deploy-zig: none publication is pending — publishing the git tag only."
+	@echo "deploy-zig: tag-only port — publishing the git tag."
 	boru vault exec --for=github=$(GITHUB_ALIAS) -- $(MAKE) tag-push-zig
 
 deploy-dry-zig:
@@ -663,4 +663,4 @@ tag-push-zig:
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	hdr="AUTHORIZATION: basic $$(printf 'x-access-token:%s' "$$token" | base64 | tr -d '\n')"; \
 	git -c http.extraheader="$$hdr" push "$$url" "$$tag"; \
-	echo "pushed $$tag (none publication pending — tag-only deploy)"
+	echo "pushed $$tag (tag-only port)"

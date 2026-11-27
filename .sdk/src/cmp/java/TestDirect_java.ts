@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -12,11 +13,19 @@ import {
   cmp,
   snakify,
   isAuthActive,
-  serverVarEnv,
-  serverVariables, envName, envToken,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
   liveStrict,
   liveStrictNote,
+  pointIsGraphql,
+  graphqlDirectSkip,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 
@@ -72,31 +81,44 @@ function javaLiteral(v: any): string {
 }
 
 
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `    if (setup.live && "TRUE".equals(System.getenv(${javaLiteral(LIVE_GETONLY_ENV)}))
+        && setup.idmap.get(${javaLiteral(miss.key)}) == null) {
+      System.out.println(${javaLiteral(liveExcludedLines({ excluded: [miss] })[0])});
+      Assumptions.abort(${javaLiteral(liveExcludedSummary({ excluded: [miss] }))});
+    }
+`).join('')
+}
+
+
 const TestDirect = cmp(function TestDirect(props: any) {
   const ctx$ = props.ctx$
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const javapackage: string = props.javapackage
 
-  const PROJECTNAME = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
   const SDK = model.const.Name + 'SDK'
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
 
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: MakeOptions throws rather than
   // request a URL with a literal `{account_id}` in it. Taken from the
   // environment, the same way the apikey is.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `    envm.put("${serverVarEnv(PROJECTNAME, v.name)}", ${JSON.stringify(v.dflt)});\n`).join('')
+    .map((v: any) => `    envm.put("${ENVVAR.server[v.name]}", ${JSON.stringify(v.dflt)});\n`).join('')
   const serverLiveField = 0 === svars.length ? '' :
     `      Map<String, Object> serveropt = new LinkedHashMap<>();\n` +
     svars.map((v: any) =>
-      `      serveropt.put("${v.name}", env.get("${serverVarEnv(PROJECTNAME, v.name)}"));\n`).join('') +
+      `      serveropt.put("${v.name}", env.get("${ENVVAR.server[v.name]}"));\n`).join('') +
     `      mergedOpts.put("server", serveropt);\n`
 
   const opnames = Object.keys(entity.op || {})
@@ -112,16 +134,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   // Get load point info
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Only path params that actually appear in the URL template drive
   // direct-test path-param setup and URL-substitution asserts.
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -135,15 +152,12 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   // Get list point info
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
   // Required query params with spec-provided examples — needed in live mode.
-  const loadQuery = loadPoint?.g?.query || []
-  const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `      query.put("${q.n}", ${javaLiteral(q.ex)});`)
+  const loadLiveQueryLines = liveQueryExamples(loadPoint)
+    .map(([name, ex]) => `      query.put("${name}", ${javaLiteral(ex)});`)
     .join('\n')
 
   // Path params with spec-provided examples — when ALL load params have
@@ -156,7 +170,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     : ''
 
   // Build the ENTID env var name for this entity
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const listLiveQueryLines = liveQueryExamples(listPoint)
+    .map(([name, ex]) => `      query.put("${name}", ${javaLiteral(ex)});\n`).join('')
 
   File({ name: entity.Name + 'DirectTest.' + target.ext }, () => {
 
@@ -203,7 +221,15 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
 `)
 
     // Generate list test first (load needs list results in live mode)
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`  @Test
+  public void directList${entity.Name}() {
+    Assumptions.assumeTrue(false, "${graphqlDirectSkip('list', entity.name)}");
+  }
+
+`)
+    }
+    else if (hasList && listPoint) {
       // Build live params for list
       const listLiveParams = listParams.map((p: any) => {
         const key = p.n === 'id'
@@ -215,7 +241,8 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
       const listLiveIdKeys = listParams.length > 0
         ? listLiveParams.map((lp: any) => lp.key)
         : []
-      const listSkipBlock = listLiveIdKeys.length > 0
+      const listSkipBlock = getOnlyKeysBlock(model, entity, 'direct-list-' + entity.name, listLiveIdKeys) +
+        (listLiveIdKeys.length > 0
         ? `    if (setup.live) {
       for (String liveKey : new String[] { ${listLiveIdKeys.map((k: string) => `"${k}"`).join(', ')} }) {
         if (setup.idmap.get(liveKey) == null) {
@@ -224,7 +251,7 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
       }
     }
 `
-        : ''
+        : '')
 
       Content(`  @Test
   public void directList${entity.Name}() {
@@ -237,13 +264,17 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
     Assumptions.assumeTrue(reason == null,
         reason == null || "".equals(reason)
             ? "skipped via sdk-test-control.json" : reason);
-${listSkipBlock}    ${SDK} client = setup.client;
+${listSkipBlock}    if (setup.live) {
+      RunnerSupport.livePace();
+    }
+    ${SDK} client = setup.client;
 
 `)
 
-      if (listParams.length > 0) {
+      if (listParams.length > 0 || '' !== listLiveQueryLines) {
         Content(`    Map<String, Object> params = new LinkedHashMap<>();
-`)
+    Map<String, Object> query = new LinkedHashMap<>();
+${listLiveQueryLines ? '    if (setup.live) {\n' + listLiveQueryLines + '    }\n' : ''}`)
         listLiveParams.forEach((lp: any, i: number) => {
           const placeholder = 'direct0' + (i + 1)
           Content(`    if (setup.live) {
@@ -258,7 +289,8 @@ ${listSkipBlock}    ${SDK} client = setup.client;
     Map<String, Object> result = client.direct(jm(
         "path", "${listPath}",
         "method", "GET",
-        "params", params));
+        "params", params,
+        "query", query));
 `)
       } else {
         Content(`
@@ -312,17 +344,26 @@ ${listSkipBlock}    ${SDK} client = setup.client;
     }
 
     // Generate load test - in live mode, first list to get a real entity ID
-    if (hasLoad && loadPoint) {
-      // Identify ancestor params (not 'id') for live mode
-      const ancestorParams = loadParams.filter((p: any) => p.n !== 'id')
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`  @Test
+  public void directLoad${entity.Name}() {
+    Assumptions.assumeTrue(false, "${graphqlDirectSkip('load', entity.name)}");
+  }
+
+`)
+    }
+    else if (hasLoad && loadPoint) {
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const ancestorParams = loadParams.filter((p: any) => p.n !== discovery?.param)
 
       const liveKey = (p: any) => p.n === 'id' ? entity.name + '01' : p.n.replace(/_id$/, '') + '01'
       let loadLiveIdKeys: string[] = []
       if (loadParams.length > 0 && !loadAllHaveExamples) {
-        loadLiveIdKeys = [...new Set((hasList ?
-          [...listParams, ...loadParams.filter((p: any) => p.n !== 'id')] : loadParams).map(liveKey))]
+        loadLiveIdKeys = [...new Set((discovery ?
+          [...listParams, ...ancestorParams] : loadParams).map(liveKey))]
       }
-      const loadSkipBlock = loadLiveIdKeys.length > 0
+      const loadSkipBlock = getOnlyKeysBlock(model, entity, 'direct-load-' + entity.name, loadLiveIdKeys) +
+        (loadLiveIdKeys.length > 0
         ? `    if (setup.live) {
       for (String liveKey : new String[] { ${loadLiveIdKeys.map(k => `"${k}"`).join(', ')} }) {
         if (setup.idmap.get(liveKey) == null) {
@@ -331,7 +372,7 @@ ${listSkipBlock}    ${SDK} client = setup.client;
       }
     }
 `
-        : ''
+        : '')
 
       Content(`  @Test
   public void directLoad${entity.Name}() {
@@ -341,7 +382,10 @@ ${listSkipBlock}    ${SDK} client = setup.client;
     Assumptions.assumeTrue(reason == null,
         reason == null || "".equals(reason)
             ? "skipped via sdk-test-control.json" : reason);
-${loadSkipBlock}    ${SDK} client = setup.client;
+${loadSkipBlock}    if (setup.live) {
+      RunnerSupport.livePace();
+    }
+    ${SDK} client = setup.client;
 
 `)
 
@@ -360,7 +404,7 @@ ${loadSkipBlock}    ${SDK} client = setup.client;
 
         if (loadAllHaveExamples) {
           Content(loadExampleLines + '\n')
-        } else if (hasList && loadParams.length > 0) {
+        } else if (discovery) {
           Content(`      Map<String, Object> listParams = new LinkedHashMap<>();
 `)
           for (const p of listParams) {
@@ -371,10 +415,19 @@ ${loadSkipBlock}    ${SDK} client = setup.client;
 `)
           }
 
+          // The list sends the query its route requires, as direct-list does.
+          const listQueryLines = liveQueryExamples(listPoint)
+            .map(([name, ex]) => `      listQuery.put(${JSON.stringify(name)}, ${javaLiteral(ex)});\n`).join('')
+          if ('' !== listQueryLines) {
+            Content(`      Map<String, Object> listQuery = new LinkedHashMap<>();
+` + listQueryLines)
+          }
+
           Content(`      Map<String, Object> listResult = client.direct(jm(
           "path", "${listPath}",
           "method", "GET",
-          "params", listParams));
+          "params", listParams${'' === listQueryLines ? '' : `,
+          "query", listQuery`}));
       if (!liveOk(listResult)) {
         RunnerSupport.liveMiss(LIVE_STRICT, "Live list discovery failed: " + RunnerSupport.liveDescribe(listResult));
       }
@@ -386,14 +439,13 @@ ${loadSkipBlock}    ${SDK} client = setup.client;
         RunnerSupport.liveEmpty("The account has no ${entity.name} record to load");
       }
       Map<String, Object> firstEnt = Helpers.toMapAny(listData.get(0));
-      if (firstEnt == null || firstEnt.get("id") == null) {
+      if (firstEnt == null || firstEnt.get("${discovery.field}") == null) {
         RunnerSupport.liveMiss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
       }
-      params.put("id", firstEnt.get("id"));
+      params.put("${discovery.param}", firstEnt.get("${discovery.field}"));
 `)
           for (const p of ancestorParams) {
-            const key = p.n.replace(/_id$/, '') + '01'
-            Content(`      params.put("${p.n}", setup.idmap.get("${key}"));
+            Content(`      params.put("${p.n}", setup.idmap.get("${liveKey(p)}"));
 `)
           }
         } else if (loadParams.length > 0) {
@@ -488,10 +540,10 @@ ${loadSkipBlock}    ${SDK} client = setup.client;
 
     Map<String, Object> envm = new LinkedHashMap<>();
     envm.put("${entidEnvVar}", new LinkedHashMap<>());
-    envm.put("${PROJECTNAME}_TEST_LIVE", "FALSE");
-${authActive ? `    envm.put("${PROJECTNAME}_APIKEY", "");\n` : ''}${serverEnvEntry}    Map<String, Object> env = RunnerSupport.envOverride(envm);
+    envm.put("${ENVVAR.live}", "FALSE");
+${authActive ? `    envm.put("${ENVVAR.apikey}", "");\n` : ''}${authSecret ? `    envm.put("${ENVVAR.secret}", "");\n` : ''}${serverEnvEntry}    Map<String, Object> env = RunnerSupport.envOverride(envm);
 
-    boolean live = "TRUE".equals(env.get("${PROJECTNAME}_TEST_LIVE"));
+    boolean live = "TRUE".equals(env.get("${ENVVAR.live}"));
 
     DirectSetup setup = new DirectSetup();
     setup.calls = calls;
@@ -501,7 +553,7 @@ ${authActive ? `    envm.put("${PROJECTNAME}_APIKEY", "");\n` : ''}${serverEnvEn
       // client; the generated fields below overwrite anything they name.
       Map<String, Object> mergedOpts =
           new LinkedHashMap<>(RunnerSupport.liveClientOptions());
-${authActive ? `      mergedOpts.put("apikey", env.get("${PROJECTNAME}_APIKEY"));\n` : ''}${serverLiveField}      setup.client = new ${SDK}(mergedOpts);
+${authActive ? `      mergedOpts.put("apikey", env.get("${ENVVAR.apikey}"));\n` : ''}${authSecret ? `      mergedOpts.put("secret", env.get("${ENVVAR.secret}"));\n` : ''}${serverLiveField}      setup.client = new ${SDK}(mergedOpts);
       setup.live = true;
 
       Map<String, Object> idmap = new LinkedHashMap<>();
@@ -515,7 +567,10 @@ ${authActive ? `      mergedOpts.put("apikey", env.get("${PROJECTNAME}_APIKEY"))
       else if (entidRaw instanceof Map) {
         idmap = (Map<String, Object>) entidRaw;
       }
-      setup.idmap = idmap;
+${0 === exampleIds.length ? '' : `      // A path parameter's example stands in for an id *_ENTID does not give.
+      idmap = new LinkedHashMap<>(idmap);
+${exampleIds.map(([key, ex]) => `      idmap.putIfAbsent("${key}", ${javaLiteral(ex)});
+`).join('')}`}      setup.idmap = idmap;
       return setup;
     }
 

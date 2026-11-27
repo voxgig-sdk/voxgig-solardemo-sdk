@@ -130,6 +130,7 @@ pub fn make_config() Value {
                         .{ "active", h.vbool(false) },
                         .{ "method", h.vstr("POST") },
                         .{ "path", h.vstr("auth/token") },
+                        .{ "redirect", h.vstr("refuse") },
                         .{ "refresh", h.vstr("") },
                         .{ "request", h.vstr("refresh_token") },
                         .{ "response", h.vstr("access_token") },

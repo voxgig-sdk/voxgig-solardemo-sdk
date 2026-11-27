@@ -49,7 +49,7 @@ class PlanetEntityTest extends TestCase
         $this->assertNotNull($ent);
     }
 
-    // Feature #4: the entity stream(action, ...) method runs the op pipeline
+    // The entity stream(action, ...) method runs the op pipeline
     // and yields result items. With the streaming feature active it yields the
     // feature's incremental output; otherwise it falls back to the materialised
     // list so stream always yields.
@@ -173,6 +173,24 @@ class PlanetEntityTest extends TestCase
         $this->assertSame(2, $client->_cost["total"]["attempts"]);
     }
 
+    public function test_validate_list_response(): void
+    {
+        $cfg = VoxgigSolardemoConfig::shared_config();
+        if (!isset($cfg["feature"]["validate"])) {
+            $this->markTestSkipped('feature not present in this SDK: validate');
+        }
+        $opts = ["feature" => ["validate" => ["active" => true, "request" => false, "response" => true]]];
+        $listed = VoxgigSolardemoSDK::test(['entity' => ['planet' => ['v1' => ['diameter' => 1, 'kind' => 'x', 'name' => 'x']]]], $opts)->Planet(null)->list(null, null);
+        $this->assertSame(['v1'], array_map(fn($ent) => $ent->data_get()['id'] ?? null, $listed));
+        $err = null;
+        try {
+            VoxgigSolardemoSDK::test(['entity' => ['planet' => ['v1' => ['diameter' => 'x', 'kind' => 'x', 'name' => 'x']]]], $opts)->Planet(null)->list(null, null);
+        } catch (\Throwable $e) {
+            $err = $e;
+        }
+        $this->assertSame('validate_failed', $err->sdk_code ?? null);
+    }
+
     public function test_validate(): void
     {
         $cfg = VoxgigSolardemoConfig::shared_config();
@@ -189,6 +207,16 @@ class PlanetEntityTest extends TestCase
         $this->assertSame('validate_failed', $err->sdk_code ?? null);
     }
 
+    public function test_validate_bare_list(): void
+    {
+        $cfg = VoxgigSolardemoConfig::shared_config();
+        if (!isset($cfg["feature"]["validate"])) {
+            $this->markTestSkipped('feature not present in this SDK: validate');
+        }
+        $client = VoxgigSolardemoSDK::test(null, ["feature" => ["validate" => ["active" => true]]]);
+        $this->assertIsArray($client->Planet(null)->list(null, null));
+    }
+
     public function test_basic_flow(): void
     {
         $setup = planet_basic_setup(null);
@@ -201,8 +229,57 @@ class PlanetEntityTest extends TestCase
                 return;
             }
         }
+        if (!empty($setup["live"]) && getenv('VOXGIG_GETONLY_GUARD') === "TRUE") {
+            fwrite(STDOUT, 'LIVE STEP {"id":"planet.create.0","state":"excluded","attempted":false,"reason":"GET-only live run: needs POST /api/planet/{planet_id}/forbid"}' . "\n");
+            fwrite(STDOUT, 'LIVE STEP {"id":"planet.update.2","state":"excluded","attempted":false,"reason":"GET-only live run: needs PUT /api/planet/{planet_id}"}' . "\n");
+            fwrite(STDOUT, 'LIVE STEP {"id":"planet.remove.4","state":"excluded","attempted":false,"reason":"GET-only live run: needs DELETE /api/planet/{planet_id}"}' . "\n");
+            fwrite(STDOUT, 'LIVE STEP {"id":"planet.list.5","state":"excluded","attempted":false,"reason":"GET-only live run: checks a removal this run does not make"}' . "\n");
+        $client = $setup["client"];
+        if (!empty($setup["live"])) {
+            $_liveId = empty($setup["synthetic_only"]) ? ($setup["idmap"]["planet01"] ?? null) : null;
+            Runner::live_pace();
+            Runner::live_existing($setup, self::LIVE_STRICT, "planet",
+                fn() => $client->Planet(null)->list([], null), "id", $_liveId);
+        }
+
+        // Bootstrap entity data from existing test data.
+        $planet_ref01_data_raw = Vs::items(Helpers::to_map(
+            Vs::getpath($setup["data"], "existing.planet")));
+        $planet_ref01_data = null;
+        if (count($planet_ref01_data_raw) > 0) {
+            $planet_ref01_data = Helpers::to_map($planet_ref01_data_raw[0][1]);
+        }
+
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
+        // LIST
+        $planet_ref01_ent = $client->Planet(null);
+        $planet_ref01_match = [];
+
+        $planet_ref01_list_result = $planet_ref01_ent->list($planet_ref01_match, null);
+        $this->assertIsArray($planet_ref01_list_result);
+
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
+        // LOAD
+        $planet_ref01_match_dt0 = [
+            "id" => $planet_ref01_data["id"],
+        ];
+        $planet_ref01_data_dt0_loaded = $planet_ref01_ent->load($planet_ref01_match_dt0, null);
+        $planet_ref01_data_dt0_load_result = Helpers::to_map(is_object($planet_ref01_data_dt0_loaded) && method_exists($planet_ref01_data_dt0_loaded, 'data_get') ? $planet_ref01_data_dt0_loaded->data_get() : $planet_ref01_data_dt0_loaded);
+        $this->assertNotNull($planet_ref01_data_dt0_load_result);
+        $this->assertTrue(Runner::live_same_id($planet_ref01_data_dt0_load_result["id"] ?? null, $planet_ref01_data["id"]));
+
+            return;
+        }
+
         $client = $setup["client"];
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // CREATE
         $planet_ref01_ent = $client->Planet(null);
         $planet_ref01_data = Helpers::to_map(Vs::getprop(
@@ -213,6 +290,9 @@ class PlanetEntityTest extends TestCase
         $this->assertNotNull($planet_ref01_data);
         $this->assertNotNull($planet_ref01_data["id"]);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // LIST
         $planet_ref01_match = [];
 
@@ -224,6 +304,9 @@ class PlanetEntityTest extends TestCase
             ["id" => $planet_ref01_data["id"]]);
         $this->assertNotEmpty($found_item);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // UPDATE
         $planet_ref01_data_up0_up = [
             "id" => $planet_ref01_data["id"],
@@ -236,9 +319,12 @@ class PlanetEntityTest extends TestCase
         $planet_ref01_resdata_up0_result = $planet_ref01_ent->update($planet_ref01_data_up0_up, null);
         $planet_ref01_resdata_up0 = Helpers::to_map(is_object($planet_ref01_resdata_up0_result) && method_exists($planet_ref01_resdata_up0_result, 'data_get') ? $planet_ref01_resdata_up0_result->data_get() : $planet_ref01_resdata_up0_result);
         $this->assertNotNull($planet_ref01_resdata_up0);
-        $this->assertEquals($planet_ref01_resdata_up0["id"], $planet_ref01_data_up0_up["id"]);
+        $this->assertTrue(Runner::live_same_id($planet_ref01_resdata_up0["id"] ?? null, $planet_ref01_data_up0_up["id"]));
         $this->assertEquals($planet_ref01_resdata_up0[$planet_ref01_markdef_up0_name], $planet_ref01_markdef_up0_value);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // LOAD
         $planet_ref01_match_dt0 = [
             "id" => $planet_ref01_data["id"],
@@ -246,14 +332,20 @@ class PlanetEntityTest extends TestCase
         $planet_ref01_data_dt0_loaded = $planet_ref01_ent->load($planet_ref01_match_dt0, null);
         $planet_ref01_data_dt0_load_result = Helpers::to_map(is_object($planet_ref01_data_dt0_loaded) && method_exists($planet_ref01_data_dt0_loaded, 'data_get') ? $planet_ref01_data_dt0_loaded->data_get() : $planet_ref01_data_dt0_loaded);
         $this->assertNotNull($planet_ref01_data_dt0_load_result);
-        $this->assertEquals($planet_ref01_data_dt0_load_result["id"], $planet_ref01_data["id"]);
+        $this->assertTrue(Runner::live_same_id($planet_ref01_data_dt0_load_result["id"] ?? null, $planet_ref01_data["id"]));
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // REMOVE
         $planet_ref01_match_rm0 = [
             "id" => $planet_ref01_data["id"],
         ];
         $planet_ref01_ent->remove($planet_ref01_match_rm0, null);
 
+        if (!empty($setup["live"])) {
+            Runner::live_pace();
+        }
         // LIST
         $planet_ref01_match_rt0 = [];
 

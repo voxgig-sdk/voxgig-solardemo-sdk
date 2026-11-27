@@ -13,7 +13,7 @@
     <Version>0.1.0</Version>
     <PackageId>VoxgigSolardemo.Sdk</PackageId>
     <Authors>Voxgig</Authors>
-    <Description>Unofficial generated csharp SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.</Description>
+    <Description>Unofficial generated C# SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/voxgig-sdk/voxgig-solardemo-sdk</RepositoryUrl>
   </PropertyGroup>

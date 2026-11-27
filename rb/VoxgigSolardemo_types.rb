@@ -198,12 +198,6 @@ PlanetListMatch = Struct.new(
 # @!attribute [rw] diameter
 #   @return [Float]
 #
-# @!attribute [rw] forbidReason
-#   @return [String, nil]
-#
-# @!attribute [rw] forbidState
-#   @return [String, nil]
-#
 # @!attribute [rw] id
 #   @return [String]
 #
@@ -212,17 +206,11 @@ PlanetListMatch = Struct.new(
 #
 # @!attribute [rw] name
 #   @return [String]
-#
-# @!attribute [rw] terraformState
-#   @return [String, nil]
 PlanetCreateData = Struct.new(
   :diameter,
-  :forbidReason,
-  :forbidState,
   :id,
   :kind,
   :name,
-  :terraformState,
   keyword_init: true
 )
 
@@ -234,28 +222,16 @@ PlanetCreateData = Struct.new(
 # @!attribute [rw] diameter
 #   @return [Float, nil]
 #
-# @!attribute [rw] forbidReason
-#   @return [String, nil]
-#
-# @!attribute [rw] forbidState
-#   @return [String, nil]
-#
 # @!attribute [rw] kind
 #   @return [String, nil]
 #
 # @!attribute [rw] name
 #   @return [String, nil]
-#
-# @!attribute [rw] terraformState
-#   @return [String, nil]
 PlanetUpdateData = Struct.new(
   :id,
   :diameter,
-  :forbidReason,
-  :forbidState,
   :kind,
   :name,
-  :terraformState,
   keyword_init: true
 )
 

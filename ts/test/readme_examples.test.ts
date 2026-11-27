@@ -122,23 +122,37 @@ function isRunnable(code: string): boolean {
 
 // Wrap ONE block as a self-contained temp module: the block goes in its own
 // scope inside an async function with a shared seeded `client`.
+const SNIPPET_HEAD = [
+  'import { ' + SDK_NAME + ' } from ' + JSON.stringify(SDK_ROOT),
+  '',
+  'async function __ex() {',
+  // Shared client for snippets that reference `client` without constructing
+  // one (e.g. the direct() example).
+  '  const client = ' + SDK_NAME + '.test()',
+  '  void client',
+  '  {',
+]
+const SNIPPET_INDENT = '    '
+
 function buildSnippetModule(block: string): string {
-  const inner = stripImports(block).split('\n').map((l) => '    ' + l).join('\n')
+  const inner = stripImports(block).split('\n').map((l) => SNIPPET_INDENT + l).join('\n')
   return [
-    'import { ' + SDK_NAME + ' } from ' + JSON.stringify(SDK_ROOT),
-    '',
-    'async function __ex() {',
-    // Shared client for snippets that reference `client` without constructing
-    // one (e.g. the direct() example).
-    '  const client = ' + SDK_NAME + '.test()',
-    '  void client',
-    '  {',
+    ...SNIPPET_HEAD,
     inner,
     '  }',
     '}',
     'void __ex',
     '',
   ].join('\n')
+}
+
+
+// A tsc position in a wrapped module, as a line and column of the block itself.
+function blockPosition(line: number, col: number): string {
+  const at = line - SNIPPET_HEAD.length
+  return 0 < at
+    ? 'line ' + at + ', col ' + Math.max(1, col - SNIPPET_INDENT.length)
+    : 'wrapper line ' + line + ', col ' + col
 }
 
 
@@ -149,7 +163,7 @@ function buildSnippetModule(block: string): string {
 // `typeCheckBlocks` drives this in a fixpoint that removes erroring blocks
 // and recompiles the rest until a pass is clean.
 function compileBatch(indices: number[], blocks: string[], key: string): {
-  errored: Set<number>; raw: string; unattributed: boolean
+  errored: Set<number>; diagnostics: Map<number, string[]>; raw: string; unattributed: boolean
 } {
   const tsDir = Path.join(__dirname, '..')
   // Outside the SDK's tree, so a run leaves nothing there even when it is
@@ -187,24 +201,36 @@ function compileBatch(indices: number[], blocks: string[], key: string): {
 
     const raw = ((res.stdout || '') + (res.stderr || '')).trim()
     const errored = new Set<number>()
+    // Each snippet's own diagnostics, so a report quotes only those of the
+    // blocks it names; tsc's indented follow-on lines stay with theirs.
+    const diagnostics = new Map<number, string[]>()
+    let current: string[] | null = null
     let unattributed = false
 
     if (0 !== res.status) {
       for (const line of raw.split('\n')) {
-        const m = /_snippet(\d+)\.gen\.cts\(\d+,\d+\):\s*error/.exec(line)
+        const m = /_snippet(\d+)\.gen\.cts\((\d+),(\d+)\):\s*(error[\s\S]*)$/.exec(line)
         if (null == m) {
           // A genuine error diagnostic not attributable to a snippet file
           // (e.g. inside the SDK itself) is an anomaly.
           if (/:\s*error\s+TS\d+/.test(line)) {
             unattributed = true
+            current = null
+          }
+          else if (null != current && /^\s/.test(line)) {
+            current.push(line)
           }
           continue
         }
-        errored.add(parseInt(m[1], 10))
+        const i = parseInt(m[1], 10)
+        errored.add(i)
+        current = diagnostics.get(i) || []
+        diagnostics.set(i, current)
+        current.push(blockPosition(parseInt(m[2], 10), parseInt(m[3], 10)) + ': ' + m[4])
       }
     }
 
-    return { errored, raw, unattributed }
+    return { errored, diagnostics, raw, unattributed }
   } finally {
     Fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -219,17 +245,20 @@ function compileBatch(indices: number[], blocks: string[], key: string): {
 // terminates. `globalError` flags an unattributable tsc error, surfaced
 // verbatim by the caller.
 function typeCheckBlocks(blocks: string[], key: string): {
-  failing: Set<number>; raw: string; globalError: boolean
+  failing: Set<number>; diagnostics: Map<number, string[]>; raw: string; globalError: boolean
 } {
   const failing = new Set<number>()
+  const diagnostics = new Map<number, string[]>()
   const raws: string[] = []
   let globalError = false
   let remaining = blocks.map((_b, i) => i)
 
   // Guard: at most one pass per block plus a final clean pass.
   for (let pass = 0; pass <= blocks.length && 0 < remaining.length; pass++) {
-    const { errored, raw, unattributed } = compileBatch(remaining, blocks, key)
+    const batch = compileBatch(remaining, blocks, key)
+    const { errored, raw, unattributed } = batch
     raws.push(raw)
+    batch.diagnostics.forEach((lines, i) => diagnostics.set(i, lines))
     if (unattributed) {
       globalError = true
     }
@@ -242,7 +271,28 @@ function typeCheckBlocks(blocks: string[], key: string): {
     remaining = remaining.filter((i) => !errored.has(i))
   }
 
-  return { failing, raw: raws.filter(Boolean).join('\n'), globalError }
+  return { failing, diagnostics, raw: raws.filter(Boolean).join('\n'), globalError }
+}
+
+
+// Replace each call `head` matches up to its opening parenthesis with `to`,
+// reading the arguments to the parenthesis that balances that one.
+function replaceCalls(code: string, head: RegExp, to: string): string {
+  let out = ''
+  let at = 0
+  let m: RegExpExecArray | null
+  while (null != (m = head.exec(code))) {
+    let depth = 0
+    let end = m.index + m[0].length - 1
+    for (; end < code.length; end++) {
+      if ('(' === code[end]) depth++
+      else if (')' === code[end] && 0 === --depth) break
+    }
+    if (end === code.length) break
+    out += code.slice(at, m.index) + to
+    at = head.lastIndex = end + 1
+  }
+  return out + code.slice(at)
 }
 
 
@@ -252,8 +302,7 @@ function typeCheckBlocks(blocks: string[], key: string): {
 // that reference `client` without constructing one a shared seeded client.
 function rewriteForRun(code: string): string {
   let out = stripImports(code)
-  out = out.replace(/new\s+VoxgigSolardemoSDK\s*\([^)]*\)/g, () => SEEDED_CTOR)
-  out = out.replace(/VoxgigSolardemoSDK\.test\s*\([^)]*\)/g, () => SEEDED_CTOR)
+  out = replaceCalls(out, /(?:new\s+VoxgigSolardemoSDK|VoxgigSolardemoSDK\.test)\s*\(/g, SEEDED_CTOR)
   if (CLIENT.test(out) && !/\b(?:const|let|var)\s+client\b/.test(out)) {
     out = 'const client = ' + SEEDED_CTOR + '\n' + out
   }
@@ -344,7 +393,7 @@ describe('README examples', () => {
       const blocks = extractTsBlocks(md)
       assert(blocks.length > 0, 'No TypeScript code blocks found in ' + doc.label)
 
-      const { failing, raw, globalError } = typeCheckBlocks(blocks, doc.key)
+      const { failing, diagnostics, raw, globalError } = typeCheckBlocks(blocks, doc.key)
       assert(!globalError,
         'tsc reported an error outside any snippet in ' + doc.label +
         ' — the harness could not attribute it:\n\n' + raw + '\n')
@@ -362,7 +411,8 @@ describe('README examples', () => {
         if (!typechecks && shape) {
           illustration++
         } else if (!typechecks && !shape) {
-          unrecognized.push('  snippet ' + i + ':\n' + indentBlock(b))
+          unrecognized.push('  snippet ' + i + ':\n' + indentBlock(b) + '\n\n  tsc:\n' +
+            indentBlock((diagnostics.get(i) || []).join('\n')))
         } else if (typechecks && runnable) {
           executed++
         } else {
@@ -380,7 +430,7 @@ describe('README examples', () => {
         'These ' + doc.label + ' ```ts blocks neither type-check nor match the ' +
         'illustration allowlist. Fix the snippet (or the SDK), or — if it is ' +
         'genuinely illustrative — reshape it to the allowlist:\n\n' +
-        unrecognized.join('\n\n') + '\n\ntsc output:\n' + raw + '\n')
+        unrecognized.join('\n\n') + '\n')
 
       assert.strictEqual(blocks.length, executed + typecheckedOnly + illustration,
         'completeness partition mismatch for ' + doc.label + ': ' + blocks.length +

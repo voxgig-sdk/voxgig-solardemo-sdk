@@ -22,12 +22,12 @@ Create a new SDK client instance. `options` is an `sdk::Value` map.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `Value` | SDK configuration options (a map). |
-| `options["base"]` | `std::string` | Base URL for API requests. |
-| `options["prefix"]` | `std::string` | URL prefix appended after base. |
-| `options["suffix"]` | `std::string` | URL suffix appended after path. |
-| `options["headers"]` | `Value` | Custom headers for all requests. |
-| `options["feature"]` | `Value` | Feature configuration. |
-| `options["system"]` | `Value` | System overrides. |
+| `options["base"]` | `std::string` | Base URL of the API server. |
+| `options["prefix"]` | `std::string` | URL path prefix prepended to all requests. |
+| `options["suffix"]` | `std::string` | URL path suffix appended to all requests. |
+| `options["headers"]` | `Value` | Headers sent with every request. |
+| `options["feature"]` | `Value` | Feature activation flags. |
+| `options["system"]` | `Value` | System overrides, such as a custom fetch function. |
 
 
 ### Static Methods
@@ -102,23 +102,9 @@ auto moon = client->moon();
 
 ### Operations
 
-#### `create(reqdata, ctrl) -> SdkEntityPtr`
-
-Create a new entity with the given data. Returns the created entity and throws on error.
-
-```cpp
-SdkEntityPtr result = client->moon()->create(vmap({
-    {"planet_id", Value("example_planet_id")},  // std::string
-    {"diameter", Value(1)},  // double
-    {"id", Value("example_id")},  // std::string
-    {"kind", Value("example_kind")},  // std::string
-    {"name", Value("example_name")},  // std::string
-}), Value::undef());
-```
-
 #### `list(reqmatch, ctrl) -> std::vector<SdkEntityPtr>`
 
-List entities matching the given criteria. The match is optional — pass `Value::undef()` to list all records. Returns one entity per record and throws on error.
+List entities matching the given criteria. The match must include `planet_id`. Returns one entity per record and throws on error.
 
 ```cpp
 std::vector<SdkEntityPtr> results = client->moon()->list(vmap({{"planet_id", Value("example")}}), Value::undef());
@@ -136,13 +122,18 @@ SdkEntityPtr result = client->moon()->load(vmap({{"id", Value("moon_id")}, {"pla
 std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
-#### `remove(reqmatch, ctrl) -> SdkEntityPtr`
+#### `create(reqdata, ctrl) -> SdkEntityPtr`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```cpp
-SdkEntityPtr result = client->moon()->remove(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
-std::cout << Struct::jsonify(result->data()) << std::endl;
+SdkEntityPtr result = client->moon()->create(vmap({
+    {"planet_id", Value("example_planet_id")},  // std::string
+    {"diameter", Value(1)},  // double
+    {"id", Value("example_id")},  // std::string
+    {"kind", Value("example_kind")},  // std::string
+    {"name", Value("example_name")},  // std::string
+}), Value::undef());
 ```
 
 #### `update(reqdata, ctrl) -> SdkEntityPtr`
@@ -155,6 +146,15 @@ SdkEntityPtr result = client->moon()->update(vmap({
     {"planet_id", Value("planet_id")},
     // Fields to update
 }), Value::undef());
+```
+
+#### `remove(reqmatch, ctrl) -> SdkEntityPtr`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+
+```cpp
+SdkEntityPtr result = client->moon()->remove(vmap({{"id", Value("moon_id")}, {"planet_id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
 ### Common Methods
@@ -198,19 +198,6 @@ auto planet = client->planet();
 
 ### Operations
 
-#### `create(reqdata, ctrl) -> SdkEntityPtr`
-
-Create a new entity with the given data. Returns the created entity and throws on error.
-
-```cpp
-SdkEntityPtr result = client->planet()->create(vmap({
-    {"diameter", Value(1)},  // double
-    {"id", Value("example_id")},  // std::string
-    {"kind", Value("example_kind")},  // std::string
-    {"name", Value("example_name")},  // std::string
-}), Value::undef());
-```
-
 #### `list(reqmatch, ctrl) -> std::vector<SdkEntityPtr>`
 
 List entities matching the given criteria. The match is optional — pass `Value::undef()` to list all records. Returns one entity per record and throws on error.
@@ -231,13 +218,17 @@ SdkEntityPtr result = client->planet()->load(vmap({{"id", Value("planet_id")}}),
 std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
-#### `remove(reqmatch, ctrl) -> SdkEntityPtr`
+#### `create(reqdata, ctrl) -> SdkEntityPtr`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```cpp
-SdkEntityPtr result = client->planet()->remove(vmap({{"id", Value("planet_id")}}), Value::undef());
-std::cout << Struct::jsonify(result->data()) << std::endl;
+SdkEntityPtr result = client->planet()->create(vmap({
+    {"diameter", Value(1)},  // double
+    {"id", Value("example_id")},  // std::string
+    {"kind", Value("example_kind")},  // std::string
+    {"name", Value("example_name")},  // std::string
+}), Value::undef());
 ```
 
 #### `update(reqdata, ctrl) -> SdkEntityPtr`
@@ -249,6 +240,15 @@ SdkEntityPtr result = client->planet()->update(vmap({
     {"id", Value("planet_id")},
     // Fields to update
 }), Value::undef());
+```
+
+#### `remove(reqmatch, ctrl) -> SdkEntityPtr`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+
+```cpp
+SdkEntityPtr result = client->planet()->remove(vmap({{"id", Value("planet_id")}}), Value::undef());
+std::cout << Struct::jsonify(result->data()) << std::endl;
 ```
 
 ### Common Methods
@@ -309,10 +309,10 @@ auto client = std::make_shared<VoxgigSolardemoSDK>(vmap({
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -323,10 +323,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -529,7 +529,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -542,6 +542,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -569,10 +570,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

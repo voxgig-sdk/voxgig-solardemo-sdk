@@ -29,16 +29,15 @@
 // WHY RESOLUTION HAPPENS AT THE TRANSPORT, not in the PreSpec hook.
 // `Direct()` and `Graphql()` both funnel through RawRequest, and the
 // fragment says it plainly: "like Direct, this bypasses the feature
-// pipeline - no retry, ratelimit or paging features apply". NO feature
-// hooks run there. The transport delegate is the one seam every wire path
-// crosses, so resolving there is what gives the raw paths the same
-// credential - and the same fail-closed refusal - as the entity pipeline.
-// The header is rewritten AFTER PrepareAuth built it, so the transport is
-// exactly early enough.
+// pipeline: no feature hook runs on this path". The transport delegate is
+// the one seam every wire path crosses, so resolving there is what gives
+// the raw paths the same credential - and the same fail-closed refusal -
+// as the entity pipeline. The header is rewritten AFTER PrepareAuth built
+// it, so the transport is exactly early enough.
 //
 // ONE VISIBLE CONSEQUENCE, worth knowing before it surprises someone:
 // VoxgigSolardemoSDK.Prepare() returns the fetchdef WITHOUT crossing the
-// transport, so its authorization header is the one PrepareAuth built from
+// transport, so its credential header is the one PrepareAuth built from
 // the apikey OPTION - never the chain-resolved credential. Prepare is a
 // what-would-I-send inspector; what is actually sent is what Direct,
 // Graphql and the entity ops put on the wire, and those all cross the seam.
@@ -93,6 +92,11 @@ public class SecretsFeature : BaseFeature
     // never writes it (see the header).
     private Dictionary<string, object?>? _liveopts;
 
+    // What PrepareAuth was generated from: the config declares auth only
+    // where it places a credential, and Basic only where it composes one.
+    private bool _declared;
+    private bool _basic;
+
     private string _secretname = "apikey";
     private bool _cache = true;
     private Sekreto? _sek;
@@ -134,6 +138,11 @@ public class SecretsFeature : BaseFeature
         _liveopts = ctx.Options;
         Active = FoptBool(options, "active", false);
 
+        var declared = StructUtils.GetPath(ctx.Config, StructUtils.Jt("options", "auth"));
+        _declared = declared is Dictionary<string, object?>;
+        _basic = declared is Dictionary<string, object?> authdecl &&
+            authdecl.TryGetValue("basic", out var basic) && true.Equals(basic);
+
         if (!Active)
         {
             return;
@@ -173,6 +182,7 @@ public class SecretsFeature : BaseFeature
                 Response = FoptStr(xopts, "response", "access_token"),
                 Statuses = statuses,
                 Retries = FoptInt(xopts, "retries", 1),
+                SameOrigin = "same-origin" == FoptStr(xopts, "redirect", "refuse"),
             };
         }
 
@@ -413,7 +423,7 @@ public class SecretsFeature : BaseFeature
     // from a miss it must not keep.
     private bool ResolveOnce()
     {
-        if (null == _sek)
+        if (null == _sek || AuthSuppressed())
         {
             return false;
         }
@@ -470,18 +480,6 @@ public class SecretsFeature : BaseFeature
             return true;
         }
 
-        // `auth: null` is the documented way to send NO credential, and a
-        // purchase is a credential-bearing call: the refresh token goes to
-        // the token endpoint in the request body. WithRefresh honours
-        // suppression for the RETRY, but it runs after this - by then the
-        // refresh token has already left the process, and no later check
-        // can call it back. The suppression has to be honoured here, before
-        // the first purchase, or it only ever half-held.
-        if (AuthSuppressed())
-        {
-            return false;
-        }
-
         Buy();
 
         return true;
@@ -524,19 +522,16 @@ public class SecretsFeature : BaseFeature
     // Buy a token and try the request again when the API says the current
     // one is spent.
     //
-    // The retry rewrites the authorization header IN PLACE on the fetchdef,
+    // The retry rewrites the credential header IN PLACE on the fetchdef,
     // because the header was built by the synchronous PrepareAuth before
     // this request left and carries the token that just failed. Rebuilt the
-    // way PrepareAuth builds it, from the same options auth.prefix, so the
-    // two cannot drift.
+    // way PrepareAuth builds it, from the same options auth name and prefix,
+    // so the two cannot drift.
     private object? WithRefresh(Context ctx, string url,
         Dictionary<string, object?> fetchdef, FetcherFunc inner)
     {
-        // `auth: null` is the documented way to send NO credential, and
-        // PrepareAuth honours it by removing the header. A refusal of a
-        // deliberately unauthenticated request is not an expired token and
-        // cannot be fixed by buying one - retrying would transmit exactly
-        // the credential the caller suppressed.
+        // A refusal of an unauthenticated request is not an expired token,
+        // and retrying would transmit the credential that auth off withholds.
         if (AuthSuppressed())
         {
             return inner(ctx, url, fetchdef);
@@ -612,18 +607,13 @@ public class SecretsFeature : BaseFeature
         return false;
     }
 
-    // `auth` ABSENT and `auth` PRESENT-AND-NULL both mean suppression.
-    //
-    // go gets away with one nil check because a Go map returns nil for
-    // both; a C# Dictionary does not, and MakeOptions.cs deliberately
-    // RESTORES a supplied `auth: null` after validate (that IS csharp's
-    // auth-suppression fix). Testing only for absence would re-transmit
-    // exactly the credential the caller suppressed. Same two-branch shape
-    // PrepareAuth uses.
+    // PrepareAuth's decision: suppressed where the config declares no auth,
+    // and where `auth` is absent or a present null. MakeOptions.cs restores
+    // a supplied `auth: null` after validate, so absence alone misses it.
     private bool AuthSuppressed()
     {
         var opts = _liveopts;
-        if (null == opts)
+        if (!_declared || null == opts)
         {
             return true;
         }
@@ -639,20 +629,36 @@ public class SecretsFeature : BaseFeature
             return;
         }
 
+        // The header PrepareAuth writes: auth.name, lower-cased.
+        var name = StructUtils.GetPath(_liveopts, StructUtils.Jt("auth", "name"))
+            is string n && "" != n ? n.ToLowerInvariant() : "authorization";
+
         // Suppressed auth means NO header, the same answer PrepareAuth
         // gives. Reached defensively - WithRefresh does not retry at all
         // when auth is suppressed - but this is the function that writes
         // the credential, so it is where the rule has to hold.
         if (AuthSuppressed())
         {
-            headers.Remove("authorization");
+            headers.Remove(name);
             return;
         }
+
+        var value = _basic && true.Equals(StructUtils.GetPath(_liveopts, StructUtils.Jt("auth", "basic")))
+            ? Pair(token) : token;
 
         var prefix = StructUtils.GetPath(_liveopts, StructUtils.Jt("auth", "prefix"))
             as string ?? "";
 
-        headers["authorization"] = "" == prefix ? token : prefix + " " + token;
+        headers[name] = "" == prefix ? value : prefix + " " + value;
+    }
+
+    // Under Basic the token is the key half, as apikey is: PrepareAuth's pair.
+    private string Pair(string token)
+    {
+        var secret = StructUtils.GetProp(_liveopts, "secret") as string ?? "";
+        var pair = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(token + ":" + secret));
+        Register(pair);
+        return pair;
     }
 
     // ---------------------------------------------------------------
@@ -777,6 +783,8 @@ public class SecretsFeature : BaseFeature
                 ["content-type"] = "application/json",
             },
             ["body"] = body,
+            // Never followed by the client: a redirect would carry the refresh token on.
+            ["redirect"] = "manual",
         };
 
         // Deliberately NOT the SDK transport. The transport is what this
@@ -794,18 +802,32 @@ public class SecretsFeature : BaseFeature
         // system.fetch seam promises.
         var sysfetch = StructUtils.GetPath(options, StructUtils.Jt("system", "fetch"));
 
-        object? res;
-        if (sysfetch is Func<string, Dictionary<string, object?>, Dictionary<string, object?>> ff)
+        object? Fetch(string at)
         {
-            res = ff(url, fetchdef);
+            if (sysfetch is Func<string, Dictionary<string, object?>, Dictionary<string, object?>> ff)
+            {
+                return ff(at, fetchdef);
+            }
+            if (sysfetch is Func<string, Dictionary<string, object?>, object?> ffa)
+            {
+                return ffa(at, fetchdef);
+            }
+            return SdkUtility.DefaultHttpFetch(at, fetchdef);
         }
-        else if (sysfetch is Func<string, Dictionary<string, object?>, object?> ffa)
+
+        var res = Fetch(url);
+
+        // By option alone, and only while the exchange stays on its own origin.
+        var here = url;
+        for (var hops = 0; x.SameOrigin && hops < RedirectMax; hops++)
         {
-            res = ffa(url, fetchdef);
-        }
-        else
-        {
-            res = SdkUtility.DefaultHttpFetch(url, fetchdef);
+            var next = Moved(url, here, res);
+            if (null == next)
+            {
+                break;
+            }
+            here = next;
+            res = Fetch(here);
         }
 
         var status = Helpers.ToInt(StructUtils.GetProp(res, "status"));
@@ -853,6 +875,27 @@ public class SecretsFeature : BaseFeature
         Register(token);
 
         return token;
+    }
+
+    private const int RedirectMax = 5;
+
+    // Where a redirect that keeps method and body points, when that is on the
+    // exchange's own origin. Any other would drop the body or leave the origin.
+    private static string? Moved(string url, string at, object? res)
+    {
+        var status = Helpers.ToInt(StructUtils.GetProp(res, "status"));
+        if ((307 != status && 308 != status) ||
+            StructUtils.GetProp(StructUtils.GetProp(res, "headers"), "location") is not string location ||
+            "" == location ||
+            !Uri.TryCreate(at, UriKind.Absolute, out var here) ||
+            !Uri.TryCreate(here, location, out var next) ||
+            !Uri.TryCreate(url, UriKind.Absolute, out var own))
+        {
+            return null;
+        }
+        var same = own.Scheme == next.Scheme && own.Port == next.Port &&
+            string.Equals(own.Host, next.Host, StringComparison.OrdinalIgnoreCase);
+        return same ? next.AbsoluteUri : null;
     }
 
     // ---------------------------------------------------------------
@@ -913,6 +956,7 @@ internal sealed class SecretsExchange
     public string Response = "access_token";
     public List<int> Statuses = new() { 401 };
     public int Retries = 1;
+    public bool SameOrigin;
 }
 
 // One shared in-flight resolution: late arrivals wait on Done and read Err.

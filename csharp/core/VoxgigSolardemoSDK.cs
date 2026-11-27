@@ -52,8 +52,8 @@ public class VoxgigSolardemoSDK
 
         // Add features in the resolved order (MakeOptions puts an explicit
         // list order first, else defaults to test-first). Ordering matters:
-        // the `test` feature installs the base mock transport and the transport
-        // features (retry/cache/netsim/proxy/ratelimit) wrap whatever is
+        // the `test` feature installs the base mock transport and the features
+        // whose model declares `transport: 'wrap'` wrap whatever is
         // current, so `test` must be added before them to sit at the base of
         // the chain.
         var featureOpts = global::VoxgigSolardemoSdk.Helpers.ToMapAny(global::Voxgig.Struct.StructUtils.GetProp(_options, "feature"))
@@ -175,6 +175,23 @@ public class VoxgigSolardemoSDK
             {
                 ctx.Spec.Headers[kv.Key] = kv.Value;
             }
+        }
+
+        // A raw request has no point to declare its response type, so it asks
+        // for the JSON it reads: an API that negotiates on Accept otherwise
+        // answers in its own default format. A caller's own accept wins.
+        var hasAccept = false;
+        foreach (var key in ctx.Spec.Headers.Keys)
+        {
+            if (string.Equals(key, "accept", StringComparison.OrdinalIgnoreCase))
+            {
+                hasAccept = true;
+                break;
+            }
+        }
+        if (!hasAccept)
+        {
+            ctx.Spec.Headers["accept"] = "application/json";
         }
 
         utility.PrepareAuth(ctx);
@@ -342,8 +359,8 @@ public class VoxgigSolardemoSDK
     // HTTP 200 as a top-level `errors` array, so status alone would report a
     // failed query as ok.
     //
-    // NOTE: like Direct, this bypasses the feature pipeline — no retry,
-    // ratelimit or paging features apply.
+    // NOTE: like Direct, this bypasses the feature pipeline: no feature
+    // hook runs on this path.
     public Dictionary<string, object?> Graphql(string query,
         Dictionary<string, object?>? variables = null,
         Dictionary<string, object?>? ctrl = null)

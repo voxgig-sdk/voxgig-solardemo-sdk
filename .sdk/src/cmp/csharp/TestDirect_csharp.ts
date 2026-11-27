@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -11,12 +12,20 @@ import {
   File,
   cmp,
   snakify,
-  isAuthActive, envName, envToken,
-  serverVarEnv,
-  serverVariables,
+  isAuthActive,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
   liveStrict,
   liveStrictNote,
+  pointIsGraphql,
+  graphqlDirectSkip,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 import { formatCsValue } from './utility_csharp'
@@ -59,37 +68,51 @@ function normalizePathParams(
 }
 
 
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `        if (setup.Live && Environment.GetEnvironmentVariable(${formatCsValue(LIVE_GETONLY_ENV)}) == "TRUE"
+            && StructUtils.GetProp(setup.Idmap, ${formatCsValue(miss.key)}) == null)
+        {
+            Console.WriteLine(${formatCsValue(liveExcludedLines({ excluded: [miss] })[0])});
+            Console.WriteLine(${formatCsValue('skip: ' + liveExcludedSummary({ excluded: [miss] }))});
+            return;
+        }
+`).join('')
+}
+
+
 const TestDirect = cmp(function TestDirect(props: any) {
   const ctx$ = props.ctx$
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
 
   const Name = model.const.Name
-  const PROJECTNAME = envName(model)
-  const ENTUPPER = envToken(entity.name)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n            ["${PROJECTNAME}_APIKEY"] = "",`
+    ? `\n            ["${ENVVAR.apikey}"] = "",${authSecret ? `\n            ["${ENVVAR.secret}"] = "",` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `\n                ["apikey"] = env["${PROJECTNAME}_APIKEY"],`
+    ? `\n                ["apikey"] = env["${ENVVAR.apikey}"],${authSecret ? `\n                ["secret"] = env["${ENVVAR.secret}"],` : ''}`
     : ''
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: makeOptions raises rather than
   // request a URL with a literal `{account_id}` in it. So the live suite
   // takes them from the environment the same way it takes the apikey.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n            ["${serverVarEnv(PROJECTNAME, v.name)}"] = ${JSON.stringify(v.dflt)},`).join('')
+    .map((v: any) => `\n            ["${ENVVAR.server[v.name]}"] = ${JSON.stringify(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' : `
                 ["server"] = new Dictionary<string, object?>
                 {${svars
       .map((v: any) => `
-                    ["${v.name}"] = env["${serverVarEnv(PROJECTNAME, v.name)}"],`).join('')}
+                    ["${v.name}"] = env["${ENVVAR.server[v.name]}"],`).join('')}
                 },`
 
   const opnames = Object.keys(entity.op || {})
@@ -105,16 +128,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   // Get load point info
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Only path params that actually appear in the URL template drive direct
   // path-param setup and URL-substitution asserts.
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -128,15 +146,12 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   // Get list point info
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
   // Required query params with spec-provided examples - needed in live mode.
-  const loadQuery = loadPoint?.g?.query || []
-  const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `            query["${q.n}"] = ${formatCsValue(q.ex)};`)
+  const loadLiveQueryLines = liveQueryExamples(loadPoint)
+    .map(([name, ex]) => `            query["${name}"] = ${formatCsValue(ex)};`)
     .join('\n')
 
   // Path params with spec-provided examples - when ALL load params have
@@ -149,7 +164,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
       `            pathParams["${p.n}"] = ${formatCsValue(p.ex)};`).join('\n')
     : ''
 
-  const entidEnvVar = `${PROJECTNAME}_TEST_${ENTUPPER}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const listLiveQueryLines = liveQueryExamples(listPoint)
+    .map(([name, ex]) => `            query["${name}"] = ${formatCsValue(ex)};\n`).join('')
 
   File({ name: entity.Name + 'DirectTest.' + target.ext }, () => {
 
@@ -170,7 +189,15 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '    ')}
 `)
 
     // Generate list test first (load needs list results in live mode)
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`    [Fact(Skip = "${graphqlDirectSkip('list', entity.name)}")]
+    public void DirectList()
+    {
+    }
+
+`)
+    }
+    else if (hasList && listPoint) {
       // Build live params for list
       const listLiveParams = listParams.map((p: any) => {
         const key = p.n === 'id'
@@ -182,7 +209,8 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '    ')}
       const listLiveIdKeys = listParams.length > 0
         ? listLiveParams.map((lp: any) => lp.key)
         : []
-      const listSkipBlock = listLiveIdKeys.length > 0
+      const listSkipBlock = getOnlyKeysBlock(model, entity, 'direct-list-' + entity.name, listLiveIdKeys) +
+        (listLiveIdKeys.length > 0
         ? `        if (setup.Live)
         {
             foreach (var _liveKey in new[] { ${listLiveIdKeys.map((k: string) => `"${k}"`).join(', ')} })
@@ -195,7 +223,7 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '    ')}
             }
         }
 `
-        : ''
+        : '')
 
       Content(`    [Fact]
     public void DirectList()
@@ -212,13 +240,18 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '    ')}
         {
             return; // skipped via sdk-test-control.json
         }
-${listSkipBlock}        var client = setup.Client;
+${listSkipBlock}        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+        var client = setup.Client;
 
 `)
 
-      if (listParams.length > 0) {
+      if (listParams.length > 0 || '' !== listLiveQueryLines) {
         Content(`        var pathParams = new Dictionary<string, object?>();
-`)
+        var query = new Dictionary<string, object?>();
+${listLiveQueryLines ? '        if (setup.Live)\n        {\n' + listLiveQueryLines + '        }\n' : ''}`)
         listLiveParams.forEach((lp: any, i: number) => {
           const placeholder = 'direct0' + (i + 1)
           Content(`        if (setup.Live)
@@ -237,6 +270,7 @@ ${listSkipBlock}        var client = setup.Client;
             ["path"] = "${listPath}",
             ["method"] = "GET",
             ["params"] = pathParams,
+            ["query"] = query,
         });
 `)
       } else {
@@ -299,17 +333,26 @@ ${listSkipBlock}        var client = setup.Client;
     }
 
     // Generate load test - in live mode, first list to get a real entity ID
-    if (hasLoad && loadPoint) {
-      // Identify ancestor params (not 'id') for live mode
-      const ancestorParams = loadParams.filter((p: any) => p.n !== 'id')
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`    [Fact(Skip = "${graphqlDirectSkip('load', entity.name)}")]
+    public void DirectLoad()
+    {
+    }
+
+`)
+    }
+    else if (hasLoad && loadPoint) {
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const ancestorParams = loadParams.filter((p: any) => p.n !== discovery?.param)
 
       const liveKey = (p: any) => p.n === 'id' ? entity.name + '01' : p.n.replace(/_id$/, '') + '01'
       let loadLiveIdKeys: string[] = []
       if (loadParams.length > 0 && !loadAllHaveExamples) {
-        loadLiveIdKeys = [...new Set((hasList ?
-          [...listParams, ...loadParams.filter((p: any) => p.n !== 'id')] : loadParams).map(liveKey))]
+        loadLiveIdKeys = [...new Set((discovery ?
+          [...listParams, ...ancestorParams] : loadParams).map(liveKey))]
       }
-      const loadSkipBlock = loadLiveIdKeys.length > 0
+      const loadSkipBlock = getOnlyKeysBlock(model, entity, 'direct-load-' + entity.name, loadLiveIdKeys) +
+        (loadLiveIdKeys.length > 0
         ? `        if (setup.Live)
         {
             foreach (var _liveKey in new[] { ${loadLiveIdKeys.map(k => `"${k}"`).join(', ')} })
@@ -322,7 +365,7 @@ ${listSkipBlock}        var client = setup.Client;
             }
         }
 `
-        : ''
+        : '')
 
       Content(`    [Fact]
     public void DirectLoad()
@@ -336,7 +379,11 @@ ${listSkipBlock}        var client = setup.Client;
         {
             return; // skipped via sdk-test-control.json
         }
-${loadSkipBlock}        var client = setup.Client;
+${loadSkipBlock}        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+        var client = setup.Client;
 
 `)
 
@@ -356,8 +403,7 @@ ${loadSkipBlock}        var client = setup.Client;
 
         if (loadAllHaveExamples) {
           Content(loadExampleLines + '\n')
-        } else if (hasList && loadParams.length > 0) {
-          // List-bootstrap: first call list, take id from response.
+        } else if (discovery) {
           Content(`            var listParams = new Dictionary<string, object?>();
 `)
           for (const p of listParams) {
@@ -368,11 +414,20 @@ ${loadSkipBlock}        var client = setup.Client;
 `)
           }
 
+          // The list sends the query its route requires, as direct-list does.
+          const listQueryLines = liveQueryExamples(listPoint)
+            .map(([name, ex]) => `            listQuery[${formatCsValue(name)}] = ${formatCsValue(ex)};\n`).join('')
+          if ('' !== listQueryLines) {
+            Content(`            var listQuery = new Dictionary<string, object?>();
+` + listQueryLines)
+          }
+
           Content(`            var listResult = client.Direct(new Dictionary<string, object?>
             {
                 ["path"] = "${listPath}",
                 ["method"] = "GET",
-                ["params"] = listParams,
+                ["params"] = listParams,${'' === listQueryLines ? '' : `
+                ["query"] = listQuery,`}
             });
             if (!TestRunner.LiveOk(listResult))
             {
@@ -391,16 +446,15 @@ ${loadSkipBlock}        var client = setup.Client;
                 return;
             }
             var firstEnt = Helpers.ToMapAny(listData[0]);
-            if (firstEnt == null || !firstEnt.TryGetValue("id", out var firstId) || firstId == null)
+            if (firstEnt == null || !firstEnt.TryGetValue("${discovery.field}", out var firstId) || firstId == null)
             {
                 TestRunner.LiveMiss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
                 return;
             }
-            pathParams["id"] = firstId;
+            pathParams["${discovery.param}"] = firstId;
 `)
           for (const p of ancestorParams) {
-            const key = p.n.replace(/_id$/, '') + '01'
-            Content(`            pathParams["${p.n}"] = setup.Idmap["${key}"];
+            Content(`            pathParams["${p.n}"] = setup.Idmap["${liveKey(p)}"];
 `)
           }
         } else if (loadParams.length > 0) {
@@ -504,10 +558,10 @@ ${loadSkipBlock}        var client = setup.Client;
         var env = TestRunner.EnvOverride(new Dictionary<string, object?>
         {
             ["${entidEnvVar}"] = new Dictionary<string, object?>(),
-            ["${PROJECTNAME}_TEST_LIVE"] = "FALSE",${apikeyEnvEntry}${serverEnvEntry}
+            ["${ENVVAR.live}"] = "FALSE",${apikeyEnvEntry}${serverEnvEntry}
         });
 
-        var live = Equals(env["${PROJECTNAME}_TEST_LIVE"], "TRUE");
+        var live = Equals(env["${ENVVAR.live}"], "TRUE");
 
         if (live)
         {
@@ -541,7 +595,10 @@ ${loadSkipBlock}        var client = setup.Client;
             {
                 idmap = entidMap;
             }
-
+${0 === exampleIds.length ? '' : `            // A path parameter's example stands in for an id *_ENTID does not give.
+            idmap = new Dictionary<string, object?>(idmap);
+${exampleIds.map(([key, ex]) => `            idmap.TryAdd("${key}", ${formatCsValue(ex)});
+`).join('')}`}
             return new ${entity.Name}DirectSetupResult
             {
                 Client = liveClient,

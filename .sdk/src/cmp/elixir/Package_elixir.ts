@@ -9,10 +9,14 @@ import {
   packageVersion,
 } from '@voxgig/sdkgen'
 
+import { elixirApp } from './app_elixir'
+
 
 import type {
   Model,
 } from '@voxgig/apidef'
+
+import { elixirString } from './utility_elixir'
 
 
 const Package = cmp(async function Package(props: any) {
@@ -21,9 +25,7 @@ const Package = cmp(async function Package(props: any) {
   const model: Model = ctx$.model
 
   const Name = model.const.Name
-  // Elixir app names are atoms: a hyphenated slug (`bluefin-decryptx-p2pe`)
-  // is invalid (`:a-b` parses as subtraction). Snake_case it.
-  const app = String(model.const.name).replace(/-/g, '_')
+  const app = elixirApp(model, target)
   const { repoUrl } = repoInfo(model)
 
   const entries: string[] = []
@@ -58,7 +60,7 @@ const Package = cmp(async function Package(props: any) {
       app: :${app},
       version: "${packageVersion(model, target.name)}",
       elixir: "~> 1.14",
-      description: ${JSON.stringify(pkgDescription(model, target.name))},
+      description: ${elixirString(pkgDescription(model, target.name))},
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),

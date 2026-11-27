@@ -9,14 +9,14 @@ The API is exposed as capitalised, semantic **Entities** — e.g.
 instead of raw URL paths and query parameters. This keeps the surface
 predictable and low-friction for both humans and AI agents.
 
-> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go`, `go-cli`, `go-mcp`, `haskell`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `zig` — see
+> Other languages, the CLI, and MCP server live alongside this one — see
 > the [top-level README](../README.md).
 
 
 ## Install
 This package is not yet published to npm. Install it from the GitHub
-release tag (`ts/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)), or from a
-clone, which carries the compiled `dist/`:
+release tag (`vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)), or from a clone, which carries
+the compiled `dist/`:
 
 ```bash
 git clone https://github.com/voxgig-sdk/voxgig-solardemo-sdk
@@ -26,8 +26,7 @@ npm install ./voxgig-solardemo-sdk/ts
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -114,9 +113,9 @@ result envelope. Branch on `ok`; on failure `status` holds the HTTP status
 
 ```ts
 const result = await client.direct({
-  path: '/api/resource/{id}',
+  path: '/api/planet/{planet_id}/moon',
   method: 'GET',
-  params: { id: 'example_id' },
+  params: { planet_id: 'example_id' },
 })
 
 if (!result.ok) {
@@ -133,9 +132,9 @@ For endpoints not covered by entity methods:
 
 ```ts
 const result = await client.direct({
-  path: '/api/resource/{id}',
+  path: '/api/planet/{planet_id}/moon',
   method: 'GET',
-  params: { id: 'example' },
+  params: { planet_id: 'example' },
 })
 
 if (result.ok) {
@@ -148,9 +147,9 @@ if (result.ok) {
 
 ```ts
 const fetchdef = await client.prepare({
-  path: '/api/resource/{id}',
-  method: 'DELETE',
-  params: { id: 'example' },
+  path: '/api/planet/{planet_id}/moon',
+  method: 'GET',
+  params: { planet_id: 'example' },
 })
 
 // Inspect before sending
@@ -222,6 +221,10 @@ Create a `.env.local` file at the project root:
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
+
 Then run:
 
 ```bash
@@ -255,8 +258,10 @@ new VoxgigSolardemoSDK(options?: {
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
-| `feature` | `object` | Feature activation flags (e.g. `{ test: { active: true } }`). |
+| `headers` | `object` | Headers sent with every request. |
+| `feature` | `object` | Feature activation flags. |
 | `extend` | `Feature[]` | Additional feature instances to load. |
+| `system` | `object` | System overrides, such as a custom fetch function. |
 
 #### Methods
 
@@ -349,7 +354,7 @@ The `prepare()` method returns:
 | `name` |  |
 | `planet_id` |  |
 
-Operations: create, list, load, remove, update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -365,9 +370,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: create, list, load, remove, update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -382,11 +387,11 @@ Create an instance: `const moon = client.Moon()`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list(match)` | List entities matching the criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -431,11 +436,11 @@ Create an instance: `const planet = client.Planet()`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list(match)` | List entities matching the criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -474,12 +479,11 @@ const planet = await client.Planet().create({
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -592,7 +596,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -643,16 +647,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -686,7 +686,7 @@ voxgig-solardemo/
 ├── src/
 │   ├── VoxgigSolardemoSDK.ts        # Main SDK class
 │   ├── entity/             # Entity implementations
-│   ├── feature/            # Built-in features (Base, Test, Log)
+│   ├── feature/            # Feature implementations
 │   └── utility/            # Utility functions
 ├── test/                   # Test suites
 └── dist/                   # Compiled output
@@ -718,7 +718,8 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
 The `direct` method gives full control over the HTTP request. Use it
 for non-standard endpoints, bulk operations, or any path not modelled

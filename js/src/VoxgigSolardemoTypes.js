@@ -80,23 +80,17 @@
 /**
  * @typedef {Object} PlanetCreateData
  * @property {number} diameter
- * @property {string} [forbidReason]
- * @property {string} [forbidState]
  * @property {string} id
  * @property {string} kind
  * @property {string} name
- * @property {string} [terraformState]
  */
 
 /**
  * @typedef {Object} PlanetUpdateData
  * @property {string} id
  * @property {number} [diameter]
- * @property {string} [forbidReason]
- * @property {string} [forbidState]
  * @property {string} [kind]
  * @property {string} [name]
- * @property {string} [terraformState]
  */
 
 /**

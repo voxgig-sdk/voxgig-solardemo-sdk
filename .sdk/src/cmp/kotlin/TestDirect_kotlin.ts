@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -11,10 +12,20 @@ import {
   File,
   cmp,
   snakify,
-  isAuthActive, envName, envToken,
+  isAuthActive,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
   liveStrict,
   liveStrictNote,
+  pointIsGraphql,
+  graphqlDirectSkip,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 
@@ -58,7 +69,19 @@ function normalizePathParams(
 function kotlinLiteral(v: any): string {
   if (null == v) return 'null'
   if ('number' === typeof v || 'boolean' === typeof v) return String(v)
-  return JSON.stringify(String(v))
+  return JSON.stringify(String(v)).replace(/\$/g, '\\$')
+}
+
+
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `    if (setup.live && "TRUE" == System.getenv(${kotlinLiteral(LIVE_GETONLY_ENV)})
+        && setup.idmap[${kotlinLiteral(miss.key)}] == null) {
+      println(${kotlinLiteral(liveExcludedLines({ excluded: [miss] })[0])})
+      Assumptions.assumeTrue(false, ${kotlinLiteral(liveExcludedSummary({ excluded: [miss] }))})
+    }
+`).join('')
 }
 
 
@@ -67,13 +90,20 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const kotlinpackage: string = props.kotlinpackage
 
-  const PROJECTNAME = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
   const SDK = model.const.Name + 'SDK'
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
+  const svars = fact(model.main[KIT], 'server')
+  const serverEnvEntry = svars.map((v: any) =>
+    `      envm[${kotlinLiteral(ENVVAR.server[v.name])}] = ${kotlinLiteral(v.dflt)}\n`).join('')
+  const serverLiveField = 0 === svars.length ? '' :
+    '        mergedOpts["server"] = linkedMapOf<String, Any?>(' + svars.map((v: any) =>
+      kotlinLiteral(v.name) + ' to env[' + kotlinLiteral(ENVVAR.server[v.name]) + ']').join(', ') + ')\n'
 
   const opnames = Object.keys(entity.op || {})
   const hasLoad = opnames.includes('load')
@@ -87,14 +117,9 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const listOp = entity.op?.list
 
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -107,14 +132,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
-  const loadQuery = loadPoint?.g?.query || []
-  const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `      query["${q.n}"] = ${kotlinLiteral(q.ex)}`)
+  const loadLiveQueryLines = liveQueryExamples(loadPoint)
+    .map(([name, ex]) => `      query["${name}"] = ${kotlinLiteral(ex)}`)
     .join('\n')
 
   const loadAllHaveExamples =
@@ -124,7 +146,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     ? loadParams.map((p: any) => `      params["${p.n}"] = ${kotlinLiteral(p.ex)}`).join('\n')
     : ''
 
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const listLiveQueryLines = liveQueryExamples(listPoint)
+    .map(([name, ex]) => `      query["${name}"] = ${kotlinLiteral(ex)}\n`).join('')
 
   File({ name: entity.Name + 'DirectTest.' + target.ext }, () => {
 
@@ -156,7 +182,15 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
 
 `)
 
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`  @Test
+  fun directList${entity.Name}() {
+    Assumptions.assumeTrue(false, "${graphqlDirectSkip('list', entity.name)}")
+  }
+
+`)
+    }
+    else if (hasList && listPoint) {
       const listLiveParams = listParams.map((p: any) => {
         const key = p.n === 'id'
           ? entity.name + '01'
@@ -167,7 +201,8 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
       const listLiveIdKeys = listParams.length > 0
         ? listLiveParams.map((lp: any) => lp.key)
         : []
-      const listSkipBlock = listLiveIdKeys.length > 0
+      const listSkipBlock = getOnlyKeysBlock(model, entity, 'direct-list-' + entity.name, listLiveIdKeys) +
+        (listLiveIdKeys.length > 0
         ? `    if (setup.live) {
       for (liveKey in arrayOf<String>(${listLiveIdKeys.map((k: string) => `"${k}"`).join(', ')})) {
         if (setup.idmap[liveKey] == null) {
@@ -176,7 +211,7 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
       }
     }
 `
-        : ''
+        : '')
 
       Content(`  @Test
   fun directList${entity.Name}() {
@@ -190,13 +225,17 @@ ${liveStrictNote(liveStrict(model, target.name), '//', '  ')}
       reason == null,
       if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
     )
-${listSkipBlock}    val client = setup.client
+${listSkipBlock}    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+    val client = setup.client
 
 `)
 
-      if (listParams.length > 0) {
+      if (listParams.length > 0 || '' !== listLiveQueryLines) {
         Content(`    val params = linkedMapOf<String, Any?>()
-`)
+    val query = linkedMapOf<String, Any?>()
+${listLiveQueryLines ? '    if (setup.live) {\n' + listLiveQueryLines + '    }\n' : ''}`)
         listLiveParams.forEach((lp: any, i: number) => {
           const placeholder = 'direct0' + (i + 1)
           Content(`    if (setup.live) {
@@ -210,7 +249,8 @@ ${listSkipBlock}    val client = setup.client
     val result = client.direct(jm(
         "path", "${listPath}",
         "method", "GET",
-        "params", params))
+        "params", params,
+        "query", query))
 `)
       } else {
         Content(`
@@ -262,16 +302,26 @@ ${listSkipBlock}    val client = setup.client
 `)
     }
 
-    if (hasLoad && loadPoint) {
-      const ancestorParams = loadParams.filter((p: any) => p.n !== 'id')
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`  @Test
+  fun directLoad${entity.Name}() {
+    Assumptions.assumeTrue(false, "${graphqlDirectSkip('load', entity.name)}")
+  }
+
+`)
+    }
+    else if (hasLoad && loadPoint) {
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const ancestorParams = loadParams.filter((p: any) => p.n !== discovery?.param)
 
       const liveKey = (p: any) => p.n === 'id' ? entity.name + '01' : p.n.replace(/_id$/, '') + '01'
       let loadLiveIdKeys: string[] = []
       if (loadParams.length > 0 && !loadAllHaveExamples) {
-        loadLiveIdKeys = [...new Set((hasList ?
-          [...listParams, ...loadParams.filter((p: any) => p.n !== 'id')] : loadParams).map(liveKey))]
+        loadLiveIdKeys = [...new Set((discovery ?
+          [...listParams, ...ancestorParams] : loadParams).map(liveKey))]
       }
-      const loadSkipBlock = loadLiveIdKeys.length > 0
+      const loadSkipBlock = getOnlyKeysBlock(model, entity, 'direct-load-' + entity.name, loadLiveIdKeys) +
+        (loadLiveIdKeys.length > 0
         ? `    if (setup.live) {
       for (liveKey in arrayOf<String>(${loadLiveIdKeys.map(k => `"${k}"`).join(', ')})) {
         if (setup.idmap[liveKey] == null) {
@@ -280,7 +330,7 @@ ${listSkipBlock}    val client = setup.client
       }
     }
 `
-        : ''
+        : '')
 
       Content(`  @Test
   fun directLoad${entity.Name}() {
@@ -291,7 +341,10 @@ ${listSkipBlock}    val client = setup.client
       reason == null,
       if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
     )
-${loadSkipBlock}    val client = setup.client
+${loadSkipBlock}    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+    val client = setup.client
 
 `)
 
@@ -310,7 +363,7 @@ ${loadSkipBlock}    val client = setup.client
 
         if (loadAllHaveExamples) {
           Content(loadExampleLines + '\n')
-        } else if (hasList && loadParams.length > 0) {
+        } else if (discovery) {
           Content(`      val listParams = linkedMapOf<String, Any?>()
 `)
           for (const p of listParams) {
@@ -321,10 +374,19 @@ ${loadSkipBlock}    val client = setup.client
 `)
           }
 
+          // The list sends the query its route requires, as direct-list does.
+          const listQueryLines = liveQueryExamples(listPoint)
+            .map(([name, ex]) => `      listQuery[${kotlinLiteral(name)}] = ${kotlinLiteral(ex)}\n`).join('')
+          if ('' !== listQueryLines) {
+            Content(`      val listQuery = linkedMapOf<String, Any?>()
+` + listQueryLines)
+          }
+
           Content(`      val listResult = client.direct(jm(
           "path", "${listPath}",
           "method", "GET",
-          "params", listParams))
+          "params", listParams${'' === listQueryLines ? '' : `,
+          "query", listQuery`}))
       if (!liveOk(listResult)) {
         RunnerSupport.liveMiss(LIVE_STRICT, "Live list discovery failed: " + RunnerSupport.liveDescribe(listResult))
       }
@@ -336,14 +398,13 @@ ${loadSkipBlock}    val client = setup.client
         RunnerSupport.liveEmpty("The account has no ${entity.name} record to load")
       }
       val firstEnt = Helpers.toMapAny(listData[0]) ?: linkedMapOf()
-      if (firstEnt["id"] == null) {
+      if (firstEnt["${discovery.field}"] == null) {
         RunnerSupport.liveMiss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity")
       }
-      params["id"] = firstEnt["id"]
+      params["${discovery.param}"] = firstEnt["${discovery.field}"]
 `)
           for (const p of ancestorParams) {
-            const key = p.n.replace(/_id$/, '') + '01'
-            Content(`      params["${p.n}"] = setup.idmap["${key}"]
+            Content(`      params["${p.n}"] = setup.idmap["${liveKey(p)}"]
 `)
           }
         } else if (loadParams.length > 0) {
@@ -447,17 +508,19 @@ ${loadSkipBlock}    val client = setup.client
 
       val envm = linkedMapOf<String, Any?>()
       envm["${entidEnvVar}"] = linkedMapOf<String, Any?>()
-      envm["${PROJECTNAME}_TEST_LIVE"] = "FALSE"
-${authActive ? `      envm["${PROJECTNAME}_APIKEY"] = "NONE"\n` : ''}      val env = RunnerSupport.envOverride(envm)
+      envm["${ENVVAR.live}"] = "FALSE"
+${authActive ? `      envm["${ENVVAR.apikey}"] = ""\n` : ''}${authSecret ? `      envm["${ENVVAR.secret}"] = ""\n` : ''}${serverEnvEntry}      val env = RunnerSupport.envOverride(envm)
 
-      val live = "TRUE" == env["${PROJECTNAME}_TEST_LIVE"]
+      val live = "TRUE" == env["${ENVVAR.live}"]
 
       val setup = DirectSetup()
       setup.calls = calls
 
       if (live) {
-        val mergedOpts = linkedMapOf<String, Any?>()
-${authActive ? `        mergedOpts["apikey"] = env["${PROJECTNAME}_APIKEY"]\n` : ''}        setup.client = ${SDK}(mergedOpts)
+        // sdk-test-control.json's test.client.options seeds the live
+        // client; the generated fields below overwrite anything they name.
+        val mergedOpts = RunnerSupport.liveClientOptions()
+${authActive ? `        mergedOpts["apikey"] = env["${ENVVAR.apikey}"]\n` : ''}${authSecret ? `        mergedOpts["secret"] = env["${ENVVAR.secret}"]\n` : ''}${serverLiveField}        setup.client = ${SDK}(mergedOpts)
         setup.live = true
 
         var idmap: MutableMap<String, Any?> = linkedMapOf()
@@ -470,7 +533,10 @@ ${authActive ? `        mergedOpts["apikey"] = env["${PROJECTNAME}_APIKEY"]\n` :
         } else if (entidRaw is MutableMap<*, *>) {
           idmap = entidRaw as MutableMap<String, Any?>
         }
-        setup.idmap = idmap
+${0 === exampleIds.length ? '' : `        // A path parameter's example stands in for an id *_ENTID does not give.
+        idmap = LinkedHashMap(idmap)
+${exampleIds.map(([key, ex]) => `        if (idmap["${key}"] == null) idmap["${key}"] = ${kotlinLiteral(ex)}
+`).join('')}`}        setup.idmap = idmap
         return setup
       }
 

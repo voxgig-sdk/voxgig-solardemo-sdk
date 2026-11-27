@@ -1,4 +1,6 @@
 # VoxgigSolardemo SDK utility: result_body
+require_relative 'media'
+
 module VoxgigSolardemoUtilities
   ResultBody = ->(ctx) {
     response = ctx.response
@@ -20,11 +22,13 @@ module VoxgigSolardemoUtilities
   # response described; otherwise the code tells a wrong content type from
   # malformed JSON.
   UnreadableBody = ->(ctx, status, headers, text, sent, failed) {
-    ctype = BodyHeader.call(headers, "content-type")
-    agent = ctx.utility.clean.call(ctx, BodyHeader.call(sent, "user-agent")).to_s
+    ctype = VoxgigSolardemoUtilities.header_value(headers, "content-type")
+    agent = ctx.utility.clean.call(ctx, VoxgigSolardemoUtilities.header_value(sent, "user-agent")).to_s
     agent = "transport default" if agent.empty?
     detail = "HTTP #{status}, content-type #{ctype.empty? ? 'none' : ctype}, user-agent #{agent}"
-    detail += ", body: " + BodyPreview.call(ctx, text) unless text.nil?
+    # Only text is quoted: bytes are a file's, by the model or by their type.
+    quoted = !text.nil? && !VoxgigSolardemoUtilities.binary_response?(ctx.point, ctype)
+    detail += ", body: " + BodyPreview.call(ctx, text) if quoted
 
     if failed
       return "#{failed} (#{detail})" if failed.is_a?(String)
@@ -39,12 +43,6 @@ module VoxgigSolardemoUtilities
     else
       ctx.make_error("response_content_type", "response: expected JSON, got #{ctype} (#{detail})")
     end
-  }
-
-  BodyHeader = ->(headers, name) {
-    return "" unless headers.is_a?(Hash)
-    pair = headers.find { |key, _| key.to_s.downcase == name }
-    pair ? pair[1].to_s : ""
   }
 
   # Cleaned whole: a secret the bound would split could leave its prefix.

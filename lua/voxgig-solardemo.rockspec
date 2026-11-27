@@ -1,8 +1,8 @@
 package = "voxgig-sdk-voxgig-solardemo-sdk"
 version = "0.1.0-1"
 source = {
-  -- git+https (GitHub dropped git:// in 2022); pin the install to the release
-  -- tag pushed by `make publish`, and point at the lua/ subdir of the monorepo.
+  -- git+https (GitHub dropped git:// in 2022), at the release tag
+  -- `make publish` pushes when there is one, in the package's subdir.
   url = "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git",
   tag = "lua/v0.1.0",
   dir = "voxgig-solardemo-sdk/lua"

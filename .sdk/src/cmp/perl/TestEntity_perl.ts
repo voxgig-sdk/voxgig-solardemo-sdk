@@ -1,4 +1,4 @@
-import { flowSteps, opReachable, invalidRequest } from '@voxgig/sdkgen'
+import { flowSteps, opReachable, invalidRequest, validateSeeds, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -18,10 +18,11 @@ import {
   each,
   buildIdNames,
   getMatchEntries,
-  isAuthActive, envName, envToken,
-  serverVarEnv,
-  serverVariables,
+  isAuthActive, entityRecordIdField,
   liveFlowNeeds, liveStrict, liveStrictNote,
+  liveGates, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveRouteExamples, liveStepExamples, flowLoadRoute, flowLoadReadsRecord,
+  liveEntity, liveIdentity, liveRepeatsId, liveLoadComparesId, liveUnrouted,
 } from '@voxgig/sdkgen'
 
 import { perlStringLiteral } from './utility_perl'
@@ -44,10 +45,19 @@ type OpGen = (ctx: GenCtx, step: ModelEntityFlowStep, index: number) => void
 // The live prologue of a flow built from offline fixtures: blocked without
 // the ids it binds, a create-less load reading the first listed record, and
 // a lenient run reporting a failed check without failing the test.
-function liveFlowGate(N: string, entity: any, needs: any, entidEnv: string,
+function liveFlowGate(N: string, entity: any, needs: any, identity: any, entidEnv: string,
   strict: boolean): string {
   const label = entity.name + ': basic flow'
   let out = ''
+  if (null != needs.examples) {
+    out += `  if ($setup->{live}) {
+    my %live_ex = (${needs.examples.map(([k, ex]: any) => perlLit(k) + ' => ' + perlLit(ex)).join(', ')});
+    for my $k (sort keys %live_ex) {
+      $setup->{idmap}{$k} = $live_ex{$k} if $setup->{synthetic_only} || !defined $setup->{idmap}{$k};
+    }
+  }
+`
+  }
   if (0 < needs.keys.length) {
     out += `  if ($setup->{live}) {
     my @missing = grep { $setup->{synthetic_only} || !defined $setup->{idmap}{$_} } (${needs.keys.map((k: string) => `'${k}'`).join(', ')});
@@ -66,12 +76,28 @@ function liveFlowGate(N: string, entity: any, needs: any, entidEnv: string,
 `
   }
   out += '  my $client = $setup->{client};\n'
-  if (null != needs.discover) {
-    const match = Object.entries(needs.discover)
-      .map(([k, v]: any) => `'${k}' => $setup->{idmap}{'${v}'}`).join(', ')
+  if (null != needs.record) {
+    const id = `$setup->{idmap}{${perlLit(needs.record)}}`
     out += `  if ($setup->{live}) {
     ${N}TestRunner::live_existing($setup, LIVE_STRICT, '${label}', '${entity.name}',
-      sub { $client->${entity.Name}(undef)->list({${match}}, undef) }) or last BASIC_FLOW;
+      sub { [{ 'id' => ${id} }] }, ${perlLit(identity.field)}, ${id}) or last BASIC_FLOW;
+  }
+`
+  }
+  if (null != needs.discover) {
+    const match = '{' + Object.entries(needs.discover)
+      .map(([k, v]: any) => `'${k}' => $setup->{idmap}{'${v}'}`)
+      .concat(liveRouteExamples(entity, 'list', Object.keys(needs.discover))
+        .map(([k, ex]) => `'${k}' => ${perlLit(ex)}`)).join(', ') + '}'
+    const omit = needs.unrouted || []
+    out += `  if ($setup->{live}) {
+    my $live_id = $setup->{synthetic_only} ? undef : $setup->{idmap}{${perlLit(identity.key)}};
+${undefined === identity.ex ? '' : `    $live_id //= ${perlLit(identity.ex)};
+`}${0 === omit.length ? '' : `    my $live_match = ${match};
+${omit.map(([name, key]: [string, string]) => `    delete $live_match->{${perlLit(name)}} if ${unsupplied(key)};\n`).join('')}`}    ${N}TestRunner::live_pace();
+    ${N}TestRunner::live_existing($setup, LIVE_STRICT, '${label}', '${entity.name}',
+      sub { $client->${entity.Name}(undef)->list(${0 === omit.length ? match : '$live_match'}, undef) }, ${perlLit(identity.field)}, $live_id)
+      or last BASIC_FLOW;
   }
 `
   }
@@ -88,7 +114,7 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const ctx$ = props.ctx$
   const model: Model = ctx$.model
 
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const target = props.target
 
   const basicflow: ModelEntityFlow | undefined =
@@ -98,39 +124,39 @@ const TestEntity = cmp(function TestEntity(props: any) {
   }
 
   const N = model.const.Name
-  const PROJUPPER = envName(model)
-  const ENTUPPER = envToken(entity.name)
-  const ENTIDVAR = `${PROJUPPER}_TEST_${ENTUPPER}_ENTID`
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJUPPER = ENVVAR.prefix
+  const ENTIDVAR = ENVVAR.entid[entity.name]
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n    '${PROJUPPER}_APIKEY' => '',`
+    ? `\n    '${ENVVAR.apikey}' => '',${authSecret ? `\n    '${ENVVAR.secret}' => '',` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `\n        'apikey' => $env->{'${PROJUPPER}_APIKEY'},`
+    ? `\n        'apikey' => $env->{'${ENVVAR.apikey}'},${authSecret ? `\n        'secret' => $env->{'${ENVVAR.secret}'},` : ''}`
     : ''
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: makeOptions raises rather than
   // request a URL with a literal `{account_id}` in it. So the live suite
   // takes them from the environment the same way it takes the apikey.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n    '${serverVarEnv(PROJUPPER, v.name)}' => ${perlStringLiteral(v.dflt)},`).join('')
+    .map((v: any) => `\n    '${ENVVAR.server[v.name]}' => ${perlStringLiteral(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' : `
         'server' => {${svars
       .map((v: any) => `
-          '${v.name}' => $env->{'${serverVarEnv(PROJUPPER, v.name)}'},`).join('')}
+          '${v.name}' => $env->{'${ENVVAR.server[v.name]}'},`).join('')}
         },`
 
   const idnames = buildIdNames(entity, basicflow)
   const idnamesStr = idnames.map(n => `'${n}'`).join(', ')
 
   const allSteps = Object.values(flowSteps(basicflow)) as any[]
-  const updateStep = allSteps.find((s: any) => s.o === 'update')
-  const updateData = updateStep?.d
-    ? Object.entries(updateStep.d).filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
-    : []
+  const updateData = Object.entries(Object.assign({}, ...allSteps
+    .filter((s: any) => 'update' === s.o || 'patch' === s.o).map((s: any) => s.d || {})))
+    .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
   const aliases = updateData.map(([k, v]: any) => [k, v])
 
   // An entity whose basic flow has no steps yields an EMPTY list, and Perl's
@@ -145,7 +171,6 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const genCtx: GenCtx = { model, entity, flow: basicflow, N, PROJUPPER }
 
   const strict = liveStrict(model, target.name)
-  const needs = liveFlowNeeds(entity, basicflow)
   // The failure tests stream and list with no match, so they need a list a
   // bare call can reach.
   const hasList = opReachable((entity.op as any)?.list, [])
@@ -173,7 +198,7 @@ use constant LIVE_STRICT => ${strict ? 1 : 0};
   my $ent = $testsdk->${entity.Name}(undef);
   ok(defined $ent, '${entity.name}: create instance');
 }
-${hasList ? failureTests(N, entity) : ''}${validateTest(N, entity)}
+${hasList ? failureTests(N, entity) + validateListTest(N, entity) : ''}${validateTest(N, entity)}
 BASIC_FLOW: {
   my $setup = ${entity.name}_basic_setup(undef);
   my $_live = $setup->{live} ? 1 : 0;
@@ -187,14 +212,17 @@ BASIC_FLOW: {
       last BASIC_FLOW;
     }
   }
-${liveFlowGate(N, entity, needs, ENTIDVAR, strict)}  my %V;
-
 `)
 
-    // Check if the flow has a create step
-    const flowHasCreate = allSteps.some((s: any) => s.o === 'create')
-    if (!flowHasCreate) {
-      Content(`  # Bootstrap entity data from existing test data.
+    const flowBody = (flow: any) => {
+      const steps = flowSteps(flow) as any[]
+      Content(liveFlowGate(N, entity, liveFlowNeeds(entity, flow), liveIdentity(entity, flow), ENTIDVAR, strict) +
+        '  my %V;\n\n')
+
+      // Check if the flow has a create step
+      const flowHasCreate = steps.some((s: any) => s.o === 'create')
+      if (!flowHasCreate) {
+        Content(`  # Bootstrap entity data from existing test data.
   $V{${entity.name}_ref01_data_raw} = Voxgig::Struct::items(${N}Helpers::to_map(
     ${N}Helpers::gpath($setup->{data}, 'existing.${entity.name}')));
   $V{${entity.name}_ref01_data} = undef;
@@ -203,20 +231,46 @@ ${liveFlowGate(N, entity, needs, ENTIDVAR, strict)}  my %V;
   }
 
 `)
+      }
+
+      // Model-driven step iteration
+      each(steps, (step: any, index: any) => {
+        const opgen: OpGen = GENERATE_OP[step.o]
+        if (opgen) {
+          Content(`  ${N}TestRunner::live_pace() if $setup->{live};\n`)
+          opgen({ ...genCtx, flow }, step, index)
+          Content('\n')
+        }
+      })
+
+      Content(strict ? '' : `    1;
+  } or ${N}TestRunner::live_observe($@, $setup, LIVE_STRICT, '${entity.name}: basic flow');
+`)
     }
 
-    // Model-driven step iteration
-    each(flowSteps(basicflow), (step: any, index: any) => {
-      const opgen: OpGen = GENERATE_OP[step.o]
-      if (opgen) {
-        opgen(genCtx, step, index)
-        Content('\n')
-      }
-    })
+    for (const { getOnly, plan, runs } of liveGates(entity, basicflow)) {
+      Content(`  if ($setup->{live}${getOnly ? ` && ($ENV{${LIVE_GETONLY_ENV}} // '') eq 'TRUE'` : ''}) {
+${liveExcludedLines(plan).map((line) => '    note(' + perlLit(line) + ');\n').join('')}`)
+      if (!runs) {
+        Content(`    note(${perlLit(liveExcludedSummary(plan))});
+    pass('${entity.name}: basic flow skipped, the live run leaves no step to run');
+    last BASIC_FLOW;
+  }
 
-    Content(`${strict ? '' : `    1;
-  } or ${N}TestRunner::live_observe($@, $setup, LIVE_STRICT, '${entity.name}: basic flow');
-`}}
+`)
+      }
+      else {
+        flowBody(plan.flow)
+        Content(`    last BASIC_FLOW;
+  }
+
+`)
+      }
+    }
+
+    flowBody(basicflow)
+
+    Content(`}
 
 `)
 
@@ -226,13 +280,13 @@ ${liveFlowGate(N, entity, needs, ENTIDVAR, strict)}  my %V;
   ${N}TestRunner::load_env_local();
 
   my $entity_data_file = Cwd::abs_path(
-    "$FindBin::Bin/../../.sdk/test/entity/${entity.name}/${entity.Name}TestData.json");
+    "$FindBin::Bin/../${ctx$.stdrep.SDKREL}/.sdk/test/entity/${entity.name}/${entity.Name}TestData.json");
   my $entity_data = do {
     open my $fh, '<:raw', $entity_data_file or die "Cannot open $entity_data_file: $!";
     local $/;
     Voxgig::Struct::parse_json(<$fh>);
   };
-
+${fixtureIdentity(entity)}
   my $options = {};
   $options->{entity} = $entity_data->{existing};
 
@@ -256,7 +310,7 @@ ${liveFlowGate(N, entity, needs, ENTIDVAR, strict)}  my %V;
 
   my $env = ${N}TestRunner::env_override({
     '${ENTIDVAR}' => $idmap,
-    '${PROJUPPER}_TEST_LIVE' => 'FALSE',
+    '${ENVVAR.live}' => 'FALSE',
     '${PROJUPPER}_TEST_EXPLAIN' => 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
   });
 
@@ -275,7 +329,7 @@ ${liveFlowGate(N, entity, needs, ENTIDVAR, strict)}  my %V;
     }
 
     Content(`
-  if ((($env->{'${PROJUPPER}_TEST_LIVE'}) || '') eq 'TRUE') {
+  if ((($env->{'${ENVVAR.live}'}) || '') eq 'TRUE') {
     my $merged_opts = Voxgig::Struct::merge([
       # FIRST, so the generated fields below win: sdk-test-control.json's
       # test.client.options adds to the live client, it does not redirect it.
@@ -287,7 +341,7 @@ ${liveFlowGate(N, entity, needs, ENTIDVAR, strict)}  my %V;
     $client = ${N}SDK->new(${N}Helpers::to_map($merged_opts));
   }
 
-  my $live = ((($env->{'${PROJUPPER}_TEST_LIVE'}) || '') eq 'TRUE') ? 1 : 0;
+  my $live = ((($env->{'${ENVVAR.live}'}) || '') eq 'TRUE') ? 1 : 0;
   return {
     'client' => $client,
     'data' => $entity_data,
@@ -314,7 +368,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`  # CREATE
 `)
@@ -339,7 +393,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
   ok(defined $V{${datavar}}, '${entity.name} create: data');
 `)
   if (null != ctx.entity.id) {
-    Content(`  ok(defined $V{${datavar}}{id}, '${entity.name} create: id');
+    Content(`  ok(defined $V{${datavar}}{${rid(ctx.entity)}}, '${entity.name} create: id');
 `)
   }
 }
@@ -353,7 +407,7 @@ const generateList: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`  # LIST
 `)
@@ -376,6 +430,7 @@ const generateList: OpGen = (ctx, step, index) => {
     Content(`  };
 `)
   }
+  Content(liveFill(entity, step, matchvar, flow))
 
   Content(`
   $V{${listvar}_result} = $V{${entvar}}->list($V{${matchvar}}, undef);
@@ -395,7 +450,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
   $V{found_item} = Voxgig::Struct::select(
     ${N}TestRunner::entity_list_to_data($V{${listvar}_result}),
-    { 'id' => $V{${refDataVar}}{id} });
+    { '${entityRecordIdField(entity)}' => $V{${refDataVar}}{${rid(entity)}} });
   ok(!Voxgig::Struct::isempty($V{found_item}), '${entity.name} list: item exists');
 `)
       } else if ('ItemNotExists' === validator.apply && hasRefData) {
@@ -403,7 +458,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
   $V{not_found_item} = Voxgig::Struct::select(
     ${N}TestRunner::entity_list_to_data($V{${listvar}_result}),
-    { 'id' => $V{${refDataVar}}{id} });
+    { '${entityRecordIdField(entity)}' => $V{${refDataVar}}{${rid(entity)}} });
   ok(Voxgig::Struct::isempty($V{not_found_item}), '${entity.name} list: item not exists');
 `)
       }
@@ -423,11 +478,11 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasEntIdU = null != entity.id
 
-  Content(`  # UPDATE
+  Content(`  # ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`  $V{${entvar}} = $client->${entity.Name}(undef);
@@ -436,7 +491,7 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   Content(`  $V{${datavar}_up} = {
 `)
   if (hasEntIdU) {
-    Content(`    'id' => $V{${srcdatavar}}{id},
+    Content(`    'id' => $V{${srcdatavar}}{${rid(entity)}},
 `)
   }
 
@@ -466,19 +521,19 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   }
 
   Content(`
-  $V{${resdatavar}_result} = $V{${entvar}}->update($V{${datavar}_up}, undef);
+  $V{${resdatavar}_result} = $V{${entvar}}->${step.o}($V{${datavar}_up}, undef);
   $V{${resdatavar}} = ${N}Helpers::to_map(ref($V{${resdatavar}_result}) && $V{${resdatavar}_result}->can('data_get') ? $V{${resdatavar}_result}->data_get : $V{${resdatavar}_result});
-  ok(defined $V{${resdatavar}}, '${entity.name} update: data');
+  ok(defined $V{${resdatavar}}, '${entity.name} ${step.o}: data');
 `)
   if (hasEntIdU) {
-    Content(`  is($V{${resdatavar}}{id}, $V{${datavar}_up}{id}, '${entity.name} update: id');
+    Content(`  is($V{${resdatavar}}{${rid(entity)}}, $V{${datavar}_up}{id}, '${entity.name} ${step.o}: id')${liveDeclared(liveRepeatsId(entity))};
 `)
   }
 
   if (step.s) {
     for (const spec of step.s) {
       if ('TextFieldMark' === spec.apply && null != step.i.textfield) {
-        Content(`  is($V{${resdatavar}}{ $V{${markdefvar}_name} }, $V{${markdefvar}_value}, '${entity.name} update: mark');
+        Content(`  is($V{${resdatavar}}{ $V{${markdefvar}_name} }, $V{${markdefvar}_value}, '${entity.name} ${step.o}: mark');
 `)
       }
     }
@@ -496,7 +551,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const hasEntVar = priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const flowHasCreate = Object.values(flowSteps(flow)).some((s: any) => (s as any).o === 'create')
   const preambleRef = entity.name + '_ref01'
@@ -518,7 +573,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
     Content(`  $V{${entvar}} = $client->${entity.Name}(undef);
 `)
   }
-  if (!hasSrcData && hasEntId) {
+  if (!hasSrcData && (hasEntId || flowLoadReadsRecord(entity, step))) {
     Content(`  $V{${srcdatavar}_raw} = Voxgig::Struct::items(${N}Helpers::to_map(
     ${N}Helpers::gpath($setup->{data}, 'existing.${entity.name}')));
   $V{${srcdatavar}} = undef;
@@ -529,17 +584,17 @@ const generateLoad: OpGen = (ctx, step, index) => {
   }
   if (hasEntId) {
     Content(`  $V{${matchvar}} = {
-    'id' => $V{${srcdatavar}}{id},
+    'id' => $V{${srcdatavar}}{${rid(entity)}},
   };
-${parentMatch(step, matchvar)}  $V{${datavar}_loaded} = $V{${entvar}}->load($V{${matchvar}}, undef);
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}  $V{${datavar}_loaded} = $V{${entvar}}->load($V{${matchvar}}, undef);
   $V{${datavar}_load_result} = ${N}Helpers::to_map(ref($V{${datavar}_loaded}) && $V{${datavar}_loaded}->can('data_get') ? $V{${datavar}_loaded}->data_get : $V{${datavar}_loaded});
   ok(defined $V{${datavar}_load_result}, '${entity.name} load: data');
-  is($V{${datavar}_load_result}{id}, $V{${srcdatavar}}{id}, '${entity.name} load: id');
+  is($V{${datavar}_load_result}{${rid(entity)}}, $V{${srcdatavar}}{${rid(entity)}}, '${entity.name} load: id')${liveDeclared(liveLoadComparesId(entity, flow))};
 `)
   }
   else {
     Content(`  $V{${matchvar}} = {};
-${parentMatch(step, matchvar)}  $V{${datavar}_loaded} = $V{${entvar}}->load($V{${matchvar}}, undef);
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}  $V{${datavar}_loaded} = $V{${entvar}}->load($V{${matchvar}}, undef);
   ok(defined $V{${datavar}_loaded}, '${entity.name} load: data');
 `)
   }
@@ -555,7 +610,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`  # REMOVE
 `)
@@ -565,7 +620,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
   }
   // Always match the prior-created entity by id to avoid mock-order flakes.
   Content(`  $V{${matchvar}} = {
-    'id' => $V{${srcdatavar}}{id},
+    'id' => $V{${srcdatavar}}{${rid(entity)}},
   };
 ${parentMatch(step, matchvar)}  $V{${entvar}}->remove($V{${matchvar}}, undef);
   pass('${entity.name} remove: completed');
@@ -573,9 +628,58 @@ ${parentMatch(step, matchvar)}  $V{${entvar}}->remove($V{${matchvar}}, undef);
 }
 
 
+// The record field the entity's identity is read from, as a Perl hash key.
+function rid(entity: any): string {
+  const field = entityRecordIdField(entity)
+  return /^[A-Za-z_]\w*$/.test(field) ? field : `'${field}'`
+}
+
+
+// `is` compares string forms, so a number matches the path value naming it;
+// live, it compares only as the live entity harness does.
+function liveDeclared(compares: boolean): string {
+  return compares ? '' : ' unless $setup->{live}'
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  return 'id' === entityRecordIdField(entity) ? '' : `
+  for my $fixture_rec (values %{ $entity_data->{existing}{'${entity.name}'} // {} }) {
+    $fixture_rec->{${rid(entity)}} = $fixture_rec->{id}
+      if ref $fixture_rec eq 'HASH' && defined $fixture_rec->{id};
+  }
+`
+}
+
+
 // A child's route names its parents, and an entity no earlier step has
 // filled knows none of them, so the call itself gives each parent id. A live
 // ENTID may key a parent by its field name, the fixture by its own name.
+function perlLit(value: any): string {
+  return 'string' === typeof value ? perlStringLiteral(value) : true === value ? '1' :
+    false === value ? '0' : String(value)
+}
+
+
+// A live step sends each example its route requires and the step leaves unbound.
+function liveFill(entity: any, step: any, matchvar: string, flow: any): string {
+  const fills = liveStepExamples(entity, step, flow)
+  const omit = liveUnrouted(entity, step, flow)
+  return 0 === fills.length + omit.length ? '' : `  if ($setup->{live}) {
+${fills.map(([k, ex]) => `    $V{${matchvar}}{'${k}'} = ${perlLit(ex)};\n`).join('')}${omit.map(([name, key]) =>
+    `    delete $V{${matchvar}}{${perlLit(name)}} if ${unsupplied(key)};\n`).join('')}  }
+`
+}
+
+
+// A binding the live route does not take is sent only as *_ENTID gives it.
+function unsupplied(key: string): string {
+  return `$setup->{synthetic_only} || !defined $setup->{idmap}{${perlLit(key)}}`
+}
+
+
 function parentMatch(step: any, matchvar: string): string {
   return Object.entries(step.m || {})
     .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
@@ -584,10 +688,39 @@ function parentMatch(step: any, matchvar: string): string {
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding offline.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string): string {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar)
+  }
+  if (route.offline) {
+    const own = route.args.filter((arg) => null != arg.field)
+    return parentMatch(step, matchvar) + (0 === own.length ? '' : `  if (!$setup->{live}) {
+${own.map((arg) => `    {
+      my $own = $V{${srcdatavar}}{'${arg.field}'};
+      $V{${matchvar}}{'${arg.name}'} = $own if defined $own && !ref $own;
+    }
+`).join('')}  }
+`)
+  }
+  return route.args.map((arg) => {
+    const bound = arg.idmap.map((key) => `$setup->{idmap}{'${key}'}`).join(' // ')
+    const own = `$V{${srcdatavar}}{'${arg.field}'}`
+    return `  $V{${matchvar}}{'${arg.name}'} = ${null == arg.field ? bound :
+      `(defined ${own} && !ref ${own}) ? ${own} : (${bound})`};
+`
+  }).join('')
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }
@@ -704,6 +837,37 @@ SKIP: {
   is(ref $err ? $err->{code} : undef, 'validate_failed',
     '${entity.name}: an invalid request fails with validate_failed');
 }
+`
+}
+
+
+// A list response is checked record by record, not entity by entity.
+function validateListTest(N: string, entity: ModelEntity): string {
+  const seeds = validateSeeds(entity)
+  if (null == seeds) {
+    return ''
+  }
+  const seed = (rec: Record<string, any>) =>
+    '{ entity => { ' + perlStringLiteral(entity.name) + ' => { v1 => { ' +
+    Object.entries(rec).map(([k, v]) => perlStringLiteral(k) + ' => ' +
+      ('string' === typeof v ? perlStringLiteral(v) : String(v))).join(', ') +
+    ' } } } }'
+  return `
+SKIP: {
+  skip('feature not present in this SDK: validate', ${null == seeds.invalid ? 1 : 2})
+    unless ${N}Config::shared_config()->{feature}{validate};
+  my $opts = { feature => { validate => { active => 1, request => 0, response => 1 } } };
+  my $listed = eval {
+    ${N}SDK->test(${seed(seeds.valid)}, $opts)->${entity.Name}(undef)->list(undef, undef)
+  };
+  is_deeply([map { $_->data_get->{id} } @{ $listed // [] }], ['v1'],
+    '${entity.name}: validate checks each listed record') or diag("$@");
+${null == seeds.invalid ? '' : `  my $err = eval {
+    ${N}SDK->test(${seed(seeds.invalid)}, $opts)->${entity.Name}(undef)->list(undef, undef); undef
+  } // $@;
+  is(ref $err ? $err->{code} : undef, 'validate_failed',
+    '${entity.name}: a mistyped listed record fails with validate_failed');
+`}}
 `
 }
 

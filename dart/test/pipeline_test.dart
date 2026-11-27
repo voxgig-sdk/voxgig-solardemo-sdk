@@ -207,6 +207,42 @@ void tests() {
       equal(true, identical(r, ctx.op.points[0]));
     });
 
+    String pointCode(List<dynamic> declared, dynamic called) {
+      final ctx = base({
+        'op': {
+          'name': 'load',
+          'points': [
+            for (final action in declared)
+              {
+                'method': 'DELETE',
+                'parts': ['items', 'all'],
+                'select': null == action ? {} : {r'$action': action}
+              }
+          ]
+        },
+        'options': {'allow': allow}
+      });
+      ctx.reqmatch = null == called ? {} : {r'$action': called};
+      final r = stdutil.makePoint(ctx);
+      return iserr(r) ? errcode(r) : 'ok';
+    }
+
+    test('makePoint reaches a lone action route only with its action', (t) {
+      equal('point_action_required', pointCode(['purge'], null));
+      equal('ok', pointCode(['purge'], 'purge'));
+      equal('point_action_invalid', pointCode(['purge'], 'other'));
+    });
+
+    test('makePoint refuses an action a lone plain route does not have', (t) {
+      equal('point_action_invalid', pointCode([null], 'nope'));
+      equal('ok', pointCode([null], null));
+    });
+
+    test('makePoint needs an action when every route is one', (t) {
+      equal('point_action_required', pointCode(['purge', 'archive'], null));
+      equal('ok', pointCode(['purge', 'archive'], 'archive'));
+    });
+
     test('makePoint short-circuits a feature-supplied point', (t) {
       final preset = {'method': 'GET'};
       final ctx = base({
@@ -818,6 +854,54 @@ void tests() {
       stdutil.prepareAuth(ctx);
       equal(null, ctx.spec.headers['authorization']);
     });
+
+    test('a key in the query goes under its name, in no header', (t) {
+      final ctx = authCtx({
+        'apikey': 'K',
+        'auth': {'prefix': '', 'in': 'query', 'name': 'api_key'}
+      }, {});
+      stdutil.prepareAuth(ctx);
+      equal('K', ctx.spec.query['api_key']);
+      equal(null, ctx.spec.headers['authorization']);
+    });
+
+    test('Basic under query placement sets no authorization header', (t) {
+      final ctx = authCtx({
+        'apikey': 'K',
+        'secret': 'S',
+        'auth': {
+          'prefix': 'Basic',
+          'basic': true,
+          'in': 'query',
+          'name': 'api_key'
+        }
+      }, {});
+      stdutil.prepareAuth(ctx);
+      equal(null, ctx.spec.headers['authorization']);
+      equal('K', ctx.spec.query['api_key']);
+    });
+
+    test('a key in a cookie replaces its own piece of the cookie header', (t) {
+      final ctx = authCtx({
+        'apikey': 'K',
+        'auth': {'prefix': '', 'in': 'cookie', 'name': 'session'}
+      }, {
+        'cookie': 'a=1; session=old'
+      });
+      stdutil.prepareAuth(ctx);
+      equal('a=1; session=K', ctx.spec.headers['cookie']);
+      equal(null, ctx.spec.headers['authorization']);
+    });
+
+    test('a named header carries the key under its lower-cased name', (t) {
+      final ctx = authCtx({
+        'apikey': 'K',
+        'auth': {'prefix': '', 'name': 'X-Api-Key'}
+      }, {});
+      stdutil.prepareAuth(ctx);
+      equal('K', ctx.spec.headers['x-api-key']);
+      equal(null, ctx.spec.headers['authorization']);
+    });
   });
 
   describe('pipeline:result helpers', () {
@@ -1078,6 +1162,14 @@ void tests() {
       final out = mockEnvelope(spec, [{'id': 'b1'}, {'id': 'b2'}]);
       deepEqual([{'badge': {'id': 'b1'}}, {'badge': {'id': 'b2'}}], out);
       deepEqual([{'id': 'b1'}, {'id': 'b2'}], vs.transform({'body': out}, spec));
+    });
+
+    test('a deeper response path answers every segment', (t) {
+      final one = mockEnvelope('`body.data.thing`', {'id': 'g1'});
+      deepEqual({'data': {'thing': {'id': 'g1'}}}, one);
+      deepEqual({'id': 'g1'}, vs.transform({'body': one}, '`body.data.thing`'));
+      final many = mockEnvelope('`body.data.things`', [{'id': 'g1'}, {'id': 'g2'}]);
+      deepEqual([{'id': 'g1'}, {'id': 'g2'}], vs.transform({'body': many}, '`body.data.things`'));
     });
   });
 }

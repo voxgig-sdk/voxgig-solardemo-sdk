@@ -49,8 +49,57 @@ class PlanetEntityTest {
         if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
       )
     }
+    if (setup.live && "TRUE" == System.getenv("VOXGIG_GETONLY_GUARD")) {
+      println("LIVE STEP {\"id\":\"planet.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/forbid\"}")
+      println("LIVE STEP {\"id\":\"planet.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}\"}")
+      println("LIVE STEP {\"id\":\"planet.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}\"}")
+      println("LIVE STEP {\"id\":\"planet.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+    val client = setup.client
+    if (setup.live) {
+      val liveId: Any? = if (setup.syntheticOnly) null else setup.idmap?.get("planet01")
+      RunnerSupport.livePace()
+      RunnerSupport.liveExisting(setup.data!!, LIVE_STRICT, "planet",
+        "id", liveId) {
+        client.planet(null).list(linkedMapOf<String, Any?>(), null)
+      }
+    }
+
+    // Bootstrap entity data from existing test data (no create step in flow).
+    val planetRef01DataRaw = Struct.items(Helpers.toMapAny(
+        Struct.getpath(setup.data, "existing.planet")))
+    val planetRef01Data: MutableMap<String, Any?> = if (planetRef01DataRaw.isEmpty())
+        linkedMapOf() else (Helpers.toMapAny(planetRef01DataRaw[0][1]) ?: linkedMapOf())
+
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+    // LIST
+    val planetRef01Ent = client.planet(null)
+    val planetRef01Match = linkedMapOf<String, Any?>()
+
+    val planetRef01ListResult = planetRef01Ent.list(planetRef01Match, null)
+    assertTrue(planetRef01ListResult is List<*>,
+        "expected list result to be an array, got " + planetRef01ListResult)
+
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+    // LOAD
+    val planetRef01MatchDt0 = linkedMapOf<String, Any?>()
+    planetRef01MatchDt0["id"] = planetRef01Data["id"]
+    val planetRef01DataDt0Loaded = planetRef01Ent.load(planetRef01MatchDt0, null)
+    val planetRef01DataDt0LoadResult = Helpers.toMapAny(if (planetRef01DataDt0Loaded is SdkEntity) planetRef01DataDt0Loaded.data() else planetRef01DataDt0Loaded) ?: linkedMapOf()
+    assertNotNull(planetRef01DataDt0LoadResult, "expected load result to be a map")
+    assertTrue(RunnerSupport.liveSameId(planetRef01DataDt0LoadResult["id"], planetRef01Data["id"]), "expected load result id to match")
+
+      return
+    }
+
     val client = setup.client
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // CREATE
     val planetRef01Ent = client.planet(null)
     var planetRef01Data: MutableMap<String, Any?> = (Helpers.toMapAny(Struct.getprop(
@@ -61,6 +110,9 @@ class PlanetEntityTest {
     assertNotNull(planetRef01Data, "expected create result to be a map")
     assertNotNull(planetRef01Data["id"], "expected created entity to have an id")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // LIST
     val planetRef01Match = linkedMapOf<String, Any?>()
 
@@ -74,6 +126,9 @@ class PlanetEntityTest {
         Struct.jm("id", planetRef01Data["id"]))
     assertFalse(Struct.isempty(foundItem), "expected to find created entity in list")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // UPDATE
     val planetRef01DataUp0Up = linkedMapOf<String, Any?>()
     planetRef01DataUp0Up["id"] = planetRef01Data["id"]
@@ -85,25 +140,32 @@ class PlanetEntityTest {
     val planetRef01ResdataUp0Result = planetRef01Ent.update(planetRef01DataUp0Up, null)
     val planetRef01ResdataUp0 = Helpers.toMapAny(if (planetRef01ResdataUp0Result is SdkEntity) planetRef01ResdataUp0Result.data() else planetRef01ResdataUp0Result) ?: linkedMapOf()
     assertNotNull(planetRef01ResdataUp0, "expected update result to be a map")
-    assertEquals(planetRef01DataUp0Up["id"], planetRef01ResdataUp0["id"],
-        "expected update result id to match")
+    assertTrue(RunnerSupport.liveSameId(planetRef01ResdataUp0["id"], planetRef01DataUp0Up["id"]), "expected update result id to match")
     assertEquals(planetRef01MarkdefUp0Value, planetRef01ResdataUp0[planetRef01MarkdefUp0Name],
         "expected " + planetRef01MarkdefUp0Name + " to be updated")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // LOAD
     val planetRef01MatchDt0 = linkedMapOf<String, Any?>()
     planetRef01MatchDt0["id"] = planetRef01Data["id"]
     val planetRef01DataDt0Loaded = planetRef01Ent.load(planetRef01MatchDt0, null)
     val planetRef01DataDt0LoadResult = Helpers.toMapAny(if (planetRef01DataDt0Loaded is SdkEntity) planetRef01DataDt0Loaded.data() else planetRef01DataDt0Loaded) ?: linkedMapOf()
     assertNotNull(planetRef01DataDt0LoadResult, "expected load result to be a map")
-    assertEquals(planetRef01Data["id"], planetRef01DataDt0LoadResult["id"],
-        "expected load result id to match")
+    assertTrue(RunnerSupport.liveSameId(planetRef01DataDt0LoadResult["id"], planetRef01Data["id"]), "expected load result id to match")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // REMOVE
     val planetRef01MatchRm0 = linkedMapOf<String, Any?>()
     planetRef01MatchRm0["id"] = planetRef01Data["id"]
     planetRef01Ent.remove(planetRef01MatchRm0, null)
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // LIST
     val planetRef01MatchRt0 = linkedMapOf<String, Any?>()
 
@@ -271,8 +333,11 @@ class PlanetEntityTest {
 
       val live = "TRUE" == env["VOXGIG_SOLARDEMO_TEST_LIVE"]
       if (live) {
-        val liveOpts = linkedMapOf<String, Any?>()
-        val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra))
+        // sdk-test-control.json's test.client.options seeds the live
+        // client; the generated fields below overwrite anything they name.
+        val liveOpts = RunnerSupport.liveClientOptions()
+        // An empty map, not null: merge answers null when its last entry is null.
+        val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra ?: linkedMapOf<String, Any?>()))
         client = VoxgigSolardemoSDK(Helpers.toMapAny(mergedOpts))
       }
 

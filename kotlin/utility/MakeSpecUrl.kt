@@ -63,7 +63,7 @@ fun makeSpec(ctx: Context): Spec {
   if ("graphql" == Struct.getprop(ctx.point, "kind") as? String) {
     // GraphQL addresses one endpoint: no path parts, no query string, and
     // the body carries the operation. prepareBody is skipped deliberately
-    // — it only emits a body for data-input ops, whereas every GraphQL op
+    // — it builds only a REST body, whereas every GraphQL op
     // posts one, including load/list/remove.
     spec.body = utility.graphqlBody(ctx)
     spec.path = ""
@@ -114,11 +114,16 @@ fun makeUrl(ctx: Context): String {
   joinParts.add(spec.suffix)
   var url = Struct.join(joinParts, "/", true)
 
-  // A route the definition ends with a slash keeps it: a server such as a
-  // Django REST one redirects or refuses the route without it.
+  // A route ending in a slash keeps it, as defined or as passed to direct(), for
+  // Django, and a host with no path takes /, or luasocket reads a query as the host.
   val point = ctx.point
   val orig = if (point == null) null else Struct.getprop(point, "orig", null)
-  if (orig is String && orig.endsWith("/") && spec.suffix.isEmpty() && !url.endsWith("/")) {
+  val slashed = (orig is String && orig.endsWith("/")) || spec.path.endsWith("/")
+  if (slashed && spec.suffix.isEmpty() && !url.endsWith("/")) {
+    url += "/"
+  }
+  val authority = url.indexOf("://")
+  if (0 < authority && url.substring(authority + 3).none { it in "/?#" }) {
     url += "/"
   }
 
@@ -132,7 +137,12 @@ fun makeUrl(ctx: Context): String {
     val key = if (item[0] is String) item[0] as String else ""
     val v = item[1]
     if (v != null) {
-      val replacement = Struct.escurl(Struct.stringify(v))
+      // A whole . or .. is a dot segment, which moves the request to another route.
+      val text = Struct.stringify(v)
+      if (text == "." || text == "..") {
+        throw ctx.makeError("url_param_invalid", "URL path parameter " + key + " cannot be \"" + text + "\".")
+      }
+      val replacement = Struct.escurl(text)
       url = Regex("\\{" + Struct.escre(key) + "\\}").replace(url) { replacement }
       resmatch[key] = v
     }

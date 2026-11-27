@@ -54,11 +54,44 @@ fn vnull() Value {
     return Value{ .null = {} };
 }
 
+// A route the call cannot fill is refused before the chain is consulted.
+fn refusedBeforeChain(code: []const u8) bool {
+    const codes = [_][]const u8{ "url_param_missing", "point_no_match", "point_action_required" };
+    for (codes) |c| {
+        if (std.mem.eql(u8, code, c)) return true;
+    }
+    return false;
+}
+
 // Every block runs only when the feature is in THIS SDK - build.zig lists
 // this file only then, so this is belt and braces rather than a gate.
 fn present() bool {
     const cfg = sdk.make_config();
     return h.getp(h.getp(cfg, "feature"), "secrets") == .object;
+}
+
+// Read from the config, never from a probe: an SDK whose config declares no
+// auth places no credential, and these tests assert on the one it places.
+fn placesCredential() bool {
+    if (h.getp(h.getp(sdk.make_config(), "options"), "auth") == .object) return true;
+    std.debug.print("\n  SKIP secrets: this SDK's config declares no auth, so it places no credential\n", .{});
+    return false;
+}
+
+// The header the credential travels in: the DEFAULT client's auth.name,
+// lower-cased as prepare_auth sends it. Read from a default client because a
+// test's `auth: null` leaves no name to read. Computed once.
+var credheader: ?[]const u8 = null;
+
+fn cred_header() []const u8 {
+    if (credheader) |name| return name;
+    const client = sdk.test_sdk(vnull(), vnull());
+    const name: []const u8 = switch (h.getpath(&.{ "auth", "name" }, client.options_map())) {
+        .string => |s| if (s.len == 0) "authorization" else std.ascii.allocLowerString(h.A(), s) catch "authorization",
+        else => "authorization",
+    };
+    credheader = name;
+    return name;
 }
 
 // ---- the counted transport ---------------------------------------------
@@ -70,7 +103,9 @@ fn present() bool {
 const Call = struct {
     url: []const u8,
     auth: ?[]const u8,
+    values: []const u8 = "",
     body: ?[]const u8,
+    redirect: ?[]const u8,
 };
 
 /// A `system.fetch` that records every call it is handed, so "sent" is a
@@ -103,9 +138,20 @@ const Wire = struct {
             "";
         const fetchdef: Value = if (arg == .array and 2 <= arg.array.data.items.len) arg.array.data.items[1] else vnull();
         const headers = h.getp(fetchdef, "headers");
-        const auth: ?[]const u8 = if (h.get_str(headers, "authorization")) |a| (h.A().dupe(u8, a) catch a) else null;
+        const auth: ?[]const u8 = if (h.get_str(headers, cred_header())) |a| (h.A().dupe(u8, a) catch a) else null;
         const body: ?[]const u8 = if (h.get_str(fetchdef, "body")) |b| (h.A().dupe(u8, b) catch b) else null;
-        self.calls.append(h.A(), .{ .url = h.A().dupe(u8, url) catch url, .auth = auth, .body = body }) catch {};
+        const redirect = h.get_str(fetchdef, "redirect");
+        var values: std.ArrayList(u8) = .empty;
+        if (headers == .object) {
+            var it = headers.object.iterator();
+            while (it.next()) |kv| {
+                if (kv.value_ptr.* == .string) {
+                    values.appendSlice(h.A(), kv.value_ptr.*.string) catch {};
+                    values.append(h.A(), '\n') catch {};
+                }
+            }
+        }
+        self.calls.append(h.A(), .{ .url = h.A().dupe(u8, url) catch url, .auth = auth, .values = values.items, .body = body, .redirect = redirect }) catch {};
 
         const suffix = std.fmt.allocPrint(h.A(), "/{s}", .{self.tokenpath}) catch "/auth/token";
         if (std.mem.endsWith(u8, url, suffix)) {
@@ -203,7 +249,7 @@ fn live_client(w: *Wire, sdkopts: Value) *sdk.SDK {
     const opts: Value = if (sdkopts == .object) sdkopts else h.omap();
     h.setp(opts, "base", h.vstr(BASE));
     h.setp(opts, "system", h.jo(&.{.{ "fetch", w.fetch_fn() }}));
-    return sdk.SDK.new_with(opts, &.{sdk.SecretsFeature.make()});
+    return sdk.SDK.new_with(opts, &.{sdk.SecretsFeature.make()}).ok;
 }
 
 fn secrets_client(w: *Wire, sdkopts: Value, feature_opts: Value) *sdk.SDK {
@@ -227,17 +273,41 @@ fn count_named(client: *sdk.SDK, name: []const u8) usize {
     return n;
 }
 
-// The Authorization header carries the SPEC's credential prefix, which a
-// TEMPLATE cannot know: an OpenAPI bearer scheme gives `Bearer <token>`, an
-// apiKey scheme the raw token. So assert on the CREDENTIAL and let the
-// prefix be whatever this SDK's API declares.
-fn credential_is(auth: ?[]const u8, token: []const u8) !void {
+// The header value prepare_auth writes for a token, in the form the DEFAULT
+// client's auth gives: under Basic the token is the key half of the encoded
+// pair, and a prefix is space-joined.
+fn credential(token: []const u8, secret: []const u8) []const u8 {
+    const auth = h.getp(sdk.test_sdk(vnull(), vnull()).options_map(), "auth");
+    const prefix: []const u8 = switch (h.getp(auth, "prefix")) {
+        .string => |p| p,
+        else => "",
+    };
+    const basic = switch (h.getp(auth, "basic")) {
+        .bool => |b| b,
+        else => false,
+    };
+    var value = token;
+    if (basic) {
+        const text = std.fmt.allocPrint(h.A(), "{s}:{s}", .{ token, secret }) catch token;
+        const enc = std.base64.standard.Encoder;
+        const buf = h.A().alloc(u8, enc.calcSize(text.len)) catch unreachable;
+        value = enc.encode(buf, text);
+    }
+    if (0 == prefix.len) return value;
+    return std.fmt.allocPrint(h.A(), "{s} {s}", .{ prefix, value }) catch value;
+}
+
+fn paired_is(auth: ?[]const u8, token: []const u8, secret: []const u8) !void {
     const got = auth orelse "";
-    const suffix = std.fmt.allocPrint(h.A(), " {s}", .{token}) catch token;
-    if (!(std.mem.eql(u8, got, token) or std.mem.endsWith(u8, got, suffix))) {
-        std.debug.print("expected the authorization header to carry {s}, got: {s}\n", .{ token, got });
+    const want = credential(token, secret);
+    if (!std.mem.eql(u8, got, want)) {
+        std.debug.print("expected the {s} header to carry {s} as {s}, got: {s}\n", .{ cred_header(), token, want, got });
         return error.TestUnexpectedResult;
     }
+}
+
+fn credential_is(auth: ?[]const u8, token: []const u8) !void {
+    return paired_is(auth, token, "");
 }
 
 fn contains(text: []const u8, needle: []const u8) bool {
@@ -278,14 +348,14 @@ fn drive_entity(client: *sdk.SDK) Drive {
                         if (h.getp(ops, "load") == .object) {
                             const res = ent.load(h.jo(&.{.{ "id", h.vstr("s01") }}), vnull());
                             switch (res) {
-                                .err => |e| if (!std.mem.eql(u8, e.code, "url_param_missing"))
+                                .err => |e| if (!refusedBeforeChain(e.code))
                                     return .{ .ran = true, .ok = false, .msg = e.msg },
                                 .ok => return .{ .ran = true, .ok = true, .msg = "" },
                             }
                         } else if (h.getp(ops, "list") == .object) {
                             const res = ent.list(h.omap(), vnull());
                             switch (res) {
-                                .err => |e| if (!std.mem.eql(u8, e.code, "url_param_missing"))
+                                .err => |e| if (!refusedBeforeChain(e.code))
                                     return .{ .ran = true, .ok = false, .msg = e.msg },
                                 .ok => return .{ .ran = true, .ok = true, .msg = "" },
                             }
@@ -306,7 +376,7 @@ fn direct_probe(client: *sdk.SDK) Value {
 // ---- inactive --------------------------------------------------------------
 
 test "secrets inactive: apikey option behaves exactly as before" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = live_client(w, h.jo(&.{.{ "apikey", h.vstr("OPTKEY01") }}));
     // No feature options, no install: `extend` hands the feature in, but an
@@ -317,8 +387,8 @@ test "secrets inactive: apikey option behaves exactly as before" {
     try credential_is(w.api()[0].auth, "OPTKEY01");
 }
 
-test "secrets inactive: no apikey means no authorization header" {
-    if (!present()) return error.SkipZigTest;
+test "secrets inactive: no apikey means no credential header" {
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = live_client(w, h.omap());
     _ = direct_probe(client);
@@ -329,7 +399,7 @@ test "secrets inactive: no apikey means no authorization header" {
 // ---- the chain ---------------------------------------------------------------
 
 test "secrets active: apikey option still wins over the chain" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const chain = Scripted.new("CHAINKEY01", null);
     const client = secrets_client(w, h.jo(&.{.{ "apikey", h.vstr("OPTKEY01") }}), secrets_opts(h.ja(&.{chain.fn_val()}), vnull()));
@@ -353,7 +423,7 @@ test "secrets active: apikey option still wins over the chain" {
 }
 
 test "secrets active: an omitted apikey defers to the chain at the transport seam" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const chain = Scripted.new("CHAINKEY02", null);
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{chain.fn_val()}), vnull()));
@@ -376,7 +446,7 @@ test "secrets active: an omitted apikey defers to the chain at the transport sea
 }
 
 test "secrets active: the env provider reads the environment handed in" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     var env = std.process.Environ.Map.init(h.A());
     try env.put("PROJECTENV_TEST_SECRETS_APIKEY", "ENVKEY01");
     sdk.SecretsFeature.set_environ(&env);
@@ -392,7 +462,7 @@ test "secrets active: the env provider reads the environment handed in" {
 }
 
 test "secrets active: a memory spec map is decoded through sekreto's own specof" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{
         h.jo(&.{
@@ -411,7 +481,7 @@ test "secrets active: a memory spec map is decoded through sekreto's own specof"
 }
 
 test "secrets active: a miss everywhere leaves the header off" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const chain = Scripted.new(null, null);
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{chain.fn_val()}), vnull()));
@@ -425,7 +495,7 @@ test "secrets active: a miss everywhere leaves the header off" {
 }
 
 test "secrets active: a provider ERROR fails the entity op and nothing reaches the wire" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
 
     // CONTROL FIRST, so the zero below is known to be observable at all.
     const control = Wire.new();
@@ -450,7 +520,7 @@ test "secrets active: a provider ERROR fails the entity op and nothing reaches t
 }
 
 test "secrets active: a provider ERROR fails direct() rather than sending" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
 
     const control = Wire.new();
     const good = secrets_client(control, h.omap(), secrets_opts(h.ja(&.{Scripted.new("GOODKEY02", null).fn_val()}), vnull()));
@@ -469,7 +539,7 @@ test "secrets active: a provider ERROR fails direct() rather than sending" {
 }
 
 test "secrets active: a provider ERROR fails graphql() rather than sending" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
 
     const control = Wire.new();
     const good = secrets_client(control, h.omap(), secrets_opts(h.ja(&.{Scripted.new("GOODKEY03", null).fn_val()}), vnull()));
@@ -493,7 +563,7 @@ test "secrets active: a provider ERROR fails graphql() rather than sending" {
 // switch without a fail-closed arm silently DROPS it, the chain gets SHORTER
 // rather than broken, and every request goes out unauthenticated.
 test "secrets active: a malformed providers entry fails closed, never dropped" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const notaprovider = "not a provider or a provider spec";
 
     // CONTROL FIRST.
@@ -530,7 +600,7 @@ test "secrets active: a malformed providers entry fails closed, never dropped" {
 }
 
 test "secrets active: an unknown provider kind is refused by name, fail-closed" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{
         h.jo(&.{.{ "kind", h.vstr("nosuchkind") }}),
@@ -545,7 +615,7 @@ test "secrets active: an unknown provider kind is refused by name, fail-closed" 
 // reopens it and the operation goes out with the FRESH credential - a failed
 // resolution is never cached.
 test "secrets active: the gate recovers after a transient provider failure" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const flaky = Scripted.new(null, "vault unreachable");
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{flaky.fn_val()}), vnull()));
@@ -564,7 +634,7 @@ test "secrets active: the gate recovers after a transient provider failure" {
 }
 
 test "secrets active: an uncached miss retracts a resolved credential" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const revocable = Scripted.new("REVOCABLE01", null);
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{revocable.fn_val()}), h.jo(&.{.{ "cache", h.vbool(false) }})));
@@ -581,7 +651,7 @@ test "secrets active: an uncached miss retracts a resolved credential" {
 }
 
 test "secrets active: cache true asks the chain once, cache false every request" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const cached = Scripted.new("K", null);
     const cw = Wire.new();
     const cclient = secrets_client(cw, h.omap(), secrets_opts(h.ja(&.{cached.fn_val()}), vnull()));
@@ -603,7 +673,7 @@ test "secrets active: cache true asks the chain once, cache false every request"
 // prepare_auth honours before it ever reads the apikey. Pinned with an
 // explicit apikey AND a resolving chain: nothing may reach the wire.
 test "secrets active: auth null suppresses the credential, chain or no chain" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const chain = Scripted.new("CHAINKEY03", null);
     const client = secrets_client(w, h.jo(&.{
@@ -623,8 +693,18 @@ test "secrets active: auth null suppresses the credential, chain or no chain" {
     try testing.expect(raw == .null);
 }
 
+test "secrets active: a resolved key is placed as prepare_auth places it, the secret kept" {
+    if (!present() or !placesCredential()) return error.SkipZigTest;
+    const w = Wire.new();
+    const chain = Scripted.new("CHAINKEY05", null);
+    const client = secrets_client(w, h.jo(&.{.{ "secret", h.vstr("PASS01") }}), secrets_opts(h.ja(&.{chain.fn_val()}), vnull()));
+    _ = direct_probe(client);
+    try testing.expect(w.api().len == 1);
+    try paired_is(w.api()[0].auth, "CHAINKEY05", "PASS01");
+}
+
 test "secrets active: the secret name is configurable" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const chain = Scripted.new("TOKEN01", null);
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{chain.fn_val()}), h.jo(&.{.{ "name", h.vstr("api.token") }})));
@@ -635,7 +715,7 @@ test "secrets active: the secret name is configurable" {
 }
 
 test "secrets active: sekreto is live for arbitrary secrets and redaction" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{
         h.jo(&.{
@@ -666,7 +746,7 @@ test "secrets active: sekreto is live for arbitrary secrets and redaction" {
 // selected kind fails CLOSED with a reach error, an unselected one fails
 // closed at construction. Either way nothing reaches the wire.
 test "secrets active: a selected plugin kind is in the SDK vocabulary" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{
         h.jo(&.{
@@ -692,7 +772,7 @@ test "secrets active: a selected plugin kind is in the SDK vocabulary" {
 }
 
 test "secrets: the extend seam installs a directly constructed feature exactly once" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{Scripted.new("K", null).fn_val()}), vnull()));
     try testing.expect(count_named(client, "secrets") == 1);
@@ -717,7 +797,7 @@ fn exchange_opts(providers: Value, extra: Value) Value {
 }
 
 test "secrets exchange: the refresh token buys an access token, and the request carries it" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
     const res = direct_probe(client);
@@ -726,12 +806,13 @@ test "secrets exchange: the refresh token buys an access token, and the request 
     try testing.expect(w.token_calls() == 1);
     try testing.expect(contains(w.calls.items[0].body orelse "", "\"refresh_token\":\"REFRESH01\""));
     try testing.expect(std.mem.endsWith(u8, w.calls.items[0].url, "/api/auth/token"));
+    try testing.expectEqualStrings("manual", w.calls.items[0].redirect orelse "");
     try testing.expect(w.api().len == 1);
     try credential_is(w.api()[0].auth, "ACCESS01");
 }
 
 test "secrets exchange: one purchase serves many requests" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
     _ = direct_probe(client);
@@ -743,7 +824,7 @@ test "secrets exchange: one purchase serves many requests" {
 }
 
 test "secrets exchange: a 401 buys another token and retries the SAME request" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{ 401, 200 };
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
@@ -756,8 +837,19 @@ test "secrets exchange: a 401 buys another token and retries the SAME request" {
     try testing.expectEqualStrings(w.api()[0].url, w.api()[1].url);
 }
 
+test "secrets exchange: a token bought on a refusal is placed as prepare_auth places it" {
+    if (!present() or !placesCredential()) return error.SkipZigTest;
+    const w = Wire.new();
+    w.apistatus = &.{ 401, 200 };
+    const client = secrets_client(w, h.jo(&.{.{ "secret", h.vstr("PASS01") }}), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
+    _ = direct_probe(client);
+    try testing.expect(w.api().len == 2);
+    try paired_is(w.api()[0].auth, "ACCESS01", "PASS01");
+    try paired_is(w.api()[1].auth, "ACCESS02", "PASS01");
+}
+
 test "secrets exchange: the retry happens once, not in a loop" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{401};
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
@@ -769,7 +861,7 @@ test "secrets exchange: the retry happens once, not in a loop" {
 }
 
 test "secrets exchange: a status outside exchange.statuses is not an expiry" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{500};
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
@@ -779,7 +871,7 @@ test "secrets exchange: a status outside exchange.statuses is not an expiry" {
 }
 
 test "secrets exchange: statuses and field names are configurable" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{ 403, 200 };
     w.tokenpath = "oauth/refresh";
@@ -798,7 +890,7 @@ test "secrets exchange: statuses and field names are configurable" {
 }
 
 test "secrets exchange: an explicit apikey is spent before anything is bought" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{ 401, 200 };
     const client = secrets_client(w, h.jo(&.{.{ "apikey", h.vstr("HELD01") }}), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
@@ -811,7 +903,7 @@ test "secrets exchange: an explicit apikey is spent before anything is bought" {
 }
 
 test "secrets exchange: an explicit exchange.refresh wins over the chain" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new("CHAINREFRESH", null).fn_val()}), h.jo(&.{.{ "refresh", h.vstr("GIVENREFRESH") }})));
     _ = direct_probe(client);
@@ -819,7 +911,7 @@ test "secrets exchange: an explicit exchange.refresh wins over the chain" {
 }
 
 test "secrets exchange: no refresh token anywhere is an error, not an unauthenticated call" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), exchange_opts(h.ja(&.{Scripted.new(null, null).fn_val()}), vnull()));
     const res = direct_probe(client);
@@ -829,7 +921,7 @@ test "secrets exchange: no refresh token anywhere is an error, not an unauthenti
 }
 
 test "secrets exchange: a failing token endpoint surfaces the API refusal, not a spin" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{401};
     w.tokenstatus = &.{ 200, 500 };
@@ -843,17 +935,18 @@ test "secrets exchange: a failing token endpoint surfaces the API refusal, not a
 }
 
 test "secrets exchange: auth null suppresses the credential, refusal or not" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     w.apistatus = &.{401};
     const client = secrets_client(w, h.jo(&.{.{ "auth", h.vnull() }}), exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()));
     _ = direct_probe(client);
     try testing.expect(w.api().len == 1);
     try testing.expect(w.api()[0].auth == null);
+    try testing.expect(w.token_calls() == 0);
 }
 
 test "secrets exchange: exchange off leaves the feature exactly as it was" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const client = secrets_client(w, h.omap(), secrets_opts(h.ja(&.{Scripted.new("PLAINKEY01", null).fn_val()}), h.jo(&.{
         .{ "exchange", h.jo(&.{.{ "active", h.vbool(false) }}) },
@@ -864,7 +957,7 @@ test "secrets exchange: exchange off leaves the feature exactly as it was" {
 }
 
 test "secrets exchange: test mode buys nothing and needs no token endpoint" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const w = Wire.new();
     const opts = h.jo(&.{
         .{ "system", h.jo(&.{.{ "fetch", w.fetch_fn() }}) },
@@ -882,14 +975,320 @@ test "secrets exchange: test mode buys nothing and needs no token endpoint" {
 // answers with sekreto's own reach error, which proves the path is wired
 // and that its failure is fail-closed - no request reaches the API.
 test "secrets exchange: without system.fetch the bundled HTTP transport buys the token" {
-    if (!present()) return error.SkipZigTest;
+    if (!present() or !placesCredential()) return error.SkipZigTest;
     const opts = h.jo(&.{
         .{ "base", h.vstr("http://127.0.0.1:9/api") },
         .{ "feature", h.jo(&.{.{ "secrets", exchange_opts(h.ja(&.{Scripted.new("REFRESH01", null).fn_val()}), vnull()) }}) },
     });
-    const client = sdk.SDK.new_with(opts, &.{sdk.SecretsFeature.make()});
+    const client = sdk.SDK.new_with(opts, &.{sdk.SecretsFeature.make()}).ok;
     const res = direct_probe(client);
     try testing.expect(!(h.get_bool(res, "ok") orelse true));
     const msg = h.get_str(res, "err") orelse "";
     try testing.expect(contains(msg, "sekreto: cannot reach http://127.0.0.1:9/api/auth/token"));
+}
+
+// A loopback listener on its own thread. The origin's token path answers
+// `moved`; every other request is logged as one line and answered with a
+// token. `close` wakes the blocked accept with one connection, then joins.
+const Listener = struct {
+    threaded: std.Io.Threaded = .init_single_threaded,
+    server: std.Io.net.Server = undefined,
+    port: u16 = 0,
+    moved: ?[]const u8 = null,
+    stop: std.atomic.Value(bool) = .init(false),
+    thread: std.Thread = undefined,
+    log: [2048]u8 = undefined,
+    loglen: usize = 0,
+    lines: usize = 0,
+
+    fn open(moved: ?[]const u8) !*Listener {
+        const l = try std.heap.page_allocator.create(Listener);
+        l.* = .{ .moved = moved };
+        const io = l.threaded.io();
+        const addr = try std.Io.net.IpAddress.parseIp4("127.0.0.1", 0);
+        l.server = try addr.listen(io, .{});
+        l.port = l.server.socket.address.getPort();
+        l.thread = try std.Thread.spawn(.{}, serve, .{l});
+        return l;
+    }
+
+    fn serve(l: *Listener) void {
+        const io = l.threaded.io();
+        while (true) {
+            const stream = l.server.accept(io) catch continue;
+            defer stream.close(io);
+            if (l.stop.load(.seq_cst)) return;
+            l.answer(io, stream) catch {};
+        }
+    }
+
+    fn answer(l: *Listener, io: std.Io, stream: std.Io.net.Stream) !void {
+        var rbuf: [4096]u8 = undefined;
+        var wbuf: [512]u8 = undefined;
+        var reader = stream.reader(io, &rbuf);
+        var writer = stream.writer(io, &wbuf);
+        var first_buf: [512]u8 = undefined;
+        const taken = try reader.interface.takeDelimiterInclusive('\n');
+        const first = first_buf[0..@min(first_buf.len, taken.len)];
+        @memcpy(first, taken[0..first.len]);
+        var words = std.mem.tokenizeScalar(u8, first, ' ');
+        const method: []const u8 = words.next() orelse "";
+        const target: []const u8 = words.next() orelse "";
+        var size: usize = 0;
+        while (true) {
+            const line = std.mem.trimEnd(u8, try reader.interface.takeDelimiterInclusive('\n'), "\r\n");
+            if (0 == line.len) break;
+            if (std.ascii.startsWithIgnoreCase(line, "content-length:")) {
+                size = std.fmt.parseInt(usize, std.mem.trim(u8, line[15..], " "), 10) catch 0;
+            }
+        }
+        const body = try reader.interface.take(size);
+        if (l.moved) |moved| {
+            if (std.mem.eql(u8, target, "/api/auth/token")) {
+                try writer.interface.writeAll(moved);
+                try writer.interface.flush();
+                return;
+            }
+        }
+        const entry = std.fmt.bufPrint(l.log[l.loglen..], "{s} {s} {s}\n", .{ method, target, body }) catch "";
+        l.loglen += entry.len;
+        l.lines += 1;
+        try writer.interface.writeAll("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" ++
+            "Content-Length: 30\r\nConnection: close\r\n\r\n{\"access_token\":\"ELSEWHERE01\"}");
+        try writer.interface.flush();
+    }
+
+    fn close(l: *Listener) void {
+        const io = l.threaded.io();
+        l.stop.store(true, .seq_cst);
+        const addr = std.Io.net.IpAddress.parseIp4("127.0.0.1", l.port) catch unreachable;
+        if (addr.connect(io, .{ .mode = .stream })) |wake| wake.close(io) else |_| {}
+        l.thread.join();
+        l.server.deinit(io);
+    }
+};
+
+// Real listeners and the bundled exchange client: a stub follows nothing.
+test "secrets exchange: a redirect answering the exchange is a failure, and nothing follows it" {
+    if (!present() or !placesCredential()) return error.SkipZigTest;
+    const Case = struct { status: i64, away: bool };
+    const cases = [_]Case{
+        .{ .status = 307, .away = true },
+        .{ .status = 308, .away = true },
+        .{ .status = 302, .away = true },
+        .{ .status = 307, .away = false },
+    };
+
+    var refused: usize = 0;
+    var followed: usize = 0;
+    var allowed: std.ArrayList([]const u8) = .empty;
+
+    for (cases) |c| {
+        const other = try Listener.open(null);
+        const location = if (c.away)
+            try std.fmt.allocPrint(h.A(), "http://127.0.0.1:{d}/api/auth/token", .{other.port})
+        else
+            "/api/moved/token";
+        const moved = try std.fmt.allocPrint(h.A(), "HTTP/1.1 {d} Moved\r\nLocation: {s}\r\n" ++
+            "Content-Length: 0\r\nConnection: close\r\n\r\n", .{ c.status, location });
+        const origin = try Listener.open(moved);
+
+        const base = try std.fmt.allocPrint(h.A(), "http://127.0.0.1:{d}/api", .{origin.port});
+        const opts = h.jo(&.{
+            .{ "base", h.vstr(base) },
+            .{ "feature", h.jo(&.{.{ "secrets", h.jo(&.{
+                .{ "active", h.vbool(true) },
+                .{ "name", h.vstr("refresh_token") },
+                .{ "exchange", h.jo(&.{ .{ "active", h.vbool(true) }, .{ "refresh", h.vstr("REFRESH01") } }) },
+            }) }}) },
+        });
+        const client = sdk.SDK.new_with(opts, &.{sdk.SecretsFeature.make()}).ok;
+        const res = client.direct(h.jo(&.{.{ "path", h.vstr("/thing") }}));
+
+        origin.close();
+        other.close();
+
+        const msg = h.get_str(res, "err") orelse "";
+        const want = try std.fmt.allocPrint(h.A(), "token exchange failed: {d} from {s}/auth/token", .{ c.status, base });
+        const failed = !(h.get_bool(res, "ok") orelse true) and contains(msg, want);
+        if (failed) refused += 1;
+        followed += other.lines + origin.lines;
+        if (!failed or 0 < other.lines or 0 < origin.lines) {
+            try allowed.append(h.A(), try std.fmt.allocPrint(h.A(), "{d} to {s}: other origin got [{s}], origin got [{s}], ended: {s}", .{
+                c.status, location, other.log[0..other.loglen], origin.log[0..origin.loglen], msg,
+            }));
+        }
+    }
+
+    std.debug.print("secrets: exchange refused {d} redirect(s), {d} followed\n", .{ refused, followed });
+    for (allowed.items) |a| std.debug.print("redirect not refused: {s}\n", .{a});
+    try testing.expect(0 == allowed.items.len);
+    try testing.expect(cases.len == refused);
+    try testing.expect(0 == followed);
+}
+
+// A supplied fetch answering the exchange with `status` to `location`, every
+// other exchange URL with a token, and the API call with a record. It keeps
+// each exchange request as "url method redirect body".
+const Mover = struct {
+    status: i64,
+    location: []const u8,
+    calls: std.ArrayList([]const u8) = .empty,
+    elsewhere: usize = 0,
+
+    fn call(p: *anyopaque, _: std.mem.Allocator, arg: Value) anyerror!Value {
+        const self: *Mover = @ptrCast(@alignCast(p));
+        const url: []const u8 = if (arg.array.data.items[0] == .string) arg.array.data.items[0].string else "";
+        const fetchdef = arg.array.data.items[1];
+        if (!std.mem.startsWith(u8, url, "http://api.test/")) self.elsewhere += 1;
+        if (std.mem.endsWith(u8, url, "/api/thing")) return response(200, h.jo(&.{.{ "ok", h.vbool(true) }}));
+        try self.calls.append(h.A(), try std.fmt.allocPrint(h.A(), "{s} {s} {s} {s}", .{
+            url,
+            h.get_str(fetchdef, "method") orelse "",
+            h.get_str(fetchdef, "redirect") orelse "",
+            h.get_str(fetchdef, "body") orelse "",
+        }));
+        if (!std.mem.eql(u8, url, "http://api.test/api/auth/token")) {
+            return response(200, h.jo(&.{.{ "access_token", h.vstr("MOVED01") }}));
+        }
+        return h.jo(&.{
+            .{ "status", h.vnum(self.status) },
+            .{ "headers", h.jo(&.{.{ "location", h.vstr(self.location) }}) },
+            .{ "body", h.vstr("") },
+        });
+    }
+};
+
+// Through the caller's system.fetch: the exchange's own client reports no
+// Location, and the SDK has no live transport for the API call.
+test "secrets exchange: with the option, a redirect on the exchange's own origin is followed, and no other" {
+    if (!present() or !placesCredential()) return error.SkipZigTest;
+    const base = "http://api.test/api";
+    const sent = " POST manual {\"refresh_token\":\"REFRESH01\"}";
+    const asked = base ++ "/auth/token" ++ sent;
+    // The request the exchange is asked again with, null when refused; a
+    // Location of a query alone keeps the path that answered.
+    const Case = struct { status: i64, location: []const u8, next: ?[]const u8 };
+    const cases = [_]Case{
+        .{ .status = 307, .location = "/api/moved/token", .next = base ++ "/moved/token" ++ sent },
+        .{ .status = 308, .location = "http://api.test/api/moved/token", .next = base ++ "/moved/token" ++ sent },
+        .{ .status = 307, .location = "?step=2", .next = base ++ "/auth/token?step=2" ++ sent },
+        .{ .status = 307, .location = "http://other.test/api/auth/token", .next = null },
+        .{ .status = 302, .location = "/api/moved/token", .next = null },
+        .{ .status = 307, .location = "/api/auth/token", .next = null },
+    };
+
+    var followed: usize = 0;
+    var refused: usize = 0;
+    var elsewhere: usize = 0;
+    var looped: usize = 0;
+    var wrong: std.ArrayList([]const u8) = .empty;
+
+    for (cases) |c| {
+        const m = try h.A().create(Mover);
+        m.* = .{ .status = c.status, .location = c.location };
+        const opts = h.jo(&.{
+            .{ "base", h.vstr(base) },
+            .{ "system", h.jo(&.{.{ "fetch", h.callable(@ptrCast(m), Mover.call) }}) },
+            .{ "feature", h.jo(&.{.{ "secrets", h.jo(&.{
+                .{ "active", h.vbool(true) },
+                .{ "name", h.vstr("refresh_token") },
+                .{ "exchange", h.jo(&.{
+                    .{ "active", h.vbool(true) },
+                    .{ "refresh", h.vstr("REFRESH01") },
+                    .{ "redirect", h.vstr("same-origin") },
+                }) },
+            }) }}) },
+        });
+        const client = sdk.SDK.new_with(opts, &.{sdk.SecretsFeature.make()}).ok;
+        const res = client.direct(h.jo(&.{.{ "path", h.vstr("/thing") }}));
+
+        const ok = h.get_bool(res, "ok") orelse false;
+        const msg = h.get_str(res, "err") orelse "";
+        const want = try std.fmt.allocPrint(h.A(), "token exchange failed: {d} from {s}/auth/token", .{ c.status, base });
+        const loop = std.mem.eql(u8, c.location, "/api/auth/token");
+        if (loop) looped = m.calls.items.len;
+        elsewhere += m.elsewhere;
+
+        const follows = null != c.next;
+        var right = if (c.next) |next|
+            ok and 2 == m.calls.items.len and std.mem.eql(u8, m.calls.items[1], next)
+        else
+            !ok and contains(msg, want) and 0 < m.calls.items.len and (loop or 1 == m.calls.items.len);
+        for (m.calls.items, 0..) |seen, i| {
+            if ((0 == i or !follows) and !std.mem.eql(u8, seen, asked)) right = false;
+        }
+        if (!right) {
+            try wrong.append(h.A(), try std.fmt.allocPrint(h.A(), "{d} to {s}: {s} {d} call(s)", .{ c.status, c.location, msg, m.calls.items.len }));
+        } else if (follows) {
+            followed += 1;
+        } else {
+            refused += 1;
+        }
+    }
+
+    std.debug.print("secrets: exchange opt-in followed {d} redirect(s) on its own origin, refused {d}, {d} elsewhere\n", .{ followed, refused, elsewhere });
+    for (wrong.items) |w| std.debug.print("same-origin not as expected: {s}\n", .{w});
+    try testing.expect(0 == wrong.items.len);
+    try testing.expect(0 == elsewhere);
+    try testing.expect(3 == followed);
+    try testing.expect(3 == refused);
+    // A redirect to itself is followed five times and no more.
+    try testing.expect(6 == looped);
+}
+
+// ---- auth off ----------------------------------------------------------------
+
+// Off by the config where it declares no auth, else by `auth: null`: either
+// way the feature places no credential, buys no token and retries nothing.
+fn carries(c: Call) bool {
+    if (c.auth != null) return true;
+    const secrets = [_][]const u8{ "OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01" };
+    for (secrets) |secret| {
+        if (contains(c.values, secret)) return true;
+    }
+    return false;
+}
+
+test "auth off: the feature places no credential and buys no token" {
+    if (!present()) return error.SkipZigTest;
+    const declared = h.getp(h.getp(sdk.make_config(), "options"), "auth") == .object;
+    var sent: usize = 0;
+    var credentials: usize = 0;
+    var bought: usize = 0;
+
+    var scenario: usize = 0;
+    while (scenario < 3) : (scenario += 1) {
+        const w = Wire.new();
+        const sdkopts = h.omap();
+        if (declared) h.setp(sdkopts, "auth", h.vnull());
+        var fopts: Value = undefined;
+        if (0 == scenario) {
+            fopts = secrets_opts(h.ja(&.{Scripted.new("OFFKEY01", null).fn_val()}), vnull());
+        } else if (1 == scenario) {
+            h.setp(sdkopts, "apikey", h.vstr("OFFKEY02"));
+            fopts = secrets_opts(h.ja(&.{}), vnull());
+        } else {
+            w.apistatus = &.{401};
+            fopts = exchange_opts(h.ja(&.{Scripted.new("OFFREFRESH01", null).fn_val()}), vnull());
+        }
+        const client = secrets_client(w, sdkopts, fopts);
+        _ = direct_probe(client);
+
+        try testing.expect(w.api().len == 1);
+        try testing.expect(w.token_calls() == 0);
+        try testing.expect(!carries(w.api()[0]));
+        const sf = secrets_of(client) orelse return error.TestUnexpectedResult;
+        try testing.expectEqualStrings("", sf.credential());
+
+        for (w.api()) |c| {
+            if (carries(c)) credentials += 1;
+        }
+        sent += w.api().len;
+        bought += w.token_calls();
+    }
+
+    std.debug.print("\nsecrets: auth off by {s}: {d} request(s), {d} credential(s), {d} token(s)\n", .{
+        if (declared) "option" else "config", sent, credentials, bought,
+    });
 }

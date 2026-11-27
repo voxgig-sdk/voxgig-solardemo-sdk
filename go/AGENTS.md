@@ -1,6 +1,6 @@
-# VoxgigSolardemo Golang — Agent Guide
+# VoxgigSolardemo Go — Agent Guide
 
-The Golang client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Go client for the Solar System API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `go/` directory.
@@ -12,6 +12,10 @@ cd ../.sdk
 npm run build        # only if you changed a component
 npm run generate     # refreshes this go/ directory
 ```
+
+Each `npm run generate` rewrites every file it generates, so an edit
+made to generated output is lost, and deletes the files it generated before
+and no longer emits. A target or a phase switched off is left as it was.
 
 Then build and test the generated output:
 
@@ -33,24 +37,28 @@ make test
 Decision rule: *same for every API → template; depends on the API →
 component.* After editing a component run `npm run build` before
 `npm run generate`; template-only edits just need `npm run generate`.
+`target add` and `feature add` overwrite the templates and components
+in `.sdk/` (`main: kit: copies: 'overwrite'`): set `copies` to
+`'merge'` before customising them, so that an add merges toolchain updates
+into the edited copies.
 
 ## Features in this target
 
-Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aontu`; customise
-the runtime under `.sdk/tm/go/feature/` and regenerate.
+Each feature's hooks and default activation come from
+`.sdk/model/feature/<name>.aontu`. Its runtime is generated from the template
+listed here: customise that and regenerate.
 
-| Feature | Runtime file | Active hooks |
+| Feature | Template | Active hooks |
 | --- | --- | --- |
-| **debug** — Debug capture | `feature/debug_feature.go` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
-| **idempotency** — Idempotency | `feature/idempotency_feature.go` | `PreRequest` |
-| **metrics** — Metrics | `feature/metrics_feature.go` | `PreDone`, `PrePoint`, `PreUnexpected` |
-| **paging** — Paging | `feature/paging_feature.go` | `PreRequest`, `PreResult` |
-| **ratelimit** — Rate limiting | `feature/ratelimit_feature.go` | — |
-| **retry** — Retry | `feature/retry_feature.go` | — |
-| **secrets** — Secrets | `feature/secrets_feature.go` | `PreSpec` |
-| **test** — Test transport | `feature/test_feature.go` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
-| **timeout** — Timeout | `feature/timeout_feature.go` | — |
+| **debug** — Debug capture | `.sdk/tm/go/feature/debug_feature.go` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `.sdk/tm/go/feature/idempotency_feature.go` | `PreRequest` |
+| **metrics** — Metrics | `.sdk/tm/go/feature/metrics_feature.go` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `.sdk/tm/go/feature/paging_feature.go` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `.sdk/tm/go/feature/ratelimit_feature.go` | — |
+| **retry** — Retry | `.sdk/tm/go/feature/retry_feature.go` | — |
+| **secrets** — Secrets | `.sdk/tm/go/feature/secrets/` | `PreSpec` |
+| **test** — Test transport | `.sdk/tm/go/feature/test_feature.go` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `.sdk/tm/go/feature/timeout_feature.go` | — |
 
 ---
 

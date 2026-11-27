@@ -54,6 +54,7 @@ func makeErrorUtil(ctx *core.Context, err error) (any, error) {
 		Ctx:                ctx,
 		Result:             cleanUtil(ctx, result),
 		Spec:               cleanUtil(ctx, spec),
+		Status:             result.Status,
 	}
 	if se, ok := err.(*core.VoxgigSolardemoError); ok {
 		sdkErr.Code = cleanUtil(ctx, se.Code).(string)
@@ -71,10 +72,10 @@ func makeErrorUtil(ctx *core.Context, err error) (any, error) {
 
 	ctx.Ctrl.Err = sdkErr
 
-	// Fire PreUnexpected so observability features (metrics, telemetry, audit,
-	// debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-	// rbac short-circuit). Fires after ctx.Ctrl.Err is set so hooks can read the
-	// error; features guard against double-recording when PreDone already fired.
+	// Fire PreUnexpected so features hooked on it close/record error paths that
+	// never reach PreDone (e.g. a PrePoint short-circuit). Fires after
+	// ctx.Ctrl.Err is set so hooks can read the error; features guard against
+	// double-recording when PreDone already fired.
 	var out error = sdkErr
 	if ctx.Utility != nil && ctx.Utility.FeatureHook != nil {
 		// A hook that panics here would leave raw, after the cleaning above:

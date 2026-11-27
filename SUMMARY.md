@@ -75,7 +75,7 @@ Choose the language already used by your application or service. The clients rep
 | C# | `csharp/` | Build from source |
 | Dart | `dart/` | Build from source |
 | Elixir | `elixir/` | Build from source |
-| Golang | `go/` | Build from source |
+| Go | `go/` | Build from source |
 | Haskell | `haskell/` | Build from source |
 | Java | `java/` | Build from source |
 | JavaScript | `js/` | Build from source |

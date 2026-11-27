@@ -3,6 +3,7 @@ require_relative 'struct/voxgig_struct'
 require 'net/http'
 require 'uri'
 require 'json'
+require 'zlib'
 
 module VoxgigSolardemoUtilities
   # Started Net::HTTP connections keyed by scheme, host, port and proxy,
@@ -41,6 +42,107 @@ module VoxgigSolardemoUtilities
     nil
   end
 
+  # A compressed body, decoded here rather than by Net::HTTP: its inflater
+  # stops at the end of the first gzip member and silently drops the rest of a
+  # body sent as several, and it cannot read a raw deflate stream either.
+  def self.decode_body(body, encoding)
+    return body if body.nil? || body.empty?
+    case encoding
+    when "gzip", "x-gzip"
+      out = "".b
+      rest = body.b
+      while rest.bytesize > 2 && rest.start_with?("\x1f\x8b".b)
+        inflate = Zlib::Inflate.new(32 + Zlib::MAX_WBITS)
+        begin
+          out << inflate.inflate(rest)
+          used = inflate.total_in
+        ensure
+          inflate.close
+        end
+        break if used <= 0
+        rest = rest.byteslice(used..)
+      end
+      out
+    when "deflate"
+      begin
+        Zlib::Inflate.inflate(body)
+      rescue Zlib::DataError
+        inflate = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+        begin
+          inflate.inflate(body)
+        ensure
+          inflate.close
+        end
+      end
+    else
+      body
+    end
+  end
+
+  GETONLY_ENV = "VOXGIG_GETONLY_GUARD"
+
+  # A GET-only live run refuses any other method before it is sent. The error
+  # names the path alone: the query can carry a credential.
+  def self.getonly_refusal(ctx, fullurl, method)
+    method = method.to_s.upcase
+    method = "GET" if method.empty?
+    return nil if ENV[GETONLY_ENV] != "TRUE" || method == "GET"
+    rest = fullurl.to_s
+    rest = rest.split("://", 2)[1].sub(%r{\A[^/?#]*}, "") if rest.include?("://")
+    path = rest[/\A[^?#]*/]
+    path = "/" if path.empty?
+    ctx.make_error("fetch_getonly_block", "[GET-ONLY GUARD] blocked #{method} #{path}")
+  end
+
+  REDIRECT_STATUS = [301, 302, 303, 307, 308].freeze
+  REDIRECT_MAX = 5
+  CREDENTIAL_HEADERS = %w[authorization cookie proxy-authorization].freeze
+
+  def self.redirect_origin(url)
+    uri = URI.parse(url)
+    [uri.scheme, uri.host, uri.port]
+  end
+
+  # What another origin is not sent: the names every client drops, and
+  # whatever the SDK holds as a secret, by its name or by its value.
+  def self.credential?(ctx, name, value)
+    return true if CREDENTIAL_HEADERS.include?(name.to_s.downcase)
+    secret = ctx.utility.respond_to?(:clean_secret) ? ctx.utility.clean_secret : nil
+    secret.respond_to?(:call) && secret.call(ctx, name, value) == true
+  end
+
+  # Net::HTTP never follows a redirect. A GET or HEAD follows one, unless the
+  # fetch definition says "manual", each hop passing the GET-only guard first;
+  # past REDIRECT_MAX hops, or where a body would go to another origin, the
+  # 3xx is the answer. Another origin is not sent the request's credentials.
+  def self.follow_redirects(ctx, fullurl, fetchdef)
+    method = fetchdef["method"].to_s.upcase
+    follow = ["", "GET", "HEAD"].include?(method) && fetchdef["redirect"] != "manual"
+    url = fullurl
+    hops = 0
+    loop do
+      refused = getonly_refusal(ctx, url, fetchdef["method"])
+      return nil, refused if refused
+      res, err = DefaultHttpFetch.call(url, fetchdef)
+      location = res.is_a?(Hash) && res["headers"].is_a?(Hash) ? res["headers"]["location"] : nil
+      return res, err unless follow && location.is_a?(String) && hops < REDIRECT_MAX &&
+        REDIRECT_STATUS.include?(res["status"])
+      nxt = begin
+        URI.join(url, location.strip).tap { |u| u.fragment = nil }.to_s
+      rescue URI::Error
+        nil
+      end
+      return res, err if nxt.nil?
+      if redirect_origin(nxt) != redirect_origin(url)
+        return res, err unless fetchdef["body"].nil?
+        headers = (fetchdef["headers"] || {}).reject { |k, v| credential?(ctx, k, v) }
+        fetchdef = fetchdef.merge("headers" => headers)
+      end
+      url = nxt
+      hops += 1
+    end
+  end
+
   DefaultHttpFetch = ->(fullurl, fetchdef) {
     method_str = fetchdef["method"] || "GET"
     body_str = fetchdef["body"]
@@ -68,10 +170,11 @@ module VoxgigSolardemoUtilities
         request[k] = v.to_s
       end
       # Default User-Agent — Net::HTTP sets "Ruby" which some CDNs block.
-      # Use a Mozilla-shaped UA unless the caller already set one, and record
-      # it with the headers the request sent.
+      # Use the project's agent (main.kit.http.useragent, browser-shaped by
+      # default) unless the caller already set one, and record it with the
+      # headers the request sent.
       unless has_ua
-        request['User-Agent'] = 'Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)'
+        request['User-Agent'] = 'PROJECTUSERAGENT'
         fetchdef["headers"]['user-agent'] = request['User-Agent'] if fetchdef["headers"].is_a?(Hash)
       end
       if body_str.is_a?(String)
@@ -88,7 +191,10 @@ module VoxgigSolardemoUtilities
       http = VoxgigSolardemoUtilities.http_checkout(key, uri, proxy)
       begin
         # Net::HTTP retries idempotent requests; an EOF can follow a committed POST.
-        resp = http.request(request)
+        resp = http.request(request) do |r|
+          r.decode_content = false
+          r.read_body
+        end
       rescue StandardError
         VoxgigSolardemoUtilities.http_discard(http)
         raise
@@ -98,10 +204,18 @@ module VoxgigSolardemoUtilities
       resp_headers = {}
       resp.each_header { |k, v| resp_headers[k.downcase] = v }
 
+      body = resp.body
+      encoding = resp_headers["content-encoding"].to_s.strip.downcase
+      if resp_headers["content-range"].nil? && %w[gzip x-gzip deflate identity none].include?(encoding)
+        body = VoxgigSolardemoUtilities.decode_body(body, encoding)
+        resp_headers.delete("content-encoding")
+        resp_headers["content-length"] = body.bytesize.to_s if resp_headers.key?("content-length") && body
+      end
+
       json_body = nil
       unreadable = false
       begin
-        json_body = JSON.parse(resp.body) if resp.body && !resp.body.strip.empty?
+        json_body = JSON.parse(body) if body && !body.strip.empty?
       rescue JSON::ParserError
         unreadable = true
       end
@@ -111,7 +225,7 @@ module VoxgigSolardemoUtilities
         "statusText" => resp.message,
         "headers" => resp_headers,
         "json" => -> { json_body },
-        "body" => resp.body,
+        "body" => body,
         "unreadable" => unreadable,
       }, nil
     rescue StandardError => e
@@ -134,7 +248,7 @@ module VoxgigSolardemoUtilities
 
     sys_fetch = VoxgigStruct.getpath(options, "system.fetch")
 
-    return DefaultHttpFetch.call(fullurl, fetchdef) if sys_fetch.nil?
+    return VoxgigSolardemoUtilities.follow_redirects(ctx, fullurl, fetchdef) if sys_fetch.nil?
     return sys_fetch.call(fullurl, fetchdef) if sys_fetch.is_a?(Proc)
 
     return nil, ctx.make_error("fetch_invalid", "system.fetch is not a valid function")

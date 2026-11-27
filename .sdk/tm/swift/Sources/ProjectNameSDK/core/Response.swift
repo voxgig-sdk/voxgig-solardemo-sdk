@@ -43,7 +43,8 @@ public final class Response {
     let agent = clean(ctx, headerValue(sent, "user-agent"))
     var detail = "HTTP \(status), content-type " + (type.isEmpty ? "none" : type)
       + ", user-agent " + (agent.isEmpty ? "transport default" : agent)
-    if !isNil(text) {
+    // Only text is quoted: bytes are a file's, by the model or by their type.
+    if !isNil(text) && !isBinary(ctx.point, type) {
       detail += ", body: " + preview(ctx, text)
     }
 
@@ -60,7 +61,7 @@ public final class Response {
     return ctx.makeError("response_content_type", "response: expected JSON, got \(type) (\(detail))")
   }
 
-  private static func headerValue(_ headers: Value, _ name: String) -> String {
+  static func headerValue(_ headers: Value, _ name: String) -> String {
     guard let hm = headers.asMap else { return "" }
     for (k, v) in hm.entries where k.lowercased() == name {
       return v.asString ?? stringify(v)
@@ -71,6 +72,23 @@ public final class Response {
   private static func clean(_ ctx: Context, _ s: String) -> String {
     guard let u = ctx.utility, let c = u.clean else { return s }
     return c(ctx, .string(s)).asString ?? s
+  }
+
+  private static let textMedia = [
+    "json", "xml", "html", "javascript", "ecmascript", "yaml", "urlencoded", "graphql",
+  ]
+
+  // A response whose body is bytes: by the model, or by the type it
+  // declares. Text is no declared type, text/*, or a structured text format.
+  static func isBinary(_ point: VMap?, _ type: String) -> Bool {
+    if let response = point?.entries["response"]?.asMap,
+      response.entries["binary"]?.asBool == true
+    {
+      return true
+    }
+    let media = (type.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first
+      .map(String.init) ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+    return !(media.isEmpty || media.hasPrefix("text/") || textMedia.contains { media.contains($0) })
   }
 
   // Cleaned whole: a secret the bound would split could leave its prefix.

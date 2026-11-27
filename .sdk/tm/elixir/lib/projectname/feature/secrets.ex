@@ -88,6 +88,8 @@ defmodule VoxgigSolardemo.Feature.Secrets do
   @specfields Map.keys(Map.from_struct(%Sekreto.ProviderSpec{}))
   @authfields Map.keys(Map.from_struct(%Sekreto.AuthSpec{}))
 
+  @redirect_max 5
+
   def new do
     f = F.base("secrets", "0.1.0")
     F.install(f, "init", fn ctx, opts -> init(f, ctx, opts) end)
@@ -105,6 +107,12 @@ defmodule VoxgigSolardemo.Feature.Secrets do
       # starting `apikey` are read from it on every request, and this
       # feature never writes to it.
       S.setprop(f, "_liveopts", S.getprop(client, "options"))
+
+      # What prepare_auth was generated from: the config declares auth only
+      # where it places a credential, and Basic only where it composes one.
+      declared = S.getpath(S.getprop(ctx, "config"), "options.auth")
+      S.setprop(f, "_declared", S.ismap(declared))
+      S.setprop(f, "_basic", S.ismap(declared) and S.getprop(declared, "basic") == true)
 
       name = H.str_or(S.getprop(options, "name"), "apikey")
       S.setprop(f, "_secretname", name)
@@ -125,7 +133,9 @@ defmodule VoxgigSolardemo.Feature.Secrets do
             request: H.str_or(S.getprop(xopts, "request"), "refresh_token"),
             response: H.str_or(S.getprop(xopts, "response"), "access_token"),
             statuses: statuses(S.getprop(xopts, "statuses")),
-            retries: intor(S.getprop(xopts, "retries"), 1)
+            retries: intor(S.getprop(xopts, "retries"), 1),
+            redirect:
+              if(S.getprop(xopts, "redirect") == "same-origin", do: "same-origin", else: "refuse")
           }
         end
 
@@ -473,12 +483,9 @@ defmodule VoxgigSolardemo.Feature.Secrets do
         keep(f)
         :ok
       else
-        # NO SUPPRESSION CHECK HERE, and that is deliberate: elixir's
-        # transport/5 already returns before resolve/1 when `auth: nil`, so
-        # a suppressed request never reaches this purchase at all. Every
-        # other target guards the purchase itself, because their transports
-        # resolve first. One rule, one place - and here that place is the
-        # transport.
+        # No suppression check here: transport/5 returns before resolve/1
+        # when auth is off, so a suppressed request never reaches this
+        # purchase at all.
         case buy(f, x) do
           {:ok, _token} ->
             keep(f)
@@ -525,13 +532,9 @@ defmodule VoxgigSolardemo.Feature.Secrets do
     x = S.getprop(f, "_exchange")
 
     if suppressed?(f) do
-      # `auth: nil` is the documented way to send NO credential, and
-      # prepare_auth honours it by removing the header. There is then
-      # nothing to resolve and nothing to buy: asking the chain could only
-      # fail a request that was never going to carry a credential, and
-      # purchasing an access token nobody will send is a wasted exchange.
-      # The header is removed again defensively, because this is the
-      # function that would otherwise write it.
+      # Auth off sends NO credential, as prepare_auth places none. There is
+      # then nothing to resolve and nothing to buy: asking the chain could
+      # only fail a request that was never going to carry a credential.
       reauth(f, fetchdef, "")
       inner.(ctx, url, fetchdef)
     else
@@ -557,12 +560,15 @@ defmodule VoxgigSolardemo.Feature.Secrets do
     end
   end
 
-  defp suppressed?(f), do: S.getprop(S.getprop(f, "_liveopts"), "auth") == nil
+  # prepare_auth's decision: suppressed where the config declares no auth,
+  # and where `auth` is nil.
+  defp suppressed?(f),
+    do: S.getprop(f, "_declared") != true or S.getprop(S.getprop(f, "_liveopts"), "auth") == nil
 
   # Buy a token and try the request again when the API says the current one
   # is spent.
   #
-  # The retry rewrites the authorization header IN PLACE on the fetchdef,
+  # The retry rewrites the credential header IN PLACE on the fetchdef,
   # because the header was built by the synchronous prepare_auth before this
   # request left and it carries the token that just failed. Rebuilt the way
   # prepare_auth builds it, from the same options auth.prefix, so the two
@@ -623,16 +629,33 @@ defmodule VoxgigSolardemo.Feature.Secrets do
       # Reached defensively - the transport does not resolve at all when
       # auth is suppressed - but this is the function that writes the
       # credential, so it is where the rule has to hold.
+      # The header prepare_auth writes: auth.name, lower-cased.
+      name = S.getpath(S.getprop(f, "_liveopts"), "auth.name")
+      name = if is_binary(name) and name != "", do: String.downcase(name), else: "authorization"
+
       if suppressed?(f) or token == "" do
-        S.delprop(headers, "authorization")
+        S.delprop(headers, name)
       else
+        value =
+          if S.getprop(f, "_basic") == true and
+               S.getpath(S.getprop(f, "_liveopts"), "auth.basic") == true,
+             do: pair(f, token),
+             else: token
+
         prefix = S.getpath(S.getprop(f, "_liveopts"), "auth.prefix")
         prefix = if is_binary(prefix), do: prefix, else: ""
-        S.setprop(headers, "authorization", if(prefix != "", do: prefix <> " " <> token, else: token))
+        S.setprop(headers, name, if(prefix != "", do: prefix <> " " <> value, else: value))
       end
     end
 
     nil
+  end
+
+  # Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+  defp pair(f, token) do
+    joined = Base.encode64(token <> ":" <> tostr(S.getprop(S.getprop(f, "_liveopts"), "secret")))
+    register(f, joined)
+    joined
   end
 
   # ---- the exchange --------------------------------------------------------
@@ -689,7 +712,9 @@ defmodule VoxgigSolardemo.Feature.Secrets do
         S.jm([
           "method", x.method,
           "headers", S.jm(["content-type", "application/json"]),
-          "body", S.jsonify(S.jm([x.request, refresh]), S.jm(["indent", 0]))
+          "body", S.jsonify(S.jm([x.request, refresh]), S.jm(["indent", 0])),
+          # Never followed by the client: a redirect would carry the refresh token on.
+          "redirect", "manual"
         ])
 
       sysfetch = S.getpath(options, "system.fetch")
@@ -699,14 +724,21 @@ defmodule VoxgigSolardemo.Feature.Secrets do
       # recurse on the first expiry - and would route the exchange through
       # the test mock, which knows nothing about it. `options.system.fetch`
       # is preferred when set, so a test can intercept the purchase.
-      {res, ferr} =
+      ask = fn at ->
         try do
           if S.isfunc(sysfetch),
-            do: sysfetch.(url, fetchdef),
-            else: raw_exchange_fetch(url, fetchdef)
+            do: sysfetch.(at, fetchdef),
+            else: raw_exchange_fetch(at, fetchdef)
         rescue
           e -> {nil, fail(e)}
         end
+      end
+
+      # By option alone, and only while the exchange stays on its own origin.
+      {res, ferr} =
+        if x.redirect == "same-origin",
+          do: follow(url, url, ask.(url), ask, @redirect_max),
+          else: ask.(url)
 
       cond do
         ferr != nil ->
@@ -736,6 +768,33 @@ defmodule VoxgigSolardemo.Feature.Secrets do
       end
     end
   end
+
+  defp follow(url, at, {res, nil} = got, ask, hops) when hops > 0 do
+    case moved(url, at, res) do
+      nil -> got
+      next -> follow(url, next, ask.(next), ask, hops - 1)
+    end
+  end
+
+  defp follow(_url, _at, got, _ask, _hops), do: got
+
+  # Where a redirect keeping method and body (307 or 308) points, on the
+  # exchange's own origin. Any other would drop the body or leave the origin.
+  defp moved(url, at, res) do
+    location = if S.ismap(res), do: S.getprop(S.getprop(res, "headers"), "location")
+
+    if S.ismap(res) and H.to_int(S.getprop(res, "status")) in [307, 308] and
+         is_binary(location) and location != "" do
+      try do
+        next = URI.merge(URI.parse(at), location)
+        if origin(next) == origin(URI.parse(url)), do: URI.to_string(next)
+      rescue
+        _ -> nil
+      end
+    end
+  end
+
+  defp origin(uri), do: {uri.scheme, uri.host, uri.port}
 
   defp bodyfield(res, name) do
     jf = S.getprop(res, "json")
@@ -779,8 +838,8 @@ defmodule VoxgigSolardemo.Feature.Secrets do
         {String.to_charlist(url), hlist}
       end
 
-    case :httpc.request(method, request, [], body_format: :binary) do
-      {:ok, {{_v, status, _reason}, _rh, resbody}} ->
+    case :httpc.request(method, request, [autoredirect: false], body_format: :binary) do
+      {:ok, {{_v, status, _reason}, rh, resbody}} ->
         text = if is_binary(resbody), do: resbody, else: to_string(resbody)
 
         parsed =
@@ -790,7 +849,10 @@ defmodule VoxgigSolardemo.Feature.Secrets do
             _ -> nil
           end
 
-        {S.jm(["status", status, "json", fn -> parsed end, "body", text]), nil}
+        headers =
+          S.jm(Enum.flat_map(rh, fn {k, v} -> [String.downcase(to_string(k)), to_string(v)] end))
+
+        {S.jm(["status", status, "headers", headers, "json", fn -> parsed end, "body", text]), nil}
 
       {:error, reason} ->
         {nil, err("secrets_exchange_failed", "secrets: token exchange transport: " <> inspect(reason))}

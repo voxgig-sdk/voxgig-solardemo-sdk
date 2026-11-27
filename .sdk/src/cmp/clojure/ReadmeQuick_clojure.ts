@@ -1,16 +1,17 @@
 
-import { cmp, each, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps } from '@voxgig/sdkgen'
+import { cmp, each, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps, matchExampleItems, requiredItems, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { cljListMatch } from './utility_clojure'
+import { cljListMatch, cljString } from './utility_clojure'
 
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
@@ -27,9 +28,18 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   ) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `(api/make-sdk (vs/jm "apikey" (System/getenv "${envName(model)}_APIKEY")))`
-    : `(api/make-sdk nil)`
+  // The constructor refuses a templated URL it has no value for, so the quick
+  // start passes each variable the URL uses with no default.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`"apikey" (System/getenv "${envName(model)}_APIKEY")`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`"secret" (System/getenv "${envName(model)}_SECRET")`] : []),
+    ...(0 === svars.length ? [] : [`"server" (vs/jm ` +
+      svars.map((v: any) => `"${v.name}" "<${v.name}>"`).join(' ') + `)`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `(api/make-sdk nil)`
+    : `(api/make-sdk (vs/jm ${ctorFields.join(' ')}))`
 
   // A type-correct Clojure literal for a param.
   const cljLit = (type: any, placeholder: string = 'example'): string => {
@@ -39,7 +49,7 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
     if ('BOOLEAN' === k) return 'true'
     if ('ARRAY' === k) return '(vs/jt)'
     if ('OBJECT' === k) return '(vs/jm)'
-    return `"${placeholder}"`
+    return cljString(placeholder)
   }
 
   // Requires for block 1: the api ns, struct, plus every entity namespace the
@@ -53,7 +63,7 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   }
   requireLines.push(`         '[voxgig.struct :as vs])`)
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`clojure
 ${requireLines.join('\n')}
@@ -73,7 +83,7 @@ ${requireLines.join('\n')}
     const dataIdF = entityDataIdField(exampleEntity)
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${eLow} records
+      Content(`### ${++step}. List ${eLow} records
 
 \`list\` returns a vector of entities, one per record, and raises on error.
 Read each record with \`((:data-get ${eLow}))\`.
@@ -96,18 +106,17 @@ Read each record with \`((:data-get ${eLow}))\`.
       // Model-driven match: every REQUIRED load-match key. Parent keys first,
       // the entity's own id last.
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
       const parentParam = parentItem && parentItem.name
       const parentName = parentParam ? parentParam.replace(/_id$/, '') : 'its parent'
       const neMatch = neRequired.map((it: any) =>
-        `"${it.name}" ${cljLit(it.type,
+        `${cljString(it.name)} ${cljLit(it.type,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)}`)
 
-      Content(`### 3. Load ${neArticle} ${neLow}
+      Content(`### ${++step}. Load ${neArticle} ${neLow}
 
 ${nestedEntity.Name} is nested under ${parentName}, so provide the
 \`${parentParam}\`. \`load\` returns the entity and raises on error;
@@ -124,17 +133,16 @@ ${nestedEntity.Name} is nested under ${parentName}, so provide the
 `)
     }
     else if (opnames.includes('load')) {
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
         ? `(vs/jm ${loadRequired.map((it: any) =>
-          `"${it.name}" ${cljLit(it.type,
+          `${cljString(it.name)} ${cljLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(' ')})`
         : 'nil'
 
-      Content(`### 3. Load ${article} ${eLow}
+      Content(`### ${++step}. Load ${article} ${eLow}
 
 \`load\` returns the entity and raises on error; \`((:data-get ${eLow}))\` reads
 its record.
@@ -152,15 +160,15 @@ its record.
 
     // Model-driven example fields from the op shape (opRequestShape).
     const examplePairs = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
-      return chosen.map((it: any) => `"${it.name}" ${cljLit(it.type, 'example_' + it.name)}`)
+      return chosen.map((it: any) => `${cljString(it.name)} ${cljLit(it.type, 'example_' + it.name)}`)
     }
 
     const idParamType = (opname: string): any => {
@@ -168,12 +176,13 @@ its record.
       return it && it.type
     }
     const idValueFor = (opname: string): string => (null != dataIdF && opnames.includes('create'))
-      ? `(vs/getprop ((:data-get created)) "${dataIdF}")`
+      ? `(vs/getprop ((:data-get created)) ${cljString(dataIdF)})`
       : cljLit(idParamType(opname), 'example_id')
 
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`clojure
 `)
@@ -184,7 +193,7 @@ its record.
 `)
       }
       if (opnames.includes('update')) {
-        const updatePairs = (idF ? [`"${idF}" ${idValueFor('update')}`] : []).concat(examplePairs('update'))
+        const updatePairs = (sendsId(exampleEntity, 'update', idF) ? [`${cljString(idF)} ${idValueFor('update')}`] : []).concat(examplePairs('update'))
         const fromCreated = null != dataIdF && opnames.includes('create')
         Content(`;; Update${fromCreated ? " — the created entity's record holds its id" : ''}
 (e-${eLow}/update (api/${eLow} client nil) (vs/jm ${updatePairs.join(' ')}) nil)
@@ -192,20 +201,19 @@ its record.
 `)
       }
       if (opnames.includes('patch')) {
-        const patchPairs = (idF ? [`"${idF}" ${idValueFor('patch')}`] : []).concat(examplePairs('patch'))
+        const patchPairs = (sendsId(exampleEntity, 'patch', idF) ? [`${cljString(idF)} ${idValueFor('patch')}`] : []).concat(examplePairs('patch'))
         Content(`;; Patch — sends only the fields given
 (e-${eLow}/patch (api/${eLow} client nil) (vs/jm ${patchPairs.join(' ')}) nil)
 
 `)
       }
       if (opnames.includes('remove')) {
-        const removePairs = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removePairs = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF
-            ? `"${it.name}" ${idValueFor('remove')}`
-            : `"${it.name}" ${cljLit(it.type, 'example_' + it.name)}`)
+            ? `${cljString(it.name)} ${idValueFor('remove')}`
+            : `${cljString(it.name)} ${cljLit(it.type, 'example_' + it.name)}`)
         Content(`;; Remove
 (e-${eLow}/remove (api/${eLow} client nil) ${removePairs.length ? `(vs/jm ${removePairs.join(' ')})` : 'nil'} nil)
 `)

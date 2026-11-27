@@ -5,22 +5,19 @@ import {
   Folder,
   cmp,
   goModule,
-  isHttpBasicAuth,
-  resolveAuthIn,
-  resolveAuthName,
-  resolveAuthPrefix,
+  fact,
 } from '@voxgig/sdkgen'
 
 
 import {
   KIT,
-  getModelPath,
 } from '@voxgig/apidef'
 
 
 const PrepareAuth = cmp(async function PrepareAuth(props: any) {
   const { target } = props
   const { model } = props.ctx$
+  const authFact = fact(model.main[KIT], 'auth')
 
   // The generated source cannot use the `GOMODULE` / `github.com/voxgig/struct`
   // placeholders: those are rewritten by Main's `Copy({from:'tm/go'})`, and
@@ -28,11 +25,11 @@ const PrepareAuth = cmp(async function PrepareAuth(props: any) {
   // here, the same way EntityTypes_go resolves them.
   const gomodule = goModule(model, target.name)
 
-  const active = isAuthActive_go(model)
-  const where = resolveAuthIn(model)
-  const name = resolveAuthName(model)
-  const prefix = resolveAuthPrefix(model)
-  const basic = isHttpBasicAuth(model)
+  const active = !authFact.suppressed
+  const where = authFact.in
+  const name = authFact.name
+  const prefix = authFact.prefix
+  const basic = authFact.basic
 
   Folder({ name: 'utility' }, () => {
     File({ name: 'prepare_auth.' + target.ext }, () => {
@@ -61,8 +58,8 @@ import (
 	"${spec.gomodule}/core"
 )
 
-// This API declares no authentication, so there is no credential to place.
-// The function stays in the pipeline because makeSpec calls it
+// This SDK is configured with authentication off, so there is no credential
+// to place. The function stays in the pipeline because makeSpec calls it
 // unconditionally.
 func prepareAuthUtil(ctx *core.Context) (*core.Spec, error) {
 	spec := ctx.Spec
@@ -76,25 +73,12 @@ func prepareAuthUtil(ctx *core.Context) (*core.Spec, error) {
 `
   }
 
-  // HTTP Basic is header-only by definition: the scheme is
-  // `Authorization: Basic base64(user:pass)`. It cannot be expressed as a
-  // query parameter or a cookie, so the branch is emitted only where it can
-  // mean something — and base64 is imported only then.
+  // HTTP Basic is header-only by definition (`Authorization: Basic
+  // base64(user:pass)`), so the branch is emitted only where it can mean
+  // something.
   const withBasic = spec.basic && 'header' === spec.where
 
-  const head = `package utility
-
-import (
-${withBasic ? `	"encoding/base64"
-
-` : ''}${'query' !== spec.where ? `	"strings"
-
-` : ''}	vs "${spec.gomodule}/utility/struct"
-
-	"${spec.gomodule}/core"
-)
-
-const credName = "${gostr(credLiteral(spec.where, spec.name))}"
+  const head = `const credName = "${gostr(credLiteral(spec.where, spec.name))}"
 ${'cookie' === spec.where ? `const cookieHeader = "cookie"
 ` : ''}const optionApikey = "apikey"
 ${withBasic ? `const optionSecret = "secret"
@@ -181,7 +165,7 @@ ${cookieHelper(spec.where)}func prepareAuthUtil(ctx *core.Context) (*core.Spec, 
 	}
 `
 
-  return head + basicBlock + `
+  const body = head + basicBlock + `
 	if skip {
 		${clear(spec.where, 'name')}
 	} else {
@@ -191,6 +175,27 @@ ${place(spec.where, 'name')}
 	return spec, nil
 }
 `
+
+  return `package utility
+
+import (
+${stdImports(body)}	vs "${spec.gomodule}/utility/struct"
+
+	"${spec.gomodule}/core"
+)
+
+` + body
+}
+
+
+// Go rejects an unused import, and which of these the body calls varies by placement.
+const STD_IMPORTS = ['encoding/base64', 'strings']
+
+function stdImports(body: string): string {
+  return STD_IMPORTS
+    .filter((pkg) => new RegExp('\\b' + pkg.split('/').pop() + '\\.[A-Z]').test(body))
+    .map((pkg) => `\t"${pkg}"\n\n`)
+    .join('')
 }
 
 
@@ -300,8 +305,3 @@ export {
 }
 
 
-function isAuthActive_go(model: any): boolean {
-  const auth = getModelPath(model, `main.${KIT}.config.auth`,
-    { only_active: false, required: false })
-  return !(null != auth && false === auth.active)
-}

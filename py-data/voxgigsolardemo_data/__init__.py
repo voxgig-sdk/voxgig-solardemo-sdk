@@ -35,8 +35,8 @@ class VoxgigSolardemoData(EntityFrames):
 
         For endpoints without a generated accessor:
 
-            rows = ad.sdk.SomeEntity().list()
-            df = ad.frame(rows)
+            result = ad.sdk.Moon().create({ "planet_id": "example", "diameter": 1, "id": "example", "kind": "example", "name": "example" })
+            df = ad.frame(result)
         """
         return records_df(result, **kwargs)
 
@@ -60,28 +60,26 @@ class VoxgigSolardemoData(EntityFrames):
 
 
 def data(
-    token: str | None = None,
     base_url: str | None = None,
     **options,
 ) -> VoxgigSolardemoData:
-    """Build a VoxgigSolardemoData client, finding credentials automatically.
-
-    Discovery order (first hit wins):
-      1. the `token` / `base_url` arguments
-      2. Colab secrets  — VOXGIG_SOLARDEMO_APIKEY / VOXGIG_SOLARDEMO_BASE
-      3. environment    — VOXGIG_SOLARDEMO_APIKEY / VOXGIG_SOLARDEMO_BASE
+    """Build a VoxgigSolardemoData client.
 
     Extra keyword arguments are passed straight through to the SDK client, so
     anything the SDK accepts (feature options, headers, timeouts) works here.
+    The SDK's paging feature is switched on, so accessors fetch every page,
+    unless `feature` sets it.
     """
-    token, base_url, _source = auth.resolve("VOXGIG_SOLARDEMO", token, base_url)
+    base_url = auth.resolve("VOXGIG_SOLARDEMO", None, base_url)[1]
 
-    if not token:
-        raise ValueError(auth.missing_token_message("VOXGIG_SOLARDEMO"))
-
-    opts: dict = {"apikey": token}
+    opts: dict = {}
     if base_url:
         opts["base"] = base_url
     opts.update(options)
+    feature = opts.get("feature")
+    if feature is None or isinstance(feature, dict):
+        feature = dict(feature or {})
+        feature.setdefault("paging", {"active": True})
+        opts["feature"] = feature
 
     return VoxgigSolardemoData(VoxgigSolardemoSDK(opts), base_url)

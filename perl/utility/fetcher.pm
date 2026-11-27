@@ -12,6 +12,7 @@ my $__dir;
 BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../lib/Voxgig/Struct.pm"));
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
+require(Cwd::abs_path("$__dir/../core/error.pm"));
 
 package VoxgigSolardemoUtilities;
 
@@ -27,11 +28,102 @@ sub _http_client {
   return $HTTP_CLIENTS{$key} //= HTTP::Tiny->new(%new_args);
 }
 
+our $GETONLY_ENV = 'VOXGIG_GETONLY_GUARD';
+
+# A GET-only live run refuses any other method before it is sent. The error
+# names the path alone: the query can carry a credential.
+sub getonly_refusal {
+  my ($fullurl, $method) = @_;
+  return undef if ($ENV{$GETONLY_ENV} // '') ne 'TRUE' || 'GET' eq $method;
+  my $rest = "$fullurl";
+  $rest =~ s{\A[^:/?#]*://[^/?#]*}{};
+  my ($path) = $rest =~ m{\A([^?#]*)};
+  $path = '/' if '' eq $path;
+  return VoxgigSolardemoError->new('fetch_getonly_block',
+    "[GET-ONLY GUARD] blocked $method $path");
+}
+
+our @REDIRECT_STATUS = (301, 302, 303, 307, 308);
+our $REDIRECT_MAX = 5;
+
+# The Location resolved against the URL that answered with it (RFC 3986 5.2).
+sub resolve_location {
+  my ($base, $loc) = @_;
+  $loc =~ s/\s+//g;
+  $loc =~ s/#.*//s;
+  return $loc if $loc =~ m{\A[A-Za-z][A-Za-z0-9+.-]*:};
+  my ($scheme, $auth, $path, $query) = $base =~ m{\A([^:/?#]+):(?://([^/?#]*))?([^?#]*)(\?[^#]*)?};
+  return undef unless defined $scheme;
+  return "$scheme:$loc" if $loc =~ m{\A//};
+  $path = '/' if '' eq $path;
+  my ($lpath, $lquery) = $loc =~ m{\A([^?]*)(\?.*)?\z}s;
+  if ('' eq $lpath) {
+    $lpath = $path;
+    $lquery = $query unless defined $lquery;
+  }
+  elsif ($lpath !~ m{\A/}) {
+    (my $dir = $path) =~ s{[^/]*\z}{};
+    $lpath = $dir . $lpath;
+  }
+  my @out;
+  for my $seg (split m{/}, $lpath, -1) {
+    if ('..' eq $seg) { pop @out if 1 < @out; }
+    elsif ('.' ne $seg) { push @out, $seg; }
+  }
+  push @out, '' if $lpath =~ m{(?:\A|/)\.\.?\z};
+  return "$scheme://" . ($auth // '') . join('/', @out) . ($lquery // '');
+}
+
+sub _origin {
+  my ($url) = @_;
+  my ($scheme, $host, $port) = lc($url) =~ m{\A([^:/?#]+)://(?:[^@/?#]*@)?(\[[^\]]*\]|[^:/?#]*)(?::(\d+))?};
+  return join ':', $scheme // '', $host // '', $port // ('https' eq ($scheme // '') ? 443 : 80);
+}
+
+# What another origin is not sent: the names every client drops, and
+# whatever the SDK holds as a secret, by its name or by its value. A call
+# with no context is answered from the schema's sensitive names.
+sub _is_credential {
+  my ($ctx, $name, $value) = @_;
+  return 1 if lc($name) =~ /\A(?:authorization|cookie|proxy-authorization)\z/;
+  my $utility = Voxgig::Struct::ismap($ctx) ? $ctx->{utility} : undef;
+  my $secret = (Voxgig::Struct::ismap($utility) && $utility->{clean_secret}) || $REGISTRY{clean_secret};
+  return ref $secret eq 'CODE' && $secret->($ctx, $name, $value) ? 1 : 0;
+}
+
+# HTTP::Tiny cannot resolve a relative-path Location, so it follows none here.
+# A GET or HEAD follows a redirect, unless the fetch definition says "manual",
+# each hop passing the GET-only guard first; past $REDIRECT_MAX hops, or where
+# a body would go to another origin, the 3xx is the answer. Another origin is
+# not sent the request's credentials.
 our $DefaultHttpFetch = sub {
-  my ($fullurl, $fetchdef) = @_;
+  my ($fullurl, $fetchdef, $ctx) = @_;
   $fetchdef = {} unless defined $fetchdef;
 
   my $method = uc(defined $fetchdef->{method} ? "$fetchdef->{method}" : 'GET');
+  my $follow = ($method eq 'GET' || $method eq 'HEAD')
+    && !(defined $fetchdef->{redirect} && !ref $fetchdef->{redirect} && 'manual' eq $fetchdef->{redirect});
+  my $url = $fullurl;
+  for (my $hops = 0; ; $hops++) {
+    my $refused = getonly_refusal($url, $method);
+    return (undef, $refused) if $refused;
+    my ($res, $err) = _send_once($url, $fetchdef, $method);
+    my $location = $res ? $res->{headers}{location} : undef;
+    my $next = $follow && defined $location && !ref $location && $hops < $REDIRECT_MAX
+      && (grep { $_ == $res->{status} } @REDIRECT_STATUS) ? resolve_location($url, $location) : undef;
+    return ($res, $err) unless defined $next;
+    if (_origin($next) ne _origin($url)) {
+      return ($res, $err) if defined $fetchdef->{body};
+      my $headers = Voxgig::Struct::ismap($fetchdef->{headers}) ? $fetchdef->{headers} : {};
+      $fetchdef = { %$fetchdef, headers => { map { $_ => $headers->{$_} }
+        grep { !_is_credential($ctx, $_, $headers->{$_}) } keys %$headers } };
+    }
+    $url = $next;
+  }
+};
+
+sub _send_once {
+  my ($fullurl, $fetchdef, $method) = @_;
   my $body = $fetchdef->{body};
   my $headers = Voxgig::Struct::ismap($fetchdef->{headers}) ? $fetchdef->{headers} : {};
 
@@ -43,9 +135,9 @@ our $DefaultHttpFetch = sub {
     $has_ua = 1 if lc("$k") eq 'user-agent';
     $hdrs{$k} = "$v";
   }
-  # Default User-Agent - some CDNs block library defaults. Use a
-  # Mozilla-shaped UA unless the caller already set one, and record it with
-  # the headers the request sent.
+  # Default User-Agent - some CDNs block library defaults. Use the project's
+  # agent (main.kit.http.useragent, browser-shaped by default) unless the
+  # caller already set one, and record it with the headers the request sent.
   unless ($has_ua) {
     $hdrs{'User-Agent'} = 'Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)';
     $headers->{'user-agent'} = $hdrs{'User-Agent'};
@@ -65,14 +157,7 @@ our $DefaultHttpFetch = sub {
     $opts->{content} = $content;
   }
 
-  # fetchdef.redirect 'manual' (the ts fetch vocabulary): return a 3xx
-  # as-is instead of following it. HTTP::Tiny follows redirects by
-  # default; the station feature's hosts policy sets this so a Location
-  # off the allowlist can never pull an automatic credentialed follow-up.
-  my %new_args;
-  $new_args{max_redirect} = 0
-    if defined $fetchdef->{redirect} && !ref $fetchdef->{redirect}
-      && 'manual' eq $fetchdef->{redirect};
+  my %new_args = (max_redirect => 0);
   # Both keys: HTTP::Tiny lets the environment override its generic proxy.
   $new_args{http_proxy} = $new_args{https_proxy} = "$fetchdef->{proxy}"
     if defined $fetchdef->{proxy} && !ref $fetchdef->{proxy}
@@ -103,10 +188,19 @@ our $DefaultHttpFetch = sub {
     $resp_headers->{lc "$k"} = $v;
   }
 
+  my $content = $res->{content};
+  my $encoding = lc(defined $resp_headers->{'content-encoding'} ? $resp_headers->{'content-encoding'} : '');
+  $encoding =~ s/\A\s+|\s+\z//g;
+  if (defined $content && length $content && $encoding =~ /\A(?:gzip|x-gzip|deflate)\z/) {
+    my ($decoded, $derr) = _decode_body($content, $encoding);
+    return (undef, $derr) if defined $derr;
+    $content = $decoded;
+  }
+
   my $json_body;
   my $unreadable = 0;
-  if (defined $res->{content} && $res->{content} =~ /\S/) {
-    my $parsed = eval { $json_body = Voxgig::Struct::parse_json($res->{content}); 1 };
+  if (defined $content && $content =~ /\S/) {
+    my $parsed = eval { $json_body = Voxgig::Struct::parse_json($content); 1 };
     $unreadable = 1 unless $parsed;
   }
   my $captured = $json_body;
@@ -116,10 +210,40 @@ our $DefaultHttpFetch = sub {
     'statusText' => (defined $res->{reason} ? "$res->{reason}" : ''),
     'headers' => $resp_headers,
     'json' => sub { $captured },
-    'body' => $res->{content},
+    'body' => $content,
     'unreadable' => $unreadable,
   }, undef);
-};
+}
+
+# HTTP::Tiny decodes no Content-Encoding, and a server may compress its answer
+# whatever the request asked for. Deflate is zlib-wrapped, or
+# raw as some servers send it.
+sub _decode_body {
+  no warnings 'once';
+  my ($content, $encoding) = @_;
+  my $out;
+  my $ok = eval {
+    if ('deflate' eq $encoding) {
+      require IO::Uncompress::Inflate;
+      require IO::Uncompress::RawInflate;
+      IO::Uncompress::Inflate::inflate(\$content => \$out, Transparent => 0)
+        or IO::Uncompress::RawInflate::rawinflate(\$content => \$out, Transparent => 0)
+        or die "$IO::Uncompress::RawInflate::RawInflateError\n";
+    }
+    else {
+      require IO::Uncompress::Gunzip;
+      IO::Uncompress::Gunzip::gunzip(\$content => \$out, Transparent => 0)
+        or die "$IO::Uncompress::Gunzip::GunzipError\n";
+    }
+    1;
+  };
+  if (!$ok) {
+    my $e = "$@";
+    $e =~ s/\s+\z//;
+    return (undef, "response body is not valid $encoding data: $e");
+  }
+  return ($out, undef);
+}
 
 $REGISTRY{fetcher} = sub {
   my ($ctx, $fullurl, $fetchdef) = @_;
@@ -139,7 +263,7 @@ $REGISTRY{fetcher} = sub {
 
   my $sys_fetch = VoxgigSolardemoHelpers::gpath($options, 'system.fetch');
 
-  return $DefaultHttpFetch->($fullurl, $fetchdef) if !defined $sys_fetch;
+  return $DefaultHttpFetch->($fullurl, $fetchdef, $ctx) if !defined $sys_fetch;
   return $sys_fetch->($fullurl, $fetchdef) if ref $sys_fetch eq 'CODE';
 
   return (undef, $ctx->make_error('fetch_invalid', 'system.fetch is not a valid function'));

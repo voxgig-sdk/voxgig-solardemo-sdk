@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { cIdent, cVarName, cListMatch } from './utility_c'
+import { cIdent, cVarName, cListMatch, cString } from './utility_c'
 
 
 // A type-correct C expression constructing a voxgig struct Value for a param.
@@ -20,7 +20,7 @@ function cLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'v_bool(true)'
   if ('ARRAY' === k) return 'v_list()'
   if ('OBJECT' === k) return 'v_map()'
-  return `v_str("${placeholder}")`
+  return `v_str(${cString(placeholder)})`
 }
 
 
@@ -38,15 +38,28 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `${ident}_sdk_new(cmap(1,\n    "apikey", v_str(getenv("${envName(model)}_APIKEY"))))`
-    : `${ident}_sdk_new(NULL)`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`"apikey", v_str(getenv("${envName(model)}_APIKEY"))`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`"secret", v_str(getenv("${envName(model)}_SECRET"))`] : []),
+    ...(0 === svars.length ? [] : [`"server", cmap(${svars.length}, ` +
+      svars.map((v: any) => `"${v.name}", v_str("<${v.name}>")`).join(', ') + `)`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `${ident}_sdk_new(NULL, &err)`
+    : `${ident}_sdk_new(cmap(${ctorFields.length},${ctorFields.map((f: string) => '\n    ' + f).join(',')}), &err)`
 
   Content(`\`\`\`c
+#include <stdio.h>
+#include <stdlib.h>
 #include "core/api.h"
 
-${model.const.Name}SDK* client = ${ctor};
 PNError* err = NULL;
+${model.const.Name}SDK* client = ${ctor};
+if (NULL == client) {
+    fprintf(stderr, "%s\\n", err->msg);
+    exit(1);
+}
 
 `)
 
@@ -54,7 +67,7 @@ PNError* err = NULL;
     const eName = nom(exampleEntity, 'Name')
     const evar = cVarName(exampleEntity.name)
     const acc = `${ident}_${evar}`
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
@@ -74,12 +87,11 @@ for (size_t i = 0; ${evar}s && ${evar}s[i]; i++) {
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = cmapExpr(loadItems.map((it: any) =>
-        `"${it.name}", ${cLit(it.type,
+        `${cString(it.name)}, ${cLit(it.type,
           it.name === idF ? 'example_id' : 'example_' + it.name)}`))
       const acquire = opnames.includes('list')
         ? ''

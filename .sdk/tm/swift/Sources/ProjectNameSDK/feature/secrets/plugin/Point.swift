@@ -1,5 +1,5 @@
-// VENDORED: @voxgig/plugin sdk-20260925-1316-0 (swift/src/Point.swift)
-// Source: https://github.com/voxgig/plugin @ 43acbf266b0dbcf52e5ab5463d85c822da9cd234  [tag: sdk-20260925-1316-0]
+// VENDORED: @voxgig/plugin sdk-20261125-1959-0 (swift/src/Point.swift)
+// Source: https://github.com/voxgig/plugin @ 8605cdc5e68a691130ae9b585baf8c0091a66351  [tag: sdk-20261125-1959-0]
 // License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 /// Extension points (section 6). Three kinds, chosen because they are what the
 /// two existing systems actually needed, and no more.

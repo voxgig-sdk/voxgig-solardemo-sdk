@@ -16,18 +16,18 @@ import (
 type Moon struct {
 }
 
-// MoonLoadMatch is the typed request payload for Moon.LoadTyped.
+// MoonLoadMatch is the typed request payload for MoonEntity.LoadTyped.
 type MoonLoadMatch struct {
 	Id string `json:"id"`
 	PlanetId string `json:"planet_id"`
 }
 
-// MoonListMatch is the typed request payload for Moon.ListTyped.
+// MoonListMatch is the typed request payload for MoonEntity.ListTyped.
 type MoonListMatch struct {
 	PlanetId string `json:"planet_id"`
 }
 
-// MoonCreateData is the typed request payload for Moon.CreateTyped.
+// MoonCreateData is the typed request payload for MoonEntity.CreateTyped.
 type MoonCreateData struct {
 	PlanetId string `json:"planet_id"`
 	Diameter float64 `json:"diameter"`
@@ -36,7 +36,7 @@ type MoonCreateData struct {
 	Name string `json:"name"`
 }
 
-// MoonUpdateData is the typed request payload for Moon.UpdateTyped.
+// MoonUpdateData is the typed request payload for MoonEntity.UpdateTyped.
 type MoonUpdateData struct {
 	Id string `json:"id"`
 	PlanetId string `json:"planet_id"`
@@ -45,7 +45,7 @@ type MoonUpdateData struct {
 	Name *string `json:"name,omitempty"`
 }
 
-// MoonRemoveMatch is the typed request payload for Moon.RemoveTyped.
+// MoonRemoveMatch is the typed request payload for MoonEntity.RemoveTyped.
 type MoonRemoveMatch struct {
 	Id string `json:"id"`
 	PlanetId string `json:"planet_id"`
@@ -55,12 +55,12 @@ type MoonRemoveMatch struct {
 type Planet struct {
 }
 
-// PlanetLoadMatch is the typed request payload for Planet.LoadTyped.
+// PlanetLoadMatch is the typed request payload for PlanetEntity.LoadTyped.
 type PlanetLoadMatch struct {
 	Id string `json:"id"`
 }
 
-// PlanetListMatch is the typed request payload for Planet.ListTyped.
+// PlanetListMatch is the typed request payload for PlanetEntity.ListTyped.
 type PlanetListMatch struct {
 	Diameter *float64 `json:"diameter,omitempty"`
 	ForbidReason *string `json:"forbidReason,omitempty"`
@@ -71,29 +71,23 @@ type PlanetListMatch struct {
 	TerraformState *string `json:"terraformState,omitempty"`
 }
 
-// PlanetCreateData is the typed request payload for Planet.CreateTyped.
+// PlanetCreateData is the typed request payload for PlanetEntity.CreateTyped.
 type PlanetCreateData struct {
 	Diameter float64 `json:"diameter"`
-	ForbidReason *string `json:"forbidReason,omitempty"`
-	ForbidState *string `json:"forbidState,omitempty"`
 	Id string `json:"id"`
 	Kind string `json:"kind"`
 	Name string `json:"name"`
-	TerraformState *string `json:"terraformState,omitempty"`
 }
 
-// PlanetUpdateData is the typed request payload for Planet.UpdateTyped.
+// PlanetUpdateData is the typed request payload for PlanetEntity.UpdateTyped.
 type PlanetUpdateData struct {
 	Id string `json:"id"`
 	Diameter *float64 `json:"diameter,omitempty"`
-	ForbidReason *string `json:"forbidReason,omitempty"`
-	ForbidState *string `json:"forbidState,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	Name *string `json:"name,omitempty"`
-	TerraformState *string `json:"terraformState,omitempty"`
 }
 
-// PlanetRemoveMatch is the typed request payload for Planet.RemoveTyped.
+// PlanetRemoveMatch is the typed request payload for PlanetEntity.RemoveTyped.
 type PlanetRemoveMatch struct {
 	Id string `json:"id"`
 }
@@ -112,7 +106,7 @@ func asMap(v any) map[string]any {
 
 // entityData unwraps an entity to its data map.
 //
-// Operations resolve to the ENTITY, not the raw data (see AGENTS.md), and an
+// Operations resolve to the ENTITY, not the raw data, and an
 // entity's fields are UNEXPORTED — marshalling one directly yields `{}`, so
 // every typed accessor would silently hand back a zero-valued struct. The
 // typed boundary therefore takes the data hop first.

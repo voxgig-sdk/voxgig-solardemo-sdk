@@ -1,12 +1,12 @@
-# VoxgigSolardemo Golang SDK
+# VoxgigSolardemo Go SDK
 
 
 
-The Golang SDK for the VoxgigSolardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
+The Go SDK for the VoxgigSolardemo API — an entity-oriented client using standard Go conventions. No generics required; data flows as `map[string]any`.
 
 It exposes the API as capitalised, semantic **Entities** — e.g. `client.Moon(nil)` — each with the same small set of operations (`List`, `Load`, `Create`, `Update`, `Remove`) instead of raw URL paths and query strings. You call meaning, not endpoints, which keeps the cognitive load low.
 
-> Also generated from this model: `c`, `clojure`, `cpp`, `csharp`, `dart`, `elixir`, `go-cli`, `go-mcp`, `haskell`, `java`, `js`, `kotlin`, `lean`, `lua`, `ocaml`, `perl`, `php`, `py`, `py-data`, `rb`, `rust`, `scala`, `seneca-provider`, `swift`, `ts`, `zig` — see
+> Other languages, the CLI, and MCP server live alongside this one — see
 > the [top-level README](../README.md).
 
 
@@ -29,8 +29,7 @@ go mod edit -replace github.com/voxgig-sdk/voxgig-solardemo-sdk/go=../voxgig-sol
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### Quickstart
 
@@ -49,7 +48,10 @@ import (
 )
 
 func main() {
-    client := sdk.New()
+    client, err := sdk.New()
+    if err != nil {
+        panic(err)
+    }
 
     // List moon records — the value is a []any of entities, one per record.
     moons, err := client.Moon(nil).List(map[string]any{"planet_id": "example"}, nil)
@@ -109,9 +111,9 @@ _ = planets
 
 ```go
 result, err := client.Direct(map[string]any{
-    "path":   "/api/resource/{id}",
+    "path":   "/api/planet/{planet_id}/moon",
     "method": "GET",
-    "params": map[string]any{"id": "example_id"},
+    "params": map[string]any{"planet_id": "example_id"},
 })
 if err != nil {
     // handle err
@@ -128,9 +130,9 @@ For endpoints not covered by entity methods:
 
 ```go
 result, err := client.Direct(map[string]any{
-    "path":   "/api/resource/{id}",
+    "path":   "/api/planet/{planet_id}/moon",
     "method": "GET",
-    "params": map[string]any{"id": "example"},
+    "params": map[string]any{"planet_id": "example"},
 })
 if err != nil {
     panic(err)
@@ -146,9 +148,9 @@ if result["ok"] == true {
 
 ```go
 fetchdef, err := client.Prepare(map[string]any{
-    "path":   "/api/resource/{id}",
-    "method": "DELETE",
-    "params": map[string]any{"id": "example"},
+    "path":   "/api/planet/{planet_id}/moon",
+    "method": "GET",
+    "params": map[string]any{"planet_id": "example"},
 })
 if err != nil {
     panic(err)
@@ -194,12 +196,15 @@ mockFetch := func(url string, init map[string]any) (map[string]any, error) {
     }, nil
 }
 
-client := sdk.NewVoxgigSolardemoSDK(map[string]any{
+client, err := sdk.NewVoxgigSolardemoSDK(map[string]any{
     "base": "http://localhost:8080",
     "system": map[string]any{
         "fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),
     },
 })
+if err != nil {
+    panic(err)
+}
 ```
 
 ### Run live tests
@@ -209,6 +214,10 @@ Create a `.env.local` file at the project root:
 ```
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
+
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
 
 Then run:
 
@@ -222,7 +231,7 @@ cd go && go test ./test/...
 ### NewVoxgigSolardemoSDK
 
 ```go
-func NewVoxgigSolardemoSDK(options map[string]any) *VoxgigSolardemoSDK
+func NewVoxgigSolardemoSDK(options map[string]any) (*VoxgigSolardemoSDK, error)
 ```
 
 Creates a new SDK client.
@@ -232,9 +241,10 @@ Creates a new SDK client.
 | `"base"` | `string` | Base URL of the API server. |
 | `"prefix"` | `string` | URL path prefix prepended to all requests. |
 | `"suffix"` | `string` | URL path suffix appended to all requests. |
+| `"headers"` | `map[string]any` | Headers sent with every request. |
 | `"feature"` | `map[string]any` | Feature activation flags. |
-| `"extend"` | `[]any` | Additional Feature instances to load. |
-| `"system"` | `map[string]any` | System overrides (e.g. custom `"fetch"` function). |
+| `"extend"` | `[]any` | Additional feature instances to load. |
+| `"system"` | `map[string]any` | System overrides, such as a custom fetch function. |
 
 ### TestSDK
 
@@ -252,12 +262,12 @@ Creates a test-mode client with mock transport. Both arguments may be `nil`.
 | `GetUtility` | `() *Utility` | Copy of the SDK utility object. |
 | `Prepare` | `(fetchargs map[string]any) (map[string]any, error)` | Build an HTTP request definition without sending. |
 | `Direct` | `(fetchargs map[string]any) (map[string]any, error)` | Build and send an HTTP request. |
-| `Moon` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Moon entity instance. |
-| `Planet` | `(data map[string]any) VoxgigSolardemoEntity` | Create a Planet entity instance. |
+| `Moon` | `(data map[string]any) VoxgigSolardemoEntityBase` | Create a Moon entity instance. |
+| `Planet` | `(data map[string]any) VoxgigSolardemoEntityBase` | Create a Planet entity instance. |
 
-### Entity interface (VoxgigSolardemoEntity)
+### Entity interface (VoxgigSolardemoEntityBase)
 
-All entities implement the `VoxgigSolardemoEntity` interface.
+All entities implement the `VoxgigSolardemoEntityBase` interface.
 
 | Method | Signature | Description |
 | --- | --- | --- |
@@ -304,7 +314,7 @@ Only `Direct()` returns a response envelope — a `map[string]any` with
 | `"name"` |  |
 | `"planet_id"` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: List, Load, Create, Update, Remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -320,9 +330,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `"name"` |  |
 | `"terraformState"` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: List, Load, Create, Update, Remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -459,12 +469,11 @@ fmt.Println(result.(sdk.Entity).Data()) // the created entity's record
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -577,7 +586,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -628,16 +637,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -668,7 +673,9 @@ were added, so later features can override earlier ones.
 
 The Go SDK uses `map[string]any` throughout rather than typed structs.
 This mirrors the dynamic nature of the API and keeps the SDK
-flexible — no code generation is needed when the API schema changes.
+flexible: code that works with the maps needs no regeneration when the
+API schema changes. The typed models in `entity/types.go` follow the
+schema only when the SDK is regenerated.
 
 An operation returns the entity, and its `Data()` returns the record. Use
 `core.ToMapAny()` to safely cast that record, or data nested in it, to
@@ -681,7 +688,7 @@ github.com/voxgig-sdk/voxgig-solardemo-sdk/go/
 ├── voxgig-solardemo.go        # Root package — type aliases and constructors
 ├── core/               # SDK core — client, types, pipeline
 ├── entity/             # Entity implementations
-├── feature/            # Built-in features (Base, Test, Log)
+├── feature/            # Feature implementations
 ├── utility/            # Utility functions and struct library
 └── test/               # Test suites
 ```
@@ -709,7 +716,8 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
 `Direct()` gives full control over the HTTP request. Use it for
 non-standard endpoints, bulk operations, or any path not modelled as

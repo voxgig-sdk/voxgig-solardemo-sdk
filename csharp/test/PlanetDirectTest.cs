@@ -30,6 +30,10 @@ public class PlanetDirectTest
         {
             return; // skipped via sdk-test-control.json
         }
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         var client = setup.Client;
 
 
@@ -81,6 +85,10 @@ public class PlanetDirectTest
         if (_shouldSkip)
         {
             return; // skipped via sdk-test-control.json
+        }
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
         }
         var client = setup.Client;
 

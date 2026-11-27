@@ -44,6 +44,21 @@ import XCTest
 import Sekreto
 import struct VoxgigPlugin.Definition
 
+// The header the credential travels in: the DEFAULT client's auth.name,
+// lower-cased as prepareAuth sends it. Read from a default client because a
+// test's `auth: nil` leaves no name to read.
+let secretsCredHeader: String = {
+  let name = gp(gp(VoxgigSolardemoSDK.testSDK(nil, nil).optionsMap(), "auth"), "name").asString ?? ""
+  return "" == name ? "authorization" : name.lowercased()
+}()
+
+// The form prepareAuth writes, from the DEFAULT client's auth: under Basic the
+// token is the key half of the encoded pair, and a prefix is space-joined.
+let secretsCredForm: (prefix: String, basic: Bool) = {
+  let auth = gp(VoxgigSolardemoSDK.testSDK(nil, nil).optionsMap(), "auth")
+  return (gp(auth, "prefix").asString ?? "", true == gp(auth, "basic").asBool)
+}()
+
 // -------------------------------------------------------------------
 // The recording transport: system.fetch for a LIVE client, scripting one
 // status per API call (the last repeating) and a token endpoint for the
@@ -55,6 +70,8 @@ final class SecretsWire {
     let auth: String
     let hasAuth: Bool
     let body: String
+    let redirect: String
+    var values: String = ""
   }
 
   private let lock = NSLock()
@@ -88,14 +105,20 @@ final class SecretsWire {
     // make every earlier record show the newest token.
     var auth = ""
     var hasAuth = false
+    var values: [String] = []
     if let headers = gp(fetchdef, "headers").asMap {
-      for (k, v) in headers.entries where k.lowercased() == "authorization" {
-        hasAuth = true
-        auth = v.asString ?? stringify(v)
+      for (k, v) in headers.entries {
+        if k.lowercased() == secretsCredHeader {
+          hasAuth = true
+          auth = v.asString ?? stringify(v)
+        }
+        values.append(v.asString ?? stringify(v))
       }
     }
     let body = gp(fetchdef, "body").asString ?? ""
-    recorded.append(Call(url: url, auth: auth, hasAuth: hasAuth, body: body))
+    let redirect = gp(fetchdef, "redirect").asString ?? ""
+    recorded.append(Call(url: url, auth: auth, hasAuth: hasAuth, body: body, redirect: redirect,
+                         values: values.joined(separator: "\n")))
 
     if url.hasSuffix("/" + tokenpath) {
       if issued >= tokenok {
@@ -176,15 +199,17 @@ final class SecretsFeatureTest: XCTestCase {
   // -------------------------------------------------------------------
   // Support.
 
-  // The Authorization header carries the SPEC's credential prefix, which a
-  // TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives
-  // `Bearer <token>`, an apiKey scheme the raw token. So assert on the
-  // CREDENTIAL and let the prefix be whatever this SDK's API declares.
-  private func credentialIs(_ header: String, _ token: String,
+  // The header value prepareAuth writes for a token.
+  private func credential(_ token: String, _ secret: String = "") -> String {
+    let value = secretsCredForm.basic
+      ? Data((token + ":" + secret).utf8).base64EncodedString() : token
+    return "" == secretsCredForm.prefix ? value : secretsCredForm.prefix + " " + value
+  }
+
+  private func credentialIs(_ header: String, _ token: String, _ secret: String = "",
                             file: StaticString = #filePath, line: UInt = #line) {
-    XCTAssertTrue(header == token || header.hasSuffix(" " + token),
-      "expected the authorization header to carry \(token), got: \"\(header)\"",
-      file: file, line: line)
+    XCTAssertEqual(credential(token, secret), header,
+      "expected the \(secretsCredHeader) header to carry \(token)", file: file, line: line)
   }
 
   private func secretsOf(_ client: VoxgigSolardemoSDK) -> SecretsFeature? {
@@ -324,6 +349,17 @@ final class SecretsFeatureTest: XCTestCase {
     return driveEntityOpUntil(client, "reached the transport") { _ in before < w.api().count }
   }
 
+  // Read from the config, never from a probe: an SDK whose config declares no
+  // auth places no credential, and these tests assert on the one it places.
+  // The auth-off test asserts it places none.
+  override func setUpWithError() throws {
+    try super.setUpWithError()
+    guard nil != gp(SdkConfig.sharedConfig(), "options").asMap?.entries["auth"]
+      || name.contains("testAuthOff") else {
+      throw XCTSkip("this SDK's config declares no auth, so it places no credential")
+    }
+  }
+
   // ===================================================================
   // The feature-inactive baseline: bit-identical behaviour.
 
@@ -331,7 +367,7 @@ final class SecretsFeatureTest: XCTestCase {
     let client = VoxgigSolardemoSDK.testSDK(nil, vm(("apikey", .string("OPTKEY01"))))
     let fetchdef = try client.prepare(vm(("path", .string("/"))))
     let headers = gp(fetchdef, "headers").asMap ?? VMap()
-    credentialIs(gp(headers, "authorization").asString ?? "", "OPTKEY01")
+    credentialIs(gp(headers, secretsCredHeader).asString ?? "", "OPTKEY01")
 
     // No runtime activation, no extend: the feature must not be installed,
     // whatever this project's model says.
@@ -339,12 +375,12 @@ final class SecretsFeatureTest: XCTestCase {
       "the feature must not install itself without feature.secrets.active")
   }
 
-  func testInactiveNoApikeyMeansNoAuthorizationHeader() throws {
+  func testInactiveNoApikeyMeansNoCredentialHeader() throws {
     let client = VoxgigSolardemoSDK.testSDK(nil, nil)
     let fetchdef = try client.prepare(vm(("path", .string("/"))))
     let headers = gp(fetchdef, "headers").asMap ?? VMap()
-    XCTAssertNil(headers.entries["authorization"],
-      "unexpected authorization header: \(stringify(gp(headers, "authorization")))")
+    XCTAssertNil(headers.entries[secretsCredHeader],
+      "unexpected \(secretsCredHeader) header: \(stringify(gp(headers, secretsCredHeader)))")
   }
 
   // ===================================================================
@@ -401,6 +437,20 @@ final class SecretsFeatureTest: XCTestCase {
 
     driveEntityOp(client, w)
     credentialIs(w.api()[0].auth, "CHAINKEY03")
+  }
+
+  func testAResolvedKeyIsPlacedAsPrepareAuthPlacesItTheSecretKept() {
+    let w = SecretsWire()
+    let client = secretsClient(w, [
+      ("secret", .string("PASS01")),
+      ("feature", chainOpts(working("CHAINKEY05"))),
+    ])
+
+    driveEntityOp(client, w)
+    XCTAssertFalse(w.api().isEmpty, "no request reached the wire")
+    if !w.api().isEmpty {
+      credentialIs(w.api()[0].auth, "CHAINKEY05", "PASS01")
+    }
   }
 
   func testCustomProviderObjectsAreAcceptedVerbatim() {
@@ -879,6 +929,7 @@ final class SecretsFeatureTest: XCTestCase {
     XCTAssertEqual(SecretsFeatureTest.BASE + "/auth/token", w.token()[0].url)
     XCTAssertTrue(w.token()[0].body.contains("\"refresh_token\":\"REFRESH01\""),
       "the purchase must carry the refresh token, got body: " + w.token()[0].body)
+    XCTAssertEqual("manual", w.token()[0].redirect, "the purchase must follow no redirect")
 
     // And the API request carries the ACCESS token, never the refresh one.
     XCTAssertEqual(1, w.api().count, "expected one API call: " + w.wire())
@@ -902,6 +953,23 @@ final class SecretsFeatureTest: XCTestCase {
     XCTAssertEqual(2, w.api().count, "expected the refused request to be retried once: " + w.wire())
     credentialIs(w.api()[0].auth, "ACCESS01")
     credentialIs(w.api()[1].auth, "ACCESS02")
+  }
+
+  func testATokenBoughtOnARefusalIsPlacedAsPrepareAuthPlacesIt() {
+    let w = SecretsWire()
+    w.apistatus = [401, 200]
+    let client = secretsClient(w, [
+      ("secret", .string("PASS01")),
+      ("feature", chainOpts(working("REFRESH01"), [exchangeOn()])),
+    ])
+
+    _ = client.direct(vm(("path", .string("/thing"))))
+
+    XCTAssertEqual(2, w.api().count, "expected the refused request to be retried once: " + w.wire())
+    if 2 == w.api().count {
+      credentialIs(w.api()[0].auth, "ACCESS01", "PASS01")
+      credentialIs(w.api()[1].auth, "ACCESS02", "PASS01")
+    }
   }
 
   func testAnExplicitApikeyIsTheStartingAccessTokenWhenExchanging() {
@@ -977,11 +1045,8 @@ final class SecretsFeatureTest: XCTestCase {
     XCTAssertEqual(.bool(false), res.entries["ok"])
     XCTAssertEqual(1, w.api().count, "a suppressed-auth 401 must not be retried: " + w.wire())
     XCTAssertFalse(w.api()[0].hasAuth, "auth null must keep the header off, got: " + w.api()[0].auth)
-    // Resolution still ran once (the chain was consulted and the access
-    // token bought, as go's resolveonce does whatever `auth` says); what
-    // the suppression forbids is the REBUY after the refusal.
-    XCTAssertEqual(1, w.token().count,
-      "a suppressed-auth 401 must not buy another token: " + w.wire())
+    XCTAssertEqual(0, w.token().count,
+      "a suppressed-auth request must buy no token: " + w.wire())
   }
 
   func testExchangeInTestModeBuysNothing() {
@@ -1026,5 +1091,298 @@ final class SecretsFeatureTest: XCTestCase {
     let body = try JSON.parse(w.token()[0].body)
     XCTAssertEqual(nasty, gp(body, "refresh_token").asString,
       "the refresh token did not survive the body encoding: " + w.token()[0].body)
+  }
+
+  // Real listeners: the origin answers the exchange as `answer` says and
+  // records whatever else it gets; the other records everything.
+  private final class RedirectOrigins {
+    let lock = NSLock()
+    var elsewhere: [String] = []
+    var followed: [String] = []
+    var exchanged = 0
+    var answer: (Int, String) = (307, "")
+    var origin = ""
+    var away = ""
+    var base: String { origin + "/api" }
+  }
+
+  private func withOrigins(_ run: (RedirectOrigins) -> Void) {
+    func listener() -> (Int32, String) {
+      #if os(Linux)
+      let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+      #else
+      let fd = socket(AF_INET, SOCK_STREAM, 0)
+      #endif
+      var addr = sockaddr_in()
+      addr.sin_family = sa_family_t(AF_INET)
+      addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+      var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+      _ = withUnsafeMutablePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa -> Int32 in
+          #if os(Linux)
+          return bind(fd, sa, len)
+          #else
+          // A bare bind here names an instance method XCTestCase inherits.
+          return Darwin.bind(fd, sa, len)
+          #endif
+        }
+      }
+      listen(fd, 8)
+      _ = withUnsafeMutablePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &len) }
+      }
+      return (fd, "http://127.0.0.1:\(UInt16(bigEndian: addr.sin_port))")
+    }
+
+    let o = RedirectOrigins()
+    let (originfd, originbase) = listener()
+    let (otherfd, otherbase) = listener()
+    o.origin = originbase
+    o.away = otherbase + "/api/auth/token"
+
+    for (fd, isorigin) in [(originfd, true), (otherfd, false)] {
+      Thread.detachNewThread {
+        while true {
+          let conn = accept(fd, nil, nil)
+          if conn < 0 { return }
+          var text = ""
+          var buf = [UInt8](repeating: 0, count: 4096)
+          while !text.contains("\r\n\r\n") {
+            let got = buf.withUnsafeMutableBytes { read(conn, $0.baseAddress, $0.count) }
+            if got <= 0 { break }
+            text += String(decoding: buf[0..<got], as: UTF8.self)
+          }
+          let parts = text.components(separatedBy: "\r\n\r\n")
+          let lines = parts[0].components(separatedBy: "\r\n")
+          let first = lines[0].split(separator: " ")
+          let method = 0 < first.count ? String(first[0]) : ""
+          let target = 1 < first.count ? String(first[1]) : ""
+          var length = 0
+          for line in lines.dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            if String(line[..<colon]).lowercased() == "content-length" {
+              length = Int(line[line.index(after: colon)...]
+                .trimmingCharacters(in: .whitespaces)) ?? 0
+            }
+          }
+          var sent = parts.dropFirst().joined(separator: "\r\n\r\n")
+          while sent.utf8.count < length {
+            let got = buf.withUnsafeMutableBytes { read(conn, $0.baseAddress, $0.count) }
+            if got <= 0 { break }
+            sent += String(decoding: buf[0..<got], as: UTF8.self)
+          }
+
+          var status = "200 X"
+          var location = ""
+          var reply = ""
+          o.lock.lock()
+          if target == "/stop" {
+          } else if !isorigin {
+            o.elsewhere.append(method + " " + target + " " + sent)
+            reply = "{\"access_token\":\"ELSEWHERE01\"}"
+          } else if target == "/api/auth/token" {
+            o.exchanged += 1
+            status = "\(o.answer.0) X"
+            location = "Location: " + o.answer.1 + "\r\n"
+          } else {
+            o.followed.append((method + " " + target + " " + sent).trimmingCharacters(in: .whitespaces))
+            reply = "{\"access_token\":\"MOVED01\"}"
+          }
+          o.lock.unlock()
+
+          let out = Array(("HTTP/1.1 \(status)\r\nContent-Type: application/json\r\n" + location +
+            "Content-Length: \(reply.utf8.count)\r\nConnection: close\r\n\r\n\(reply)").utf8)
+          _ = out.withUnsafeBytes { write(conn, $0.baseAddress, $0.count) }
+          close(conn)
+          if target == "/stop" { return }
+        }
+      }
+    }
+    defer {
+      for base in [originbase, otherbase] {
+        _ = try? defaultHttpFetch(base + "/stop", vm(("method", .string("GET")), ("headers", .map(VMap()))))
+      }
+      close(originfd)
+      close(otherfd)
+    }
+
+    run(o)
+  }
+
+  private func redirectClient(_ o: RedirectOrigins, _ redirect: String? = nil) -> VoxgigSolardemoSDK {
+    return withSecrets { extend in
+      let xopts = vm(("active", .bool(true)), ("refresh", .string("REFRESH01")))
+      if let redirect = redirect {
+        xopts.entries["redirect"] = .string(redirect)
+      }
+      let fopts = VMap()
+      fopts.entries["active"] = .bool(true)
+      fopts.entries["name"] = .string("refresh_token")
+      fopts.entries["exchange"] = .map(xopts)
+      let opts = VMap()
+      opts.entries["base"] = .string(o.base)
+      opts.entries["allow"] = .map(vm(
+        ("op", .string("create,update,load,list,remove,command,direct,graphql"))))
+      opts.entries["feature"] = .map(vm(("secrets", .map(fopts))))
+      if extend {
+        opts.entries["extend"] = .list([.nat(SecretsFeature())])
+      }
+      return VoxgigSolardemoSDK(opts)
+    }
+  }
+
+  // Real listeners and the SDK's own raw fetch: a stub follows nothing.
+  func testARedirectAnsweringTheExchangeIsAFailureAndNothingFollowsIt() {
+    withOrigins { o in
+      let base = o.base
+      let answers: [(Int, String)] = [(307, o.away), (308, o.away), (302, o.away), (307, "/api/moved/token")]
+
+      var allowed: [String] = []
+      var refused = 0
+
+      for next in answers {
+        o.lock.lock()
+        o.answer = next
+        o.lock.unlock()
+
+        let res = redirectClient(o).direct(vm(("path", .string("/thing"))))
+        let message = messageOf(errOf(res))
+
+        if message.contains("token exchange failed: \(next.0) from " + base + "/auth/token") {
+          refused += 1
+        } else {
+          allowed.append("\(next.0) to \(next.1): " + message)
+        }
+      }
+
+      o.lock.lock()
+      let reached = o.elsewhere
+      let after = o.followed
+      o.lock.unlock()
+
+      print("secrets: exchange refused \(refused) redirect(s), \(reached.count + after.count) followed")
+
+      XCTAssertEqual([], reached, "the exchange reached another origin")
+      XCTAssertEqual([], after, "a request followed a refused exchange")
+      XCTAssertEqual([], allowed, "a redirect was not a failed exchange")
+      XCTAssertEqual(answers.count, refused)
+    }
+  }
+
+  func testWithTheOptionARedirectOnTheExchangesOwnOriginIsFollowedAndNoOther() {
+    withOrigins { o in
+      let sent = " {\"refresh_token\":\"REFRESH01\"}"
+      // Each case: the status, the Location, and the path the exchange is
+      // asked again at, or nil where the redirect is refused.
+      let cases: [(Int, String, String?)] = [
+        (307, "/api/moved/token", "/api/moved/token"),
+        (308, o.origin + "/api/moved/token", "/api/moved/token"),
+        // A Location of a query alone keeps the path that answered.
+        (307, "?step=2", "/api/auth/token?step=2"),
+        (307, o.away, nil),
+        (302, "/api/moved/token", nil),
+        (307, "/api/auth/token", nil),
+      ]
+
+      var wrong: [String] = []
+      var followed = 0
+      var refused = 0
+      var looped = 0
+
+      for (status, location, path) in cases {
+        o.lock.lock()
+        o.answer = (status, location)
+        o.followed = []
+        o.exchanged = 0
+        o.lock.unlock()
+
+        let res = redirectClient(o, "same-origin").direct(vm(("path", .string("/thing"))))
+        let message = messageOf(errOf(res))
+
+        o.lock.lock()
+        let seen = o.followed
+        let exchanged = o.exchanged
+        o.lock.unlock()
+
+        let report = "\(status) to \(location): " + message + " [" + seen.joined(separator: " | ") + "]"
+
+        if let path = path {
+          let asked = "POST " + path + sent
+          if true == res.entries["ok"]?.asBool && 2 == seen.count && asked == seen[0] {
+            followed += 1
+          } else {
+            wrong.append(report)
+          }
+        } else if seen.isEmpty &&
+          message.contains("token exchange failed: \(status) from " + o.base + "/auth/token") {
+          refused += 1
+        } else {
+          wrong.append(report)
+        }
+
+        if "/api/auth/token" == location {
+          looped = exchanged
+        }
+      }
+
+      o.lock.lock()
+      let reached = o.elsewhere
+      o.lock.unlock()
+
+      print("secrets: exchange opt-in followed \(followed) redirect(s) on its own origin, " +
+        "refused \(refused), \(reached.count) elsewhere")
+
+      XCTAssertEqual([], reached, "the exchange reached another origin")
+      XCTAssertEqual([], wrong)
+      XCTAssertEqual(3, followed)
+      XCTAssertEqual(3, refused)
+      // A redirect to itself stops at the hop limit.
+      XCTAssertEqual(6, looped)
+    }
+  }
+
+  // ===================================================================
+  // Off by the config where it declares no auth, else by `auth: null`:
+  // either way the feature places no credential, buys no token and retries
+  // nothing.
+
+  func testAuthOffPlacesNoCredentialAndBuysNoToken() {
+    let declared = nil != gp(SdkConfig.sharedConfig(), "options").asMap?.entries["auth"]
+    let secrets = ["OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01"]
+    let carries = { (call: SecretsWire.Call) -> Bool in
+      call.hasAuth || secrets.contains { call.values.contains($0) }
+    }
+    var sent: [SecretsWire.Call] = []
+    var bought = 0
+
+    let scenarios: [(String, [(String, Value)], Int)] = [
+      ("a key the chain resolves", [("feature", chainOpts(working("OFFKEY01")))], 200),
+      ("an explicit apikey", [("apikey", .string("OFFKEY02")),
+        ("feature", .map(vm(("secrets", .map(vm(("active", .bool(true))))))))], 200),
+      ("a refusal", [("feature", chainOpts(working("OFFREFRESH01"), [exchangeOn()]))], 401),
+    ]
+
+    let off: [(String, Value)] = declared ? [("auth", .null)] : []
+
+    for (what, opts, status) in scenarios {
+      let w = SecretsWire()
+      w.apistatus = [status]
+      let client = secretsClient(w, opts + off)
+
+      _ = client.direct(vm(("path", .string("/thing"))))
+
+      XCTAssertEqual(1, w.api().count, what + ": a request was retried with auth off: " + w.wire())
+      XCTAssertEqual(0, w.token().count, what + ": a token was bought with auth off: " + w.wire())
+      XCTAssertFalse(w.api().first.map(carries) ?? true,
+        what + ": a credential was sent with auth off: " + w.wire())
+      XCTAssertEqual("", secretsOf(client)?.credential(),
+        what + ": the feature resolved a credential with auth off")
+
+      sent += w.api()
+      bought += w.token().count
+    }
+
+    print("secrets: auth off by \(declared ? "option" : "config"): \(sent.count) request(s), " +
+      "\(sent.filter(carries).count) credential(s), \(bought) token(s)")
   }
 }

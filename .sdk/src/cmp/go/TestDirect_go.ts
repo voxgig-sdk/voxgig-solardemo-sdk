@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -12,9 +13,19 @@ import {
   cmp,
   snakify,
   isAuthActive,
-  serverVarEnv,
-  serverVariables, envName, envToken, liveStrict, liveStrictNote,
+  liveStrict, liveStrictNote,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
+  pointIsGraphql,
+  primaryPoint,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveGetOnlyReason, LIVE_GETONLY_ENV,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 
@@ -65,33 +76,34 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const gomodule = props.gomodule
 
-  const PROJECTNAME = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const strict = liveStrict(model, target.name)
   const strictConst = entity.name + 'DirectLiveStrict'
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n\t\t"${PROJECTNAME}_APIKEY":       "",`
+    ? `\n\t\t"${ENVVAR.apikey}":       "",${authSecret ? `\n\t\t"${ENVVAR.secret}":       "",` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `\n\t\t\t"apikey": env["${PROJECTNAME}_APIKEY"],`
+    ? `\n\t\t\t"apikey": env["${ENVVAR.apikey}"],${authSecret ? `\n\t\t\t"secret": env["${ENVVAR.secret}"],` : ''}`
     : ''
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: makeOptions refuses rather than
   // request a URL with a literal `{account_id}` in it. Taken from the
   // environment, the same way the apikey is.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n\t\t"${serverVarEnv(PROJECTNAME, v.name)}": ${JSON.stringify(v.dflt)},`).join('')
+    .map((v: any) => `\n\t\t"${ENVVAR.server[v.name]}": ${JSON.stringify(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' :
     `\n\t\t"server": map[string]any{` +
     svars.map((v: any) =>
-      `\n\t\t\t"${v.name}": env["${serverVarEnv(PROJECTNAME, v.name)}"],`).join('') +
+      `\n\t\t\t"${v.name}": env["${ENVVAR.server[v.name]}"],`).join('') +
     `\n\t\t},`
 
 
@@ -106,21 +118,17 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const loadOp = entity.op?.load
   const listOp = entity.op?.list
 
-  const loadPoint = loadOp?.points?.[0]
-  const loadIsGraphql = 'graphql' === (loadPoint as any)?.kind
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPoint = null == loadOp?.points ? undefined :
+    primaryPoint(loadOp.points, entity.name, 'load')
+  const loadIsGraphql = pointIsGraphql(loadPoint)
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Some upstream OpenAPI specs declare a parameter as `in: path` even when
   // that path has no `{name}` placeholder for it. Only path params that
   // actually appear in the URL template should drive direct-test path-param
   // setup and URL-substitution asserts; otherwise the SDK silently drops
   // them and the URL-includes assert fails.
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -132,24 +140,17 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const loadParams = allLoadParams.filter((p: any) =>
     _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
-  const listPoint = listOp?.points?.[0]
-  const listIsGraphql = 'graphql' === (listPoint as any)?.kind
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPoint = null == listOp?.points ? undefined :
+    primaryPoint(listOp.points, entity.name, 'list')
+  const listIsGraphql = pointIsGraphql(listPoint)
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
-  const loadQuery = loadPoint?.g?.query || []
-  const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `\t\t\tquery["${q.n}"] = ${JSON.stringify(q.ex)}`)
+  const liveQueryLines = (point: any) => liveQueryExamples(point)
+    .map(([name, ex]) => `\t\t\tquery[${JSON.stringify(name)}] = ${JSON.stringify(ex)}`)
     .join('\n')
-
-  const listQuery = listPoint?.g?.query || []
-  const listLiveQueryEntries = listQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const listLiveQueryLines = listLiveQueryEntries
-    .map((q: any) => `\t\t\tquery["${q.n}"] = ${JSON.stringify(q.ex)}`)
-    .join('\n')
+  const loadLiveQueryLines = liveQueryLines(loadPoint)
+  const listLiveQueryLines = liveQueryLines(listPoint)
 
   // Path params with spec-provided examples — when ALL load params have
   // spec examples, prefer them over list-bootstrap. Spec example values are
@@ -163,7 +164,18 @@ const TestDirect = cmp(function TestDirect(props: any) {
     ? loadParams.map((p: any) => `\t\t\tparams["${p.n}"] = ${JSON.stringify(p.ex)}`).join('\n')
     : ''
 
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const exampleIdBlock = 0 === exampleIds.length ? '' :
+    `		// A path parameter's example stands in for an id *_ENTID does not give.
+		for k, v := range map[string]any{${exampleIds.map(([key, ex]) =>
+      `${JSON.stringify(key)}: ${JSON.stringify(ex)}`).join(', ')}} {
+			if idmap[k] == nil {
+				idmap[k] = v
+			}
+		}
+`
 
   File({ name: entity.name + '_direct_test.' + target.ext }, () => {
 
@@ -209,7 +221,8 @@ func Test${entity.Name}Direct(t *testing.T) {
       const listLiveIdKeysGoLiteral = listLiveIdKeys.length > 0
         ? `[]string{${listLiveIdKeys.map((k: string) => `"${k}"`).join(', ')}}`
         : ''
-      const listSkipBlock = listLiveIdKeys.length > 0
+      const listSkipBlock = getOnlyKeysBlock(model, entity, 'direct-list-' + entity.name, listLiveIdKeys) +
+        (listLiveIdKeys.length > 0
         ? `		if setup.live {
 			for _, _liveKey := range ${listLiveIdKeysGoLiteral} {
 				if v := setup.idmap[_liveKey]; v == nil {
@@ -219,7 +232,7 @@ func Test${entity.Name}Direct(t *testing.T) {
 			}
 		}
 `
-        : ''
+        : '')
 
       Content(`	t.Run("direct-list-${entity.name}", func(t *testing.T) {
 		setup := ${entity.name}DirectSetup([]any{
@@ -237,13 +250,23 @@ func Test${entity.Name}Direct(t *testing.T) {
 			t.Skip(_reason)
 			return
 		}
-${listSkipBlock}		client := setup.client
+${listSkipBlock}		if setup.live {
+			livePace()
+		}
+		client := setup.client
 
 `)
 
-      if (listParams.length > 0) {
+      if (listParams.length > 0 || '' !== listLiveQueryLines) {
         Content(`		params := map[string]any{}
+		query := map[string]any{}
 `)
+        if (listLiveQueryLines) {
+          Content(`		if setup.live {
+${listLiveQueryLines}
+		}
+`)
+        }
         listLiveParams.forEach((lp: any, i: number) => {
           const placeholder = 'direct0' + (i + 1)
           Content(`		if setup.live {
@@ -258,6 +281,7 @@ ${listSkipBlock}		client := setup.client
 			"path":   "${listPath}",
 			"method": "GET",
 			"params": params,
+			"query":  query,
 		})
 `)
       } else {
@@ -342,15 +366,17 @@ ${listSkipBlock}		client := setup.client
           `"${p.n}": "direct0${i + 1}"`).join(', ')
         : ''
 
-      const ancestorParams = loadParams.filter((p: any) => p.n !== 'id')
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const ancestorParams = loadParams.filter((p: any) => p.n !== discovery?.param)
 
       const liveKey = (p: any) => p.n === 'id' ? entity.name + '01' : p.n.replace(/_id$/, '') + '01'
       let loadLiveIdKeys: string[] = []
       if (loadParams.length > 0 && !loadAllHaveExamples) {
-        loadLiveIdKeys = [...new Set((hasList ?
-          [...listParams, ...loadParams.filter((p: any) => p.n !== 'id')] : loadParams).map(liveKey))]
+        loadLiveIdKeys = [...new Set((discovery ?
+          [...listParams, ...ancestorParams] : loadParams).map(liveKey))]
       }
-      const loadSkipBlock = loadLiveIdKeys.length > 0
+      const loadSkipBlock = getOnlyKeysBlock(model, entity, 'direct-load-' + entity.name, loadLiveIdKeys) +
+        (loadLiveIdKeys.length > 0
         ? `		if setup.live {
 			for _, _liveKey := range []string{${loadLiveIdKeys.map(k => `"${k}"`).join(', ')}} {
 				if v := setup.idmap[_liveKey]; v == nil {
@@ -360,7 +386,7 @@ ${listSkipBlock}		client := setup.client
 			}
 		}
 `
-        : ''
+        : '')
 
       Content(`	t.Run("direct-load-${entity.name}", func(t *testing.T) {
 		setup := ${entity.name}DirectSetup(map[string]any{"id": "direct01"})
@@ -375,7 +401,10 @@ ${listSkipBlock}		client := setup.client
 			t.Skip(_reason)
 			return
 		}
-${loadSkipBlock}		client := setup.client
+${loadSkipBlock}		if setup.live {
+			livePace()
+		}
+		client := setup.client
 
 `)
 
@@ -396,7 +425,7 @@ ${loadSkipBlock}		client := setup.client
 
         if (loadAllHaveExamples) {
           Content(loadExampleLines + '\n')
-        } else if (hasList && loadParams.length > 0) {
+        } else if (discovery) {
           Content(`			listParams := map[string]any{}
 `)
           for (const p of listParams) {
@@ -407,10 +436,20 @@ ${loadSkipBlock}		client := setup.client
 `)
           }
 
+          // The list sends the query its route requires, as direct-list does.
+          const listQueryLines = liveQueryExamples(listPoint)
+            .map(([name, ex]) => `\t\t\tlistQuery[${JSON.stringify(name)}] = ${JSON.stringify(ex)}\n`)
+            .join('')
+          if ('' !== listQueryLines) {
+            Content(`			listQuery := map[string]any{}
+` + listQueryLines)
+          }
+
           Content(`			listResult, listErr := client.Direct(map[string]any{
 				"path":   "${listPath}",
 				"method": "GET",
-				"params": listParams,
+				"params": listParams,${'' === listQueryLines ? '' : `
+				"query":  listQuery,`}
 			})
 			if listErr != nil {
 				liveMiss(t, ${strictConst}, "Live list discovery failed: %v", listErr)
@@ -426,14 +465,13 @@ ${loadSkipBlock}		client := setup.client
 				liveEmpty(t, "The account has no ${entity.name} record to load")
 			}
 			firstEnt := core.ToMapAny(listData[0])
-			if firstEnt["id"] == nil {
+			if firstEnt[${JSON.stringify(discovery.field)}] == nil {
 				liveMiss(t, ${strictConst}, "Live load blocked: discovery returned no usable identity")
 			}
-			params["id"] = firstEnt["id"]
+			params[${JSON.stringify(discovery.param)}] = firstEnt[${JSON.stringify(discovery.field)}]
 `)
           for (const p of ancestorParams) {
-            const key = p.n.replace(/_id$/, '') + '01'
-            Content(`			params["${p.n}"] = setup.idmap["${key}"]
+            Content(`			params["${p.n}"] = setup.idmap["${liveKey(p)}"]
 `)
           }
         } else if (loadParams.length > 0) {
@@ -547,10 +585,10 @@ func ${entity.name}DirectSetup(mockres any) *${entity.name}DirectSetupResult {
 
 	env := envOverride(map[string]any{
 		"${entidEnvVar}": map[string]any{},
-		"${PROJECTNAME}_TEST_LIVE":    "FALSE",${apikeyEnvEntry}${serverEnvEntry}
+		"${ENVVAR.live}":    "FALSE",${apikeyEnvEntry}${serverEnvEntry}
 	})
 
-	live := env["${PROJECTNAME}_TEST_LIVE"] == "TRUE"
+	live := env["${ENVVAR.live}"] == "TRUE"
 
 	if live {
 		// sdk-test-control.json's test.client.options seeds the live
@@ -563,7 +601,7 @@ func ${entity.name}DirectSetup(mockres any) *${entity.name}DirectSetupResult {
 		} {
 			mergedOpts[k] = v
 		}
-		client := sdk.New${model.const.Name}SDK(mergedOpts)
+		client := newClient(mergedOpts)
 
 		idmap := map[string]any{}
 		if entidRaw, ok := env["${entidEnvVar}"]; ok {
@@ -573,7 +611,7 @@ func ${entity.name}DirectSetup(mockres any) *${entity.name}DirectSetupResult {
 				idmap = entidMap
 			}
 		}
-
+${exampleIdBlock}
 		return &${entity.name}DirectSetupResult{client: client, calls: calls, live: true, idmap: idmap}
 	}
 
@@ -592,7 +630,7 @@ func ${entity.name}DirectSetup(mockres any) *${entity.name}DirectSetupResult {
 		}, nil
 	}
 
-	client := sdk.New${model.const.Name}SDK(map[string]any{
+	client := newClient(map[string]any{
 		"base": "http://localhost:8080",
 		"system": map[string]any{
 			"fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),
@@ -611,6 +649,18 @@ var _ = json.Unmarshal
 })
 
 
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `		if setup.live && os.Getenv(${JSON.stringify(LIVE_GETONLY_ENV)}) == "TRUE" && setup.idmap[${JSON.stringify(miss.key)}] == nil {
+			t.Log(${JSON.stringify(liveExcludedLines({ excluded: [miss] })[0])})
+			t.Skip(${JSON.stringify(liveExcludedSummary({ excluded: [miss] }))})
+			return
+		}
+`).join('')
+}
+
+
 // GraphQL-backed op needs POST+body, not a REST-shaped GET+params Direct()
 // call — reuse apidef's own point.gq.doc via the SDK's Graphql() hatch.
 // Mirrors TestDirect_ts.ts's generateDirectGraphql.
@@ -624,16 +674,28 @@ function generateDirectGraphqlGo(
   const doc: string = point.gq.doc
   const vars: any[] = point.gq.vars || []
 
+  // A GraphQL request is a POST, which a GET-only live run does not send.
+  const getOnlyReason = liveGetOnlyReason(point)
+  const getOnlySkip = null == getOnlyReason ? '' :
+    `\t\tif setup.live && os.Getenv(${JSON.stringify(LIVE_GETONLY_ENV)}) == "TRUE" {
+\t\t\tt.Skip(${JSON.stringify(getOnlyReason)})
+\t\t\treturn
+\t\t}
+`
+
   const mockVarLines = vars.map((v: any, i: number) =>
     `\t\tvariables["${v.name}"] = "direct0${i + 1}"`).join('\n')
 
-  const liveVarLines = vars.map((v: any) => {
+  // A live call sends only the variables the document cannot run without.
+  const liveVars = vars.filter((v: any) => String(v.gqltype || '').endsWith('!'))
+
+  const liveVarLines = liveVars.map((v: any) => {
     const from = v.from || v.name
     const key = ('id' === from ? entity.name : from.replace(/_id$/, '')) + '01'
     return `\t\tvariables["${v.name}"] = setup.idmap["${key}"]`
   }).join('\n')
 
-  const liveIdKeys = vars.map((v: any) => {
+  const liveIdKeys = liveVars.map((v: any) => {
     const from = v.from || v.name
     return ('id' === from ? entity.name : from.replace(/_id$/, '')) + '01'
   })
@@ -654,9 +716,9 @@ function generateDirectGraphqlGo(
   // response-shape correctness is the entity-level tests' job. The mock
   // JSON-encodes a map body to a string (see makeFetchDefUtil), so this
   // is a substring check, same as the ts/js mocks.
-  const varAsserts = vars.map((_v: any, i: number) =>
-    `\t\t\tif !strings.Contains(bodyStr, "direct0${i + 1}") {\n` +
-    `\t\t\t\tt.Fatalf("expected body to contain direct0${i + 1}, got %v", bodyStr)\n` +
+  const varAsserts = vars.map((v: any, i: number) =>
+    `\t\t\tif sentVars[${JSON.stringify(v.name)}] != "direct0${i + 1}" {\n` +
+    `\t\t\t\tt.Fatalf("expected variable ${v.name} to be direct0${i + 1}, got %v", sentVars[${JSON.stringify(v.name)}])\n` +
     `\t\t\t}`).join('\n')
 
   Content(`	t.Run("direct-${opname}-${entity.name}", func(t *testing.T) {
@@ -672,7 +734,10 @@ function generateDirectGraphqlGo(
 			t.Skip(_reason)
 			return
 		}
-${skipBlock}		client := setup.client
+${getOnlySkip}${skipBlock}		if setup.live {
+			livePace()
+		}
+		client := setup.client
 
 		variables := map[string]any{}
 		if setup.live {
@@ -715,6 +780,15 @@ ${mockVarLines || '\t\t// no variables'}
 				t.Fatalf("expected method POST, got %v", initMap["method"])
 			}
 			bodyStr, _ := initMap["body"].(string)
+			var sent map[string]any
+			if err := json.Unmarshal([]byte(bodyStr), &sent); err != nil {
+				t.Fatalf("expected a JSON body, got %v", bodyStr)
+			}
+			if sent["query"] != ${JSON.stringify(doc)} {
+				t.Fatalf("expected the operation document, got %v", sent["query"])
+			}
+			sentVars, _ := sent["variables"].(map[string]any)
+			_ = sentVars
 ${varAsserts}
 		}
 	})

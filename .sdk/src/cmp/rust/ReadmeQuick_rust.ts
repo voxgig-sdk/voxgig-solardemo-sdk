@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps, matchExampleItems, requiredItems, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -12,6 +12,7 @@ import { crateIdent, rustVarName, rustMethodName, rustListMatch } from './utilit
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const rustcrate = crateIdent(model)
   const entity = getModelPath(model, `main.${KIT}.entity`)
@@ -30,9 +31,19 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   ) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `${model.const.Name}SDK::new(jo(vec![\n    ("apikey", Value::str(std::env::var("${envName(model)}_APIKEY").unwrap_or_default())),\n]))`
-    : `${model.const.Name}SDK::new(Value::Noval)`
+  // The constructor refuses a templated URL it has no value for, so the quick
+  // start passes each variable the URL uses with no default.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`("apikey", Value::str(std::env::var("${envName(model)}_APIKEY").unwrap_or_default())),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`("secret", Value::str(std::env::var("${envName(model)}_SECRET").unwrap_or_default())),`] : []),
+    ...(0 === svars.length ? [] : [`("server", jo(vec![` +
+      svars.map((v: any) => `("${v.name}", Value::str("<${v.name}>"))`).join(', ') + `])),`]),
+  ]
+  const ctor = (0 === ctorFields.length
+    ? `${model.const.Name}SDK::new(Value::Noval)`
+    : `${model.const.Name}SDK::new(jo(vec![${ctorFields.map((f: string) => '\n    ' + f).join('')}\n]))`) +
+    '.expect("valid client options")'
 
   // A type-correct rust expression constructing a voxgig struct Value.
   const rustLit = (type: any, placeholder: string = 'example'): string => {
@@ -42,13 +53,13 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
     if ('BOOLEAN' === k) return 'Value::Bool(true)'
     if ('ARRAY' === k) return 'Value::empty_list()'
     if ('OBJECT' === k) return 'Value::empty_map()'
-    return `Value::str("${placeholder}")`
+    return `Value::str(${JSON.stringify(placeholder)})`
   }
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`rust
-use ${rustcrate}::{getp, jo, ${model.const.Name}Entity, ${model.const.Name}SDK, Entity, Value};
+use ${rustcrate}::{getp, jo, ${model.const.Name}EntityBase, ${model.const.Name}SDK, Entity, Value};
 
 let client = ${ctor};
 \`\`\`
@@ -67,7 +78,7 @@ let client = ${ctor};
     const dataIdF = entityDataIdField(exampleEntity)
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${eName.toLowerCase()} records
+      Content(`### ${++step}. List ${eName.toLowerCase()} records
 
 \`list()\` returns one entity per record, and \`Err\` on failure — match on
 the \`Result\`. \`data(None)\` reads an entity's record.
@@ -93,18 +104,17 @@ match client.${method}(Value::Noval).list(${rustListMatch(exampleEntity)}, Value
       const neMethod = rustMethodName(nestedEntity.name)
 
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
       const parentParam = parentItem && parentItem.name
       const parentName = parentParam ? parentParam.replace(/_id$/, '') : 'its parent'
       const neMatch = neRequired.map((it: any) =>
-        `("${it.name}", ${rustLit(it.type,
+        `(${JSON.stringify(it.name)}, ${rustLit(it.type,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)})`)
 
-      Content(`### 3. Load ${neArticle} ${neName.toLowerCase()}
+      Content(`### ${++step}. Load ${neArticle} ${neName.toLowerCase()}
 
 ${neName} is nested under ${parentName}, so provide the \`${parentParam}\`.
 \`load()\` returns the entity, and \`Err\` on failure; \`data(None)\` reads its
@@ -120,17 +130,16 @@ match client.${neMethod}(Value::Noval).load(jo(vec![${neMatch.join(', ')}]), Val
 `)
     }
     else if (opnames.includes('load')) {
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
         ? `jo(vec![${loadRequired.map((it: any) =>
-          `("${it.name}", ${rustLit(it.type,
+          `(${JSON.stringify(it.name)}, ${rustLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)})`).join(', ')}])`
         : 'Value::Noval'
 
-      Content(`### 3. Load ${article} ${eName.toLowerCase()}
+      Content(`### ${++step}. Load ${article} ${eName.toLowerCase()}
 
 \`load()\` returns the entity, and \`Err\` on failure; \`data(None)\` reads its
 record.
@@ -148,15 +157,15 @@ match client.${method}(Value::Noval).load(${loadArg}, Value::Noval) {
     // Model-driven example fields: derive the create/update body from the op
     // shape so the docs reference REAL writable fields.
     const examplePairs = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
-      return chosen.map((it: any) => `("${it.name}", ${rustLit(it.type, 'example_' + it.name)})`)
+      return chosen.map((it: any) => `(${JSON.stringify(it.name)}, ${rustLit(it.type, 'example_' + it.name)})`)
     }
 
     const idParamType = (opname: string): any => {
@@ -167,12 +176,13 @@ match client.${method}(Value::Noval).load(${loadArg}, Value::Noval) {
     // entity's record with getp when its data type carries the id AND a create
     // ran; otherwise a type-correct literal.
     const idValueFor = (opname: string): string => (null != dataIdF && opnames.includes('create'))
-      ? `getp(&created.data(None), "${dataIdF}")`
+      ? `getp(&created.data(None), ${JSON.stringify(dataIdF)})`
       : rustLit(idParamType(opname), 'example_id')
 
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`rust
 `)
@@ -183,27 +193,26 @@ let created = client.${method}(Value::Noval).create(jo(vec![${examplePairs('crea
 `)
       }
       if (opnames.includes('update')) {
-        const updatePairs = (idF ? [`("${idF}", ${idValueFor('update')})`] : []).concat(examplePairs('update'))
+        const updatePairs = (sendsId(exampleEntity, 'update', idF) ? [`(${JSON.stringify(idF)}, ${idValueFor('update')})`] : []).concat(examplePairs('update'))
         Content(`// Update
 client.${method}(Value::Noval).update(jo(vec![${updatePairs.join(', ')}]), Value::Noval).unwrap();
 
 `)
       }
       if (opnames.includes('patch')) {
-        const patchPairs = (idF ? [`("${idF}", ${idValueFor('patch')})`] : []).concat(examplePairs('patch'))
+        const patchPairs = (sendsId(exampleEntity, 'patch', idF) ? [`(${JSON.stringify(idF)}, ${idValueFor('patch')})`] : []).concat(examplePairs('patch'))
         Content(`// Patch — sends only the fields given
 client.${method}(Value::Noval).patch(jo(vec![${patchPairs.join(', ')}]), Value::Noval).unwrap();
 
 `)
       }
       if (opnames.includes('remove')) {
-        const removePairs = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removePairs = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF
-            ? `("${it.name}", ${idValueFor('remove')})`
-            : `("${it.name}", ${rustLit(it.type, 'example_' + it.name)})`)
+            ? `(${JSON.stringify(it.name)}, ${idValueFor('remove')})`
+            : `(${JSON.stringify(it.name)}, ${rustLit(it.type, 'example_' + it.name)})`)
         Content(`// Remove
 client.${method}(Value::Noval).remove(${removePairs.length ? `jo(vec![${removePairs.join(', ')}])` : 'Value::Noval'}, Value::Noval).unwrap();
 `)

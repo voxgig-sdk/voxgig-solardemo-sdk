@@ -44,6 +44,75 @@ describe("MoonEntity", function()
         return
       end
     end
+    if setup.live and os.getenv("VOXGIG_GETONLY_GUARD") == "TRUE" then
+      print("LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}")
+      print("LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}")
+      print("LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}")
+      print("LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+    if setup.live then
+      for _, _live_key in ipairs({"planet01"}) do
+        if setup.synthetic_only or setup.idmap[_live_key] == nil then
+          runner.live_miss(pending, LIVE_STRICT, "Live entity test blocked: needs " .. _live_key .. " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
+        end
+      end
+    end
+    local client = setup.client
+    if setup.live then
+      local _live_id = nil
+      if not setup.synthetic_only then
+        _live_id = setup.idmap["moon01"]
+      end
+      runner.live_pace()
+      runner.live_existing(pending, setup, LIVE_STRICT, "moon", function()
+        return client:Moon(nil):list({["planet_id"] = setup.idmap["planet01"]}, nil)
+      end, "id", _live_id)
+    end
+
+    -- Bootstrap entity data from existing test data.
+    local moon_ref01_data_raw = vs.items(helpers.to_map(
+      vs.getpath(setup.data, "existing.moon")))
+    local moon_ref01_data = nil
+    if #moon_ref01_data_raw > 0 then
+      moon_ref01_data = helpers.to_map(moon_ref01_data_raw[1][2])
+    end
+
+    if setup.live then
+      runner.live_pace()
+    end
+    -- LIST
+    local moon_ref01_ent = client:Moon(nil)
+    local moon_ref01_match = {
+      ["planet_id"] = setup.idmap["planet01"],
+    }
+
+    local moon_ref01_list_result, err = moon_ref01_ent:list(moon_ref01_match, nil)
+    assert.is_nil(err)
+    assert.is_table(moon_ref01_list_result)
+
+    if setup.live then
+      runner.live_pace()
+    end
+    -- LOAD
+    local moon_ref01_match_dt0 = {
+      id = moon_ref01_data["id"],
+    }
+    do
+      local own = moon_ref01_data["planet_id"]
+      if type(own) == "string" or type(own) == "number" or type(own) == "boolean" then
+        moon_ref01_match_dt0["planet_id"] = own
+      else
+        moon_ref01_match_dt0["planet_id"] = setup.idmap["planet_id"] or setup.idmap["planet01"]
+      end
+    end
+    local moon_ref01_data_dt0_loaded, err = moon_ref01_ent:load(moon_ref01_match_dt0, nil)
+    assert.is_nil(err)
+    local moon_ref01_data_dt0_load_result = helpers.to_map(type(moon_ref01_data_dt0_loaded) == 'table' and moon_ref01_data_dt0_loaded.data_get and moon_ref01_data_dt0_loaded:data_get() or moon_ref01_data_dt0_loaded)
+    assert.is_not_nil(moon_ref01_data_dt0_load_result)
+    assert.is_true(runner.live_same_id(moon_ref01_data_dt0_load_result["id"], moon_ref01_data["id"]))
+
+      return
+    end
+
     if setup.live then
       for _, _live_key in ipairs({"planet01"}) do
         if setup.synthetic_only or setup.idmap[_live_key] == nil then
@@ -53,6 +122,9 @@ describe("MoonEntity", function()
     end
     local client = setup.client
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- CREATE
     local moon_ref01_ent = client:Moon(nil)
     local moon_ref01_data = helpers.to_map(vs.getprop(
@@ -65,6 +137,9 @@ describe("MoonEntity", function()
     assert.is_not_nil(moon_ref01_data)
     assert.is_not_nil(moon_ref01_data["id"])
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- LIST
     local moon_ref01_match = {
       ["planet_id"] = setup.idmap["planet01"],
@@ -79,6 +154,9 @@ describe("MoonEntity", function()
       { id = moon_ref01_data["id"] })
     assert.is_false(vs.isempty(found_item))
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- UPDATE
     local moon_ref01_data_up0_up = {
       id = moon_ref01_data["id"],
@@ -93,20 +171,33 @@ describe("MoonEntity", function()
     assert.is_nil(err)
     local moon_ref01_resdata_up0 = helpers.to_map(type(moon_ref01_resdata_up0_result) == 'table' and moon_ref01_resdata_up0_result.data_get and moon_ref01_resdata_up0_result:data_get() or moon_ref01_resdata_up0_result)
     assert.is_not_nil(moon_ref01_resdata_up0)
-    assert.are.equal(moon_ref01_resdata_up0["id"], moon_ref01_data_up0_up["id"])
+    assert.is_true(runner.live_same_id(moon_ref01_resdata_up0["id"], moon_ref01_data_up0_up["id"]))
     assert.are.equal(moon_ref01_resdata_up0[moon_ref01_markdef_up0_name], moon_ref01_markdef_up0_value)
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- LOAD
     local moon_ref01_match_dt0 = {
       id = moon_ref01_data["id"],
     }
-    moon_ref01_match_dt0["planet_id"] = setup.idmap["planet_id"] or setup.idmap["planet01"]
+    do
+      local own = moon_ref01_data["planet_id"]
+      if type(own) == "string" or type(own) == "number" or type(own) == "boolean" then
+        moon_ref01_match_dt0["planet_id"] = own
+      else
+        moon_ref01_match_dt0["planet_id"] = setup.idmap["planet_id"] or setup.idmap["planet01"]
+      end
+    end
     local moon_ref01_data_dt0_loaded, err = moon_ref01_ent:load(moon_ref01_match_dt0, nil)
     assert.is_nil(err)
     local moon_ref01_data_dt0_load_result = helpers.to_map(type(moon_ref01_data_dt0_loaded) == 'table' and moon_ref01_data_dt0_loaded.data_get and moon_ref01_data_dt0_loaded:data_get() or moon_ref01_data_dt0_loaded)
     assert.is_not_nil(moon_ref01_data_dt0_load_result)
-    assert.are.equal(moon_ref01_data_dt0_load_result["id"], moon_ref01_data["id"])
+    assert.is_true(runner.live_same_id(moon_ref01_data_dt0_load_result["id"], moon_ref01_data["id"]))
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- REMOVE
     local moon_ref01_match_rm0 = {
       id = moon_ref01_data["id"],
@@ -115,6 +206,9 @@ describe("MoonEntity", function()
     local _, err = moon_ref01_ent:remove(moon_ref01_match_rm0, nil)
     assert.is_nil(err)
 
+    if setup.live then
+      runner.live_pace()
+    end
     -- LIST
     local moon_ref01_match_rt0 = {
       ["planet_id"] = setup.idmap["planet01"],

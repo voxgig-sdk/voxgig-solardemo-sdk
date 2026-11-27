@@ -16,6 +16,7 @@ const context = @import("core/context.zig");
 const errmod = @import("core/error.zig");
 
 pub const VoxgigSolardemoSDK = sdk.VoxgigSolardemoSDK;
+pub const NewResult = sdk.NewResult;
 // Non-branded alias so target-agnostic tests need no name substitution.
 pub const SDK = sdk.VoxgigSolardemoSDK;
 pub const test_sdk = sdk.test_sdk;
@@ -75,7 +76,7 @@ pub const h = helpers;
 pub const vs = @import("voxgig-struct");
 
 // No-argument convenience constructors.
-pub fn new() *VoxgigSolardemoSDK {
+pub fn new() NewResult {
     return VoxgigSolardemoSDK.new(Value{ .null = {} });
 }
 

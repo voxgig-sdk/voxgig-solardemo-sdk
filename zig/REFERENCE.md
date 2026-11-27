@@ -8,10 +8,14 @@ Complete API reference for the VoxgigSolardemo Zig SDK.
 ### Constructor
 
 ```zig
+const std = @import("std");
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = sdk.VoxgigSolardemoSDK.new(options);
+const client = switch (sdk.VoxgigSolardemoSDK.new(options)) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 ```
 
 Create a new SDK client instance. `options` is a `Value` map
@@ -21,12 +25,12 @@ Create a new SDK client instance. `options` is a `Value` map
 
 | Key | Value type | Description |
 | --- | --- | --- |
-| `base` | `string` | Base URL for API requests. |
-| `prefix` | `string` | URL prefix appended after base. |
-| `suffix` | `string` | URL suffix appended after path. |
-| `headers` | `map` | Custom headers for all requests. |
-| `feature` | `map` | Feature configuration. |
-| `system` | `map` | System overrides. |
+| `base` | `string` | Base URL of the API server. |
+| `prefix` | `string` | URL path prefix prepended to all requests. |
+| `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
+| `feature` | `map` | Feature activation flags. |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 
 ### Static Functions
@@ -105,26 +109,9 @@ const moon = client.moon(h.vnull());
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) EntResult`
-
-Create a new entity with the given data. `.ok` carries the created entity.
-
-```zig
-switch (client.moon(h.vnull()).create(h.jo(&.{
-    .{ "planet_id", h.vstr("example_planet_id") }, // []const u8
-    .{ "diameter", h.vnum(1) }, // f64
-    .{ "id", h.vstr("example_id") }, // []const u8
-    .{ "kind", h.vstr("example_kind") }, // []const u8
-    .{ "name", h.vstr("example_name") }, // []const u8
-}), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
-    .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
-}
-```
-
 #### `list(reqmatch: Value, ctrl: Value) EntListResult`
 
-List entities matching the given criteria. The match is optional — pass `h.vnull()` to list all records. `.ok` is a slice of entities, one per record.
+List entities matching the given criteria. The match must include `planet_id`. `.ok` is a slice of entities, one per record.
 
 ```zig
 switch (client.moon(h.vnull()).list(h.jo(&.{.{ "planet_id", h.vstr("example") }}), h.vnull())) {
@@ -148,20 +135,26 @@ switch (client.moon(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "pl
 }
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) EntResult`
+#### `create(reqdata: Value, ctrl: Value) EntResult`
 
-Remove the entity matching the given criteria. `.ok` carries the entity, marked as deleted, and `.err` the branded error.
+Create a new entity with the given data. `.ok` carries the created entity.
 
 ```zig
-switch (client.moon(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "planet_id", h.vstr("planet_id") }}), h.vnull())) {
+switch (client.moon(h.vnull()).create(h.jo(&.{
+    .{ "planet_id", h.vstr("example_planet_id") }, // []const u8
+    .{ "diameter", h.vnum(1) }, // f64
+    .{ "id", h.vstr("example_id") }, // []const u8
+    .{ "kind", h.vstr("example_kind") }, // []const u8
+    .{ "name", h.vstr("example_name") }, // []const u8
+}), h.vnull())) {
     .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
-    .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
+    .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 ```
 
 #### `update(reqdata: Value, ctrl: Value) EntResult`
 
-Update an existing entity. The data must include the entity id. `.ok` carries the updated entity.
+Update an existing entity. The data must include the entity `id`. `.ok` carries the updated entity.
 
 ```zig
 switch (client.moon(h.vnull()).update(h.jo(&.{
@@ -171,6 +164,17 @@ switch (client.moon(h.vnull()).update(h.jo(&.{
 }), h.vnull())) {
     .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("update failed: {s}\n", .{e.msg}),
+}
+```
+
+#### `remove(reqmatch: Value, ctrl: Value) EntResult`
+
+Remove the entity matching the given criteria. `.ok` carries the entity, marked as deleted, and `.err` the branded error.
+
+```zig
+switch (client.moon(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("moon_id") }, .{ "planet_id", h.vstr("planet_id") }}), h.vnull())) {
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
+    .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
 }
 ```
 
@@ -219,22 +223,6 @@ const planet = client.planet(h.vnull());
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) EntResult`
-
-Create a new entity with the given data. `.ok` carries the created entity.
-
-```zig
-switch (client.planet(h.vnull()).create(h.jo(&.{
-    .{ "diameter", h.vnum(1) }, // f64
-    .{ "id", h.vstr("example_id") }, // []const u8
-    .{ "kind", h.vstr("example_kind") }, // []const u8
-    .{ "name", h.vstr("example_name") }, // []const u8
-}), h.vnull())) {
-    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
-    .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
-}
-```
-
 #### `list(reqmatch: Value, ctrl: Value) EntListResult`
 
 List entities matching the given criteria. The match is optional — pass `h.vnull()` to list all records. `.ok` is a slice of entities, one per record.
@@ -261,20 +249,25 @@ switch (client.planet(h.vnull()).load(h.jo(&.{.{ "id", h.vstr("planet_id") }}), 
 }
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) EntResult`
+#### `create(reqdata: Value, ctrl: Value) EntResult`
 
-Remove the entity matching the given criteria. `.ok` carries the entity, marked as deleted, and `.err` the branded error.
+Create a new entity with the given data. `.ok` carries the created entity.
 
 ```zig
-switch (client.planet(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("planet_id") }}), h.vnull())) {
+switch (client.planet(h.vnull()).create(h.jo(&.{
+    .{ "diameter", h.vnum(1) }, // f64
+    .{ "id", h.vstr("example_id") }, // []const u8
+    .{ "kind", h.vstr("example_kind") }, // []const u8
+    .{ "name", h.vstr("example_name") }, // []const u8
+}), h.vnull())) {
     .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
-    .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
+    .err => |e| std.debug.print("create failed: {s}\n", .{e.msg}),
 }
 ```
 
 #### `update(reqdata: Value, ctrl: Value) EntResult`
 
-Update an existing entity. The data must include the entity id. `.ok` carries the updated entity.
+Update an existing entity. The data must include the entity `id`. `.ok` carries the updated entity.
 
 ```zig
 switch (client.planet(h.vnull()).update(h.jo(&.{
@@ -283,6 +276,17 @@ switch (client.planet(h.vnull()).update(h.jo(&.{
 }), h.vnull())) {
     .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
     .err => |e| std.debug.print("update failed: {s}\n", .{e.msg}),
+}
+```
+
+#### `remove(reqmatch: Value, ctrl: Value) EntResult`
+
+Remove the entity matching the given criteria. `.ok` carries the entity, marked as deleted, and `.err` the branded error.
+
+```zig
+switch (client.planet(h.vnull()).remove(h.jo(&.{.{ "id", h.vstr("planet_id") }}), h.vnull())) {
+    .ok => |result| std.debug.print("{s}\n", .{h.stringify(result.asEntity().data(null))}),
+    .err => |e| std.debug.print("remove failed: {s}\n", .{e.msg}),
 }
 ```
 
@@ -329,7 +333,7 @@ Return the entity name.
 Features are activated via the `feature` option:
 
 ```zig
-const client = sdk.VoxgigSolardemoSDK.new(h.jo(&.{
+const client = switch (sdk.VoxgigSolardemoSDK.new(h.jo(&.{
     .{ "feature", h.jo(&.{
         .{ "debug", h.jo(&.{.{ "active", h.vbool(true) }}) },
         .{ "idempotency", h.jo(&.{.{ "active", h.vbool(true) }}) },
@@ -341,17 +345,20 @@ const client = sdk.VoxgigSolardemoSDK.new(h.jo(&.{
         .{ "test", h.jo(&.{.{ "active", h.vbool(true) }}) },
         .{ "timeout", h.jo(&.{.{ "active", h.vbool(true) }}) },
     }) },
-}));
+}))) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 ```
 
 
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -362,10 +369,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -568,7 +575,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -581,6 +588,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -608,10 +616,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

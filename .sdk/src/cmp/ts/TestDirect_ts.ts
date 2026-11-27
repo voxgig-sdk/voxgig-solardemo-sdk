@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   ModelPoint,
@@ -17,14 +18,23 @@ import {
   cmp,
   snakify,
   isAuthActive,
-  serverVarEnv,
-  serverVariables,
-  isHttpBasicAuth,
   jsProp,
-  jsOptProp, envName, envToken, liveStrict, liveStrictNote,
+  jsOptProp, liveStrict, liveStrictNote,
   jsKey,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
+  pointIsGraphql,
   hasLiveScenarios,
+  primaryPoint,
+  liveExampleIds,
+  liveQueryExamples,
+  litString,
+  liveEntity,
+  liveGetOnlyReason, LIVE_GETONLY_ENV,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary,
+  liveDirectDiscovery, liveIdKey,
+  fact,
 } from '@voxgig/sdkgen'
 
 
@@ -39,33 +49,34 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const stdrep = ctx$.stdrep
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
 
   const ff = projectPath('src/cmp/ts/fragment/')
 
   const strict = liveStrict(model, target.name)
 
-  const PROJECTNAME = envName(model)
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJECTNAME = ENVVAR.prefix
+  const entidEnvVar = ENVVAR.entid[entity.name]
 
   const authActive = isAuthActive(model)
-  const authBasic = authActive && isHttpBasicAuth(model)
+  const authBasic = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n    '${PROJECTNAME}_APIKEY': '',${authBasic ? `\n    '${PROJECTNAME}_SECRET': '',` : ''}`
+    ? `\n    '${ENVVAR.apikey}': '',${authBasic ? `\n    '${ENVVAR.secret}': '',` : ''}`
     : ''
   const apikeyLiveField = authActive
     ? `
-      apikey: env.${PROJECTNAME}_APIKEY,${authBasic ? `
-      secret: env.${PROJECTNAME}_SECRET,` : ''}`
+      apikey: env.${ENVVAR.apikey},${authBasic ? `
+      secret: env.${ENVVAR.secret},` : ''}`
     : ''
 
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n    '${serverVarEnv(PROJECTNAME, v.name)}': ${JSON.stringify(v.dflt)},`).join('')
+    .map((v: any) => `\n    '${ENVVAR.server[v.name]}': ${JSON.stringify(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' : `
       server: {${svars
       .map((v: any) => `
-        ${jsKey(v.name)}: ${jsProp('env', serverVarEnv(PROJECTNAME, v.name))},`).join('')}
+        ${jsKey(v.name)}: ${jsProp('env', ENVVAR.server[v.name])},`).join('')}
       },`
 
   const opnames = Object.keys(entity.op || {})
@@ -76,9 +87,17 @@ const TestDirect = cmp(function TestDirect(props: any) {
     return
   }
 
+  const exampleIds = liveExampleIds(entity)
+  const exampleIdLine = 0 === exampleIds.length ? '' :
+    `    // A path parameter's example stands in for an id *_ENTID does not give.
+    idmap = Object.assign({ ${exampleIds.map(([key, ex]) =>
+      `${jsKey(key)}: ${'string' === typeof ex ? litString('ts', ex) : String(ex)}`).join(', ')} },
+      'object' === typeof idmap ? idmap : {})
+`
+
   Folder({ name: entity.name }, () => {
 
-    File({ name: nom(entity, 'Name') + 'Direct.test.' + target.name }, () => {
+    File({ name: nom(entity, 'Name') + 'Direct.test.' + target.ext }, () => {
 
       Fragment({
         from: ff + 'Direct.test.fragment.ts',
@@ -97,16 +116,16 @@ const TestDirect = cmp(function TestDirect(props: any) {
 ${liveStrictNote(strict, '//')}
 const LIVE_STRICT = ${strict}
 
-function liveScenariosActive() { return ${hasLiveScenarios(model)} && process.env.${PROJECTNAME}_TEST_LIVE === 'TRUE' }
+function liveScenariosActive() { return ${hasLiveScenarios(model)} && process.env.${ENVVAR.live} === 'TRUE' }
 function directSetup(mockres?: any) {
   const calls: any[] = []
 
   const env = envOverride({
     '${entidEnvVar}': {},
-    '${PROJECTNAME}_TEST_LIVE': 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
+    '${ENVVAR.live}': 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
   })
 
-  const live = 'TRUE' === env.${PROJECTNAME}_TEST_LIVE
+  const live = 'TRUE' === env.${ENVVAR.live}
 
   if (live) {
     const transport = createLiveTransport()
@@ -120,7 +139,7 @@ function directSetup(mockres?: any) {
     if ('string' === typeof idmap && idmap.startsWith('{')) {
       idmap = JSON.parse(idmap)
     }
-
+${exampleIdLine}
     return { client, calls, live, idmap, transport }
   }
 
@@ -177,6 +196,29 @@ function unwrapListData(data: any): any[] | null {
 })
 
 
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysLine(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `    if (setup.live && 'TRUE' === process.env.${LIVE_GETONLY_ENV} && null == setup.idmap?.[${JSON.stringify(miss.key)}]) {
+      console.log(${JSON.stringify(liveExcludedLines({ excluded: [miss] })[0])})
+      t.skip(${JSON.stringify(liveExcludedSummary({ excluded: [miss] }))})
+      return
+    }
+`).join('')
+}
+
+
+// A GraphQL request is a POST, which a GET-only live run does not send.
+function getOnlySkip(point: any): string {
+  const reason = liveGetOnlyReason(point)
+  return null == reason ? '' : `    if (setup.live && 'TRUE' === process.env.${LIVE_GETONLY_ENV}) {
+      t.skip(${JSON.stringify(reason)})
+      return
+    }
+`
+}
+
+
 function generateDirectGraphql(
   opname: 'load' | 'list',
   entity: ModelEntity,
@@ -191,13 +233,16 @@ function generateDirectGraphql(
   const mockVarLines = vars.map((v: any, i: number) =>
     varLine('variables', `'direct0${i + 1}'`, v)).join('\n')
 
-  const liveVarLines = vars.map((v: any) => {
+  // A live call sends only the variables the document cannot run without.
+  const liveVars = vars.filter((v: any) => String(v.gqltype || '').endsWith('!'))
+
+  const liveVarLines = liveVars.map((v: any) => {
     const from = v.from || v.name
     const key = ('id' === from ? entity.name : from.replace(/_id$/, '')) + '01'
     return varLine('variables', `setup.idmap['${key}']`, v)
   }).join('\n')
 
-  const liveIdKeys = vars.map((v: any) => {
+  const liveIdKeys = liveVars.map((v: any) => {
     const from = v.from || v.name
     return ('id' === from ? entity.name : from.replace(/_id$/, '')) + '01'
   })
@@ -206,14 +251,16 @@ function generateDirectGraphql(
     ? `    if (skipIfMissingIds(t, setup, ${JSON.stringify(liveIdKeys)}, LIVE_STRICT)) return\n`
     : ''
 
-  const varAsserts = vars.map((_v: any, i: number) =>
-    '      assert(calls[0].init.body.includes(\'direct0' + (i + 1) + '\'))\n').join('')
+  const varAsserts = vars.map((v: any, i: number) =>
+    `      assert(sent.variables[${JSON.stringify(v.name)}] === 'direct0${i + 1}')\n`).join('')
 
   const offlineChecks = `      assert(result.ok === true)
       assert(result.status === 200)
       assert(null != result.data)
       assert(calls.length === 1)
       assert(calls[0].init.method === 'POST')
+      const sent = JSON.parse(calls[0].init.body)
+      assert(sent.query === ${JSON.stringify(doc)})
 ${varAsserts}`
 
   const checks = liveChecks(opname, 'null != result.data', 'no data', offlineChecks)
@@ -223,7 +270,7 @@ ${varAsserts}`
     if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup()
     if (maybeSkipControl(t, 'direct', 'direct-${opname}-${entity.name}', setup.live)) return
-${skipMissingLine}    const { client, calls } = setup
+${getOnlySkip(point)}${skipMissingLine}    const { client, calls } = setup
 
     const variables: any = {}
     if (setup.live) {
@@ -242,31 +289,27 @@ ${checks}
 
 function generateDirectLoad(model: Model, entity: ModelEntity) {
   const loadOp = entity.op?.load
-  const loadPoint: ModelPoint | undefined = loadOp?.points?.[0]
+  const loadPoint: ModelPoint | undefined = null == loadOp?.points ? undefined :
+    primaryPoint(loadOp.points, entity.name, 'load')
 
   if (null == loadPoint) {
     return
   }
 
-  if ('graphql' === (loadPoint as any).kind) {
+  if (pointIsGraphql(loadPoint)) {
     generateDirectGraphql('load', entity, loadPoint)
     return
   }
 
   const allLoadParams = loadPoint.g?.params || []
-  const loadPath = normalizePathParams(pointParts(loadPoint), allLoadParams, loadPoint.r?.param)
+  const loadPath = normalizePathParams(pointParts(loadPoint), allLoadParams, loadPoint.r?.param) + pointSlash(loadPoint)
 
   // Some upstream OpenAPI specs declare a parameter as `in: path` even when
   // that path has no `{name}` placeholder for it. Only path params that
   // actually appear in the URL template should drive direct-test path-param
   // setup and URL-substitution asserts; otherwise the SDK silently drops
   // them and the URL-includes assert fails.
-  const pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const renameMap = (loadPoint.r?.param || {}) as Record<string, string>
   const renamedPlaceholders = new Set<string>()
   for (const ph of pathPlaceholders) {
@@ -283,36 +326,20 @@ function generateDirectLoad(model: Model, entity: ModelEntity) {
   // ignores them. Optional query params (e.g. `app`, `version`) are skipped
   // even when they have examples — only the strictly required ones are
   // necessary to satisfy the contract.
-  const loadQuery = loadPoint.g?.query || []
-  const liveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const hasLiveQuery = liveQueryEntries.length > 0
-  const liveQueryLines = liveQueryEntries
-    .map((q: any) => `      ${jsProp('query', q.n)} = ${JSON.stringify(q.ex)}`)
-    .join('\n')
+  const liveQueryLines = liveQueryLinesTs(loadPoint)
+  const hasLiveQuery = '' !== liveQueryLines
 
   const listOp = entity.op?.list
-  const listPoint = listOp?.points?.[0]
+  const listPoint = null == listOp?.points ? undefined :
+    primaryPoint(listOp.points, entity.name, 'list')
   const listParams = listPoint?.g?.params || []
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listParams, listPoint.r?.param) : ''
-  const hasList = null != listPoint
-
-  const ancestorParams = loadParams.filter((p: any) => p.n !== 'id')
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listParams, listPoint.r?.param) + pointSlash(listPoint) : ''
+  const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
 
   const paramAsserts = loadParams.map((p: any, i: number) =>
     '      assert(calls[0].url.includes(\'direct0' + (i + 1) + '\'))\n').join('')
 
-  const liveListParams = listParams.map((p: any) => {
-    const key = p.n === 'id'
-      ? entity.name + '01'
-      : p.n.replace(/_id$/, '') + '01'
-    return { name: p.n, key }
-  })
-
-  const liveAncestorParams = ancestorParams.map((p: any) => {
-    const key = p.n.replace(/_id$/, '') + '01'
-    return { name: p.n, key }
-  })
+  const liveListParams = listParams.map((p: any) => ({ name: p.n, key: liveIdKey(entity.name, p.n) }))
 
   const liveQueryPrefix = liveQueryLines ? liveQueryLines + '\n' : ''
 
@@ -340,19 +367,20 @@ ${liveQueryPrefix}${exampleLines}
 ${loadParams.map((p: any, i: number) => `      ${jsProp('params', p.n)} = 'direct0${i + 1}'`).join('\n')}
     }`
   }
-  else if (hasList) {
-    // List-bootstrap pattern picks the load id from a list call's response,
-    // so the test can succeed without ENTID env var. Ancestor params, if
-    // any, still need ENTID overrides because the list call itself can need
-    // them embedded.
+  else if (null != discovery) {
+    const liveAncestorParams = loadParams.filter((p: any) => p.n !== discovery.param)
+      .map((p: any) => ({ name: p.n, key: liveIdKey(entity.name, p.n) }))
     liveIdKeys = [...new Set([...liveListParams, ...liveAncestorParams].map((lp: any) => lp.key))]
     const listParamLines = liveListParams.map((lp: any) =>
       `        ${lp.name}: setup.idmap['${lp.key}'],`).join('\n')
     const ancestorParamLines = liveAncestorParams.map((lp: any) =>
       `      ${jsProp('params', lp.name)} = setup.idmap['${lp.key}']`).join('\n')
-    const idParamName = loadParams.find((p: any) => p.n === 'id')
-      ? 'id'
-      : (loadParams[0]?.n ?? 'id')
+    // The list sends the query its route requires, as direct-list does.
+    const listQueryLines = liveQueryExamples(listPoint)
+      .map(([name, ex]) => `\n          ${jsKey(name)}: ${JSON.stringify(ex)},`).join('')
+    const listQueryBlock = '' === listQueryLines ? '' : `
+        query: {${listQueryLines}
+        },`
 
     liveParamsBlock = `    if (setup.live) {
 ${liveQueryPrefix}      const listResult: any = await client.direct({
@@ -360,7 +388,7 @@ ${liveQueryPrefix}      const listResult: any = await client.direct({
         method: 'GET',
         params: {
 ${listParamLines}
-        },
+        },${listQueryBlock}
       })
       if (!listResult.ok || listResult.status < 200 || listResult.status >= 300) {
         return void liveMiss(t, LIVE_STRICT, 'Live list discovery failed: ' + describeLive(listResult))
@@ -372,21 +400,19 @@ ${listParamLines}
       if (0 === listArr.length) {
         return void liveEmpty(t, 'The account has no ${entity.name} record to load')
       }
-      const candidateId = ${jsOptProp('listArr[0]', idParamName)} ?? listArr[0]?.id
+      const candidateId = ${jsOptProp('listArr[0]', discovery.field)}
       if (null == candidateId) {
         return void liveMiss(t, LIVE_STRICT, 'Live load blocked: discovery returned no usable identity')
       }
-      ${jsProp('params', idParamName)} = candidateId
+      ${jsProp('params', discovery.param)} = candidateId
 ${ancestorParamLines}
     } else {
 ${loadParams.map((p: any, i: number) => `      ${jsProp('params', p.n)} = 'direct0${i + 1}'`).join('\n')}
     }`
   } else if (hasLiveQuery || loadParams.length > 0) {
-    // With no examples and no list to discover from, the ids come from the
-    // *_ENTID variable; without them the test is blocked.
-    const liveLoadParams = loadParams.map((p: any) => ({
-      name: p.n, key: p.n === 'id' ? entity.name + '01' : p.n.replace(/_id$/, '') + '01',
-    }))
+    // A path parameter no listed record gives comes from *_ENTID and the
+    // examples merged into it; without them the test is blocked.
+    const liveLoadParams = loadParams.map((p: any) => ({ name: p.n, key: liveIdKey(entity.name, p.n) }))
     liveIdKeys = liveLoadParams.map((lp: any) => lp.key)
     liveParamsBlock = `    if (setup.live) {
 ${liveQueryPrefix}${liveLoadParams.map((lp: any) =>
@@ -417,7 +443,7 @@ ${paramAsserts}`
     if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup({ id: 'direct01' })
     if (maybeSkipControl(t, 'direct', 'direct-load-${entity.name}', setup.live)) return
-${skipMissingLine}    const { client, calls } = setup
+${getOnlyKeysLine(model, entity, 'direct-load-' + entity.name, liveIdKeys)}${skipMissingLine}    const { client, calls } = setup
 
     const params: any = {}
     const query: any = {}
@@ -438,25 +464,22 @@ ${loadChecks}
 
 function generateDirectList(model: Model, entity: ModelEntity) {
   const listOp = entity.op?.list
-  const listPoint: ModelPoint | undefined = listOp?.points?.[0]
+  const listPoint: ModelPoint | undefined = null == listOp?.points ? undefined :
+    primaryPoint(listOp.points, entity.name, 'list')
 
   if (null == listPoint) {
     return
   }
 
-  if ('graphql' === (listPoint as any).kind) {
+  if (pointIsGraphql(listPoint)) {
     generateDirectGraphql('list', entity, listPoint)
     return
   }
 
   const listParams = listPoint.g?.params || []
-  const listPath = normalizePathParams(pointParts(listPoint), listParams, listPoint.r?.param)
+  const listPath = normalizePathParams(pointParts(listPoint), listParams, listPoint.r?.param) + pointSlash(listPoint)
 
-  const listQuery = listPoint.g?.query || []
-  const liveQueryLines = listQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-    .map((q: any) => `      ${jsProp('query', q.n)} = ${JSON.stringify(q.ex)}`)
-    .join('\n')
+  const liveQueryLines = liveQueryLinesTs(listPoint)
 
   const liveParams = listParams.map((p: any) => {
     const key = p.n === 'id'
@@ -517,7 +540,7 @@ ${paramAsserts}`
     if (liveScenariosActive()) { t.skip('Covered by live operation scenarios'); return }
     const setup = directSetup([{ id: 'direct01' }, { id: 'direct02' }])
     if (maybeSkipControl(t, 'direct', 'direct-list-${entity.name}', setup.live)) return
-${skipMissingLine}    const { client, calls } = setup
+${getOnlyKeysLine(model, entity, 'direct-list-' + entity.name, liveIdKeys)}${skipMissingLine}    const { client, calls } = setup
 
 ${paramsBlock}
     const result: any = await client.direct({
@@ -545,6 +568,13 @@ function liveChecks(opname: string, usable: string, unusable: string, offline: s
       }
     } else {
 ${offline}    }`
+}
+
+
+function liveQueryLinesTs(point: any): string {
+  return liveQueryExamples(point)
+    .map(([name, ex]) => `      ${jsProp('query', name)} = ${JSON.stringify(ex)}`)
+    .join('\n')
 }
 
 

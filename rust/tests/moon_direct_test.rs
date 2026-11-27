@@ -49,7 +49,8 @@ fn moon_direct_setup(mockres: Value) -> MoonDirectSetup {
                 jo(vec![]),
             ]),
             None,
-        )));
+        )))
+        .unwrap();
         let idmap = match to_map(&getp(&env, "VOXGIG_SOLARDEMO_TEST_MOON_ENTID")) {
             Value::Map(m) => Value::Map(m),
             _ => Value::empty_map(),
@@ -83,7 +84,8 @@ fn moon_direct_setup(mockres: Value) -> MoonDirectSetup {
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str("http://localhost:8080")),
         ("system", jo(vec![("fetch", mock_fetch)])),
-    ]));
+    ]))
+    .unwrap();
 
     MoonDirectSetup {
         client,
@@ -120,9 +122,13 @@ fn moon_direct_list() {
             }
         }
     }
+    if setup.live {
+        live_pace();
+    }
     let client = setup.client.clone();
 
     let params = Value::empty_map();
+    let query = Value::empty_map();
     if setup.live {
         setp(&params, "planet_id", getp(&setup.idmap, "planet01"));
     } else {
@@ -133,6 +139,7 @@ fn moon_direct_list() {
         ("path", Value::str("api/planet/{planet_id}/moon")),
         ("method", Value::str("GET")),
         ("params", params.clone()),
+        ("query", query.clone()),
     ])) {
         Ok(result) => result,
         Err(err) if setup.live => {
@@ -206,9 +213,13 @@ fn moon_direct_load() {
             }
         }
     }
+    if setup.live {
+        live_pace();
+    }
     let client = setup.client.clone();
 
     let params = Value::empty_map();
+    let query = Value::empty_map();
     if setup.live {
         let list_result = match client.direct(jo(vec![
             ("path", Value::str("api/planet/{planet_id}/moon")),
@@ -237,10 +248,7 @@ fn moon_direct_load() {
             live_empty("The account has no moon record to load");
             return;
         }
-        let mut found = getp(&first, "id");
-        if found.is_noval() {
-            found = getp(&first, "id");
-        }
+        let found = getp(&first, "id");
         if found.is_noval() {
             live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
             return;
@@ -256,6 +264,7 @@ fn moon_direct_load() {
         ("path", Value::str("api/planet/{planet_id}/moon/{id}")),
         ("method", Value::str("GET")),
         ("params", params.clone()),
+        ("query", query.clone()),
     ])) {
         Ok(result) => result,
         Err(err) if setup.live => {

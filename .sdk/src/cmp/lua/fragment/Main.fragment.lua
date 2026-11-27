@@ -107,8 +107,8 @@ function ProjectNameSDK.new(options)
 
   -- Add features in the resolved order (make_options puts an explicit list
   -- order first, else defaults to test-first). Ordering matters: the `test`
-  -- feature installs the base mock transport and the transport features
-  -- (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
+  -- feature installs the base mock transport and the features whose model
+  -- declares `transport: 'wrap'` wrap whatever is current, so `test`
   -- must be added before them to sit at the base of the chain.
   local feature_opts = helpers.to_map(vs.getprop(self.options, "feature"))
   if feature_opts ~= nil then
@@ -234,6 +234,20 @@ function ProjectNameSDK:prepare(fetchargs)
     for k, v in pairs(uh) do
       ctx.spec.headers[k] = v
     end
+  end
+
+  -- A raw request has no point to declare its response type, so it asks
+  -- for the JSON it reads: an API that negotiates on Accept otherwise
+  -- answers in its own default format. A caller's own accept wins.
+  local has_accept = false
+  for k, _ in pairs(ctx.spec.headers) do
+    if string.lower(tostring(k)) == "accept" then
+      has_accept = true
+      break
+    end
+  end
+  if not has_accept then
+    ctx.spec.headers["accept"] = "application/json"
   end
 
   local _, err = utility.prepare_auth(ctx)
@@ -370,8 +384,8 @@ end
 -- a top-level `errors` array, so status alone would report a failed query as
 -- ok.
 --
--- NOTE: like direct, this bypasses the feature pipeline — no retry, ratelimit
--- or paging features apply.
+-- NOTE: like direct, this bypasses the feature pipeline: no feature hook runs
+-- on this path.
 function ProjectNameSDK:graphql(query, variables, ctrl)
   if not self:_op_allowed("graphql") then
     return self:_op_denied("graphql"), nil

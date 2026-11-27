@@ -96,12 +96,9 @@ class PlanetListMatch
 class PlanetCreateData
 {
     public float $diameter;
-    public ?string $forbidReason = null;
-    public ?string $forbidState = null;
     public string $id;
     public string $kind;
     public string $name;
-    public ?string $terraformState = null;
 }
 
 /** Request payload for Planet#update. */
@@ -109,11 +106,8 @@ class PlanetUpdateData
 {
     public string $id;
     public ?float $diameter = null;
-    public ?string $forbidReason = null;
-    public ?string $forbidState = null;
     public ?string $kind = null;
     public ?string $name = null;
-    public ?string $terraformState = null;
 }
 
 /** Request payload for Planet#remove. */

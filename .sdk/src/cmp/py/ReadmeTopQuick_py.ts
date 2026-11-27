@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName, serverVariables, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName, listMatchArg, matchExampleItems, litString, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -19,7 +19,7 @@ function pyLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'True'
   if ('ARRAY' === k) return '[]'
   if ('OBJECT' === k) return '{}'
-  return `"${placeholder}"`
+  return litString('py', placeholder)
 }
 
 
@@ -32,7 +32,7 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
 
   const authActive = isAuthActive(model)
 
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
   const pyServerField = 0 === svars.length ? '' :
     `\n    "server": {` +
     svars.map((v: any) => `\n        "${v.name}": "<${v.name}>",`).join('') +
@@ -40,7 +40,7 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
 
   const apikeyImport = authActive ? `import os\n` : ''
   const ctor = authActive
-    ? `${model.const.Name}SDK({\n    "apikey": os.environ.get("${envName(model)}_APIKEY"),${pyServerField}\n})`
+    ? `${model.const.Name}SDK({\n    "apikey": os.environ.get("${envName(model)}_APIKEY"),${fact(model.main[KIT], 'auth').secret ? `\n    "secret": os.environ.get("${envName(model)}_SECRET"),` : ''}${pyServerField}\n})`
     : ('' === pyServerField
       ? `${model.const.Name}SDK()`
       : `${model.const.Name}SDK({${pyServerField}\n})`)
@@ -57,7 +57,7 @@ client = ${ctor}
     // Sanitise the local variable name — an entity whose lowercased name is a
     // Python keyword (e.g. `class`) would otherwise emit uncompilable code.
     const eVar = exampleVarName(eName.toLowerCase(), 'py')
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     let hasCall = false
@@ -72,13 +72,12 @@ for ${eVar} in ${eVar}s:
     }
 
     if (opnames.includes('load')) {
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `{${loadItems.map((it: any) =>
-          `"${it.name}": ${pyLit(it.type,
+          `${litString('py', it.name)}: ${pyLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')}}`
         : ''
       Content(`

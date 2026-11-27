@@ -30,7 +30,7 @@ import Testutil
 -- the option spec has no Basic `secret`), so that is the slot asserted.
 -- Placement: header (authorization), basic: false.
 authSuppressed :: Bool
-authSuppressed = False
+authSuppressed = True
 
 canaryApikey, canaryHeader, canaryValue, mask :: String
 canaryApikey = "CANARY-APIKEY-k9x2m7q4p1"

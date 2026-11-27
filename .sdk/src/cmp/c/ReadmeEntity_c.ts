@@ -1,12 +1,12 @@
 
-import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, opRequestShape, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, entityOps, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { cIdent, cVarName, cListMatch } from './utility_c'
+import { cIdent, cVarName, cListMatch, cString } from './utility_c'
 
 
 // Canonical type sentinel -> a C type name for the field/param tables. The
@@ -32,7 +32,7 @@ function cLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'v_bool(true)'
   if ('ARRAY' === k) return 'v_list()'
   if ('OBJECT' === k) return 'v_map()'
-  return `v_str("${placeholder}")`
+  return `v_str(${cString(placeholder)})`
 }
 
 
@@ -74,9 +74,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     const idF = entityIdField(entity)
     const evar = cVarName(entity.name)
@@ -87,8 +85,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -123,7 +121,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
         Content(`| \`${field.n}\` | \`${cType(field.t)}\` | ${desc} |
 `)
       })
@@ -132,13 +130,12 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+    if (opnames.includes('load')) {
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = cmapExpr(loadItems.map((it: any) =>
-        `"${it.name}", ${cLit(it.type,
+        `${cString(it.name)}, ${cLit(it.type,
           it.name === idF ? entity.name + '_id' : it.name)}`))
       Content(`#### Example: Load
 
@@ -153,7 +150,7 @@ if (loaded) {
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`c
@@ -167,8 +164,8 @@ for (size_t i = 0; ${evar}s && ${evar}s[i]; i++) {
 `)
     }
 
-    if (callable.includes('create')) {
-      const createItems = opRequestShape(entity, 'create').items
+    if (opnames.includes('create')) {
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
@@ -183,7 +180,7 @@ Entity* ${evar} = ${acc}(client, NULL);
 `)
         createItems.map((it: any, i: number) => {
           const comma = i < createItems.length - 1 ? ',' : ')'
-          Content(`    "${it.name}", ${cLit(it.type, 'example_' + it.name)}${comma}  // ${cType(it.type)}
+          Content(`    ${cString(it.name)}, ${cLit(it.type, 'example_' + it.name)}${comma}  // ${cType(it.type)}
 `)
         })
         Content(`, NULL, &err);

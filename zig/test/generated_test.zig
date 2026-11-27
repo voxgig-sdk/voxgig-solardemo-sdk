@@ -53,6 +53,7 @@ test "moon_prepare_smoke" {
         return;
     };
     try std.testing.expect(std.mem.eql(u8, h.get_str(fetchdef, "method") orelse "", "GET"));
+    try std.testing.expect(std.mem.eql(u8, h.get_str(h.getp(fetchdef, "headers"), "accept") orelse "", "application/json"));
 }
 
 test "planet_load_smoke" {
@@ -175,6 +176,7 @@ test "planet_prepare_smoke" {
         return;
     };
     try std.testing.expect(std.mem.eql(u8, h.get_str(fetchdef, "method") orelse "", "GET"));
+    try std.testing.expect(std.mem.eql(u8, h.get_str(h.getp(fetchdef, "headers"), "accept") orelse "", "application/json"));
 }
 
 // Documented quick-start surface (README.md / REFERENCE.md). Exercises the
@@ -187,18 +189,18 @@ test "readme_quickstart_surface" {
     // `client.direct(...)` — the documented escape hatch. It always returns a
     // result map carrying an `ok` flag (never an error union).
     const result = client.direct(h.jo(&.{
-        .{ "path", h.vstr("/api/resource/{id}") },
+        .{ "path", h.vstr("/api/planet/{planet_id}/moon") },
         .{ "method", h.vstr("GET") },
-        .{ "params", h.jo(&.{.{ "id", h.vstr("example") }}) },
+        .{ "params", h.jo(&.{.{ "planet_id", h.vstr("example") }}) },
     }));
     try std.testing.expect(result == .object);
     try std.testing.expect(h.get_bool(result, "ok") != null);
 
     // `client.prepare(...)` — build a request without sending it.
     const fetchdef = client.prepare(h.jo(&.{
-        .{ "path", h.vstr("/api/resource/{id}") },
+        .{ "path", h.vstr("/api/planet/{planet_id}/moon") },
         .{ "method", h.vstr("GET") },
-        .{ "params", h.jo(&.{.{ "id", h.vstr("example") }}) },
+        .{ "params", h.jo(&.{.{ "planet_id", h.vstr("example") }}) },
     })) catch h.vnull();
     _ = fetchdef;
 }

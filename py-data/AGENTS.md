@@ -1,8 +1,8 @@
 # VoxgigSolardemo Data — agent guide
 
 Notebook-oriented pandas access to the VoxgigSolardemo API. If you are writing an
-analysis cell, use THIS package; if you are writing an application, use the
-sibling SDK at `../py` instead.
+analysis cell, use THIS package; if you are writing an application, use
+the sibling Python SDK at `../py` instead.
 
 ## Getting a client
 
@@ -11,10 +11,7 @@ from voxgigsolardemo_data import data
 ad = data()
 ```
 
-Credentials resolve from, in order: the `token=` argument, the Colab secret
-`VOXGIG_SOLARDEMO_APIKEY`, then the environment variable `VOXGIG_SOLARDEMO_APIKEY`.
-Do not construct the SDK client directly and do not read env vars yourself —
-`data()` already does both.
+Do not construct the SDK client directly — `data()` already does.
 
 ## Accessors
 
@@ -43,7 +40,7 @@ Writes and non-entity endpoints are deliberately absent. Use the wrapped
 client and shape the result:
 
 ```python
-result = ad.sdk.SomeEntity().create({"name": "x"})
+result = ad.sdk.Moon().create({ "planet_id": "example", "diameter": 1, "id": "example", "kind": "example", "name": "example" })
 df = ad.frame(result)
 ```
 

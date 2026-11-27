@@ -14,7 +14,7 @@ typedef struct entyvar_entity {
   voxgig_value* data;     // Map
   voxgig_value* mtch;     // Map
   Context* entctx;
-  // Set once a successful `remove` resolves on this instance.
+  // Set when a remove marks this instance deleted.
   bool deleted;
 } entyvar_entity;
 
@@ -134,15 +134,13 @@ static voxgig_value* entyvar_stream_items(voxgig_value* data, PNError** err) {
 }
 
 // Streaming operation. Runs `action` through the full pipeline and returns a
-// List of the result items, so the `streaming` feature's incremental output
-// is reachable from a generated entity (a normal op call materialises the
-// whole result). This runtime is synchronous and C has no lazy iterators, so
-// the returned value is a List cursor the caller walks (voxgig_as_list).
-// `callopts` parameterises the call:
+// List of the result items, so the `streaming` feature's incremental output,
+// when that feature is active, is reachable from a generated entity (a
+// normal op call materialises the whole result). This runtime is synchronous
+// and C has no lazy iterators, so the returned value is a List cursor the
+// caller walks (voxgig_as_list). `callopts` parameterises the call:
 //   - inbound (download): the items/chunks the streaming feature produces when
 //     active, else the materialised items;
-//   - outbound (upload): a `body` in `callopts` is attached to the request
-//     (reqdata `body$`) so the transport can stream a payload;
 //   - `ctrl` (pipeline control) threads pipeline options.
 voxgig_value* entyvar_stream(Entity* e, const char* action, voxgig_value* args,
                              voxgig_value* callopts, PNError** err) {
@@ -173,14 +171,6 @@ voxgig_value* entyvar_stream(Entity* e, const char* action, voxgig_value* args,
   cs.data = self->data;
   cs.reqmatch = reqmatch;
   Context* ctx = make_context_util(cs, entyvar_ent_ctx(self));
-
-  // Outbound: attach a caller `body` so the transport can stream a payload.
-  voxgig_value* body = getp(stream_opts, "body");
-  if (!v_is_noval(body) && !v_is_null(body)) {
-    voxgig_value* reqdata = voxgig_is_map(ctx->reqdata) ? ctx->reqdata : voxgig_new_map();
-    setp(reqdata, "body$", v_share(body));
-    ctx->reqdata = reqdata;
-  }
 
   PNError* pe = NULL;
 
@@ -242,8 +232,7 @@ static Entity* entyvar_make(Entity* e) {
 static voxgig_value* entyvar_data(Entity* e, voxgig_value* args) {
   entyvar_entity* self = (entyvar_entity*)e;
   if (args && !v_is_noval(args) && !v_is_null(args)) {
-    voxgig_value* cloned = to_map(voxgig_clone(args));
-    self->data = voxgig_is_map(cloned) ? cloned : voxgig_new_map();
+    self->data = voxgig_clone(args);
     feature_hook_util(entyvar_ent_ctx(self), "SetData");
   }
   feature_hook_util(entyvar_ent_ctx(self), "GetData");
@@ -273,9 +262,9 @@ static voxgig_value* entyvar_matchv(Entity* e, voxgig_value* args) {
 
 // #RemoveOp
 
-// `remove` resolves to the entity, marked. The instance KEEPS the data it
-// held - a caller can still read what was deleted - but it is no longer a
-// live record.
+// A remove resolves to the entity, marked deleted. The instance KEEPS the
+// data it held - a caller can still read what was deleted - but it is no
+// longer a live record.
 static void entyvar_mark_deleted(Entity* e) {
   ((entyvar_entity*)e)->deleted = true;
 }

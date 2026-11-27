@@ -8,6 +8,7 @@
 #define SDK_UTILITY_PIPELINE_HPP
 
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -71,6 +72,9 @@ inline CtxPtr makeContext(const CtxSpec& cs, CtxPtr basectx) {
 // it can be replaced after construction - features register later.
 
 constexpr int CLEAN_MAXDEPTH = 32;
+
+// The key of what stands in for a body of bytes; its value is the kind.
+constexpr const char* CLEAN_BINARY_KEY = "binary$";
 
 inline std::string cleanBase64(const std::string& in) {
   static const char* ALPHABET =
@@ -270,16 +274,87 @@ inline std::string cleanName(const Value& cfg, const Value& out, const std::stri
   return name + "#" + std::to_string(i);
 }
 
+// The media helpers are defined with prepareBody, later in this header.
+inline bool isRawRequest(const Value& point);
+inline const char* rawBodyKey();
+
+// Where the live bodies of this call that are bytes are held, each with its
+// type. Handles, so a body is compared in place, never copied.
+struct CleanBinary {
+  SpecPtr spec;
+  Value reqdata = Value::undef();
+  Value media = Value::undef();
+  ResponsePtr response;
+  Value type = Value::undef();
+};
+
+// The request body of a point the model marks binary, and a response body
+// that is bytes. A string shorter than the registry accepts is not told
+// from ordinary text.
+inline CleanBinary cleanBinaryBody(CtxPtr ctx) {
+  CleanBinary bin;
+  if (!ctx) return bin;
+  Value body = getp(ctx->point, "body");
+  bool sent = isRawRequest(ctx->point) && is_true(getp(body, "binary"));
+  std::string type = ctx->response ? headerValue(ctx->response->headers, "content-type") : "";
+  bool answered = ctx->response && isBinaryResponse(ctx->point, type);
+  if (!sent && !answered) return bin;
+  size_t min = static_cast<size_t>(cleanCount(getp(cleanConfig(ctx), "min"), 4));
+  auto longEnough = [min](const Value* live) {
+    return nullptr != live && live->is_string() && min <= live->as_string().size();
+  };
+  if (sent) {
+    if (ctx->spec && longEnough(&ctx->spec->body)) bin.spec = ctx->spec;
+    if (ctx->reqdata.is_map() && longEnough(ctx->reqdata.as_map()->find(rawBodyKey()))) {
+      bin.reqdata = ctx->reqdata;
+    }
+    bin.media = getp(body, "media");
+  }
+  if (answered && longEnough(&ctx->response->body)) {
+    bin.response = ctx->response;
+    if (!type.empty()) bin.type = Value(type);
+  }
+  return bin;
+}
+
+inline bool cleanIsRequestBody(const CleanBinary& bin, const std::string& text) {
+  if (bin.spec && bin.spec->body.is_string() && bin.spec->body.as_string() == text) return true;
+  if (!bin.reqdata.is_map()) return false;
+  const Value* given = bin.reqdata.as_map()->find(rawBodyKey());
+  return nullptr != given && given->is_string() && given->as_string() == text;
+}
+
+inline bool cleanIsResponseBody(const CleanBinary& bin, const std::string& text) {
+  return bin.response && bin.response->body.is_string() && bin.response->body.as_string() == text;
+}
+
+// Bytes are described, never copied (ADR-006). The value union has no
+// variant for bytes: a string is bytes only as a live body, by equal
+// content. A response read as text does not say how many bytes it was, so
+// it is not sized. Undef when val is no live body.
+inline Value cleanDescribeBinary(const CleanBinary& bin, const Value& val) {
+  if (!val.is_string()) return Value::undef();
+  bool sent = cleanIsRequestBody(bin, val.as_string());
+  if (!sent && !cleanIsResponseBody(bin, val.as_string())) return Value::undef();
+  Value desc = vmap();
+  map_put(desc, CLEAN_BINARY_KEY, Value("bytes"));
+  if (sent) map_put(desc, "size", Value(static_cast<long long>(val.as_string().size())));
+  const Value& type = sent ? bin.media : bin.type;
+  if (type.is_string()) map_put(desc, "type", type);
+  return desc;
+}
+
 // A plain-data copy of what is about to leave: functions are dropped,
 // cycles are cut, and no live container is shared with the copy - masking
 // the copy must never mask the pipeline's own spec.
 inline Value cleanSnapshot(const Value& cfg, const Value& val, const Value& key, int depth,
-                           std::vector<const void*>& seen) {
+                           std::vector<const void*>& seen, const CleanBinary& bin) {
   if (val.is_undef() || val.is_null()) return val;
 
   if (val.is_string()) {
-    return Value(cleanSensitiveKey(cfg, key) ? cleanMaskValue(cfg, val.as_string())
-                                             : cleanString(cfg, val.as_string()));
+    if (cleanSensitiveKey(cfg, key)) return Value(cleanMaskValue(cfg, val.as_string()));
+    Value desc = cleanDescribeBinary(bin, val);
+    return desc.is_undef() ? Value(cleanString(cfg, val.as_string())) : desc;
   }
 
   if (val.is_func() || val.is_sentinel()) return Value::undef();
@@ -302,13 +377,13 @@ inline Value cleanSnapshot(const Value& cfg, const Value& val, const Value& key,
     out = vlist();
     long long i = 0;
     for (const auto& item : *val.as_list()) {
-      Value v = cleanSnapshot(cfg, item, Value(i++), depth + 1, seen);
+      Value v = cleanSnapshot(cfg, item, Value(i++), depth + 1, seen, bin);
       if (!v.is_undef()) out.as_list()->push_back(v);
     }
   } else {
     out = vmap();
     for (const auto& kv : *val.as_map()) {
-      Value v = cleanSnapshot(cfg, kv.second, Value(kv.first), depth + 1, seen);
+      Value v = cleanSnapshot(cfg, kv.second, Value(kv.first), depth + 1, seen, bin);
       if (!v.is_undef()) map_put(out, cleanName(cfg, out, kv.first), v);
     }
   }
@@ -316,17 +391,18 @@ inline Value cleanSnapshot(const Value& cfg, const Value& val, const Value& key,
   return out;
 }
 
-inline Value cleanValue(const Value& cfg, const Value& val) {
+inline Value cleanValue(const Value& cfg, const Value& val,
+                        const CleanBinary& bin = CleanBinary()) {
   if (is_false(getp(cfg, "active"))) return val;
   if (val.is_string()) return Value(cleanString(cfg, val.as_string()));
   std::vector<const void*> seen;
-  return cleanSnapshot(cfg, val, Value::undef(), 0, seen);
+  return cleanSnapshot(cfg, val, Value::undef(), 0, seen, bin);
 }
 
 // Clean a value on its way out: a string is redacted; anything else comes
 // back as a masked plain-data copy.
 inline Value clean(CtxPtr ctx, const Value& val) {
-  return cleanValue(cleanConfig(ctx), val);
+  return cleanValue(cleanConfig(ctx), val, cleanBinaryBody(ctx));
 }
 
 // An SdkError is cleaned IN PLACE: it is about to be thrown, and its
@@ -335,10 +411,11 @@ inline void cleanError(CtxPtr ctx, const SdkErrorPtr& err) {
   if (!err) return;
   Value cfg = cleanConfig(ctx);
   if (is_false(getp(cfg, "active"))) return;
+  CleanBinary bin = cleanBinaryBody(ctx);
   err->msg = cleanString(cfg, err->msg);
   err->code = cleanString(cfg, err->code);
-  err->result = cleanValue(cfg, err->result);
-  err->spec = cleanValue(cfg, err->spec);
+  err->result = cleanValue(cfg, err->result, bin);
+  err->spec = cleanValue(cfg, err->spec, bin);
 }
 
 // Every scalar under a sensitive name, at any depth and of any shape, is
@@ -443,11 +520,11 @@ inline Value makeError(CtxPtr ctx, SdkErrorPtr err) {
 
   ctx->ctrl->err = sdkErr;
 
-  // Fire PreUnexpected so observability features (metrics, telemetry, audit,
-  // debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-  // rbac short-circuit). Fires after ctx->ctrl->err is set so hooks can read
-  // the error; features guard against double-recording when PreDone fired.
-  // What a hook throws here replaces the error, and leaves cleaned too.
+  // Fire PreUnexpected so features hooked on it close/record error paths that
+  // never reach PreDone (e.g. a PrePoint short-circuit). Fires after
+  // ctx->ctrl->err is set so hooks can read the error; features guard against
+  // double-recording when PreDone fired. What a hook throws here replaces the
+  // error, and leaves cleaned too.
   SdkErrorPtr raised = sdkErr;
   try {
     featureHook(ctx, "PreUnexpected");
@@ -565,6 +642,25 @@ inline void featureHook(CtxPtr ctx, const std::string& name) {
 
 // ---- fetcher ----------------------------------------------------------
 
+// A GET-only live run refuses any other method before it is sent. The error
+// names the path alone: the query can carry a credential.
+inline SdkErrorPtr getOnlyRefusal(CtxPtr ctx, const std::string& fullurl, const Value& fetchdef) {
+  Value raw = getp(fetchdef, "method");
+  std::string method = raw.is_string() && !raw.as_string().empty() ? raw.as_string() : "GET";
+  for (auto& c : method) c = (char)std::toupper((unsigned char)c);
+  const char* flag = std::getenv("VOXGIG_GETONLY_GUARD");
+  if (nullptr == flag || std::string(flag) != "TRUE" || "GET" == method) return nullptr;
+  std::string rest = fullurl;
+  size_t scheme = rest.find("://");
+  if (std::string::npos != scheme) {
+    rest = rest.substr(scheme + 3);
+    rest = rest.substr(std::min(rest.find_first_of("/?#"), rest.size()));
+  }
+  std::string path = rest.substr(0, rest.find_first_of("?#"));
+  return ctx->makeError("fetch_getonly_block",
+      "[GET-ONLY GUARD] blocked " + method + " " + (path.empty() ? "/" : path));
+}
+
 inline Value fetcher(CtxPtr ctx, const std::string& fullurl, const Value& fetchdef) {
   if (ctx->client->mode != "live") {
     throw ctx->makeError("fetch_mode_block",
@@ -586,6 +682,7 @@ inline Value fetcher(CtxPtr ctx, const std::string& fullurl, const Value& fetchd
   }
 
   if (is_nullish(sysFetch)) {
+    if (SdkErrorPtr refused = getOnlyRefusal(ctx, fullurl, fetchdef)) throw refused;
     // No live HTTP transport is built into the generated C++ SDK; supply a
     // system.fetch callable for live requests.
     throw ctx->makeError("fetch_no_transport",
@@ -643,11 +740,17 @@ inline std::string makeUrl(CtxPtr ctx) {
   Value joinParts = vlist({Value(spec->base), Value(spec->prefix), Value(spec->path), Value(spec->suffix)});
   std::string url = Struct::join(joinParts, "/", true);
 
-  // A route the definition ends with a slash keeps it: a server such as a
-  // Django REST one redirects or refuses the route without it.
+  // A route ending in a slash keeps it, as defined or as passed to direct(), for
+  // Django, and a host with no path takes /, or luasocket reads a query as the host.
   Value orig = ctx->point.is_map() ? getp(ctx->point, "orig") : Value::undef();
-  if (orig.is_string() && !orig.as_string().empty() && '/' == orig.as_string().back() &&
-      spec->suffix.empty() && (url.empty() || '/' != url.back())) {
+  const bool slashed = (orig.is_string() && !orig.as_string().empty() && '/' == orig.as_string().back()) ||
+    (!spec->path.empty() && '/' == spec->path.back());
+  if (slashed && spec->suffix.empty() && (url.empty() || '/' != url.back())) {
+    url += "/";
+  }
+  const size_t authority = url.find("://");
+  if (std::string::npos != authority && 0 < authority &&
+      std::string::npos == url.find_first_of("/?#", authority + 3)) {
     url += "/";
   }
 
@@ -657,7 +760,12 @@ inline std::string makeUrl(CtxPtr ctx) {
     std::string key = as_str(pair_key(item));
     Value val = pair_val(item);
     if (!is_nullish(val)) {
-      url = replace_all(url, "{" + key + "}", Struct::escurl(Value(Struct::stringify(val))));
+      // A whole . or .. is a dot segment, which moves the request to another route.
+      std::string text = Struct::stringify(val);
+      if ("." == text || ".." == text) {
+        throw ctx->makeError("url_param_invalid", "URL path parameter " + key + " cannot be \"" + text + "\".");
+      }
+      url = replace_all(url, "{" + key + "}", Struct::escurl(Value(text)));
       map_put(resmatch, key, val);
     }
   }
@@ -769,19 +877,23 @@ inline Value makePoint(CtxPtr ctx) {
         "Operation \"" + op->name + "\" has no endpoint definitions.");
   }
 
-  if (op->points.size() == 1) {
+  Value reqselector;
+  Value selector;
+  if (op->input == "data") {
+    reqselector = ctx->reqdata;
+    selector = ctx->data;
+  } else {
+    reqselector = ctx->reqmatch;
+    selector = ctx->match;
+  }
+
+  // A lone point still needs the call's action to agree with its own; the
+  // selection below refuses a mismatch either way.
+  if (op->points.size() == 1 &&
+      getp(reqselector, "$action", Value(nullptr)) ==
+        getp(Helpers::toMapAny(getp(op->points[0], "select")), "$action", Value(nullptr))) {
     ctx->point = op->points[0];
   } else {
-    Value reqselector;
-    Value selector;
-    if (op->input == "data") {
-      reqselector = ctx->reqdata;
-      selector = ctx->data;
-    } else {
-      reqselector = ctx->reqmatch;
-      selector = ctx->match;
-    }
-
     Value point;
     bool matched = false;
     for (size_t i = 0; i < op->points.size(); i++) {
@@ -1088,7 +1200,7 @@ inline SpecPtr makeSpec(CtxPtr ctx) {
   if ("graphql" == as_str(getp(ctx->point, "kind"))) {
     // GraphQL addresses one endpoint: no path parts, no query string, and
     // the body carries the operation. prepareBody is skipped deliberately
-    // — it only emits a body for data-input ops, whereas every GraphQL op
+    // — it builds only a REST body, whereas every GraphQL op
     // posts one, including load/list/remove.
     ctx->spec->body = graphqlBody(ctx);
     ctx->spec->path = "";
@@ -1351,7 +1463,7 @@ inline ResultPtr makeResult(CtxPtr ctx) {
       Value entities = vlist();
       for (const auto& entry : *resdata.as_list()) {
         EntityPtr ent = entity->make();
-        if (entry.is_map()) ent->data(entry);
+        ent->data(entry);
         entities.as_list()->push_back(entry);
         (void)ent;
       }
@@ -1487,11 +1599,48 @@ inline Value mediaHeaders(const Value& point, Value headers) {
 // A string Value holds any bytes, and they are sent as they are.
 inline Value rawBody(const Value& reqdata) { return getp(reqdata, rawBodyKey()); }
 
+// A list, load or remove routed to a method with a body sends the match
+// fields that body declares, never a path parameter, and never a header,
+// cookie or query argument the body does not also declare as a field.
+inline Value matchBody(CtxPtr ctx, const Value& fields) {
+  std::vector<std::string> routed;
+  Value params = getp(ctx->point, "params");
+  if (params.is_list()) {
+    for (const auto& p : *params.as_list()) {
+      if (p.is_string()) routed.push_back(p.as_string());
+    }
+  }
+  for (const char* kind : {"params", "header", "cookie", "query"}) {
+    Value defs = getp(getp(ctx->point, "args"), kind);
+    if (!defs.is_list()) continue;
+    for (const auto& ad : *defs.as_list()) {
+      Value n = getp(ad, "name");
+      Value f = getp(ad, "field");
+      bool kept = std::string("params") != kind && f.is_bool() && f.as_bool();
+      if (n.is_string() && !kept) routed.push_back(n.as_string());
+    }
+  }
+
+  Value body = vmap();
+  for (const auto& f : *fields.as_list()) {
+    if (!f.is_string()) continue;
+    std::string name = f.as_string();
+    Value val = getp(ctx->reqmatch, name);
+    if (!is_nullish(val) && "$action" != name &&
+        std::find(routed.begin(), routed.end(), name) == routed.end()) {
+      map_put(body, name, val);
+    }
+  }
+  return body;
+}
+
 inline Value prepareBody(CtxPtr ctx) {
   if (ctx->op->input == "data") {
     if (isRawRequest(ctx->point)) return rawBody(ctx->reqdata);
     return ctx->utility->transformRequest(ctx);
   }
+  Value fields = getp(ctx->point, "fields");
+  if (fields.is_list() && !fields.as_list()->empty()) return matchBody(ctx, fields);
   return Value::undef();
 }
 
@@ -1670,6 +1819,16 @@ inline Value prepareParams(CtxPtr ctx) {
 
 // ---- prepareQuery -----------------------------------------------------
 
+// Whether the point's body declares this field, which prepareBody sends.
+inline bool bodyField(const Value& point, const std::string& name) {
+  Value fields = getp(point, "fields");
+  if (!fields.is_list()) return false;
+  for (const auto& f : *fields.as_list()) {
+    if (f.is_string() && f.as_string() == name) return true;
+  }
+  return false;
+}
+
 inline Value prepareQuery(CtxPtr ctx) {
   Value point = ctx->point;
   Value reqmatch = ctx->reqmatch;
@@ -1703,10 +1862,11 @@ inline Value prepareQuery(CtxPtr ctx) {
     return false;
   };
 
-  // A header or cookie parameter travels in the headers, which prepareHeaders
-  // fills, unless a query parameter shares its name: then both are sent.
+  // A header or cookie parameter travels in the headers, and a body field in
+  // the body, unless a query parameter shares its name: then both are sent.
   Value aquery = point.is_map() ? getp(getp(point, "args"), "query") : Value::undef();
-  auto elsewhere = [&](const std::string& s) { return (named(aheader, s) || named(acookie, s)) && !named(aquery, s); };
+  auto located = [&](const std::string& s) { return named(aheader, s) || named(acookie, s) || bodyField(point, s); };
+  auto elsewhere = [&](const std::string& s) { return located(s) && !named(aquery, s); };
 
   // A query parameter travels under the name the definition gives it, its
   // orig, which the model may have renamed for the caller.
@@ -1991,6 +2151,24 @@ inline Value makeOptions(CtxPtr ctx) {
     }
   }
 
+  // A feature option given as null or no value is absent, as the ts reference
+  // validates it. This port's validate refuses such a key of an open map
+  // under `$ONE` ("Unexpected keys"), so it is dropped first.
+  {
+    Value fmap = mapget(opts, "feature");
+    if (fmap.is_map()) {
+      for (const auto& fentry : *fmap.as_map()) {
+        const Value& fopts = fentry.second;
+        if (!fopts.is_map()) continue;
+        std::vector<std::string> absent;
+        for (const auto& oentry : *fopts.as_map()) {
+          if (is_nullish(oentry.second)) absent.push_back(oentry.first);
+        }
+        for (const auto& key : absent) map_remove(fopts, key);
+      }
+    }
+  }
+
   // THE OPTION SPEC IS GENERATED, NOT WRITTEN HERE.
   //
   // Built from the model: `main.kit.optspec` for the standard options, plus
@@ -2066,11 +2244,11 @@ inline Value makeOptions(CtxPtr ctx) {
       bool hasTest = std::find(names.begin(), names.end(), "test") != names.end();
       if (hasTest) featureOrder.push_back("test");
       // Station special case, mirroring test's: its transport wrap must
-      // sit immediately outside the base transport (inside retry/cache/
-      // netsim), so map-form activation hoists it to just after test -
-      // or first, when no test entry exists. Without this the sorted
-      // default would init station last and wrap OUTSIDE the recording
-      // features, turning its wire-truth events into fiction.
+      // sit immediately outside the base transport (inside every other
+      // transport wrap), so map-form activation hoists it to just after
+      // test - or first, when no test entry exists. Without this the
+      // sorted default would init station last and wrap OUTSIDE the
+      // recording features, turning its wire-truth events into fiction.
       bool hasStation = std::find(names.begin(), names.end(), "station") != names.end();
       if (hasStation) featureOrder.push_back("station");
       for (const auto& n : names) {

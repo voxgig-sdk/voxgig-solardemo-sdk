@@ -63,6 +63,92 @@ func TestMoonEntity(t *testing.T) {
 				return
 			}
 		}
+		if setup.live && os.Getenv("VOXGIG_GETONLY_GUARD") == "TRUE" {
+			t.Log("LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}")
+			t.Log("LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}")
+			t.Log("LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}")
+			t.Log("LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+		if setup.live {
+			for _, _liveKey := range []string{"planet01"} {
+				if setup.syntheticOnly || setup.idmap[_liveKey] == nil {
+					liveMiss(t, moonEntityLiveStrict, "Live entity test blocked: needs %s via VOXGIG_SOLARDEMO_TEST_MOON_ENTID", _liveKey)
+				}
+			}
+		}
+		client := setup.client
+		_ = client
+		if setup.live {
+			var _liveId any
+			if !setup.syntheticOnly {
+				_liveId = setup.idmap["moon01"]
+			}
+			livePace()
+			liveExisting(t, moonEntityLiveStrict, setup.data, "moon", "id", _liveId,
+				func() (any, error) {
+					return client.Moon(nil).List(map[string]any{"planet_id": setup.idmap["planet01"]}, nil)
+				})
+		}
+
+		// Bootstrap entity data from existing test data (no create step in flow).
+		moonRef01DataRaw := vs.Items(core.ToMapAny(vs.GetPath(setup.data, "existing.moon")))
+		var moonRef01Data map[string]any
+		if len(moonRef01DataRaw) > 0 {
+			moonRef01Data = core.ToMapAny(moonRef01DataRaw[0][1])
+		}
+		// Discard guards against Go's unused-var check when the flow's steps
+		// happen not to consume the bootstrap data (e.g. list-only flows).
+		_ = moonRef01Data
+
+		if setup.live {
+			livePace()
+		}
+		// LIST
+		moonRef01Ent := client.Moon(nil)
+		moonRef01Match := map[string]any{
+			"planet_id": setup.idmap["planet01"],
+		}
+
+		moonRef01ListResult, err := moonRef01Ent.List(moonRef01Match, nil)
+		if err != nil {
+			t.Fatalf("list failed: %v", err)
+		}
+		_, moonRef01ListOk := moonRef01ListResult.([]any)
+		if !moonRef01ListOk {
+			t.Fatalf("expected list result to be an array, got %T", moonRef01ListResult)
+		}
+
+		if setup.live {
+			livePace()
+		}
+		// LOAD
+		moonRef01MatchDt0 := map[string]any{
+			"id": moonRef01Data["id"],
+		}
+		switch v := moonRef01Data["planet_id"].(type) {
+		case string, bool, float64, int, int64:
+			moonRef01MatchDt0["planet_id"] = v
+		default:
+			if v := setup.idmap["planet_id"]; v != nil {
+				moonRef01MatchDt0["planet_id"] = v
+			} else {
+				moonRef01MatchDt0["planet_id"] = setup.idmap["planet01"]
+			}
+		}
+		moonRef01DataDt0Loaded, err := moonRef01Ent.Load(moonRef01MatchDt0, nil)
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
+		moonRef01DataDt0LoadResult := core.ToMapAny(entityData(moonRef01DataDt0Loaded))
+		if moonRef01DataDt0LoadResult == nil {
+			t.Fatal("expected load result to be a map")
+		}
+		if !liveSameId(moonRef01DataDt0LoadResult["id"], moonRef01Data["id"]) {
+			t.Fatal("expected load result id to match")
+		}
+
+		return
+		}
+
 		if setup.live {
 			for _, _liveKey := range []string{"planet01"} {
 				if setup.syntheticOnly || setup.idmap[_liveKey] == nil {
@@ -73,6 +159,9 @@ func TestMoonEntity(t *testing.T) {
 		client := setup.client
 		_ = client
 
+		if setup.live {
+			livePace()
+		}
 		// CREATE
 		moonRef01Ent := client.Moon(nil)
 		moonRef01Data := core.ToMapAny(vs.GetProp(
@@ -91,6 +180,9 @@ func TestMoonEntity(t *testing.T) {
 			t.Fatal("expected created entity to have an id")
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// LIST
 		moonRef01Match := map[string]any{
 			"planet_id": setup.idmap["planet01"],
@@ -110,6 +202,9 @@ func TestMoonEntity(t *testing.T) {
 			t.Fatal("expected to find created entity in list")
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// UPDATE
 		moonRef01DataUp0Up := map[string]any{
 			"id": moonRef01Data["id"],
@@ -128,21 +223,29 @@ func TestMoonEntity(t *testing.T) {
 		if moonRef01ResdataUp0 == nil {
 			t.Fatal("expected update result to be a map")
 		}
-		if moonRef01ResdataUp0["id"] != moonRef01DataUp0Up["id"] {
+		if !liveSameId(moonRef01ResdataUp0["id"], moonRef01DataUp0Up["id"]) {
 			t.Fatal("expected update result id to match")
 		}
 		if moonRef01ResdataUp0[moonRef01MarkdefUp0Name] != moonRef01MarkdefUp0Value {
 			t.Fatalf("expected %s to be updated, got %v", moonRef01MarkdefUp0Name, moonRef01ResdataUp0[moonRef01MarkdefUp0Name])
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// LOAD
 		moonRef01MatchDt0 := map[string]any{
 			"id": moonRef01Data["id"],
 		}
-		if v := setup.idmap["planet_id"]; v != nil {
+		switch v := moonRef01Data["planet_id"].(type) {
+		case string, bool, float64, int, int64:
 			moonRef01MatchDt0["planet_id"] = v
-		} else {
-			moonRef01MatchDt0["planet_id"] = setup.idmap["planet01"]
+		default:
+			if v := setup.idmap["planet_id"]; v != nil {
+				moonRef01MatchDt0["planet_id"] = v
+			} else {
+				moonRef01MatchDt0["planet_id"] = setup.idmap["planet01"]
+			}
 		}
 		moonRef01DataDt0Loaded, err := moonRef01Ent.Load(moonRef01MatchDt0, nil)
 		if err != nil {
@@ -152,10 +255,13 @@ func TestMoonEntity(t *testing.T) {
 		if moonRef01DataDt0LoadResult == nil {
 			t.Fatal("expected load result to be a map")
 		}
-		if moonRef01DataDt0LoadResult["id"] != moonRef01Data["id"] {
+		if !liveSameId(moonRef01DataDt0LoadResult["id"], moonRef01Data["id"]) {
 			t.Fatal("expected load result id to match")
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// REMOVE
 		moonRef01MatchRm0 := map[string]any{
 			"id": moonRef01Data["id"],
@@ -170,6 +276,9 @@ func TestMoonEntity(t *testing.T) {
 			t.Fatalf("remove failed: %v", err)
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// LIST
 		moonRef01MatchRt0 := map[string]any{
 			"planet_id": setup.idmap["planet01"],
@@ -264,7 +373,7 @@ func moonBasicSetup(extra map[string]any) *entityTestSetup {
 			},
 			extraOpts,
 		})
-		client = sdk.NewVoxgigSolardemoSDK(core.ToMapAny(mergedOpts))
+		client = newClient(core.ToMapAny(mergedOpts))
 	}
 
 	live := env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"

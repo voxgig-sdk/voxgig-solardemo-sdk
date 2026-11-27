@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, canonToType, entityIdField, opRequestShape, safeVarName, exampleVarName, jsKey, opNeedsAction, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, entityIdField, safeVarName, exampleVarName, jsKey, entityOps, listMatchArg, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -39,9 +39,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     // Model-driven id key: null when this entity has no id-like field.
     const idF = entityIdField(entity)
@@ -52,8 +50,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -88,8 +86,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
-        Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${desc} |
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
+        Content(`| \`${field.n}\` | \`${canonToType(field.t, 'js').replace(/\|/g, '\\|')}\` | ${desc} |
 `)
       })
 
@@ -97,12 +95,11 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
+    if (opnames.includes('load')) {
       // The id key plus every REQUIRED match key (parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
@@ -112,34 +109,34 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
         : ''
       Content(`#### Example: Load
 
-\`\`\`ts
+\`\`\`js
 const ${eVar} = await client.${entity.Name}().load(${loadArg})
 \`\`\`
 
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
-\`\`\`ts
+\`\`\`js
 const ${eVar}s = await client.${entity.Name}().list(${listMatchArg('js', entity)})
 \`\`\`
 
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member appears — including a
       // required id and parent keys like page_id — each with a type-correct
       // example VALUE via exampleValue — a `name: /* type */` comment is not
       // a value and yields invalid code.
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
-\`\`\`ts
+\`\`\`js
 const ${eVar} = await client.${entity.Name}().create({
 `)
       createItems.map((it: any) => {

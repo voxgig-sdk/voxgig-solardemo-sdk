@@ -36,8 +36,24 @@ defmodule VoxgigSolardemo.SecretsTest do
   alias Voxgig.Struct, as: S
   alias VoxgigSolardemo.Feature.Secrets
 
+  # Read from the config, never from a probe: an SDK whose config declares no
+  # auth places no credential, and the tests that assert on the one it
+  # places skip. Decided as this file compiles, which `mix test` does after
+  # the SDK, so ExUnit can skip them and say so.
+  @noauth if(nil == S.getprop(S.getprop(VoxgigSolardemo.Config.shared_config(), "options"), "auth"),
+            do: "this SDK's config declares no auth, so it places no credential")
+  if @noauth, do: IO.puts("SKIP secrets: " <> @noauth)
+
   @envprefix "VOXGIG_SOLARDEMO_TEST_SECRETS_"
   @base "http://raw.test/api"
+
+  # The header the credential travels in: the DEFAULT client's auth.name,
+  # lower-cased as prepare_auth sends it. Read from a default client because
+  # a test's `auth: nil` leaves no name to read.
+  defp credheader do
+    name = S.getpath(VoxgigSolardemo.options_map(VoxgigSolardemo.test()), "auth.name")
+    if is_binary(name) and name != "", do: String.downcase(name), else: "authorization"
+  end
 
   # ---- the recorder --------------------------------------------------------
 
@@ -56,19 +72,28 @@ defmodule VoxgigSolardemo.SecretsTest do
     apistatus = Map.get(opts, :api, [200])
     resfield = Map.get(opts, :response, "access_token")
     tokenfail = Map.get(opts, :tokenfail, nil)
+    credheader = credheader()
 
     fetch = fn url, fetchdef ->
       headers = S.getprop(fetchdef, "headers")
 
       auth =
         if S.ismap(headers),
-          do: VoxgigSolardemo.Feature.header_get(headers, "authorization"),
+          do: VoxgigSolardemo.Feature.header_get(headers, credheader),
           else: nil
 
       [{:calls, cs}] = :ets.lookup(t, :calls)
 
+      values =
+        if S.ismap(headers),
+          do: S.keysof(headers) |> Enum.map_join("\n", &to_string(S.getprop(headers, &1))),
+          else: ""
+
       :ets.insert(t,
-        {:calls, cs ++ [%{url: url, auth: auth, body: S.getprop(fetchdef, "body")}]})
+        {:calls,
+         cs ++
+           [%{url: url, auth: auth, values: values, body: S.getprop(fetchdef, "body"),
+              redirect: S.getprop(fetchdef, "redirect")}]})
 
       if String.ends_with?(url, "/" <> path) do
         [{:issued, i}] = :ets.lookup(t, :issued)
@@ -163,20 +188,24 @@ defmodule VoxgigSolardemo.SecretsTest do
 
   # ---- assertions ----------------------------------------------------------
 
-  # The authorization header carries the SPEC's credential prefix, which a
-  # TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives
-  # `Bearer <token>`, an apiKey scheme the raw token. So assert on the
-  # CREDENTIAL and let the prefix be whatever this SDK's API declares -
-  # pinning the whole header value passes only for a prefix-less API, and
-  # this file ships to every project that selects the feature.
-  defp credential_is(header, token) do
-    got = if is_binary(header), do: header, else: ""
-
-    assert got == token or String.ends_with?(got, " " <> token),
-           "expected the Authorization header to carry " <> token <> ", got: " <> inspect(header)
+  # The header value prepare_auth writes for a token, in the form the DEFAULT
+  # client's auth gives: under Basic the token is the key half of the encoded
+  # pair, and a prefix is space-joined.
+  defp credential(token, secret) do
+    auth = S.getprop(VoxgigSolardemo.options_map(VoxgigSolardemo.test()), "auth")
+    prefix = S.getprop(auth, "prefix")
+    value = if S.getprop(auth, "basic") == true, do: Base.encode64(token <> ":" <> secret), else: token
+    if is_binary(prefix) and prefix != "", do: prefix <> " " <> value, else: value
   end
 
-  defp auth_is(call, token), do: credential_is(if(call == nil, do: nil, else: call.auth), token)
+  defp credential_is(header, token, secret \\ "") do
+    assert header == credential(token, secret),
+           "expected the " <> credheader() <> " header to carry " <> token <> ", got: " <>
+             inspect(header)
+  end
+
+  defp auth_is(call, token, secret \\ ""),
+    do: credential_is(if(call == nil, do: nil, else: call.auth), token, secret)
 
   # Does this options value CARRY the token - bare, or under the spec's
   # prefix? The negative half of credential_is, for the assertions that pin
@@ -210,6 +239,15 @@ defmodule VoxgigSolardemo.SecretsTest do
   end
 
   describe "secrets" do
+    if @noauth, do: @describetag(skip: @noauth)
+
+    test "active: a resolved key is placed as prepare_auth places it, the secret kept" do
+      System.put_env(@envprefix <> "APIKEY", "ENVKEY05")
+      r = recorder()
+      VoxgigSolardemo.direct(sdk(r, [{"secret", "PASS01"}, {"feature", envchain()}]), S.jm(["path", "/thing"]))
+      auth_is(hd(api(r)), "ENVKEY05", "PASS01")
+    end
+
     test "inactive: the apikey option behaves exactly as before" do
       r = recorder()
       client = sdk(r, [{"apikey", "OPTKEY01"}])
@@ -223,7 +261,7 @@ defmodule VoxgigSolardemo.SecretsTest do
       assert Secrets.sekreto(client) == nil
     end
 
-    test "inactive: no apikey means no authorization header" do
+    test "inactive: no apikey means no credential header" do
       r = recorder()
       client = sdk(r, [])
       VoxgigSolardemo.direct(client, S.jm(["path", "/thing"]))
@@ -794,13 +832,15 @@ defmodule VoxgigSolardemo.SecretsTest do
   #
   # The shape these tests pin: what the chain resolves is a REFRESH token,
   # which is POSTed to a token endpoint for a short-lived ACCESS token; the
-  # access token is what the Authorization header carries; and when the API
+  # access token is what the credential header carries; and when the API
   # answers 401 the client buys another and tries the same request again,
   # once.
   #
   # A LIVE client throughout. Test mode is deliberately excluded here - it
   # buys nothing, which is the subject of its own test at the end.
   describe "secrets exchange" do
+    if @noauth, do: @describetag(skip: @noauth)
+
     @refresh "REFRESH01"
 
     defp exchange_sdk(r, xextra \\ [], extra \\ []) do
@@ -827,6 +867,8 @@ defmodule VoxgigSolardemo.SecretsTest do
 
       assert S.getprop(VoxgigSolardemo.Json.parse(hd(token(r)).body), "refresh_token") == @refresh,
              "the refresh token is sent in the request field"
+
+      assert hd(token(r)).redirect == "manual", "the exchange must follow no redirect"
 
       assert length(api(r)) == 1
       auth_is(hd(api(r)), "ACCESS01")
@@ -900,6 +942,17 @@ defmodule VoxgigSolardemo.SecretsTest do
       auth_is(Enum.at(api(r), 1), "ACCESS02")
 
       assert S.getprop(res, "ok") == true, "the caller sees the successful retry"
+    end
+
+    test "a token bought on a refusal is placed as prepare_auth places it" do
+      System.put_env(@envprefix <> "REFRESH_TOKEN", @refresh)
+
+      r = recorder(%{api: [401, 200]})
+      VoxgigSolardemo.direct(exchange_sdk(r, [], [{"secret", "PASS01"}]), S.jm(["path", "/thing"]))
+
+      assert length(api(r)) == 2, "expected the request to be retried"
+      auth_is(Enum.at(api(r), 0), "ACCESS01", "PASS01")
+      auth_is(Enum.at(api(r), 1), "ACCESS02", "PASS01")
     end
 
     test "the retry happens once, not in a loop" do
@@ -1000,6 +1053,158 @@ defmodule VoxgigSolardemo.SecretsTest do
       assert length(api(r)) == 1, "no retry after a failed purchase"
     end
 
+    # Real listeners and the feature's own transport: a stub follows nothing.
+    test "a redirect answering the exchange is a failure, and nothing follows it" do
+      other =
+        listener(:other, fn _path -> {200, nil, ~s({"access_token":"ELSEWHERE01"})} end)
+
+      away = "http://127.0.0.1:#{elem(other, 1)}/api/auth/token"
+      answers = [{307, away}, {308, away}, {302, away}, {307, "/api/moved/token"}]
+
+      try do
+        results =
+          Enum.map(answers, fn {status, location} ->
+            origin =
+              listener(:origin, fn
+                "/api/auth/token" -> {status, location, ""}
+                _ -> {200, nil, ~s({"access_token":"MOVED01"})}
+              end)
+
+            base = "http://127.0.0.1:#{elem(origin, 1)}/api"
+
+            client =
+              VoxgigSolardemo.new(S.jm([
+                "base", base,
+                "allow", S.jm(["op", "direct,graphql,list,load"]),
+                "feature",
+                secrets([
+                  {"name", "refresh_token"},
+                  {"exchange", S.jm(["active", true, "refresh", @refresh])}
+                ])
+              ]))
+
+            res = VoxgigSolardemo.direct(client, S.jm(["path", "/thing"]))
+            :gen_tcp.close(elem(origin, 0))
+
+            seen = received([])
+            elsewhere = Enum.filter(seen, &(elem(&1, 0) == :other))
+
+            followed =
+              Enum.filter(seen, &(elem(&1, 0) == :origin and elem(&1, 2) != "/api/auth/token"))
+
+            message = err_message(res)
+            want = "token exchange failed: #{status} from #{base}/auth/token"
+            {status, location, String.contains?(message, want), message, elsewhere ++ followed}
+          end)
+
+        refused = Enum.count(results, &elem(&1, 2))
+        leaked = Enum.flat_map(results, &elem(&1, 4))
+        IO.puts("\nsecrets: exchange refused #{refused} redirect(s), #{length(leaked)} followed")
+
+        for {status, location, ok, message, sent} <- results do
+          assert sent == [], "#{status} to #{location}: followed by #{inspect(sent)}"
+          assert ok, "#{status} to #{location}: not a failed exchange: #{message}"
+        end
+
+        assert refused == length(answers)
+      after
+        :gen_tcp.close(elem(other, 0))
+      end
+    end
+
+    test "with the option, a redirect on the exchange's own origin is followed, and no other" do
+      other =
+        listener(:other, fn _path -> {200, nil, ~s({"access_token":"ELSEWHERE01"})} end)
+
+      {:ok, answer} = Agent.start_link(fn -> {307, ""} end)
+
+      origin =
+        listener(:origin, fn
+          "/api/auth/token" -> Tuple.append(Agent.get(answer, & &1), "")
+          _ -> {200, nil, ~s({"access_token":"MOVED01"})}
+        end)
+
+      at = "http://127.0.0.1:#{elem(origin, 1)}"
+      base = at <> "/api"
+      away = "http://127.0.0.1:#{elem(other, 1)}/api/auth/token"
+      sent = ~s({"refresh_token":"#{@refresh}"})
+
+      # Each case: the status, the Location, and the target the exchange is
+      # asked again at, or nil where the redirect is refused.
+      cases = [
+        {307, "/api/moved/token", "/api/moved/token"},
+        {308, at <> "/api/moved/token", "/api/moved/token"},
+        # A Location of a query alone keeps the path that answered.
+        {307, "?step=2", "/api/auth/token?step=2"},
+        {307, away, nil},
+        {302, "/api/moved/token", nil},
+        {307, "/api/auth/token", nil}
+      ]
+
+      try do
+        results =
+          Enum.map(cases, fn {status, location, path} ->
+            Agent.update(answer, fn _ -> {status, location} end)
+
+            client =
+              VoxgigSolardemo.new(S.jm([
+                "base", base,
+                "allow", S.jm(["op", "direct,graphql,list,load"]),
+                "feature",
+                secrets([
+                  {"name", "refresh_token"},
+                  {"exchange",
+                   S.jm(["active", true, "refresh", @refresh, "redirect", "same-origin"])}
+                ])
+              ]))
+
+            res = VoxgigSolardemo.direct(client, S.jm(["path", "/thing"]))
+            seen = received([])
+            mine = for {:origin, m, p, b} <- seen, do: {m, p, b}
+            exchanged = Enum.count(mine, &(elem(&1, 1) == "/api/auth/token"))
+            followed = Enum.reject(mine, &(elem(&1, 1) == "/api/auth/token"))
+            elsewhere = Enum.count(seen, &(elem(&1, 0) == :other))
+            message = err_message(res)
+            want = "token exchange failed: #{status} from #{base}/auth/token"
+
+            verdict =
+              cond do
+                path != nil and S.getprop(res, "ok") == true and length(followed) == 2 and
+                    hd(followed) == {"POST", path, sent} ->
+                  :followed
+
+                path == nil and followed == [] and String.contains?(message, want) ->
+                  :refused
+
+                true ->
+                  {:wrong, status, location, message, followed}
+              end
+
+            {verdict, location, exchanged, elsewhere}
+          end)
+
+        followed = Enum.count(results, &(elem(&1, 0) == :followed))
+        refused = Enum.count(results, &(elem(&1, 0) == :refused))
+        elsewhere = results |> Enum.map(&elem(&1, 3)) |> Enum.sum()
+        wrong = for {{:wrong, _, _, _, _} = w, _, _, _} <- results, do: w
+        {_, _, looped, _} = List.keyfind(results, "/api/auth/token", 1)
+
+        IO.puts("\nsecrets: exchange opt-in followed #{followed} redirect(s) " <>
+          "on its own origin, refused #{refused}, #{elsewhere} elsewhere")
+
+        assert elsewhere == 0, "the exchange reached another origin"
+        assert wrong == []
+        assert followed == 3
+        assert refused == 3
+        # A redirect to itself stops at the hop limit.
+        assert looped == 6
+      after
+        :gen_tcp.close(elem(origin, 0))
+        :gen_tcp.close(elem(other, 0))
+        Agent.stop(answer)
+      end
+    end
+
     test "auth nil suppresses the credential and buys nothing" do
       System.put_env(@envprefix <> "REFRESH_TOKEN", @refresh)
 
@@ -1049,6 +1254,116 @@ defmodule VoxgigSolardemo.SecretsTest do
 
       # A deterministic placeholder, so offline suites need no configuration.
       assert Secrets.credential(client) == "test-access_token"
+    end
+  end
+
+  # ---- listeners -----------------------------------------------------------
+
+  # A listener on 127.0.0.1 that answers by `route` and sends the test
+  # {:req, tag, method, path, body} for each request. {socket, port}.
+  # Off by the config where it declares no auth, else by `auth: nil`: either
+  # way the feature places no credential, buys no token and retries nothing.
+  describe "secrets with auth off" do
+    test "places no credential and buys no token" do
+      off = if @noauth, do: [], else: [{"auth", nil}]
+      secrets = ["OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01"]
+      carries = fn c -> c.auth != nil or Enum.any?(secrets, &String.contains?(c.values, &1)) end
+
+      scenarios = [
+        {"a key the chain resolves", [{"APIKEY", "OFFKEY01"}], [], [], [200]},
+        {"an explicit apikey", [], [{"apikey", "OFFKEY02"}], [], [200]},
+        {"a refusal", [{"REFRESH_TOKEN", "OFFREFRESH01"}], [],
+         [{"name", "refresh_token"}, {"exchange", S.jm(["active", true])}], [401]}
+      ]
+
+      {sent, bought} =
+        Enum.reduce(scenarios, {[], 0}, fn {what, env, extra, fextra, statuses}, {sent, bought} ->
+          Enum.each(env, fn {k, v} -> System.put_env(@envprefix <> k, v) end)
+          r = recorder(%{api: statuses})
+          client = sdk(r, [{"feature", envchain(fextra)} | extra ++ off])
+          VoxgigSolardemo.direct(client, S.jm(["path", "/thing"]))
+          Enum.each(env, fn {k, _v} -> System.delete_env(@envprefix <> k) end)
+
+          assert length(api(r)) == 1, what <> ": a request was retried with auth off"
+          assert token(r) == [], what <> ": a token was bought with auth off"
+          refute Enum.any?(api(r), carries), what <> ": a credential was sent with auth off: " <> wire(r)
+          assert Secrets.credential(client) == "", what <> ": the feature resolved a credential with auth off"
+
+          {sent ++ api(r), bought + length(token(r))}
+        end)
+
+      IO.puts(
+        "\nsecrets: auth off by " <> if(@noauth, do: "config", else: "option") <> ": " <>
+          "#{length(sent)} request(s), #{Enum.count(sent, carries)} credential(s), #{bought} token(s)"
+      )
+    end
+  end
+
+  defp listener(tag, route) do
+    {:ok, listen} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, port} = :inet.port(listen)
+    parent = self()
+    spawn(fn -> listener_loop(listen, tag, route, parent) end)
+    {listen, port}
+  end
+
+  defp listener_loop(listen, tag, route, parent) do
+    with {:ok, sock} <- :gen_tcp.accept(listen) do
+      [head | rest] = String.split(listener_read(sock, ""), "\r\n\r\n", parts: 2)
+      [request | lines] = String.split(head, "\r\n")
+      [method, path | _] = String.split(request, " ") ++ ["", ""]
+
+      length =
+        Enum.find_value(lines, "0", fn line ->
+          case String.split(line, ":", parts: 2) do
+            [name, value] -> if String.downcase(name) == "content-length", do: String.trim(value)
+            _ -> nil
+          end
+        end)
+
+      body = listener_body(Enum.join(rest), sock, String.to_integer(length))
+      send(parent, {:req, tag, method, path, body})
+
+      {status, location, answer} = route.(path)
+      moved = if location == nil, do: "", else: "Location: #{location}\r\n"
+
+      :gen_tcp.send(sock, "HTTP/1.1 #{status} X\r\n#{moved}Content-Type: application/json\r\n" <>
+        "Content-Length: #{byte_size(answer)}\r\nConnection: close\r\n\r\n#{answer}")
+      :gen_tcp.close(sock)
+      listener_loop(listen, tag, route, parent)
+    end
+  end
+
+  defp listener_read(sock, acc) do
+    if String.contains?(acc, "\r\n\r\n") do
+      acc
+    else
+      case :gen_tcp.recv(sock, 0, 5000) do
+        {:ok, data} -> listener_read(sock, acc <> data)
+        _ -> acc
+      end
+    end
+  end
+
+  defp listener_body(got, sock, length) do
+    if byte_size(got) >= length do
+      got
+    else
+      case :gen_tcp.recv(sock, 0, 5000) do
+        {:ok, data} -> listener_body(got <> data, sock, length)
+        _ -> got
+      end
+    end
+  end
+
+  # Every request the listeners reported, as {tag, method, path, body}.
+  defp received(acc) do
+    receive do
+      {:req, tag, method, path, body} -> received(acc ++ [{tag, method, path, body}])
+    after
+      200 -> acc
     end
   end
 

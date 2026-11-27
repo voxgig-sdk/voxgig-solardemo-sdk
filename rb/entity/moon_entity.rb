@@ -49,9 +49,9 @@ class MoonEntity
     to_s
   end
 
-  # Every operation resolves to the entity; `remove` additionally marks
-  # it. The instance KEEPS the data it held — a caller can still read what
-  # was deleted — but it is no longer a live record. See AGENTS.md.
+  # Every operation resolves to the entity; a remove additionally marks it
+  # deleted. The instance KEEPS the data it held — a caller can still read
+  # what was deleted — but it is no longer a live record.
   def mark_deleted
     @_deleted = true
   end
@@ -67,8 +67,8 @@ class MoonEntity
   end
 
   def data_set(args)
-    if args
-      @_data = VoxgigSolardemoHelpers.to_map(VoxgigStruct.clone(args)) || {}
+    unless args.nil?
+      @_data = VoxgigStruct.clone(args)
       @_utility.feature_hook.call(@_entctx, "SetData")
     end
   end
@@ -92,14 +92,12 @@ class MoonEntity
     VoxgigStruct.clone(@_match)
   end
 
-  # Feature #4: run `action` through the full pipeline and return an Enumerator
-  # over result items, so the `streaming` feature's incremental output is
-  # reachable from a generated entity (a normal op call materialises the whole
-  # result). `callopts` parameterises the call:
+  # Run `action` through the full pipeline and return an Enumerator
+  # over result items, so the `streaming` feature's incremental output, when
+  # that feature is active, is reachable from a generated entity (a normal op
+  # call materialises the whole result). `callopts` parameterises the call:
   #   - inbound (download): the Enumerator yields items/chunks (from the
   #     streaming feature when active, else the materialised items);
-  #   - outbound (upload): an iterable `body` in callopts is attached to the
-  #     request so the transport can stream the payload;
   #   - `ctrl` (pipeline control) and `signal` (cancellation) honoured.
   def stream(action, args = nil, callopts = nil)
     utility = @_utility
@@ -118,14 +116,6 @@ class MoonEntity
     args.each { |k, v| ctxmap[k] = v } if args.is_a?(Hash)
 
     ctx = utility.make_context.call(ctxmap, @_entctx)
-
-    # Outbound: expose the caller's iterable payload so the request builder /
-    # transport can stream it as the request body.
-    body = callopts["body"]
-    unless body.nil?
-      ctx.reqdata["body$"] = body
-      ctx.meta["stream_out"] = body
-    end
 
     aborted = lambda do
       return false if signal.nil?
@@ -175,7 +165,7 @@ class MoonEntity
 
         # What a hook raises here must not escape the cleaning below.
         begin
-          utility.feature_hook.call(ctx, "PreUnexpected")
+          utility.feature_hook.call(ctx, "PreUnexpected") unless ctx.unexpected_fired
         rescue StandardError => hookerr
           operr = hookerr
           ctx.ctrl.err = operr
@@ -224,7 +214,7 @@ class MoonEntity
   
   # Load a single Moon.
   #
-  # @param reqmatch [MoonLoadMatch, Hash, nil] match criteria (id/query fields);
+  # @param reqmatch [MoonLoadMatch, Hash, nil] match fields;
   #   optional — an entity with no id-like key loads with no match (nil is treated
   #   as an empty match, so client.Moon.load works with no args).
   # @param ctrl [Object, nil] optional per-call control
@@ -343,7 +333,7 @@ class MoonEntity
   
   # Remove an Moon matching the given criteria.
   #
-  # @param reqmatch [MoonRemoveMatch, Hash, nil] match criteria (id/query fields)
+  # @param reqmatch [MoonRemoveMatch, Hash, nil] match fields
   # @param ctrl [Object, nil] optional per-call control
   # @return [MoonEntity] the removed Moon entity, marked as deleted; raises
   #   VoxgigSolardemoError on failure
@@ -416,9 +406,9 @@ class MoonEntity
     # instance, and the caller reaches the record through data(). Two
     # structural exceptions: `list` resolves to the ARRAY of entity
     # instances make_result built, and a failed op with throwing disabled
-    # hands back the error payload unchanged. `remove` additionally marks
+    # hands back the error payload unchanged. A remove additionally marks
     # the entity deleted; it KEEPS its data, so a caller can still read
-    # what was removed. See AGENTS.md "Entity operations return ENTITIES".
+    # what was removed.
       opname = ctx.op&.name
 
       if ctx.result && ctx.result.ok && opname != "list"
@@ -432,7 +422,10 @@ class MoonEntity
 
       # What a hook raises here must not escape the cleaning below.
       begin
-        utility.feature_hook.call(ctx, "PreUnexpected")
+        # Once per operation: make_error fires it for its own error.
+        unless ctx.unexpected_fired
+          utility.feature_hook.call(ctx, "PreUnexpected")
+        end
       rescue StandardError => hookerr
         operr = hookerr
         ctx.ctrl.err = operr

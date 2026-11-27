@@ -38,6 +38,31 @@
 local sdk = require("project-name-_sdk")
 local SecretsFeature = require("feature.secrets_feature")
 local sekreto = require("feature.secrets.sekreto")
+local base64 = require("utility.clean").base64
+
+
+-- The header the credential travels in: the DEFAULT client's auth.name,
+-- lower-cased as prepare_auth sends it. Read from a default client because
+-- a test that clears `auth` leaves no name to read.
+local CREDHEADER = (function()
+  local auth = sdk.test(nil, nil):options_map().auth
+  local name = type(auth) == "table" and auth.name or nil
+  if type(name) == "string" and name ~= "" then
+    return string.lower(name)
+  end
+  return "authorization"
+end)()
+
+
+-- The form prepare_auth writes, from the DEFAULT client's auth: under Basic
+-- the token is the key half of the encoded pair, and a prefix is
+-- space-joined.
+local CREDFORM = (function()
+  local auth = sdk.test(nil, nil):options_map().auth
+  auth = type(auth) == "table" and auth or {}
+  local prefix = type(auth.prefix) == "string" and auth.prefix or ""
+  return { prefix = prefix, basic = auth.basic == true }
+end)()
 
 
 -- ---------------------------------------------------------------------
@@ -64,10 +89,12 @@ local function make_wire(script)
 
   w.fetch = function(url, fetchdef)
     local headers = type(fetchdef) == "table" and fetchdef.headers or {}
-    local auth = headers["authorization"]
+    local auth = headers[CREDHEADER]
+    local values = {}
+    for _, v in pairs(headers) do values[#values + 1] = tostring(v) end
     w.calls[#w.calls + 1] = {
-      url = url, auth = auth, has = auth ~= nil,
-      body = fetchdef.body, method = fetchdef.method,
+      url = url, auth = auth, has = auth ~= nil, values = table.concat(values, "\n"),
+      body = fetchdef.body, method = fetchdef.method, redirect = fetchdef.redirect,
     }
 
     if is_token(url) then
@@ -113,14 +140,22 @@ end
 -- ---------------------------------------------------------------------
 -- Support.
 
--- The Authorization header carries the SPEC's credential prefix, which a
--- TEMPLATE cannot know - so assert on the CREDENTIAL and let the prefix be
--- whatever this SDK's API declares.
-local function assert_credential(header, token)
-  local ok = header == token
-    or (type(header) == "string" and header:sub(-(#token + 1)) == " " .. token)
-  assert.is_true(ok, "expected the authorization header to carry " .. token ..
-    ", got: " .. tostring(header))
+-- The header value prepare_auth writes for a token.
+local function credential(token, secret)
+  local value = token
+  if CREDFORM.basic then
+    value = base64(token .. ":" .. (secret or ""))
+  end
+  if CREDFORM.prefix == "" then
+    return value
+  end
+  return CREDFORM.prefix .. " " .. value
+end
+
+
+local function assert_credential(header, token, secret)
+  assert.are.equal(credential(token, secret), header,
+    "expected the " .. CREDHEADER .. " header to carry " .. token)
 end
 
 
@@ -163,7 +198,7 @@ local function secrets_client(w, sdkopts)
   local function build(extend)
     local opts = {
       base = "http://secrets.test/api",
-      system = { fetch = w.fetch },
+      system = w and { fetch = w.fetch } or nil,
     }
     for k, v in pairs(sdkopts or {}) do opts[k] = v end
     if extend then
@@ -250,6 +285,13 @@ end
 
 describe("secrets", function()
 
+  -- Read from the config, never from a probe: an SDK whose config declares no
+  -- auth places no credential, and these tests assert on the one it places.
+  if nil == (require("config_shared")().options or {}).auth then
+    pending("this SDK's config declares no auth, so it places no credential")
+    return
+  end
+
   -- The feature-inactive baseline: bit-identical behaviour.
   describe("inactive", function()
 
@@ -257,16 +299,16 @@ describe("secrets", function()
       local client = sdk.test(nil, { apikey = "OPTKEY01" })
       local fetchdef, err = client:prepare({ path = "/" })
       assert.is_nil(err)
-      assert_credential(fetchdef.headers["authorization"], "OPTKEY01")
+      assert_credential(fetchdef.headers[CREDHEADER], "OPTKEY01")
       assert.is_nil(secrets_feature_of(client),
         "no model activation, no extend: the feature must not be installed")
     end)
 
-    it("no apikey means no authorization header", function()
+    it("no apikey means no credential header", function()
       local client = sdk.test(nil, nil)
       local fetchdef, err = client:prepare({ path = "/" })
       assert.is_nil(err)
-      assert.is_nil(fetchdef.headers["authorization"])
+      assert.is_nil(fetchdef.headers[CREDHEADER])
     end)
 
     it("an inactive feature wraps nothing and resolves nothing", function()
@@ -320,6 +362,17 @@ describe("secrets", function()
       assert.are.equal("CHAIN02", secrets_feature_of(client):credential())
       assert.are.equal("", client:options_map().apikey,
         "the options map must stay unwritten")
+    end)
+
+    it("a resolved key is placed as prepare_auth places it, the secret kept", function()
+      local w = make_wire()
+      local client = secrets_client(w, {
+        secret = "PASS01",
+        feature = chain({ memory("CHAIN05") }),
+      })
+
+      drive_entity_op(client, w)
+      assert_credential(w.api()[1].auth, "CHAIN05", "PASS01")
     end)
 
     it("custom provider objects are accepted verbatim", function()
@@ -784,6 +837,7 @@ describe("secrets", function()
       assert.are.equal(1, #w.token(), "expected one token purchase")
       local t = w.token()[1]
       assert.are.equal("POST", t.method)
+      assert.are.equal("manual", t.redirect, "the exchange must follow no redirect")
       assert.is_truthy(t.body:find('"refresh_token":"REFRESH01"', 1, true),
         "the refresh token must be sent as JSON: " .. tostring(t.body))
       assert_credential(w.api()[1].auth, "ACCESS01")
@@ -799,6 +853,17 @@ describe("secrets", function()
       assert_credential(w.api()[1].auth, "ACCESS01")
       assert_credential(w.api()[2].auth, "ACCESS02")
       assert.are.equal(2, #w.token())
+    end)
+
+    it("a token bought on a refusal is placed as prepare_auth places it", function()
+      local w = make_wire({ apistatus = { 401, 200 } })
+      local client = exchange_client(w, nil, { secret = "PASS01" })
+      local res = client:direct({ path = "/probe" })
+      assert.is_true(res.ok, tostring(res.err))
+
+      assert.are.equal(2, #w.api(), "expected the refused request and one retry")
+      assert_credential(w.api()[1].auth, "ACCESS01", "PASS01")
+      assert_credential(w.api()[2].auth, "ACCESS02", "PASS01")
     end)
 
     it("a second refusal surfaces rather than spinning", function()
@@ -847,6 +912,173 @@ describe("secrets", function()
       assert.are.equal(0, #w.api())
     end)
 
+    -- The API and another origin, served by a second interpreter (Lua has no
+    -- threads), which prints each request it gets until it is told to stop.
+    local origins_server = [[
+      local socket = require("socket")
+      local api = assert(socket.bind("127.0.0.1", 0))
+      local other = assert(socket.bind("127.0.0.1", 0))
+      if LOCATION == "OTHER" then
+        LOCATION = "http://127.0.0.1:" .. select(2, other:getsockname()) .. "/api/auth/token"
+      elseif LOCATION == "ORIGIN" then
+        LOCATION = "http://127.0.0.1:" .. select(2, api:getsockname()) .. "/api/moved/token"
+      end
+      io.stdout:write(select(2, api:getsockname()), "\t", LOCATION, "\n")
+      io.stdout:flush()
+      while true do
+        local srv = socket.select({ api, other }, nil, 20)[1]
+        if not srv then break end
+        local sock = srv:accept()
+        sock:settimeout(20)
+        local method, path = string.match(sock:receive("*l") or "", "^(%S+) (%S+)")
+        if path == "/stop" then break end
+        local length = 0
+        while true do
+          local name, value = string.match(sock:receive("*l") or "", "^([^:]+):%s*(.*)$")
+          if not name then break end
+          if string.lower(name) == "content-length" then length = tonumber(value) or 0 end
+        end
+        local body = length > 0 and (sock:receive(length) or "") or ""
+        local where = srv == api and "origin" or "other"
+        io.stdout:write(where, "\t", method or "", "\t", path or "", "\t", body, "\n")
+        io.stdout:flush()
+        local status, moved, answer = 200, "", '{"access_token":"ELSEWHERE01"}'
+        if where == "origin" and path == "/api/auth/token" then
+          status, moved, answer = STATUS, "Location: " .. LOCATION .. "\r\n", ""
+        elseif where == "origin" then
+          answer = '{"access_token":"MOVED01"}'
+        end
+        sock:send("HTTP/1.1 " .. status .. " X\r\n" .. moved .. "Content-Type: application/json\r\n" ..
+          "Content-Length: " .. #answer .. "\r\nConnection: close\r\n\r\n" .. answer)
+        sock:close()
+      end
+    ]]
+
+    -- One exchange against the two listeners, the origin answering it with
+    -- `status` and `location`: the result, the base, the location as served
+    -- and every request the listeners got.
+    local function against_origins(status, location, xextra)
+      local first = 0
+      while arg and arg[first - 1] ~= nil do first = first - 1 end
+      local lua = arg and first < 0 and arg[first] or "lua"
+
+      local script = os.tmpname()
+      local f = assert(io.open(script, "w"))
+      f:write(string.format("package.path = %q\npackage.cpath = %q\nSTATUS = %d\nLOCATION = %q\n",
+        package.path, package.cpath, status, location), origins_server)
+      f:close()
+      local child = assert(io.popen(string.format("%q %q", lua, script)))
+      local port, served = string.match(assert(child:read("*l")), "^(%d+)\t(.*)$")
+      local base = "http://127.0.0.1:" .. port .. "/api"
+
+      local exchange = { active = true, refresh = "REFRESH01" }
+      for k, v in pairs(xextra or {}) do exchange[k] = v end
+      local client = secrets_client(nil, {
+        base = base,
+        feature = { secrets = { active = true, name = "refresh_token", exchange = exchange } },
+      })
+      local res = client:direct({ path = "/thing" })
+
+      local stop = require("socket").connect("127.0.0.1", tonumber(port))
+      if stop then
+        stop:send("GET /stop HTTP/1.0\r\n\r\n")
+        stop:close()
+      end
+      local seen = {}
+      for line in child:lines() do
+        local where, method, path, body = string.match(line, "^(%S+)\t(%S*)\t(%S*)\t(.*)$")
+        seen[#seen + 1] = { where = where, method = method, path = path, body = body }
+      end
+      child:close()
+      os.remove(script)
+      return res, base, served, seen
+    end
+
+    -- Real listeners and the feature's own transport: a stub follows nothing.
+    local has_socket = pcall(require, "socket.http")
+    ;(has_socket and it or pending)("a redirect answering the exchange is a failure, and nothing follows it",
+      function()
+      local refused, leaked, failures = 0, 0, {}
+      for _, case in ipairs({ { 307, "OTHER" }, { 308, "OTHER" }, { 302, "OTHER" },
+        { 307, "/api/moved/token" } }) do
+        local res, base, location, seen = against_origins(case[1], case[2])
+        local followed = {}
+        for _, r in ipairs(seen) do
+          if r.where == "other" or r.path ~= "/api/auth/token" then
+            followed[#followed + 1] = r.where .. " " .. r.method .. " " .. r.path .. " " .. r.body
+          end
+        end
+
+        local label = case[1] .. " to " .. location
+        local message = tostring(res and res.err)
+        local want = "token exchange failed: " .. case[1] .. " from " .. base .. "/auth/token"
+        if message:find(want, 1, true) then
+          refused = refused + 1
+        else
+          failures[#failures + 1] = label .. ": not a failed exchange: " .. message
+        end
+        leaked = leaked + #followed
+        if #followed > 0 then
+          failures[#failures + 1] = label .. ": followed by " .. table.concat(followed, "; ")
+        end
+      end
+
+      print("\nsecrets: exchange refused " .. refused .. " redirect(s), " .. leaked .. " followed")
+
+      assert.are.same({}, failures)
+      assert.are.equal(4, refused)
+    end)
+
+    ;(has_socket and it or pending)(
+      "with the option, a redirect on the exchange's own origin is followed, and no other",
+      function()
+      local sent = ' {"refresh_token":"REFRESH01"}'
+      local followed, refused, elsewhere, looped, wrong = 0, 0, 0, 0, {}
+      -- Each case: the status, the Location, and the target the exchange is
+      -- asked again at, or false where the redirect is refused. A Location of
+      -- a query alone keeps the path that answered.
+      for _, case in ipairs({ { 307, "/api/moved/token", "/api/moved/token" },
+        { 308, "ORIGIN", "/api/moved/token" }, { 307, "?step=2", "/api/auth/token?step=2" },
+        { 307, "OTHER", false }, { 302, "/api/moved/token", false },
+        { 307, "/api/auth/token", false } }) do
+        local res, base, location, seen = against_origins(case[1], case[2],
+          { redirect = "same-origin" })
+        local mine, exchanged = {}, 0
+        for _, r in ipairs(seen) do
+          if r.where == "other" then
+            elsewhere = elsewhere + 1
+          elseif r.path == "/api/auth/token" then
+            exchanged = exchanged + 1
+          else
+            mine[#mine + 1] = r.method .. " " .. r.path .. " " .. r.body
+          end
+        end
+
+        local message = tostring(res and res.err)
+        local want = "token exchange failed: " .. case[1] .. " from " .. base .. "/auth/token"
+        if case[3] and res and res.ok == true and #mine == 2
+          and mine[1] == "POST " .. case[3] .. sent then
+          followed = followed + 1
+        elseif not case[3] and #mine == 0 and message:find(want, 1, true) then
+          refused = refused + 1
+        else
+          wrong[#wrong + 1] = case[1] .. " to " .. location .. ": " .. message .. " " ..
+            table.concat(mine, "; ")
+        end
+        if case[2] == "/api/auth/token" then looped = exchanged end
+      end
+
+      print("\nsecrets: exchange opt-in followed " .. followed .. " redirect(s) on its own origin, " ..
+        "refused " .. refused .. ", " .. elsewhere .. " elsewhere")
+
+      assert.are.equal(0, elsewhere, "the exchange reached another origin")
+      assert.are.same({}, wrong)
+      assert.are.equal(3, followed)
+      assert.are.equal(3, refused)
+      -- A redirect to itself stops at the hop limit.
+      assert.are.equal(6, looped)
+    end)
+
     it("test mode buys nothing", function()
       -- A LIVE construction (so the feature is installed through extend),
       -- switched to test mode before the first request: the wrapper runs
@@ -863,5 +1095,64 @@ describe("secrets", function()
       assert.are.equal("test-access_token", sf:credential())
       assert.are.equal(0, #w.token(), "test mode must not reach the token endpoint")
     end)
+  end)
+end)
+
+
+-- Off by the config where it declares no auth, else by clearing
+-- `options.auth` after construction, the suppression Lua can express:
+-- either way the feature places no credential, buys no token and retries
+-- nothing.
+describe("secrets with auth off", function()
+
+  it("places no credential and buys no token", function()
+    local declared = nil ~= (require("config_shared")().options or {}).auth
+    local by = declared and "option" or "config"
+    local secrets = { "OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01" }
+    local function carries(call)
+      if call.has then return true end
+      for _, secret in ipairs(secrets) do
+        if call.values:find(secret, 1, true) then return true end
+      end
+      return false
+    end
+    local sent, bought = {}, 0
+
+    local refresh = { kind = "memory", values = { REFRESH_TOKEN = "OFFREFRESH01" } }
+    local scenarios = {
+      { "a key the chain resolves", {}, chain({ memory("OFFKEY01") }), { 200 } },
+      { "an explicit apikey", { apikey = "OFFKEY02" }, { secrets = { active = true } }, { 200 } },
+      { "a refusal", {},
+        chain({ refresh }, { name = "refresh_token", exchange = { active = true } }), { 401 } },
+    }
+
+    for _, scenario in ipairs(scenarios) do
+      local what, sdkopts, feature, statuses = table.unpack(scenario)
+      local w = make_wire({ apistatus = statuses })
+      local opts = { feature = feature }
+      for k, v in pairs(sdkopts) do opts[k] = v end
+      local client = secrets_client(w, opts)
+      if declared then
+        client.options.auth = nil
+      end
+
+      client:direct({ path = "/probe" })
+
+      assert.are.equal(1, #w.api(), what .. ": a request was retried with auth off")
+      assert.are.equal(0, #w.token(), what .. ": a token was bought with auth off")
+      assert.is_false(carries(w.api()[1]), what .. ": a credential was sent with auth off")
+      assert.is_nil(secrets_feature_of(client):credential(),
+        what .. ": the feature resolved a credential with auth off")
+
+      for _, call in ipairs(w.api()) do sent[#sent + 1] = call end
+      bought = bought + #w.token()
+    end
+
+    local carried = 0
+    for _, call in ipairs(sent) do
+      if carries(call) then carried = carried + 1 end
+    end
+    print("\nsecrets: auth off by " .. by .. ": " .. #sent .. " request(s), " ..
+      carried .. " credential(s), " .. bought .. " token(s)")
   end)
 end)

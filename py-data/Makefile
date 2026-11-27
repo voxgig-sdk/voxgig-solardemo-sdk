@@ -1,6 +1,6 @@
 .PHONY: test build clean publish dev notebook
 
-# Install the sibling VoxgigSolardemo SDK from the same repo (../py) plus this
+# Install the VoxgigSolardemo SDK this package wraps (../py) plus this
 # package, both editable, so a working copy tests against the SDK it was
 # generated alongside rather than whatever is on PyPI.
 dev:
@@ -24,7 +24,7 @@ clean:
 	rm -rf dist .pytest_cache
 
 # --- Release: publish to PyPI ---------------------------------------------
-# Publish this package to PyPI, then tag py-data/vX.Y.Z. Run headless under the
+# Publish this package to PyPI, then push its release tag. Run headless under the
 # boru key vault, which injects the PyPI + GitHub tokens as environment
 # variables (never written to disk or argv):
 #   boru vault exec --for=pypi=<alias> --for=github=<alias> -- make publish
@@ -46,6 +46,7 @@ publish: test
 	  exit 0; \
 	fi; \
 	python3 -m twine upload dist/*; \
+	if [ -z "$(TAG)" ]; then echo "No release tag: the model cuts none for this package."; exit 0; fi; \
 	git tag -a "$(TAG)" -m "py-data v$(VERSION)"; \
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	if [ -n "$$token" ] && printf '%s' "$$url" | grep -q '^https://github.com/'; then \

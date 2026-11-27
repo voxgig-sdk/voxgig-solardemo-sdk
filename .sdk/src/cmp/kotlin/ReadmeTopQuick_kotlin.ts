@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { kotlinVarName, kotlinPackage, kotlinListMatch } from './utility_kotlin'
+import { kotlinVarName, kotlinPackage, kotlinListMatch, kotlinString } from './utility_kotlin'
 
 
 // A type-correct Kotlin literal for a param: numeric/boolean/array/object
@@ -21,7 +21,7 @@ function kotlinLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return 'listOf<Any?>()'
   if ('OBJECT' === k) return 'mapOf<String, Any?>()'
-  return `"${placeholder}"`
+  return kotlinString(placeholder)
 }
 
 
@@ -37,31 +37,33 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const authActive = isAuthActive(model)
 
   const shown = null != exampleEntity &&
-    ['list', 'load'].some((op: string) => Object.keys(exampleEntity.op || {}).includes(op))
+    ['list', 'load'].some((op: string) => entityOps(exampleEntity).includes(op))
 
   Content(`\`\`\`kotlin
 import ${kotlinPackage(model)}.core.${SDK}
 ${shown ? `import ${kotlinPackage(model)}.core.SdkEntity\n` : ''}
 `)
 
-  if (authActive) {
-    Content(`val client = ${SDK}(mutableMapOf<String, Any?>(
-    "apikey" to System.getenv("${envName(model)}_APIKEY"),
-))
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`"apikey" to System.getenv("${envName(model)}_APIKEY"),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`"secret" to System.getenv("${envName(model)}_SECRET"),`] : []),
+    ...(0 === svars.length ? [] : [`"server" to mutableMapOf<String, Any?>(` +
+      svars.map((v: any) => `"${v.name}" to "<${v.name}>"`).join(', ') + `),`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `${SDK}()`
+    : `${SDK}(mutableMapOf<String, Any?>(${ctorFields.map((f: string) => '\n    ' + f).join('')}\n))`
+
+  Content(`val client = ${ctor}
 
 `)
-  }
-  else {
-    Content(`val client = ${SDK}()
-
-`)
-  }
 
   if (exampleEntity) {
     const eVar = kotlinVarName(exampleEntity.name)
     const accessor = kotlinVarName(exampleEntity.name)
     const eNameLower = nom(exampleEntity, 'Name').toLowerCase()
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     if (opnames.includes('list')) {
@@ -77,13 +79,12 @@ for (${eVar}Item in ${eVar}List) {
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `mutableMapOf<String, Any?>(${loadItems.map((it: any) =>
-          `"${it.name}" to ${kotlinLit(it.type,
+          `${kotlinString(it.name)} to ${kotlinLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')})`
         : 'null'
       Content(`

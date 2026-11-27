@@ -1,5 +1,5 @@
 // VoxgigSolardemo SDK — drives the primary utility functions against the shared
-// test.json spec (../.sdk/test/test.json, section "primary") through the
+// test.json spec (SDKREL/.sdk/test/test.json, section "primary") through the
 // VENDORED omni runner (test/omni_resolver.hpp over test/vendor/omni).
 // Mirrors java test/PrimaryUtilityTest.java + tm/go/test/primary_utility_test.go.
 //
@@ -11,6 +11,7 @@
 // throws omni::OmniError naming the entry, which T_RUN records.
 
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <set>
 #include <string>
@@ -18,12 +19,13 @@
 
 #include "omni_resolver.hpp"
 #include "harness.hpp"
+#include "auth_credential.hpp"
 
 using namespace sdk;
 using namespace sdk::fh;
 namespace res = sdk::resolver;
 
-static const char* TEST_JSON_FILE = "../.sdk/test/test.json";
+static const char* TEST_JSON_FILE = "SDKREL/.sdk/test/test.json";
 
 // One corpus runner for the whole binary. Its client is the runner's own
 // (only a DEF.client entry would use it); each test still builds the client
@@ -80,6 +82,20 @@ static void runsection(const std::string& name, const res::Subject& subject) {
     return;
   }
   sdktest::checks()++;
+  if (name == "prepareAuth") {
+    // Read from the config, never from a probe: a probe that finds no
+    // credential is the regression this section exists to catch.
+    if (!getp(getp(sharedConfig(), Value("options")), Value("auth")).is_map()) {
+      std::cout << "  SKIP [prepareAuth]: this SDK's config declares no auth, so it places no credential\n";
+      return;
+    }
+    auto cred = authCredential();
+    if (cred.name.empty()) {
+      sdktest::record_fail(name, "prepareAuth placed no credential in headers or query");
+      return;
+    }
+    basic = retargetAuth(basic, cred);
+  }
   primaryRun().runsetflags(name, basic, true, subject);
 }
 
@@ -354,6 +370,58 @@ static void fetcherBlockedTestMode() {
   }
   ASSERT_TRUE(threw, "expected error for test mode fetch");
   ASSERT_TRUE(msg.find("blocked") != std::string::npos, "expected error containing 'blocked'");
+}
+
+// MinGW declares neither setenv nor unsetenv.
+static void setEnv(const char* key, const char* val) {
+#ifdef _WIN32
+  _putenv_s(key, val);
+#else
+  setenv(key, val, 1);
+#endif
+}
+
+static void unsetEnv(const char* key) {
+#ifdef _WIN32
+  _putenv_s(key, "");
+#else
+  unsetenv(key);
+#endif
+}
+
+// Nothing listens on port 9; this target has no transport of its own, so a
+// request the guard let through fails as fetch_no_transport.
+static void fetcherGetOnlyGuard() {
+  auto liveClient = std::make_shared<VoxgigSolardemoSDK>(fhMap({{"base", Value("http://127.0.0.1:9")}}));
+  UtilityPtr liveUtility = liveClient->getUtility();
+  CtxSpec cs;
+  cs.setOpname("create");
+  cs.client = liveClient.get();
+  cs.utility = liveUtility;
+  CtxPtr ctx = liveUtility->makeContext(cs, nullptr);
+  std::string url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01";
+  const char* prior = std::getenv("VOXGIG_GETONLY_GUARD");
+  std::string saved = nullptr == prior ? "" : prior;
+  setEnv("VOXGIG_GETONLY_GUARD", "TRUE");
+
+  std::string codes[2];
+  std::string msg;
+  const char* methods[2] = {"POST", "GET"};
+  for (int i = 0; i < 2; i++) {
+    try {
+      liveUtility->fetcher(ctx, url, fhMap({{"method", Value(methods[i])}, {"headers", vmap()}}));
+    } catch (const SdkErrorPtr& e) {
+      codes[i] = e->code;
+      if (0 == i) msg = e->getMessage();
+    }
+  }
+  if (nullptr == prior) unsetEnv("VOXGIG_GETONLY_GUARD");
+  else setEnv("VOXGIG_GETONLY_GUARD", saved.c_str());
+
+  ASSERT_TRUE(codes[0] == "fetch_getonly_block", "expected the POST to be refused");
+  ASSERT_TRUE(msg.find("[GET-ONLY GUARD] blocked POST /planet/p1") != std::string::npos, "expected the path");
+  ASSERT_TRUE(msg.find("GUARDKEY01") == std::string::npos, "expected no query");
+  ASSERT_TRUE(codes[1] == "fetch_no_transport", "expected the GET to pass the guard");
 }
 
 // --- makeContext ------------------------------------------------------------
@@ -819,7 +887,7 @@ static void corpusCoverage() {
   if (!spec.is_map()) return;
 
   std::vector<std::string> sections = Struct::keysof(spec);
-  ASSERT_TRUE(!sections.empty(), "primary corpus has NO sections - check ../.sdk/test/test.json");
+  ASSERT_TRUE(!sections.empty(), "primary corpus has NO sections - check SDKREL/.sdk/test/test.json");
 
   std::vector<std::string> undriven;
   std::vector<std::string> staleskip;
@@ -850,7 +918,11 @@ static void corpusCoverage() {
                   joinnames(staleskip) + " - drop them from notThisSuite()");
 }
 
-int main() {
+int main(int argc, char** argv) {
+  if (2 == argc && std::string(argv[1]) == "--prepare-auth") {
+    T_RUN(prepareAuthBasic);
+    return sdktest::summary("primary_utility_test");
+  }
   T_RUN(exists);
   T_RUN(cleanBasic);
   T_RUN(cleanCorpus);
@@ -863,6 +935,7 @@ int main() {
   T_RUN(featureInitInactive);
   T_RUN(fetcherLive);
   T_RUN(fetcherBlockedTestMode);
+  T_RUN(fetcherGetOnlyGuard);
   T_RUN(makeContextBasic);
   T_RUN(makeFetchDefBasic);
   T_RUN(makeFetchDefWithBody);

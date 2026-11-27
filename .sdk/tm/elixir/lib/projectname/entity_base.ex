@@ -43,7 +43,6 @@ defmodule VoxgigSolardemo.EntityBase do
   # reached through data_get/1. `run_op` returns the terminal result value, so
   # the op hands that value back only when the pipeline FAILED (the error
   # shape is utility-configurable); on success it hands back the entity.
-  # See AGENTS.md "Entity operations return ENTITIES".
   def op_return(ent, ctx, out) do
     result = S.getprop(ctx, "result")
 
@@ -54,9 +53,9 @@ defmodule VoxgigSolardemo.EntityBase do
     end
   end
 
-  # `remove` resolves to the entity, marked. The instance KEEPS the data it
-  # held — a caller can still read what was deleted — but it is no longer a
-  # live record.
+  # A remove resolves to the entity, marked deleted. The instance KEEPS the
+  # data it held — a caller can still read what was deleted — but it is no
+  # longer a live record.
   def mark_deleted(ent) do
     S.setprop(ent, "_deleted", true)
     ent
@@ -76,7 +75,7 @@ defmodule VoxgigSolardemo.EntityBase do
 
   def data_set(ent, args) do
     if args != nil do
-      S.setprop(ent, "_data", H.or_(H.to_map(S.clone(args)), S.jm([])))
+      S.setprop(ent, "_data", S.clone(args))
       Utility.feature_hook(S.getprop(ent, "_entctx"), "SetData")
     end
 
@@ -103,17 +102,14 @@ defmodule VoxgigSolardemo.EntityBase do
   end
 
   # Streaming operation. Runs `action` (an op name, e.g. "list") through the
-  # full pipeline and returns a lazy Elixir Stream of result items, so the
-  # `streaming` feature's incremental output is reachable (a normal op call
-  # materialises the whole result). When the streaming feature is active the
-  # result carries a `stream` closure and this yields from it (honouring
-  # chunkSize); otherwise it falls back to the materialised items, so stream
-  # always yields. An entity is yielded as its record, the struct map its
-  # data_get/1 returns.
+  # full pipeline and returns a lazy Elixir Stream of result items, so
+  # incremental output is reachable (a normal op call materialises the whole
+  # result). When the streaming feature is active the result carries a
+  # `stream` closure and this yields from it (honouring chunkSize); otherwise
+  # it falls back to the materialised items, so stream always yields. An
+  # entity is yielded as its record, the struct map its data_get/1 returns.
   # `callopts` parameterises the call:
   #   - ctrl:   per-call pipeline control (threaded onto the op ctx);
-  #   - body:   an enumerable/list payload for outbound (upload) streaming,
-  #             attached to the request (reqdata.body$ + a stream_out marker);
   #   - signal: an optional 0-arity fn; when it returns true iteration stops.
   def stream(ent, action, args \\ nil, callopts \\ nil) do
     callopts = if S.ismap(callopts), do: callopts, else: S.jm([])
@@ -135,17 +131,6 @@ defmodule VoxgigSolardemo.EntityBase do
     if am != nil, do: Enum.each(H.entries(am), fn {k, v} -> S.setprop(ctxmap, k, v) end)
 
     ctx = Context.new(ctxmap, S.getprop(ent, "_entctx"))
-
-    # Outbound: expose an enumerable/list payload so the request builder /
-    # transport can stream it as the request body.
-    body = S.getprop(callopts, "body")
-
-    if body != nil do
-      reqdata = H.or_(H.to_map(S.getprop(ctx, "reqdata")), S.jm([]))
-      S.setprop(reqdata, "body$", body)
-      S.setprop(ctx, "reqdata", reqdata)
-      S.setprop(ctx, "stream_out", body)
-    end
 
     Pipeline.run_op(ctx, fn -> nil end)
 

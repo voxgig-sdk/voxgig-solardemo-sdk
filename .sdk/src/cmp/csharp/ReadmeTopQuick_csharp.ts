@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { csVarName, csListMatch } from './utility_csharp'
+import { csVarName, csListMatch, csStringLiteral } from './utility_csharp'
 
 
 // A type-correct C# literal for a param: numeric/boolean/array/object params
@@ -21,7 +21,7 @@ function csLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return 'new List<object?>()'
   if ('OBJECT' === k) return 'new Dictionary<string, object?>()'
-  return `"${placeholder}"`
+  return csStringLiteral(placeholder)
 }
 
 
@@ -33,12 +33,19 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `new ${model.const.Name}SDK(new Dictionary<string, object?>\n{\n    ["apikey"] = Environment.GetEnvironmentVariable("${envName(model)}_APIKEY"),\n})`
-    : `new ${model.const.Name}SDK()`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`["apikey"] = Environment.GetEnvironmentVariable("${envName(model)}_APIKEY"),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`["secret"] = Environment.GetEnvironmentVariable("${envName(model)}_SECRET"),`] : []),
+    ...(0 === svars.length ? [] : [`["server"] = new Dictionary<string, object?>\n    {` +
+      svars.map((v: any) => `\n        ["${v.name}"] = "<${v.name}>",`).join('') + `\n    },`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `new ${model.const.Name}SDK()`
+    : `new ${model.const.Name}SDK(new Dictionary<string, object?>\n{${ctorFields.map((f: string) => '\n    ' + f).join('')}\n})`
 
   const shown = null != exampleEntity &&
-    ['list', 'load'].some((op: string) => Object.keys(exampleEntity.op || {}).includes(op))
+    ['list', 'load'].some((op: string) => entityOps(exampleEntity).includes(op))
 
   Content(`\`\`\`csharp
 using ${model.const.Name}Sdk;
@@ -52,7 +59,7 @@ var client = ${ctor};
     // Sanitise the local variable name — an entity whose camelCased name is a
     // C# keyword gets a trailing underscore (csVarName) so the snippet compiles.
     const eVar = csVarName(exampleEntity.name)
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     if (opnames.includes('list')) {
@@ -69,13 +76,12 @@ foreach (var ${eVar}Item in ${eVar}List)
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `new Dictionary<string, object?> {${loadItems.map((it: any) =>
-          ` ["${it.name}"] = ${csLit(it.type,
+          ` [${csStringLiteral(it.name)}] = ${csLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(',')} }`
         : 'null'
       Content(`

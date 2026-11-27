@@ -27,6 +27,8 @@ class TestFeature extends BaseFeature("test", "0.0.1", true) {
     Struct.walk(entity, (key: String, valx: Object, parent: Object, path: java.util.List[String]) => {
       if (path != null && path.size() == 2 && valx.isInstanceOf[JMap[_, _]] && key != null) {
         valx.asInstanceOf[JMap[String, Object]].put("id", key)
+        val idField = declaredIdField(ctx.config, path.get(0))
+        if (idField != null) valx.asInstanceOf[JMap[String, Object]].put(idField, key)
       }
       valx
     })
@@ -39,6 +41,14 @@ class TestFeature extends BaseFeature("test", "0.0.1", true) {
     if (net == null) ctx.utility.fetcher = testFetcher
     else ctx.utility.fetcher = makeNetsim(net, testFetcher)
   }
+
+  // The entity's declared identity field (`entity.id.field`), where it names
+  // one other than the `id` every record already carries.
+  private def declaredIdField(config: Object, entityName: String): String =
+    Struct.getpath(config, java.util.List.of("entity", if (entityName == null) "" else entityName, "id", "field")) match {
+      case s: String if s != "" && s != "id" => s
+      case _ => null
+    }
 
   // THE MOCK HAS TO AGREE WITH THE MODEL. A point carrying
   // `transform.res: `body.item`` describes an API that answers {"item": {...}}
@@ -144,7 +154,7 @@ class TestFeature extends BaseFeature("test", "0.0.1", true) {
     if ("load" == op.name) {
       val args = buildArgs(ctx, op, resolveMatch(ctx, ctx.reqmatch))
       val found = Struct.select(entmap, args)
-      val ent = Struct.getelem(found, java.lang.Integer.valueOf(0))
+      val ent = Struct.getelem(found, java.lang.Integer.valueOf(0), null)
       if (ent == null) return respond(ctx, 404, null, extra("statusText", "Not found"))
       Struct.delprop(ent, "$KEY")
       val out = Struct.clone(ent)
@@ -171,7 +181,7 @@ class TestFeature extends BaseFeature("test", "0.0.1", true) {
       if (updateMatch.isEmpty) updateMatch = resolveMatch(ctx, new LinkedHashMap[String, Object]()).asInstanceOf[LinkedHashMap[String, Object]]
       val args = buildArgs(ctx, op, updateMatch)
       val found = Struct.select(entmap, args)
-      val ent = Struct.getelem(found, java.lang.Integer.valueOf(0))
+      val ent = Struct.getelem(found, java.lang.Integer.valueOf(0), null)
       // update miss: 404, never another record
       if (ent == null) return respond(ctx, 404, null, extra("statusText", "Not found"))
       ent match { case _: JMap[_, _] if ctx.reqdata != null => Struct.merge(Struct.jt(ent, record(ctx.reqdata))); case _ => }
@@ -181,7 +191,7 @@ class TestFeature extends BaseFeature("test", "0.0.1", true) {
     } else if ("remove" == op.name) {
       val args = buildArgs(ctx, op, resolveMatch(ctx, ctx.reqmatch))
       val found = Struct.select(entmap, args)
-      val ent = Struct.getelem(found, java.lang.Integer.valueOf(0))
+      val ent = Struct.getelem(found, java.lang.Integer.valueOf(0), null)
       ent match {
         case m: JMap[_, _] =>
           val id = Struct.getprop(m, "id", null)
@@ -204,6 +214,8 @@ class TestFeature extends BaseFeature("test", "0.0.1", true) {
         case entm0: JMap[_, _] =>
           val entm = entm0.asInstanceOf[JMap[String, Object]]
           entm.put("id", id)
+          val idField = declaredIdField(ctx.config, op.entity)
+          if (idField != null && entm.get(idField) == null) entm.put(idField, id)
           id match { case s: String => entmap.put(s, entm); case _ => }
           Struct.delprop(entm, "$KEY")
           val out = Struct.clone(entm)

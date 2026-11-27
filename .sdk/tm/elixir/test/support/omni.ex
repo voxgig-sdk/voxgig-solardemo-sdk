@@ -61,7 +61,7 @@
 #    one that returns JSON null are indistinguishable here (the struct port
 #    says so in its own header: "the canonical `undefined` and JSON `null` are
 #    both `nil`"). Only the `{null: false}` groups can tell, and there the
-#    corpus is lopsided: reading a top-level `nil` as ABSENT costs 4 entries
+#    corpus is lopsided: reading a top-level `nil` as ABSENT costs 5 entries
 #    (named and guarded in struct_corpus_test.exs), reading it as null costs
 #    43. So a TOP-LEVEL nil result becomes ABSENT; a nil stored INSIDE a
 #    returned node stays a JSON null, because struct's `setprop` genuinely
@@ -324,7 +324,7 @@ defmodule VoxgigSolardemo.Omni do
   The corpus runner, in the shape the suites use.
 
   `specref` is a path to the shared corpus JSON (relative paths resolve
-  against the current working directory, as the suites' `../.sdk/...`
+  against the current working directory, as the suites' `SDKREL/.sdk/...`
   constant assumes) or an already-parsed spec in omni's value model, which
   keeps the smoke test free of fixture files.
 

@@ -47,6 +47,11 @@ class ReadmeExamplesTest < Minitest::Test
     "Planet" => "planet",
   }
 
+  # Fixture key => the entity's declared identity field, where it is not "id".
+  ID_FIELDS = {
+
+  }
+
   # Documented SDK method names — used only to recognise the NARROW
   # signature/method-table "illustration" class.
   METHODS = %w[options_map get_utility prepare direct data_get data_set match_get match_set make get_name]
@@ -146,22 +151,24 @@ class ReadmeExamplesTest < Minitest::Test
     refs = ENTITIES.select { |name, _| block =~ /#{CLIENT}\.#{Regexp.escape(name)}\b/ }
     refs = ENTITIES if refs.empty?
     entity = {}
-    refs.each_value { |storage| entity[storage] = { "test01" => { "id" => "test01" } } }
+    refs.each_value do |storage|
+      record = { "id" => "test01" }
+      record[ID_FIELDS[storage]] = "test01" if ID_FIELDS.key?(storage)
+      entity[storage] = { "test01" => record }
+    end
     { "entity" => entity }.inspect
   end
 
   # Rewrite a runnable block into an executable offline test-mode program: the
   # doc's own require of the SDK file is stripped (we require it by absolute
-  # path); any real client constructor (.new/.test) becomes <Sdk>SDK.test(<fixtures>);
-  # a block that only uses a client variable gets such a constructor prepended. (The
-  # constructor arg-list match is deliberately shallow — it does not span nested
-  # parens — because runnable op blocks never build a client inline with a
-  # lambda/closure argument.)
+  # path); any real client constructor (.new/.test), its argument list matched
+  # to the parenthesis that balances it, becomes <Sdk>SDK.test(<fixtures>); a
+  # block that only uses a client variable gets such a constructor prepended.
   def to_runner(block)
     fixtures = fixtures_literal(block)
     # Drop the doc's own require of the SDK file; we require it by absolute path.
     block = block.gsub(/^[ \t]*require(?:_relative|_once)?[^\n]*#{Regexp.escape(SDK_BASE)}[^\n]*\r?\n?/i, "")
-    ctor_re = /#{Regexp.escape(SDK_CLASS)}\.(?:new|test)(?:\([^()]*\))?/
+    ctor_re = /#{Regexp.escape(SDK_CLASS)}\.(?:new|test)(?<args>\((?:[^()]|\g<args>)*\))?/
     body =
       if block =~ /#{Regexp.escape(SDK_CLASS)}\.(?:new|test)\b/
         block.gsub(ctor_re) { "#{SDK_CLASS}.test(#{fixtures})" }

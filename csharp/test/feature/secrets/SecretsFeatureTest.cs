@@ -78,7 +78,9 @@ internal class WireCall
     public string Url = "";
     public string Auth = "";
     public bool HasAuth;
+    public string Values = "";
     public string Body = "";
+    public object? Redirect;
 }
 
 // The recording transport: `system.fetch` for a LIVE client. It scripts one
@@ -105,16 +107,21 @@ internal class Wire
             var call = new WireCall { Url = url };
 
             if (fetchdef.TryGetValue("headers", out var hraw) &&
-                hraw is Dictionary<string, object?> headers &&
-                headers.TryGetValue("authorization", out var auth))
+                hraw is Dictionary<string, object?> headers)
             {
-                call.HasAuth = true;
-                call.Auth = auth as string ?? "";
+                if (headers.TryGetValue(SecretsFeatureTest.CredHeader, out var auth))
+                {
+                    call.HasAuth = true;
+                    call.Auth = auth as string ?? "";
+                }
+                call.Values = string.Join("\n", headers.Values);
             }
             if (fetchdef.TryGetValue("body", out var braw) && braw is string body)
             {
                 call.Body = body;
             }
+
+            call.Redirect = fetchdef.GetValueOrDefault("redirect");
 
             Calls.Add(call);
 
@@ -176,17 +183,51 @@ public class SecretsFeatureTest
     private const string EnvPrefix = "VOXGIG_SOLARDEMO_TEST_SECRETS_";
     private const string SecretsBase = "http://secrets.test/api";
 
-    // The Authorization header carries the SPEC's credential prefix, which a
-    // TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives
-    // `Bearer <token>`, an apiKey scheme the raw token. So assert on the
-    // CREDENTIAL and let the prefix be whatever this SDK's API declares -
-    // pinning the whole header value passes only for a prefix-less API, and
-    // this file ships to every project that selects the feature.
-    private static void CredentialIs(string header, string token)
+    // The header the credential travels in: the DEFAULT client's auth.name,
+    // lower-cased as PrepareAuth sends it. Read from a default client because
+    // a test's `auth: null` leaves no name to read.
+    internal static readonly string CredHeader = DefaultCredHeader();
+
+    private static string DefaultCredHeader()
     {
-        var got = header ?? "";
-        Assert.True(got == token || got.EndsWith(" " + token),
-            "expected the authorization header to carry " + token + ", got: " + got);
+        var auth = StructUtils.GetProp(VoxgigSolardemoSDK.TestSDK(null, null).OptionsMap(), "auth");
+        return StructUtils.GetProp(auth, "name") is string name && "" != name
+            ? name.ToLowerInvariant() : "authorization";
+    }
+
+    // Read from the config, never from a probe: an SDK whose config declares no
+    // auth places no credential, and these tests assert on the one it places.
+    // xunit 2 has no runtime skip, so the skip is a printed reason.
+    private static bool SkippedWithoutAuth(
+        [System.Runtime.CompilerServices.CallerMemberName] string test = "")
+    {
+        if (DeclaresAuth())
+        {
+            return false;
+        }
+        Console.WriteLine("SKIP " + test + ": this SDK's config declares no auth, so it places no credential");
+        return true;
+    }
+
+    private static bool DeclaresAuth() =>
+        SdkConfig.SharedConfig()["options"] is Dictionary<string, object?> options &&
+        options.ContainsKey("auth");
+
+    // The header value PrepareAuth writes for a token, in the form the
+    // DEFAULT client's auth gives: under Basic the token is the key half of
+    // the encoded pair, and a prefix is space-joined.
+    private static string Credential(string token, string secret)
+    {
+        var auth = StructUtils.GetProp(VoxgigSolardemoSDK.TestSDK(null, null).OptionsMap(), "auth");
+        var prefix = StructUtils.GetProp(auth, "prefix") as string ?? "";
+        var value = true.Equals(StructUtils.GetProp(auth, "basic"))
+            ? Convert.ToBase64String(Encoding.UTF8.GetBytes(token + ":" + secret)) : token;
+        return "" == prefix ? value : prefix + " " + value;
+    }
+
+    private static void CredentialIs(string header, string token, string secret = "")
+    {
+        Assert.Equal(Credential(token, secret), header);
     }
 
     // Construct the client and ADOPT the feature via `extend` ONLY when the
@@ -389,28 +430,32 @@ public class SecretsFeatureTest
     [Fact]
     public void InactiveApikeyOptionBehavesExactlyAsBefore()
     {
+        if (SkippedWithoutAuth()) return;
+
         var client = VoxgigSolardemoSDK.TestSDK(null,
             new Dictionary<string, object?> { ["apikey"] = "OPTKEY01" });
 
         var fetchdef = client.Prepare(new Dictionary<string, object?> { ["path"] = "/" });
         var headers = fetchdef["headers"] as Dictionary<string, object?>;
 
-        CredentialIs(headers!["authorization"] as string ?? "", "OPTKEY01");
+        CredentialIs(headers![CredHeader] as string ?? "", "OPTKEY01");
 
         Assert.True(null == SecretsOf(client),
             "no model activation and no extend: the feature must not be installed");
     }
 
     [Fact]
-    public void InactiveNoApikeyMeansNoAuthorizationHeader()
+    public void InactiveNoApikeyMeansNoCredentialHeader()
     {
+        if (SkippedWithoutAuth()) return;
+
         var client = VoxgigSolardemoSDK.TestSDK(null, null);
 
         var fetchdef = client.Prepare(new Dictionary<string, object?> { ["path"] = "/" });
         var headers = fetchdef["headers"] as Dictionary<string, object?>;
 
-        Assert.False(headers!.ContainsKey("authorization"),
-            "an SDK with no apikey must send no authorization header");
+        Assert.False(headers!.ContainsKey(CredHeader),
+            "an SDK with no apikey must send no " + CredHeader + " header");
     }
 
 
@@ -419,6 +464,8 @@ public class SecretsFeatureTest
     [Fact]
     public void ApikeyOptionStillWinsOverTheChain()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", "ENVKEY01");
         try
         {
@@ -447,6 +494,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AnOmittedApikeyDefersToTheChainAtTheTransportSeam()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", "ENVKEY02");
         try
         {
@@ -479,8 +528,34 @@ public class SecretsFeatureTest
     }
 
     [Fact]
+    public void AResolvedKeyIsPlacedAsPrepareAuthPlacesItTheSecretKept()
+    {
+        if (SkippedWithoutAuth()) return;
+
+        Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", "ENVKEY04");
+        try
+        {
+            var w = new Wire();
+            var client = SecretsClient(w, new Dictionary<string, object?>
+            {
+                ["secret"] = "PASS01",
+                ["feature"] = SecretsOpts(null),
+            });
+
+            DriveEntityOp(client, w);
+            CredentialIs(w.Api()[0].Auth, "ENVKEY04", "PASS01");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", null);
+        }
+    }
+
+    [Fact]
     public void CustomProviderObjectsAreAcceptedVerbatim()
     {
+        if (SkippedWithoutAuth()) return;
+
         var probe = new ProbeProvider { Fn = _ => "CUSTOM01" };
 
         var w = new Wire();
@@ -498,6 +573,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AMissEverywhereLeavesTheHeaderOff()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", null);
 
         var w = new Wire();
@@ -519,6 +596,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AProviderErrorFailsTheEntityOpAndNothingReachesTheWire()
     {
+        if (SkippedWithoutAuth()) return;
+
         var broken = new ProbeProvider
         {
             Fn = _ => throw new SekretoError("vault unreachable"),
@@ -560,6 +639,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AProviderRecoversAfterATransientFailure()
     {
+        if (SkippedWithoutAuth()) return;
+
         var calls = 0;
         var flaky = new ProbeProvider
         {
@@ -596,6 +677,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AuthNullSuppressesTheCredentialChainOrNoChain()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", "ENVKEY03");
         try
         {
@@ -626,10 +709,12 @@ public class SecretsFeatureTest
 
     // With `cache: false`, a provider that answered once and then reports a
     // MISS (a revoked secret) must RETRACT the credential: the next request
-    // must go out with no authorization header.
+    // must go out with no credential header.
     [Fact]
     public void UncachedMissRetractsTheCredential()
     {
+        if (SkippedWithoutAuth()) return;
+
         var have = true;
         var revocable = new ProbeProvider { Fn = _ => have ? "REVOCABLE01" : null };
 
@@ -664,6 +749,8 @@ public class SecretsFeatureTest
     [Fact]
     public void CachedMissIsReasked()
     {
+        if (SkippedWithoutAuth()) return;
+
         var present = false;
         var calls = 0;
         var late = new ProbeProvider
@@ -704,6 +791,8 @@ public class SecretsFeatureTest
     [Fact]
     public void CachedHitIsKept()
     {
+        if (SkippedWithoutAuth()) return;
+
         var calls = 0;
         var counting = new ProbeProvider
         {
@@ -731,6 +820,8 @@ public class SecretsFeatureTest
     [Fact]
     public void CacheFalseAsksTheChainOnEveryResolve()
     {
+        if (SkippedWithoutAuth()) return;
+
         var calls = 0;
         var counting = new ProbeProvider
         {
@@ -758,6 +849,8 @@ public class SecretsFeatureTest
     [Fact]
     public void SecretNameIsConfigurable()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "API_TOKEN", "TOKKEY01");
         try
         {
@@ -783,6 +876,8 @@ public class SecretsFeatureTest
     [Fact]
     public void SekretoIsLiveForArbitrarySecretsAndRedaction()
     {
+        if (SkippedWithoutAuth()) return;
+
         var w = new Wire();
         var client = SecretsClient(w, new Dictionary<string, object?>
         {
@@ -837,6 +932,8 @@ public class SecretsFeatureTest
     [Fact]
     public void ASelectedPluginKindIsInTheSdkVocabulary()
     {
+        if (SkippedWithoutAuth()) return;
+
         // Every Definition the generated tree carries, discovered rather
         // than listed: this file ships to projects with any subset of the
         // plugin groups, and upstream is free to add a kind.
@@ -936,6 +1033,8 @@ public class SecretsFeatureTest
     [Fact]
     public void DirectCarriesTheChainCredential()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "APIKEY", "DIRECTKEY01");
         try
         {
@@ -961,6 +1060,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AProviderErrorFailsDirectRatherThanSending()
     {
+        if (SkippedWithoutAuth()) return;
+
         var w = new Wire();
         var broken = SecretsClient(w, new Dictionary<string, object?>
         {
@@ -1004,6 +1105,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AProviderErrorFailsGraphqlRatherThanSending()
     {
+        if (SkippedWithoutAuth()) return;
+
         var w = new Wire();
         var broken = SecretsClient(w, new Dictionary<string, object?>
         {
@@ -1090,6 +1193,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AConstructionFailureFailsTheEntityOpAndNothingReachesTheWire()
     {
+        if (SkippedWithoutAuth()) return;
+
         // THE RULE.
         var w = new Wire();
         var client = SecretsClient(w, new Dictionary<string, object?>
@@ -1138,6 +1243,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AConstructionFailureFailsDirectRatherThanSending()
     {
+        if (SkippedWithoutAuth()) return;
+
         // THE RULE. Direct runs no feature hook at all, so the ONLY thing
         // that can refuse it is the transport wrapper - the one a
         // build-first Init never installs on a construction failure.
@@ -1178,6 +1285,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AConstructionFailureFailsGraphqlRatherThanSending()
     {
+        if (SkippedWithoutAuth()) return;
+
         // THE RULE.
         var w = new Wire();
         var client = SecretsClient(w, new Dictionary<string, object?>
@@ -1226,6 +1335,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AnInvalidSecretNameFailsDirectRatherThanSending()
     {
+        if (SkippedWithoutAuth()) return;
+
         // THE RULE.
         var w = new Wire();
         var client = SecretsClient(w, new Dictionary<string, object?>
@@ -1299,6 +1410,8 @@ public class SecretsFeatureTest
     [Fact]
     public void TheRefreshTokenBuysAnAccessTokenAndASpentOneIsReboughtOnce()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1314,6 +1427,7 @@ public class SecretsFeatureTest
             Assert.True(2 == w.Token().Count,
                 "expected the initial purchase plus one rebuy, got " + w.Token().Count);
             Assert.Contains("REFRESH01", w.Token()[0].Body);
+            Assert.Equal("manual", w.Token()[0].Redirect);
 
             Assert.True(2 == w.Api().Count,
                 "expected the request to be retried exactly once, got " + w.Api().Count);
@@ -1330,8 +1444,38 @@ public class SecretsFeatureTest
     }
 
     [Fact]
+    public void ATokenBoughtOnARefusalIsPlacedAsPrepareAuthPlacesIt()
+    {
+        if (SkippedWithoutAuth()) return;
+
+        Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
+        try
+        {
+            var w = new Wire { ApiStatus = new List<int> { 401, 200 } };
+            var client = SecretsClient(w, new Dictionary<string, object?>
+            {
+                ["secret"] = "PASS01",
+                ["feature"] = ExchangeOpts(null),
+            });
+
+            client.Direct(new Dictionary<string, object?> { ["path"] = "/thing" });
+
+            Assert.True(2 == w.Api().Count,
+                "expected the request to be retried exactly once, got " + w.Api().Count);
+            CredentialIs(w.Api()[0].Auth, "ACCESS01", "PASS01");
+            CredentialIs(w.Api()[1].Auth, "ACCESS02", "PASS01");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", null);
+        }
+    }
+
+    [Fact]
     public void AnExplicitExchangeRefreshWinsOverTheChain()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "FROMCHAIN");
         try
         {
@@ -1356,6 +1500,8 @@ public class SecretsFeatureTest
     [Fact]
     public void OnePurchaseServesManyRequests()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1382,6 +1528,8 @@ public class SecretsFeatureTest
     [Fact]
     public void ConcurrentFirstRequestsShareOnePurchase()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1419,6 +1567,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AStatusOutsideExchangeStatusesIsNotAnExpiry()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1442,6 +1592,8 @@ public class SecretsFeatureTest
     [Fact]
     public void ExchangeStatusesAndFieldNamesAreConfigurable()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1479,6 +1631,8 @@ public class SecretsFeatureTest
     [Fact]
     public void AnExplicitApikeyIsSpentBeforeAnythingIsBought()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1503,6 +1657,8 @@ public class SecretsFeatureTest
     [Fact]
     public void NoRefreshTokenAnywhereIsAnErrorNotAnUnauthenticatedCall()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", null);
 
         var w = new Wire();
@@ -1523,6 +1679,8 @@ public class SecretsFeatureTest
     [Fact]
     public void ExchangeAuthNullSuppressesTheCredentialRefusalOrNot()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1565,6 +1723,8 @@ public class SecretsFeatureTest
     [Fact]
     public void TestModeBuysNothingAndNeedsNoTokenEndpoint()
     {
+        if (SkippedWithoutAuth()) return;
+
         Environment.SetEnvironmentVariable(EnvPrefix + "REFRESH_TOKEN", "REFRESH01");
         try
         {
@@ -1614,6 +1774,8 @@ public class SecretsFeatureTest
     [Fact]
     public void ExchangeOverARealSocketWithNoSystemFetch()
     {
+        if (SkippedWithoutAuth()) return;
+
         const string tricky = "re\"fresh\\to\nken";
 
         var listener = new HttpListener();
@@ -1648,7 +1810,7 @@ public class SecretsFeatureTest
                     }
                     else
                     {
-                        gotauth = ctx.Request.Headers["authorization"] ?? "";
+                        gotauth = ctx.Request.Headers[CredHeader] ?? "";
                         payload = "{}";
                         served.Set();
                     }
@@ -1719,6 +1881,304 @@ public class SecretsFeatureTest
         }
     }
 
+    // An origin on a loopback port of its own: each request is handed to
+    // `answer` as (method, path, body), which returns the status line, a
+    // Location (or null) and the body to send back.
+    private sealed class ExchangeOrigin : IDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener = new(IPAddress.Loopback, 0);
+        private readonly Func<string, string, string, (string Status, string? Location, string Body)> _answer;
+
+        public readonly string Base;
+
+        public ExchangeOrigin(
+            Func<string, string, string, (string Status, string? Location, string Body)> answer)
+        {
+            _answer = answer;
+            _listener.Start();
+            Base = "http://127.0.0.1:" + ((IPEndPoint)_listener.LocalEndpoint).Port;
+            new Thread(Serve) { IsBackground = true }.Start();
+        }
+
+        public void Dispose() => _listener.Stop();
+
+        private void Serve()
+        {
+            while (true)
+            {
+                System.Net.Sockets.TcpClient conn;
+                try
+                {
+                    conn = _listener.AcceptTcpClient();
+                }
+                catch (Exception)
+                {
+                    return;
+                }
+                using (conn)
+                {
+                    try
+                    {
+                        Answer(conn.GetStream());
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            }
+        }
+
+        private void Answer(System.Net.Sockets.NetworkStream stream)
+        {
+            var reader = new StreamReader(stream);
+            var first = (reader.ReadLine() ?? "").Split(' ');
+            var length = 0;
+            for (var line = reader.ReadLine(); !string.IsNullOrEmpty(line); line = reader.ReadLine())
+            {
+                var colon = line.IndexOf(':');
+                if (0 < colon && "content-length" == line.Substring(0, colon).Trim().ToLowerInvariant())
+                {
+                    int.TryParse(line.Substring(colon + 1).Trim(), out length);
+                }
+            }
+            var sent = new char[length];
+            for (var got = 0; got < sent.Length;)
+            {
+                var read = reader.Read(sent, got, sent.Length - got);
+                if (read <= 0)
+                {
+                    break;
+                }
+                got += read;
+            }
+            var (status, location, body) = _answer(first[0],
+                1 < first.Length ? first[1] : "", new string(sent));
+            var reply = Encoding.UTF8.GetBytes(
+                "HTTP/1.1 " + status + "\r\nContent-Type: application/json\r\n" +
+                (null == location ? "" : "Location: " + location + "\r\n") +
+                "Content-Length: " + Encoding.UTF8.GetByteCount(body) +
+                "\r\nConnection: close\r\n\r\n" + body);
+            stream.Write(reply, 0, reply.Length);
+        }
+    }
+
+    // Real origins: this one answers the exchange as Answer says and
+    // records whatever else it gets; the other records everything.
+    private sealed class RedirectOrigins : IDisposable
+    {
+        public readonly List<string> Elsewhere = new();
+        public readonly List<string> Followed = new();
+        public int Exchanged;
+        public (int Status, string Location) Answer = (307, "");
+        public readonly ExchangeOrigin Origin;
+        public readonly ExchangeOrigin Other;
+
+        public RedirectOrigins()
+        {
+            Other = new ExchangeOrigin((method, path, body) =>
+            {
+                lock (Elsewhere)
+                {
+                    Elsewhere.Add(method + " " + path + " " + body);
+                }
+                return ("200 OK", null, "{\"access_token\":\"ELSEWHERE01\"}");
+            });
+            Origin = new ExchangeOrigin((method, path, body) =>
+            {
+                lock (Followed)
+                {
+                    if ("/api/auth/token" == path)
+                    {
+                        Exchanged++;
+                        return (Answer.Status + " X", Answer.Location, "");
+                    }
+                    Followed.Add((method + " " + path + " " + body).Trim());
+                }
+                return ("200 OK", null, "{\"access_token\":\"MOVED01\"}");
+            });
+        }
+
+        public string Base => Origin.Base + "/api";
+        public string Away => Other.Base + "/api/auth/token";
+
+        public void Dispose()
+        {
+            Origin.Dispose();
+            Other.Dispose();
+        }
+    }
+
+    private static VoxgigSolardemoSDK RedirectClient(RedirectOrigins o, string? redirect = null)
+    {
+        return WithSecrets(extend =>
+        {
+            var exchange = new Dictionary<string, object?>
+            {
+                ["active"] = true,
+                ["refresh"] = "REFRESH01",
+            };
+            if (null != redirect)
+            {
+                exchange["redirect"] = redirect;
+            }
+            var opts = new Dictionary<string, object?>
+            {
+                ["base"] = o.Base,
+                ["allow"] = new Dictionary<string, object?>
+                {
+                    ["op"] = "create,update,load,list,remove,command,direct,graphql",
+                },
+                ["feature"] = new Dictionary<string, object?>
+                {
+                    ["secrets"] = new Dictionary<string, object?>
+                    {
+                        ["active"] = true,
+                        ["name"] = "refresh_token",
+                        ["exchange"] = exchange,
+                    },
+                },
+            };
+            if (extend)
+            {
+                opts["extend"] = new List<object?> { new SecretsFeature() };
+            }
+            return new VoxgigSolardemoSDK(opts);
+        });
+    }
+
+    // Real listeners and the SDK's own raw fetch: a stub follows nothing.
+    [Fact]
+    public void ARedirectAnsweringTheExchangeIsAFailureAndNothingFollowsIt()
+    {
+        if (SkippedWithoutAuth()) return;
+
+        using var o = new RedirectOrigins();
+        var elsewhere = o.Elsewhere;
+        var followed = o.Followed;
+
+        var basev = o.Base;
+        var away = o.Away;
+        var answers = new[] { (307, away), (308, away), (302, away), (307, "/api/moved/token") };
+
+        var allowed = new List<string>();
+        var refused = 0;
+
+        foreach (var next in answers)
+        {
+            o.Answer = next;
+            var client = RedirectClient(o);
+
+            var res = client.Direct(new Dictionary<string, object?> { ["path"] = "/thing" });
+            var message = ErrMessage(res);
+
+            if (message.Contains(
+                "token exchange failed: " + next.Item1 + " from " + basev + "/auth/token"))
+            {
+                refused++;
+            }
+            else
+            {
+                allowed.Add(next.Item1 + " to " + next.Item2 + ": ok=" + res["ok"] + " " + message);
+            }
+        }
+
+        Console.WriteLine("secrets: exchange refused " + refused + " redirect(s), " +
+            (elsewhere.Count + followed.Count) + " followed");
+
+        Assert.True(0 == elsewhere.Count,
+            "the exchange reached another origin: " + string.Join(" | ", elsewhere));
+        Assert.True(0 == followed.Count,
+            "a request followed a refused exchange: " + string.Join(" | ", followed));
+        Assert.True(0 == allowed.Count,
+            "a redirect was not a failed exchange: " + string.Join(" | ", allowed));
+        Assert.Equal(answers.Length, refused);
+    }
+
+    [Fact]
+    public void WithTheOptionARedirectOnTheExchangesOwnOriginIsFollowedAndNoOther()
+    {
+        if (SkippedWithoutAuth()) return;
+
+        using var o = new RedirectOrigins();
+        var sent = " {\"refresh_token\":\"REFRESH01\"}";
+        // Each case: the status, the Location, and the path the exchange is
+        // asked again at, or null where the redirect is refused.
+        var cases = new (int, string, string?)[]
+        {
+            (307, "/api/moved/token", "/api/moved/token"),
+            (308, o.Origin.Base + "/api/moved/token", "/api/moved/token"),
+            // A Location of a query alone keeps the path that answered.
+            (307, "?step=2", "/api/auth/token?step=2"),
+            (307, o.Away, null),
+            (302, "/api/moved/token", null),
+            (307, "/api/auth/token", null),
+        };
+
+        var wrong = new List<string>();
+        var followed = 0;
+        var refused = 0;
+        var looped = 0;
+
+        foreach (var (status, location, path) in cases)
+        {
+            lock (o.Followed)
+            {
+                o.Answer = (status, location);
+                o.Followed.Clear();
+                o.Exchanged = 0;
+            }
+
+            var res = RedirectClient(o, "same-origin")
+                .Direct(new Dictionary<string, object?> { ["path"] = "/thing" });
+            var message = ErrMessage(res);
+
+            List<string> seen;
+            lock (o.Followed)
+            {
+                seen = new List<string>(o.Followed);
+                if ("/api/auth/token" == location)
+                {
+                    looped = o.Exchanged;
+                }
+            }
+            var report = status + " to " + location + ": ok=" + res["ok"] + " " + message +
+                " [" + string.Join(" | ", seen) + "]";
+
+            if (null != path)
+            {
+                if (Equals(res["ok"], true) && 2 == seen.Count && "POST " + path + sent == seen[0])
+                {
+                    followed++;
+                }
+                else
+                {
+                    wrong.Add(report);
+                }
+            }
+            else if (0 == seen.Count && message.Contains(
+                "token exchange failed: " + status + " from " + o.Base + "/auth/token"))
+            {
+                refused++;
+            }
+            else
+            {
+                wrong.Add(report);
+            }
+        }
+
+        Console.WriteLine("secrets: exchange opt-in followed " + followed +
+            " redirect(s) on its own origin, refused " + refused + ", " +
+            o.Elsewhere.Count + " elsewhere");
+
+        Assert.True(0 == o.Elsewhere.Count,
+            "the exchange reached another origin: " + string.Join(" | ", o.Elsewhere));
+        Assert.True(0 == wrong.Count, string.Join(" || ", wrong));
+        Assert.Equal(3, followed);
+        Assert.Equal(3, refused);
+        // A redirect to itself stops at the hop limit.
+        Assert.Equal(6, looped);
+    }
+
     private static int FreePort()
     {
         var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
@@ -1740,6 +2200,8 @@ public class SecretsFeatureTest
     [Fact]
     public void TheGateRecoversUnderConcurrency()
     {
+        if (SkippedWithoutAuth()) return;
+
         var mode = "fail";
         var release = new ManualResetEventSlim(false);
 
@@ -1795,5 +2257,69 @@ public class SecretsFeatureTest
         {
             CredentialIs(call.Auth, "FRESH01");
         }
+    }
+
+    // --- auth off -------------------------------------------------------
+    //
+    // Off by the config where it declares no auth, else by `auth: null`:
+    // either way the feature places no credential, buys no token and
+    // retries nothing.
+
+    [Fact]
+    public void AuthOffPlacesNoCredentialAndBuysNoToken()
+    {
+        var declared = DeclaresAuth();
+        var secrets = new[] { "OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01" };
+        bool Carries(WireCall call) => call.HasAuth || secrets.Any(call.Values.Contains);
+        var sent = new List<WireCall>();
+        var bought = 0;
+
+        var scenarios = new (string What, string Env, string Value, Dictionary<string, object?> Opts, int Status)[]
+        {
+            ("a key the chain resolves", "APIKEY", "OFFKEY01",
+                new Dictionary<string, object?> { ["feature"] = SecretsOpts(null) }, 200),
+            ("an explicit apikey", "", "",
+                new Dictionary<string, object?> { ["apikey"] = "OFFKEY02", ["feature"] = SecretsOpts(null) }, 200),
+            ("a refusal", "REFRESH_TOKEN", "OFFREFRESH01",
+                new Dictionary<string, object?> { ["feature"] = ExchangeOpts(null) }, 401),
+        };
+
+        foreach (var (what, env, value, opts, status) in scenarios)
+        {
+            if ("" != env)
+            {
+                Environment.SetEnvironmentVariable(EnvPrefix + env, value);
+            }
+            try
+            {
+                var w = new Wire { ApiStatus = new List<int> { status } };
+                if (declared)
+                {
+                    opts["auth"] = null;
+                }
+                var client = SecretsClient(w, opts);
+
+                client.Direct(new Dictionary<string, object?> { ["path"] = "/thing" });
+
+                Assert.True(1 == w.Api().Count, what + ": a request was retried with auth off");
+                Assert.True(0 == w.Token().Count, what + ": a token was bought with auth off");
+                Assert.False(Carries(w.Api()[0]), what + ": a credential was sent with auth off: " + w.Report());
+                Assert.Equal("", SecretsOf(client)!.Credential());
+
+                sent.AddRange(w.Api());
+                bought += w.Token().Count;
+            }
+            finally
+            {
+                if ("" != env)
+                {
+                    Environment.SetEnvironmentVariable(EnvPrefix + env, null);
+                }
+            }
+        }
+
+        Console.WriteLine("secrets: auth off by " + (declared ? "option" : "config") + ": " +
+            sent.Count + " request(s), " + sent.Count(Carries) + " credential(s), " +
+            bought + " token(s)");
     }
 }

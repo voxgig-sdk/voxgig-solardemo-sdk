@@ -1,12 +1,12 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, canonScalarKey, entityIdField, pickExampleEntity, matchExampleItems, requestExampleItems, cdTarget, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { ocamlListMatch, ocamlOpField, ocamlVarName } from './utility_ocaml'
+import { ocamlListMatch, ocamlOpField, ocamlVarName, ocamlString } from './utility_ocaml'
 
 
 // A type-correct OCaml `value` literal for a field's canonical type.
@@ -23,6 +23,7 @@ function ocamlLit(type: any): string {
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op) — never fabricate a
@@ -37,13 +38,17 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   if (exampleEntity && 'list' === primaryOp) {
     testArg = ocamlListMatch(exampleEntity)
   } else if (exampleEntity && isMatchOp) {
-    testArg = idF ? `(jo [("${idF}", Str "test01")])` : '(empty_map ())'
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = 0 < items.length
+      ? `(jo [${items.map((it: any) => `("${ocamlString(it.name)}", ${it.name === idF ? 'Str "test01"' : ocamlLit(it.type)})`).join('; ')}])`
+      : '(empty_map ())'
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
-    testArg = `(jo [${chosen.map((it: any) => `("${it.name}", ${ocamlLit(it.type)})`).join('; ')}])`
+    testArg = `(jo [${chosen.map((it: any) => `("${ocamlString(it.name)}", ${ocamlLit(it.type)})`).join('; ')}])`
   }
 
   // The op-driven test-mode line, shown only when the SDK has an entity op.
@@ -59,19 +64,15 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
     : `let result = Sdk_client.direct client (jo [("path", Str "/api/resource"); ("method", Str "GET")]) in
   print_endline (stringify result)`
 
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
-    : ''
-
   Content(`### Make a direct HTTP request
 
 For endpoints not covered by entity methods:
 
 \`\`\`ocaml
 let result = Sdk_client.direct client (jo [
-    ("path", Str "/api/resource/{id}");
-    ("method", Str "GET");
-    ("params", jo [("id", Str "example")]);
+    ("path", Str "${dx.path}");
+    ("method", Str "${dx.method}");
+    ("params", jo [("${dx.param}", Str "example")]);
 ]) in
 (match getp result "ok" with
  | Bool true ->
@@ -89,9 +90,9 @@ let result = Sdk_client.direct client (jo [
 \`\`\`ocaml
 (* prepare returns the fetch definition and raises on error. *)
 let fetchdef = Sdk_client.prepare client (jo [
-    ("path", Str "/api/resource/{id}");
-    ("method", Str "DELETE");
-    ("params", jo [("id", Str "example")]);
+    ("path", Str "${dx.path}");
+    ("method", Str "${dx.method}");
+    ("params", jo [("${dx.param}", Str "example")]);
 ]) in
 print_endline (stringify (getp fetchdef "url"));
 print_endline (stringify (getp fetchdef "method"));
@@ -123,18 +124,13 @@ let client = Sdk_client.make (jo [
 ignore client
 \`\`\`
 
-### Run live tests
+### Run the test suite
 
-Create a \`.env.local\` file at the project root:
-
-\`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
-\`\`\`
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 \`\`\`bash
-cd ${target.name} && make test
+${cdTarget(target)}make test
 \`\`\`
 
 `)

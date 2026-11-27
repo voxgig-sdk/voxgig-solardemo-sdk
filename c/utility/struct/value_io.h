@@ -1,3 +1,6 @@
+// VENDORED: @voxgig/struct 0.1.3 (c/src/value_io.h)
+// Source: https://github.com/voxgig/struct @ 358af9d51c90b589a295a70b2165dbe4629eaf8e  [tag: sdk-20261125-1959-0]
+// License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 /* Copyright (c) 2025-2026 Voxgig Ltd. MIT LICENSE.
  *
  * Voxgig Struct — JSON I/O bridge.
@@ -15,7 +18,8 @@
 extern "C" {
 #endif
 
-/* Parse a JSON text. Returns a new voxgig_value (owned by caller). */
+/* Parse a JSON text. Returns a new voxgig_value (owned by caller): undef for
+ * malformed input, including anything but whitespace after the value. */
 voxgig_value* voxgig_parse_json(const char* text, size_t len);
 
 /* Parse a JSON file. */

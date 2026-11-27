@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -12,11 +13,19 @@ import {
   cmp,
   snakify,
   isAuthActive,
-  serverVarEnv,
-  serverVariables, envName, envToken,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
   liveStrict,
   liveStrictNote,
+  pointIsGraphql,
+  graphqlDirectSkip,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 
@@ -59,6 +68,17 @@ function normalizePathParams(
 
 
 // Blocked without the ids its request needs, rather than sent with None.
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `        if setup["live"] and os.environ.get(${JSON.stringify(LIVE_GETONLY_ENV)}) == "TRUE" and setup["idmap"].get(${JSON.stringify(miss.key)}) is None:
+            print(${JSON.stringify(liveExcludedLines({ excluded: [miss] })[0])})
+            pytest.skip(${JSON.stringify(liveExcludedSummary({ excluded: [miss] }))})
+
+`).join('')
+}
+
+
 function liveKeysBlock(keys: string[], entidEnvVar: string): string {
   return 0 === keys.length ? '' : `        if setup["live"]:
             for _live_key in [${keys.map((k) => JSON.stringify(k)).join(', ')}]:
@@ -74,29 +94,30 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
 
-  const PROJECTNAME = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n        "${PROJECTNAME}_APIKEY": "",`
+    ? `\n        "${ENVVAR.apikey}": "",${authSecret ? `\n        "${ENVVAR.secret}": "",` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `\n            "apikey": env.get("${PROJECTNAME}_APIKEY"),`
+    ? `\n            "apikey": env.get("${ENVVAR.apikey}"),${authSecret ? `\n            "secret": env.get("${ENVVAR.secret}"),` : ''}`
     : ''
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: make_options raises rather than
   // request a URL with a literal `{account_id}` in it. Taken from the
   // environment, the same way the apikey is.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n        "${serverVarEnv(PROJECTNAME, v.name)}": ${JSON.stringify(v.dflt)},`).join('')
+    .map((v: any) => `\n        "${ENVVAR.server[v.name]}": ${JSON.stringify(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' :
     `\n            "server": {` +
     svars.map((v: any) =>
-      `\n                "${v.name}": env.get("${serverVarEnv(PROJECTNAME, v.name)}"),`).join('') +
+      `\n                "${v.name}": env.get("${ENVVAR.server[v.name]}"),`).join('') +
     `\n            },`
 
 
@@ -112,19 +133,14 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const listOp = entity.op?.list
 
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Some upstream OpenAPI specs declare a parameter as `in: path` even when
   // that path has no `{name}` placeholder for it. Only path params that
   // actually appear in the URL template should drive direct-test path-param
   // setup and URL-substitution asserts; otherwise the SDK silently drops
   // them and the URL-includes assert fails.
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -137,14 +153,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
-  const loadQuery = loadPoint?.g?.query || []
-  const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `            query["${q.n}"] = ${JSON.stringify(q.ex)}`)
+  const loadLiveQueryLines = liveQueryExamples(loadPoint)
+    .map(([name, ex]) => `            query["${name}"] = ${pyLit(ex)}`)
     .join('\n')
 
   // Path params with spec-provided examples — when ALL load params have
@@ -156,7 +169,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     ? loadParams.map((p: any) => `            params["${p.n}"] = ${JSON.stringify(p.ex)}`).join('\n')
     : ''
 
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const listLiveQueryLines = liveQueryExamples(listPoint)
+    .map(([name, ex]) => `            query["${name}"] = ${pyLit(ex)}\n`).join('')
 
   // The *_ENTID key a live test reads a parameter's value from.
   const liveKey = (param: any): string =>
@@ -167,6 +184,7 @@ const TestDirect = cmp(function TestDirect(props: any) {
     Content(`# ${entity.Name} direct test
 
 import json
+import os
 import pytest
 
 from ${model.const.Name.toLowerCase()}_sdk.utility.voxgig_struct import voxgig_struct as vs
@@ -188,7 +206,13 @@ class Test${entity.Name}Direct:
 
 `)
 
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`    def test_should_direct_list_${entity.name}(self):
+        pytest.skip("${graphqlDirectSkip('list', entity.name)}")
+
+`)
+    }
+    else if (hasList && listPoint) {
       const listLiveIdKeys: string[] = listParams.map(liveKey)
       Content(`    def test_should_direct_list_${entity.name}(self):
         setup = _${entity.name}_direct_setup([
@@ -199,10 +223,13 @@ class Test${entity.Name}Direct:
         if _skip:
             pytest.skip(_reason or "skipped via sdk-test-control.json")
             return
-${liveKeysBlock(listLiveIdKeys, entidEnvVar)}        client = setup["client"]
+${getOnlyKeysBlock(model, entity, 'direct-list-' + entity.name, listLiveIdKeys)}${liveKeysBlock(listLiveIdKeys, entidEnvVar)}        if setup["live"]:
+            runner.live_pace()
+        client = setup["client"]
 
         params = {}
-`)
+        query = {}
+${listLiveQueryLines ? '        if setup["live"]:\n' + listLiveQueryLines : ''}`)
       listParams.forEach((lp: any, i: number) => {
         Content(`        if setup["live"]:
             params["${lp.n}"] = setup["idmap"].get("${liveKey(lp)}")
@@ -215,6 +242,7 @@ ${liveKeysBlock(listLiveIdKeys, entidEnvVar)}        client = setup["client"]
             "path": "${listPath}",
             "method": "GET",
             "params": params,
+            "query": query,
         })
         if setup["live"]:
             if not _live_ok(result):
@@ -231,9 +259,17 @@ ${liveKeysBlock(listLiveIdKeys, entidEnvVar)}        client = setup["client"]
 `)
     }
 
-    if (hasLoad && loadPoint) {
-      const discover = !loadAllHaveExamples && hasList && 0 < loadParams.length
-      const idParam = loadParams.find((p: any) => 'id' === p.n)?.n ?? loadParams[0]?.n ?? 'id'
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`    def test_should_direct_load_${entity.name}(self):
+        pytest.skip("${graphqlDirectSkip('load', entity.name)}")
+
+`)
+    }
+    else if (hasLoad && loadPoint) {
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const discover = null != discovery
+      const idParam = discovery?.param
+      const idField = discovery?.field
       const loadLiveIdKeys: string[] = loadAllHaveExamples ? [] :
         discover ? listParams.map(liveKey).concat(loadParams.filter((p: any) => idParam !== p.n).map(liveKey)) :
           loadParams.map(liveKey)
@@ -243,7 +279,9 @@ ${liveKeysBlock(listLiveIdKeys, entidEnvVar)}        client = setup["client"]
         if _skip:
             pytest.skip(_reason or "skipped via sdk-test-control.json")
             return
-${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}        client = setup["client"]
+${getOnlyKeysBlock(model, entity, 'direct-load-' + entity.name, [...new Set(loadLiveIdKeys)])}${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}        if setup["live"]:
+            runner.live_pace()
+        client = setup["client"]
 
         params = {}
         query = {}
@@ -253,10 +291,14 @@ ${loadLiveQueryLines ? loadLiveQueryLines + '\n' : ''}`)
         Content(loadExampleLines + '\n')
       }
       else if (discover) {
+        // The list sends the query its route requires, as direct-list does.
+        const listQuery = liveQueryExamples(listPoint)
+          .map(([name, ex]) => `${JSON.stringify(name)}: ${pyLit(ex)}`).join(', ')
         Content(`            list_result = client.direct({
                 "path": "${listPath}",
                 "method": "GET",
-                "params": {${listParams.map((p: any) => `"${p.n}": setup["idmap"].get("${liveKey(p)}")`).join(', ')}},
+                "params": {${listParams.map((p: any) => `"${p.n}": setup["idmap"].get("${liveKey(p)}")`).join(', ')}},${'' === listQuery ? '' : `
+                "query": {${listQuery}},`}
             })
             if not _live_ok(list_result):
                 runner.live_miss(LIVE_STRICT, "Live list discovery failed: " + runner.live_describe(list_result))
@@ -266,9 +308,9 @@ ${loadLiveQueryLines ? loadLiveQueryLines + '\n' : ''}`)
             if 0 == len(records):
                 runner.live_empty("The account has no ${entity.name} record to load")
             first = records[0] if isinstance(records[0], dict) else {}
-            if first.get("${idParam}", first.get("id")) is None:
+            if first.get("${idField}") is None:
                 runner.live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity")
-            params["${idParam}"] = first.get("${idParam}", first.get("id"))
+            params["${idParam}"] = first.get("${idField}")
 `)
         for (const p of loadParams.filter((p: any) => idParam !== p.n)) {
           Content(`            params["${p.n}"] = setup["idmap"].get("${liveKey(p)}")
@@ -321,10 +363,10 @@ def _${entity.name}_direct_setup(mockres):
 
     env = runner.env_override({
         "${entidEnvVar}": {},
-        "${PROJECTNAME}_TEST_LIVE": "FALSE",${apikeyEnvEntry}${serverEnvEntry}
+        "${ENVVAR.live}": "FALSE",${apikeyEnvEntry}${serverEnvEntry}
     })
 
-    live = env.get("${PROJECTNAME}_TEST_LIVE") == "TRUE"
+    live = env.get("${ENVVAR.live}") == "TRUE"
 
     if live:
         # sdk-test-control.json's test.client.options seeds the live
@@ -334,7 +376,10 @@ def _${entity.name}_direct_setup(mockres):
         })
         client = ${model.const.Name}SDK(merged_opts)
         idmap = env.get("${entidEnvVar}")
-        return {
+${0 === exampleIds.length ? '' : `        # A path parameter's example stands in for an id *_ENTID does not give.
+        idmap = {${exampleIds.map(([key, ex]) => `${JSON.stringify(key)}: ${pyLit(ex)}`).join(', ')},
+                 **(idmap if isinstance(idmap, dict) else {})}
+`}        return {
             "client": client,
             "calls": calls,
             "live": True,
@@ -367,6 +412,11 @@ def _${entity.name}_direct_setup(mockres):
 `)
   })
 })
+
+
+function pyLit(value: any): string {
+  return true === value ? 'True' : false === value ? 'False' : JSON.stringify(value)
+}
 
 
 export {

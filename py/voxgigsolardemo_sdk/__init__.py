@@ -49,8 +49,8 @@ class VoxgigSolardemoSDK:
 
         # Add features in the resolved order (make_options puts an explicit
         # list order first, else defaults to test-first). Ordering matters: the
-        # `test` feature installs the base mock transport and the transport
-        # features (retry/cache/netsim/proxy/ratelimit) wrap whatever is
+        # `test` feature installs the base mock transport and the features
+        # whose model declares `transport: 'wrap'` wrap whatever is
         # current, so `test` must be added before them to sit at the base.
         # Extension feature INSTANCES come from the RAW construction
         # options - extend is consumed exactly once, here. make_options
@@ -90,8 +90,6 @@ class VoxgigSolardemoSDK:
             utility.feature_init(self._rootctx, f)
 
         utility.feature_hook(self._rootctx, "PostConstruct")
-
-        # #BuildFeatures
 
     @property
     def options(self):
@@ -192,6 +190,12 @@ class VoxgigSolardemoSDK:
         if isinstance(uh, dict):
             for k, v in uh.items():
                 ctx.spec.headers[k] = v
+
+        # A raw request has no point to declare its response type, so it asks
+        # for the JSON it reads: an API that negotiates on Accept otherwise
+        # answers in its own default format. A caller's own accept wins.
+        if not any(str(k).lower() == "accept" for k in ctx.spec.headers):
+            ctx.spec.headers["accept"] = "application/json"
 
         _, err = utility.prepare_auth(ctx)
         if err is not None:
@@ -317,8 +321,8 @@ class VoxgigSolardemoSDK:
     # as a top-level `errors` array, so status alone would report a failed
     # query as ok.
     #
-    # NOTE: like direct, this bypasses the feature pipeline — no retry,
-    # ratelimit or paging features apply.
+    # NOTE: like direct, this bypasses the feature pipeline: no feature
+    # hook runs on this path.
     def graphql(self, query, variables=None, ctrl=None):
         if not self._op_allowed("graphql"):
             return self._op_denied("graphql")

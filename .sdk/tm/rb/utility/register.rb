@@ -34,6 +34,7 @@ require_relative 'transform_response'
 VoxgigSolardemoUtility.registrar = ->(u) {
   u.clean = VoxgigSolardemoUtilities::Clean
   u.clean_add = VoxgigSolardemoUtilities::CleanAdd
+  u.clean_secret = VoxgigSolardemoUtilities::CleanSecret
   u.clean_explain = VoxgigSolardemoUtilities::CleanExplain
   u.done = VoxgigSolardemoUtilities::Done
   u.make_error = VoxgigSolardemoUtilities::MakeError

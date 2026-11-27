@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { cljListMatch } from './utility_clojure'
+import { cljListMatch, cljString } from './utility_clojure'
 
 
 // A type-correct Clojure literal for a param: numeric/boolean/array/object
@@ -19,7 +19,7 @@ function cljLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return '(vs/jt)'
   if ('OBJECT' === k) return '(vs/jm)'
-  return `"${placeholder}"`
+  return cljString(placeholder)
 }
 
 
@@ -31,9 +31,16 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `(api/make-sdk (vs/jm "apikey" (System/getenv "${envName(model)}_APIKEY")))`
-    : `(api/make-sdk nil)`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`"apikey" (System/getenv "${envName(model)}_APIKEY")`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`"secret" (System/getenv "${envName(model)}_SECRET")`] : []),
+    ...(0 === svars.length ? [] : [`"server" (vs/jm ` +
+      svars.map((v: any) => `"${v.name}" "<${v.name}>"`).join(' ') + `)`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `(api/make-sdk nil)`
+    : `(api/make-sdk (vs/jm ${ctorFields.join(' ')}))`
 
   if (exampleEntity) {
     const eName = nom(exampleEntity, 'Name')
@@ -48,7 +55,7 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
 
 `)
 
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
@@ -64,13 +71,12 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `(vs/jm ${loadItems.map((it: any) =>
-          `"${it.name}" ${cljLit(it.type,
+          `${cljString(it.name)} ${cljLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(' ')})`
         : 'nil'
       Content(`

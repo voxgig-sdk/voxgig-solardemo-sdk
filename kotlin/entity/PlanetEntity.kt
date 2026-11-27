@@ -34,7 +34,7 @@ class PlanetEntity(clientIn: SdkClient, entoptsIn: MutableMap<String, Any?>?) :
         }
         if (result.resdata != null) {
           val d = Helpers.toMapAny(Struct.clone(result.resdata))
-          this.data = d ?: linkedMapOf()
+          this.data = d ?: linkedMapOf<String, Any?>()
         }
       }
     }
@@ -79,7 +79,7 @@ class PlanetEntity(clientIn: SdkClient, entoptsIn: MutableMap<String, Any?>?) :
       if (result != null) {
         if (result.resdata != null) {
           val d = Helpers.toMapAny(Struct.clone(result.resdata))
-          this.data = d ?: linkedMapOf()
+          this.data = d ?: linkedMapOf<String, Any?>()
         }
       }
     }
@@ -105,7 +105,7 @@ class PlanetEntity(clientIn: SdkClient, entoptsIn: MutableMap<String, Any?>?) :
         }
         if (result.resdata != null) {
           val d = Helpers.toMapAny(Struct.clone(result.resdata))
-          this.data = d ?: linkedMapOf()
+          this.data = d ?: linkedMapOf<String, Any?>()
         }
       }
     }
@@ -136,7 +136,7 @@ class PlanetEntity(clientIn: SdkClient, entoptsIn: MutableMap<String, Any?>?) :
         }
         if (result.resdata != null) {
           val d = Helpers.toMapAny(Struct.clone(result.resdata))
-          this.data = d ?: linkedMapOf()
+          this.data = d ?: linkedMapOf<String, Any?>()
         }
       }
     }

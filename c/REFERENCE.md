@@ -10,7 +10,8 @@ Complete API reference for the VoxgigSolardemo C SDK.
 ```c
 #include "core/api.h"
 
-VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(options);
+PNError* err = NULL;
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(options, &err);
 ```
 
 Create a new SDK client instance. `options` is a `voxgig_value*` map
@@ -20,12 +21,12 @@ Create a new SDK client instance. `options` is a `voxgig_value*` map
 
 | Key | Value type | Description |
 | --- | --- | --- |
-| `base` | `string` | Base URL for API requests. |
-| `prefix` | `string` | URL prefix appended after base. |
-| `suffix` | `string` | URL suffix appended after path. |
-| `headers` | `map` | Custom headers for all requests. |
-| `feature` | `map` | Feature configuration. |
-| `system` | `map` | System overrides. |
+| `base` | `string` | Base URL of the API server. |
+| `prefix` | `string` | URL path prefix prepended to all requests. |
+| `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
+| `feature` | `map` | Feature activation flags. |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 
 ### Test Constructor
@@ -96,24 +97,9 @@ Entity* moon = voxgigsolardemo_moon(client, NULL);
 
 ### Operations
 
-#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
-
-Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
-
-```c
-Entity* moon = voxgigsolardemo_moon(client, NULL);
-Entity* result = moon->vt->create(moon, cmap(5,
-    "planet_id", v_str("example_planet_id"),  // char*
-    "diameter", v_num(1),  // double
-    "id", v_str("example_id"),  // char*
-    "kind", v_str("example_kind"),  // char*
-    "name", v_str("example_name"))  // char*
-, NULL, &err);
-```
-
 #### `Entity** vt->list(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
-List entities matching the given criteria. The match is optional — pass `NULL` to list all records. Returns a `NULL`-terminated array of entities, one per record, or `NULL` with `*err` set on failure.
+List entities matching the given criteria. The match must include `planet_id`. Returns a `NULL`-terminated array of entities, one per record, or `NULL` with `*err` set on failure.
 
 ```c
 Entity* moon = voxgigsolardemo_moon(client, NULL);
@@ -135,6 +121,30 @@ if (result) {
 }
 ```
 
+#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+
+Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
+
+```c
+Entity* moon = voxgigsolardemo_moon(client, NULL);
+Entity* result = moon->vt->create(moon, cmap(5,
+    "planet_id", v_str("example_planet_id"),  // char*
+    "diameter", v_num(1),  // double
+    "id", v_str("example_id"),  // char*
+    "kind", v_str("example_kind"),  // char*
+    "name", v_str("example_name"))  // char*
+, NULL, &err);
+```
+
+#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+
+Update an existing entity. The data must include the entity `id`. Returns the updated entity, or `NULL` with `*err` set on failure.
+
+```c
+Entity* moon = voxgigsolardemo_moon(client, NULL);
+Entity* result = moon->vt->update(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
+```
+
 #### `Entity* vt->remove(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
 Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `NULL` with `*err` set on failure.
@@ -145,15 +155,6 @@ Entity* result = moon->vt->remove(moon, cmap(2, "id", v_str("moon_id"), "planet_
 if (result) {
     printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
 }
-```
-
-#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
-
-Update an existing entity. The data must include the entity id. Returns the updated entity, or `NULL` with `*err` set on failure.
-
-```c
-Entity* moon = voxgigsolardemo_moon(client, NULL);
-Entity* result = moon->vt->update(moon, cmap(2, "id", v_str("moon_id"), "planet_id", v_str("planet_id")), NULL, &err);
 ```
 
 ### Common Methods
@@ -197,20 +198,6 @@ Entity* planet = voxgigsolardemo_planet(client, NULL);
 
 ### Operations
 
-#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
-
-Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
-
-```c
-Entity* planet = voxgigsolardemo_planet(client, NULL);
-Entity* result = planet->vt->create(planet, cmap(4,
-    "diameter", v_num(1),  // double
-    "id", v_str("example_id"),  // char*
-    "kind", v_str("example_kind"),  // char*
-    "name", v_str("example_name"))  // char*
-, NULL, &err);
-```
-
 #### `Entity** vt->list(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
 List entities matching the given criteria. The match is optional — pass `NULL` to list all records. Returns a `NULL`-terminated array of entities, one per record, or `NULL` with `*err` set on failure.
@@ -235,6 +222,29 @@ if (result) {
 }
 ```
 
+#### `Entity* vt->create(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+
+Create a new entity with the given data. Returns the created entity, or `NULL` with `*err` set on failure.
+
+```c
+Entity* planet = voxgigsolardemo_planet(client, NULL);
+Entity* result = planet->vt->create(planet, cmap(4,
+    "diameter", v_num(1),  // double
+    "id", v_str("example_id"),  // char*
+    "kind", v_str("example_kind"),  // char*
+    "name", v_str("example_name"))  // char*
+, NULL, &err);
+```
+
+#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
+
+Update an existing entity. The data must include the entity `id`. Returns the updated entity, or `NULL` with `*err` set on failure.
+
+```c
+Entity* planet = voxgigsolardemo_planet(client, NULL);
+Entity* result = planet->vt->update(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
+```
+
 #### `Entity* vt->remove(Entity* e, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err)`
 
 Remove the entity matching the given criteria. Returns the entity, marked as deleted, or `NULL` with `*err` set on failure.
@@ -245,15 +255,6 @@ Entity* result = planet->vt->remove(planet, cmap(1, "id", v_str("planet_id")), N
 if (result) {
     printf("%s\n", voxgig_to_json(result->vt->data(result, NULL)));
 }
-```
-
-#### `Entity* vt->update(Entity* e, voxgig_value* reqdata, voxgig_value* ctrl, PNError** err)`
-
-Update an existing entity. The data must include the entity id. Returns the updated entity, or `NULL` with `*err` set on failure.
-
-```c
-Entity* planet = voxgigsolardemo_planet(client, NULL);
-Entity* result = planet->vt->update(planet, cmap(1, "id", v_str("planet_id")), NULL, &err);
 ```
 
 ### Common Methods
@@ -295,6 +296,7 @@ Return the entity name.
 Features are activated via the `feature` option:
 
 ```c
+PNError* err = NULL;
 VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(1,
     "feature", cmap(9,
         "debug", cmap(1, "active", v_bool(true)),
@@ -306,17 +308,17 @@ VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(1,
         "secrets", cmap(1, "active", v_bool(true)),
         "test", cmap(1, "active", v_bool(true)),
         "timeout", cmap(1, "active", v_bool(true)))
-));
+), &err);
 ```
 
 
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -327,10 +329,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -533,7 +535,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -546,6 +548,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -573,10 +576,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

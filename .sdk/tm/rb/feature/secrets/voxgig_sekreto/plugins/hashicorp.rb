@@ -1,5 +1,5 @@
-# VENDORED: @voxgig/sekreto sdk-20260925-1316-0 (ruby/lib/voxgig_sekreto/plugins/hashicorp.rb)
-# Source: https://github.com/voxgig/sekreto @ 163f537960de6813cc393b89843949ca3afa8cfc  [tag: sdk-20260925-1316-0]
+# VENDORED: @voxgig/sekreto sdk-20261125-1959-0 (ruby/lib/voxgig_sekreto/plugins/hashicorp.rb)
+# Source: https://github.com/voxgig/sekreto @ ee837130bf444ca46a5a46181bdd6743e118898c  [tag: sdk-20261125-1959-0]
 # License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 # frozen_string_literal: true
 
@@ -68,7 +68,7 @@ module VoxgigSekreto
                if jwt.nil?
                  file = @auth['jwtfile'] || '/var/run/secrets/kubernetes.io/serviceaccount/token'
                  jwt = begin
-                   File.read(file).strip
+                   File.read(file, encoding: 'UTF-8').strip
                  rescue StandardError
                    raise SekretoError, 'sekreto: hashicorp: cannot read jwt file ' + file
                  end

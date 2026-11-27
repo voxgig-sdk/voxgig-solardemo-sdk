@@ -25,10 +25,16 @@ public static partial class SdkUtility
         // Sent with the request, never recorded as the entity's match.
         var authquery = spec.AuthQuery;
 
-        // A route the definition ends with a slash keeps it: a server such as
-        // a Django REST one redirects or refuses the route without it.
-        if (ctx.Point != null && StructUtils.GetProp(ctx.Point, "orig") is string orig &&
-            orig.EndsWith("/") && string.IsNullOrEmpty(spec.Suffix) && !url.EndsWith("/"))
+        // A route ending in a slash keeps it, as defined or as passed to direct(), for
+        // Django, and a host with no path takes /, or luasocket reads a query as the host.
+        var slashed = (ctx.Point != null && StructUtils.GetProp(ctx.Point, "orig") is string orig &&
+            orig.EndsWith("/")) || (spec.Path?.EndsWith("/") ?? false);
+        if (slashed && string.IsNullOrEmpty(spec.Suffix) && !url.EndsWith("/"))
+        {
+            url += "/";
+        }
+        var authority = url.IndexOf("://", System.StringComparison.Ordinal);
+        if (0 < authority && url.IndexOfAny(new[] { '/', '?', '#' }, authority + 3) < 0)
         {
             url += "/";
         }
@@ -39,8 +45,15 @@ public static partial class SdkUtility
             var val = item[1];
             if (val != null)
             {
+                // A whole . or .. is a dot segment, which moves the request to another route.
+                var text = StructUtils.Stringify(val);
+                if (text == "." || text == "..")
+                {
+                    throw ctx.MakeError("url_param_invalid",
+                        "URL path parameter " + key + " cannot be \"" + text + "\".");
+                }
                 var re = new Regex("\\{" + StructUtils.EscRe(key) + "\\}");
-                url = re.Replace(url, StructUtils.EscUrl(StructUtils.Stringify(val)));
+                url = re.Replace(url, StructUtils.EscUrl(text));
                 resmatch[key] = val;
             }
         }

@@ -1,5 +1,5 @@
 
-const envlocal = __dirname + '/../../../.env.local'
+const envlocal = __dirname + '/../../../../.env.local'
 require('../../utility').loadEnvLocal(envlocal)
 
 const { test, describe, afterEach } = require('node:test')
@@ -44,6 +44,7 @@ describe('PlanetDirect', async () => {
     const { client, calls } = setup
 
     const params = {}
+    const query = {}
     if (setup.live) {
       const listResult = await client.direct({
         path: 'api/planet',
@@ -61,10 +62,11 @@ describe('PlanetDirect', async () => {
       if (0 === listResult.data.length) {
         return void liveEmpty(t, 'The account has no planet record to load')
       }
-      if (null == listResult.data[0]?.id) {
+      const candidateId = listResult.data[0]?.id
+      if (null == candidateId) {
         return void liveMiss(t, LIVE_STRICT, 'Live load blocked: discovery returned no usable identity')
       }
-      params.id = listResult.data[0].id
+      params.id = candidateId
 
     } else {
       params.id = 'direct01'
@@ -74,6 +76,7 @@ describe('PlanetDirect', async () => {
       path: 'api/planet/{id}',
       method: 'GET',
       params,
+      query,
     })
 
     if (setup.live) {
@@ -100,11 +103,13 @@ describe('PlanetDirect', async () => {
     const { client, calls } = setup
 
     const params = {}
+    const query = {}
 
     const result = await client.direct({
       path: 'api/planet',
       method: 'GET',
       params,
+      query,
     })
 
     if (setup.live) {

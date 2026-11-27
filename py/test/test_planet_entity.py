@@ -48,7 +48,7 @@ class TestPlanetEntity:
         assert ent is not None
 
     def test_should_stream(self):
-        # Feature #4: the entity stream(action, ...) method runs the op
+        # The entity stream(action, ...) method runs the op
         # pipeline and yields result items. With the streaming feature active
         # it yields the feature's incremental output; otherwise it falls back
         # to the materialised list so stream always yields.
@@ -114,6 +114,16 @@ class TestPlanetEntity:
         assert client.Planet(None).list(None, {"throw": False}) is None
         assert fired < hook.unexpected
 
+    def test_should_validate_each_listed_record(self):
+        if "validate" not in (shared_config().get("feature") or {}):
+            pytest.skip("feature not present in this SDK: validate")
+        opts = {"feature": {"validate": {"active": True, "request": False, "response": True}}}
+        listed = VoxgigSolardemoSDK.test({"entity": {"planet": {"v1": {"diameter": 1, "kind": "x", "name": "x"}}}}, opts).Planet(None).list(None, None)
+        assert ["v1"] == [ent.data_get().get("id") for ent in listed]
+        with pytest.raises(Exception) as err:
+            VoxgigSolardemoSDK.test({"entity": {"planet": {"v1": {"diameter": "x", "kind": "x", "name": "x"}}}}, opts).Planet(None).list(None, None)
+        assert "validate_failed" == getattr(err.value, "code", None)
+
     def test_should_refuse_an_invalid_request(self):
         if "validate" not in (shared_config().get("feature") or {}):
             pytest.skip("feature not present in this SDK: validate")
@@ -134,8 +144,17 @@ class TestPlanetEntity:
             if _skip:
                 pytest.skip(_reason or "skipped via sdk-test-control.json")
                 return
+        if setup["live"] and os.environ.get("VOXGIG_GETONLY_GUARD") == "TRUE":
+            print("LIVE STEP {\"id\":\"planet.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/forbid\"}")
+            print("LIVE STEP {\"id\":\"planet.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}\"}")
+            print("LIVE STEP {\"id\":\"planet.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}\"}")
+            print("LIVE STEP {\"id\":\"planet.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+            return self._run_get_only_flow(setup)
+
         client = setup["client"]
 
+        if setup["live"]:
+            runner.live_pace()
         # CREATE
         planet_ref01_ent = client.Planet(None)
         planet_ref01_data = helpers.to_map(vs.getprop(
@@ -145,6 +164,8 @@ class TestPlanetEntity:
         assert planet_ref01_data is not None
         assert planet_ref01_data["id"] is not None
 
+        if setup["live"]:
+            runner.live_pace()
         # LIST
         planet_ref01_match = {}
 
@@ -156,6 +177,8 @@ class TestPlanetEntity:
             {"id": planet_ref01_data["id"]})
         assert not vs.isempty(found_item)
 
+        if setup["live"]:
+            runner.live_pace()
         # UPDATE
         planet_ref01_data_up0_up = {
             "id": planet_ref01_data["id"],
@@ -167,9 +190,11 @@ class TestPlanetEntity:
 
         planet_ref01_resdata_up0 = helpers.to_map(runner.entity_data(planet_ref01_ent.update(planet_ref01_data_up0_up, None)))
         assert planet_ref01_resdata_up0 is not None
-        assert planet_ref01_resdata_up0["id"] == planet_ref01_data_up0_up["id"]
+        assert runner.live_same_id(planet_ref01_resdata_up0.get("id"), planet_ref01_data_up0_up["id"])
         assert planet_ref01_resdata_up0[planet_ref01_markdef_up0_name] == planet_ref01_markdef_up0_value
 
+        if setup["live"]:
+            runner.live_pace()
         # LOAD
         planet_ref01_match_dt0 = {
             "id": planet_ref01_data["id"],
@@ -177,14 +202,18 @@ class TestPlanetEntity:
         planet_ref01_data_dt0_loaded = planet_ref01_ent.load(planet_ref01_match_dt0, None)
         planet_ref01_data_dt0_load_result = helpers.to_map(runner.entity_data(planet_ref01_data_dt0_loaded))
         assert planet_ref01_data_dt0_load_result is not None
-        assert planet_ref01_data_dt0_load_result["id"] == planet_ref01_data["id"]
+        assert runner.live_same_id(planet_ref01_data_dt0_load_result.get("id"), planet_ref01_data["id"])
 
+        if setup["live"]:
+            runner.live_pace()
         # REMOVE
         planet_ref01_match_rm0 = {
             "id": planet_ref01_data["id"],
         }
         planet_ref01_ent.remove(planet_ref01_match_rm0, None)
 
+        if setup["live"]:
+            runner.live_pace()
         # LIST
         planet_ref01_match_rt0 = {}
 
@@ -195,6 +224,43 @@ class TestPlanetEntity:
             runner.entity_list_to_data(planet_ref01_list_rt0_result),
             {"id": planet_ref01_data["id"]})
         assert vs.isempty(not_found_item)
+
+
+    def _run_get_only_flow(self, setup):
+        client = setup["client"]
+        if setup["live"]:
+            _live_id = None if setup.get("synthetic_only") else setup["idmap"].get("planet01")
+            runner.live_pace()
+            runner.live_existing(setup, LIVE_STRICT, "planet",
+                                 lambda: client.Planet(None).list({}, None),
+                                 "id", _live_id)
+
+        # Bootstrap entity data from existing test data.
+        planet_ref01_data_raw = vs.items(helpers.to_map(
+            vs.getpath(setup["data"], "existing.planet")))
+        planet_ref01_data = None
+        if len(planet_ref01_data_raw) > 0:
+            planet_ref01_data = helpers.to_map(planet_ref01_data_raw[0][1])
+
+        if setup["live"]:
+            runner.live_pace()
+        # LIST
+        planet_ref01_ent = client.Planet(None)
+        planet_ref01_match = {}
+
+        planet_ref01_list_result = planet_ref01_ent.list(planet_ref01_match, None)
+        assert isinstance(planet_ref01_list_result, list)
+
+        if setup["live"]:
+            runner.live_pace()
+        # LOAD
+        planet_ref01_match_dt0 = {
+            "id": planet_ref01_data["id"],
+        }
+        planet_ref01_data_dt0_loaded = planet_ref01_ent.load(planet_ref01_match_dt0, None)
+        planet_ref01_data_dt0_load_result = helpers.to_map(runner.entity_data(planet_ref01_data_dt0_loaded))
+        assert planet_ref01_data_dt0_load_result is not None
+        assert runner.live_same_id(planet_ref01_data_dt0_load_result.get("id"), planet_ref01_data["id"])
 
 
 

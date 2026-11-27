@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityOps } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityOps, matchExampleItems, requiredItems, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -12,6 +12,7 @@ import { zigVarName, zigListMatch } from './utility_zig'
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
@@ -29,9 +30,18 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   ) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `sdk.${model.const.Name}SDK.new(h.jo(&.{\n    .{ "apikey", h.vstr(std.posix.getenv("${envName(model)}_APIKEY") orelse "") },\n}))`
-    : `sdk.${model.const.Name}SDK.new(h.vnull())`
+  // The constructor refuses a templated URL it has no value for, so the quick
+  // start passes each variable the URL uses with no default.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`.{ "apikey", h.vstr(init.environ_map.get("${envName(model)}_APIKEY") orelse "") },`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`.{ "secret", h.vstr(init.environ_map.get("${envName(model)}_SECRET") orelse "") },`] : []),
+    ...(0 === svars.length ? [] : [`.{ "server", h.jo(&.{ ` +
+      svars.map((v: any) => `.{ "${v.name}", h.vstr("<${v.name}>") }`).join(', ') + ` }) },`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `sdk.${model.const.Name}SDK.new(h.vnull())`
+    : `sdk.${model.const.Name}SDK.new(h.jo(&.{${ctorFields.map((f: string) => '\n    ' + f).join('')}\n}))`
 
   // A type-correct zig expression constructing a voxgig struct Value.
   const zigLit = (type: any, placeholder: string = 'example'): string => {
@@ -41,17 +51,20 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
     if ('BOOLEAN' === k) return 'h.vbool(true)'
     if ('ARRAY' === k) return 'h.olist()'
     if ('OBJECT' === k) return 'h.omap()'
-    return `h.vstr("${placeholder}")`
+    return `h.vstr(${JSON.stringify(placeholder)})`
   }
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`zig
 const std = @import("std");
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = ${ctor};
+${authActive ? '// init is the std.process.Init that main receives.\n' : ''}const client = switch (${ctor}) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 \`\`\`
 
 `)
@@ -65,7 +78,7 @@ const client = ${ctor};
     const idF = entityIdField(exampleEntity)
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${eName.toLowerCase()} records
+      Content(`### ${++step}. List ${eName.toLowerCase()} records
 
 \`list()\`'s \`.ok\` is a slice of entities, one per record — \`switch\` on
 it. \`asEntity().data(null)\` reads an entity's record.
@@ -91,18 +104,17 @@ switch (client.${method}(h.vnull()).list(${zigListMatch(exampleEntity)}, h.vnull
       const neMethod = zigVarName(nestedEntity.name)
 
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
       const parentParam = parentItem && parentItem.name
       const parentName = parentParam ? parentParam.replace(/_id$/, '') : 'its parent'
       const neMatch = neRequired.map((it: any) =>
-        `.{ "${it.name}", ${zigLit(it.type,
+        `.{ ${JSON.stringify(it.name)}, ${zigLit(it.type,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)} }`)
 
-      Content(`### 3. Load ${neArticle} ${neName.toLowerCase()}
+      Content(`### ${++step}. Load ${neArticle} ${neName.toLowerCase()}
 
 ${neName} is nested under ${parentName}, so provide the \`${parentParam}\`.
 \`load()\`'s \`.ok\` carries the entity; \`asEntity().data(null)\` reads its
@@ -118,17 +130,16 @@ switch (client.${neMethod}(h.vnull()).load(h.jo(&.{${neMatch.join(', ')}}), h.vn
 `)
     }
     else if (opnames.includes('load')) {
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
         ? `h.jo(&.{${loadRequired.map((it: any) =>
-          `.{ "${it.name}", ${zigLit(it.type,
+          `.{ ${JSON.stringify(it.name)}, ${zigLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)} }`).join(', ')}})`
         : 'h.vnull()'
 
-      Content(`### 3. Load ${article} ${eName.toLowerCase()}
+      Content(`### ${++step}. Load ${article} ${eName.toLowerCase()}
 
 \`load()\`'s \`.ok\` carries the entity; \`asEntity().data(null)\` reads its
 record.
@@ -146,15 +157,15 @@ switch (client.${method}(h.vnull()).load(${loadArg}, h.vnull())) {
     // Model-driven example fields: derive the create/update body from the op
     // shape so the docs reference REAL writable fields.
     const examplePairs = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
-      return chosen.map((it: any) => `.{ "${it.name}", ${zigLit(it.type, 'example_' + it.name)} }`)
+      return chosen.map((it: any) => `.{ ${JSON.stringify(it.name)}, ${zigLit(it.type, 'example_' + it.name)} }`)
     }
 
     const idParamType = (opname: string): any => {
@@ -165,7 +176,8 @@ switch (client.${method}(h.vnull()).load(${loadArg}, h.vnull())) {
 
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`zig
 `)
@@ -179,7 +191,7 @@ switch (client.${method}(h.vnull()).create(h.jo(&.{${examplePairs('create').join
 `)
       }
       if (opnames.includes('update')) {
-        const updatePairs = (idF ? [`.{ "${idF}", ${idValueFor('update')} }`] : []).concat(examplePairs('update'))
+        const updatePairs = (sendsId(exampleEntity, 'update', idF) ? [`.{ ${JSON.stringify(idF)}, ${idValueFor('update')} }`] : []).concat(examplePairs('update'))
         Content(`// Update
 switch (client.${method}(h.vnull()).update(h.jo(&.{${updatePairs.join(', ')}}), h.vnull())) {
     .ok => |updated| std.debug.print("{s}\\n", .{h.stringify(updated.asEntity().data(null))}),
@@ -189,7 +201,7 @@ switch (client.${method}(h.vnull()).update(h.jo(&.{${updatePairs.join(', ')}}), 
 `)
       }
       if (opnames.includes('patch')) {
-        const patchPairs = (idF ? [`.{ "${idF}", ${idValueFor('patch')} }`] : []).concat(examplePairs('patch'))
+        const patchPairs = (sendsId(exampleEntity, 'patch', idF) ? [`.{ ${JSON.stringify(idF)}, ${idValueFor('patch')} }`] : []).concat(examplePairs('patch'))
         Content(`// Patch — sends only the fields given
 switch (client.${method}(h.vnull()).patch(h.jo(&.{${patchPairs.join(', ')}}), h.vnull())) {
     .ok => |patched| std.debug.print("{s}\\n", .{h.stringify(patched.asEntity().data(null))}),
@@ -199,13 +211,12 @@ switch (client.${method}(h.vnull()).patch(h.jo(&.{${patchPairs.join(', ')}}), h.
 `)
       }
       if (opnames.includes('remove')) {
-        const removePairs = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removePairs = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF
-            ? `.{ "${it.name}", ${idValueFor('remove')} }`
-            : `.{ "${it.name}", ${zigLit(it.type, 'example_' + it.name)} }`)
+            ? `.{ ${JSON.stringify(it.name)}, ${idValueFor('remove')} }`
+            : `.{ ${JSON.stringify(it.name)}, ${zigLit(it.type, 'example_' + it.name)} }`)
         Content(`// Remove
 switch (client.${method}(h.vnull()).remove(${removePairs.length ? `h.jo(&.{${removePairs.join(', ')}})` : 'h.vnull()'}, h.vnull())) {
     .ok => std.debug.print("removed\\n", .{}),

@@ -1,5 +1,5 @@
 // Primary utility test suite - drives every utility on the client utility
-// object against the shared corpus in ../../.sdk/test/test.json ("primary"
+// object against the shared corpus in ../SDKREL/.sdk/test/test.json ("primary"
 // section) through the VENDORED omni runner (OmniResolver over
 // test/vendor/omni), plus direct checks. C# twin of
 // tm/go/test/primary_utility_test.go.
@@ -107,6 +107,12 @@ public class PrimaryUtilityTest
             Assert.Fail("test corpus section \"" + name + "\" is EMPTY - " +
                 "zero cases would run; add cases, or mark the fixture " +
                 "PENDING in .sdk/test/primary/");
+        }
+        if (name == "prepareAuth")
+        {
+            var cred = AuthCredential.Discover();
+            Assert.True(null != cred, "prepareAuth placed no credential in headers or query");
+            basic = (Dictionary<string, object?>)AuthCredential.Retarget(basic, cred!)!;
         }
         run.RunSet(basic, subject);
     }
@@ -420,6 +426,346 @@ public class PrimaryUtilityTest
         var err = Assert.ThrowsAny<Exception>(() =>
             blockedUtility.Fetcher(ctx, "http://example.com/test", fetchdef));
         Assert.Contains("blocked", err.Message);
+    }
+
+    // A Django route answers its slashless form with a relative Location. The
+    // transport follows each hop, and answers a "manual" fetch with the 3xx.
+    [Fact]
+    public void FetcherRedirect()
+    {
+        var seen = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var moved = new Dictionary<string, (int Code, string To)>
+        {
+            ["/redirect/r1"] = (301, "/redirect/r1/"),
+            ["/redirect/r1/"] = (308, "done"),
+        };
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                using var conn = listener.AcceptTcpClient();
+                using var stream = conn.GetStream();
+                var reader = new System.IO.StreamReader(stream);
+                var parts = (reader.ReadLine() ?? "").Split(' ');
+                var path = 1 < parts.Length ? parts[1] : "";
+                while (!string.IsNullOrEmpty(reader.ReadLine())) { }
+                seen.Enqueue(path);
+                var body = path == "/redirect/r1/done" ? "{\"id\":\"r1\"}" : "";
+                var moves = moved.TryGetValue(path, out var hop);
+                var head = "HTTP/1.1 " + (moves ? hop.Code : body == "" ? 404 : 200) + " X\r\n" +
+                    (moves ? "Location: " + hop.To + "\r\n" : "") + "Content-Type: application/json\r\n" +
+                    "Content-Length: " + body.Length + "\r\nConnection: close\r\n\r\n";
+                var bytes = System.Text.Encoding.UTF8.GetBytes(head + body);
+                stream.Write(bytes, 0, bytes.Length);
+            }
+        });
+        var bse = "http://127.0.0.1:" + ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        try
+        {
+            var liveClient = new VoxgigSolardemoSDK(new Dictionary<string, object?> { ["base"] = bse });
+            var liveUtility = liveClient.GetUtility();
+            var ctx = liveUtility.MakeContext(new Dictionary<string, object?>
+            {
+                ["opname"] = "load",
+                ["client"] = liveClient,
+                ["utility"] = liveUtility,
+            }, null);
+            Dictionary<string, object?> Def(string? redirect)
+            {
+                var def = new Dictionary<string, object?>
+                {
+                    ["method"] = "GET",
+                    ["headers"] = new Dictionary<string, object?>(),
+                };
+                if (redirect != null) def["redirect"] = redirect;
+                return def;
+            }
+
+            var res = (Dictionary<string, object?>)liveUtility.Fetcher(ctx, bse + "/redirect/r1", Def(null))!;
+            Assert.Equal(200, res["status"]);
+            Assert.Equal("{\"id\":\"r1\"}", res["body"]);
+            Assert.Equal(new[] { "/redirect/r1", "/redirect/r1/", "/redirect/r1/done" }, seen.ToArray());
+
+            var manual = (Dictionary<string, object?>)liveUtility.Fetcher(ctx, bse + "/redirect/r1", Def("manual"))!;
+            Assert.Equal(301, manual["status"]);
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    private const string RedirectSecret = "REDIRECT-SECRET-q7w3e9r1";
+
+    private static readonly string[] RedirectCredentials =
+    {
+        "authorization", "cookie", "x-api-key", "private-token", "x-acme-auth",
+    };
+
+    private sealed record Arrival(string At, string Method, Dictionary<string, string> Headers, string Body);
+
+    // An origin on a loopback port of its own, which keeps what reaches it
+    // and answers a moved path with its redirect.
+    private sealed class RedirectOrigin : IDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener =
+            new(System.Net.IPAddress.Loopback, 0);
+        private readonly string _name;
+        private readonly List<Arrival> _arrived;
+        private readonly Func<string, string?> _moved;
+
+        public readonly string Base;
+
+        public RedirectOrigin(string name, List<Arrival> arrived, Func<string, string?> moved)
+        {
+            _name = name;
+            _arrived = arrived;
+            _moved = moved;
+            _listener.Start();
+            Base = "http://127.0.0.1:" + ((System.Net.IPEndPoint)_listener.LocalEndpoint).Port;
+            System.Threading.Tasks.Task.Run(Serve);
+        }
+
+        public void Dispose() => _listener.Stop();
+
+        private void Serve()
+        {
+            while (true)
+            {
+                System.Net.Sockets.TcpClient conn;
+                try
+                {
+                    conn = _listener.AcceptTcpClient();
+                }
+                catch (Exception)
+                {
+                    return;
+                }
+                using (conn)
+                {
+                    try
+                    {
+                        Answer(conn.GetStream());
+                    }
+                    catch (System.IO.IOException)
+                    {
+                    }
+                }
+            }
+        }
+
+        private void Answer(System.Net.Sockets.NetworkStream stream)
+        {
+            var reader = new System.IO.StreamReader(stream);
+            var first = (reader.ReadLine() ?? "").Split(' ');
+            var path = 1 < first.Length ? first[1] : "";
+            var headers = new Dictionary<string, string>();
+            for (var line = reader.ReadLine(); !string.IsNullOrEmpty(line); line = reader.ReadLine())
+            {
+                var colon = line.IndexOf(':');
+                if (0 < colon)
+                {
+                    headers[line.Substring(0, colon).ToLowerInvariant()] = line.Substring(colon + 1).Trim();
+                }
+            }
+            var sent = new char[int.TryParse(headers.GetValueOrDefault("content-length"), out var n) ? n : 0];
+            for (var got = 0; got < sent.Length;)
+            {
+                var read = reader.Read(sent, got, sent.Length - got);
+                if (read <= 0)
+                {
+                    break;
+                }
+                got += read;
+            }
+            lock (_arrived)
+            {
+                _arrived.Add(new Arrival(_name + " " + path, first[0], headers, new string(sent)));
+            }
+            var moved = _moved(path);
+            var answer = moved == null ? "{\"id\":\"r1\"}" : "";
+            var reply = System.Text.Encoding.UTF8.GetBytes(
+                "HTTP/1.1 " + (moved ?? "200 X") + "\r\nContent-Type: application/json\r\n" +
+                "Content-Length: " + answer.Length + "\r\nConnection: close\r\n\r\n" + answer);
+            stream.Write(reply, 0, reply.Length);
+        }
+    }
+
+    // The API's origin redirects; the other origin, another port, keeps what
+    // reaches it. The secret is registered as a caller's is: as the apikey.
+    private static (Dictionary<string, object?> Res, List<Arrival> Arrived) RedirectFetch(
+        string method, string path, string? body = null, string? type = null,
+        Dictionary<string, object?>? options = null)
+    {
+        var arrived = new List<Arrival>();
+        using var other = new RedirectOrigin("other", arrived, _ => null);
+        using var api = new RedirectOrigin("api", arrived, at => at switch
+        {
+            "/out" => "302 X\r\nLocation: " + other.Base + "/landed",
+            "/out307" => "307 X\r\nLocation: " + other.Base + "/landed",
+            "/in" => "302 X\r\nLocation: /landed",
+            "/in307" => "307 X\r\nLocation: /landed",
+            "/in303" => "303 X\r\nLocation: /landed",
+            "/round" => "302 X\r\nLocation: /round",
+            _ => null,
+        });
+
+        var liveClient = new VoxgigSolardemoSDK(
+            new Dictionary<string, object?>(options ?? new Dictionary<string, object?>())
+            {
+                ["base"] = api.Base,
+                ["apikey"] = RedirectSecret,
+            });
+        var liveUtility = liveClient.GetUtility();
+        var ctx = liveUtility.MakeContext(
+            new Dictionary<string, object?> { ["opname"] = "load" }, liveClient.GetRootCtx());
+
+        // x-acme-auth is not a sensitive name: a credential by the value it holds.
+        var headers = new Dictionary<string, object?>
+        {
+            ["authorization"] = "Bearer " + RedirectSecret,
+            ["cookie"] = "sid=" + RedirectSecret,
+            ["x-api-key"] = RedirectSecret,
+            ["private-token"] = "pt-12345",
+            ["x-acme-auth"] = "v1 " + RedirectSecret,
+            ["x-tenant"] = "acme",
+        };
+        var fetchdef = new Dictionary<string, object?> { ["method"] = method, ["headers"] = headers };
+        if (body != null)
+        {
+            headers["content-type"] = type;
+            fetchdef["body"] = body;
+        }
+
+        var res = (Dictionary<string, object?>)liveUtility.Fetcher(ctx, api.Base + path, fetchdef)!;
+        lock (arrived)
+        {
+            return (res, new List<Arrival>(arrived));
+        }
+    }
+
+    private static void AssertNoCredentialReachesAnotherOrigin(Dictionary<string, object?>? options)
+    {
+        var (res, arrived) = RedirectFetch("GET", "/out", options: options);
+        Assert.Equal(200, res["status"]);
+        Assert.Equal(new[] { "api /out", "other /landed" }, arrived.Select(a => a.At).ToArray());
+        var unsent = RedirectCredentials.Where(name => !arrived[0].Headers.ContainsKey(name));
+        Assert.True(!unsent.Any(), "the API itself was not sent " + string.Join(", ", unsent));
+        var sent = RedirectCredentials.Where(name => arrived[1].Headers.ContainsKey(name));
+        Assert.True(!sent.Any(), "another origin was sent " + string.Join(", ", sent));
+        Assert.Equal("acme", arrived[1].Headers.GetValueOrDefault("x-tenant"));
+        Assert.DoesNotContain(arrived[1].Headers.Values, value => value.Contains(RedirectSecret));
+    }
+
+    [Fact]
+    public void FetcherRedirectToAnotherOriginCarriesNoCredential()
+    {
+        AssertNoCredentialReachesAnotherOrigin(null);
+    }
+
+    [Fact]
+    public void FetcherRedirectToAnotherOriginWithCleanOff()
+    {
+        AssertNoCredentialReachesAnotherOrigin(new Dictionary<string, object?>
+        {
+            ["clean"] = new Dictionary<string, object?> { ["active"] = false },
+        });
+    }
+
+    [Fact]
+    public void FetcherRedirectOnTheSameOriginKeepsHeaders()
+    {
+        var (res, arrived) = RedirectFetch("GET", "/in");
+        Assert.Equal(200, res["status"]);
+        Assert.Equal(new[] { "api /in", "api /landed" }, arrived.Select(a => a.At).ToArray());
+        var lost = RedirectCredentials.Append("x-tenant")
+            .Where(name => !arrived[1].Headers.ContainsKey(name));
+        Assert.True(!lost.Any(), "the same origin lost " + string.Join(", ", lost));
+    }
+
+    [Fact]
+    public void FetcherRedirectSendsNoBodyToAnotherOrigin()
+    {
+        var body = "BODY-" + RedirectSecret;
+        var (res, arrived) = RedirectFetch("PUT", "/out307", body, "audio/wav");
+        Assert.Equal(307, res["status"]);
+        Assert.Equal(new[] { "api /out307 " + body },
+            arrived.Select(a => a.At + " " + a.Body).ToArray());
+    }
+
+    [Fact]
+    public void FetcherRedirectOnItsOwnOriginKeepsTheMethodAndTheBody()
+    {
+        var (res, arrived) = RedirectFetch("PUT", "/in307", "BODY-1", "audio/wav");
+        Assert.Equal(200, res["status"]);
+        Assert.Equal(new[] { "PUT api /in307 BODY-1", "PUT api /landed BODY-1" },
+            arrived.Select(a => a.Method + " " + a.At + " " + a.Body).ToArray());
+        Assert.Equal("audio/wav", arrived[1].Headers.GetValueOrDefault("content-type"));
+    }
+
+    // A 303, and a 302 answering a POST.
+    [Fact]
+    public void FetcherRedirectBecomesAGetWithoutTheBody()
+    {
+        foreach (var (method, path) in new[] { ("PUT", "/in303"), ("POST", "/in") })
+        {
+            var (res, arrived) = RedirectFetch(method, path, "{\"a\":1}", "application/json");
+            Assert.Equal(200, res["status"]);
+            Assert.Equal(new[] { method + " api " + path + " {\"a\":1}", "GET api /landed " },
+                arrived.Select(a => a.Method + " " + a.At + " " + a.Body).ToArray());
+            Assert.False(arrived[1].Headers.ContainsKey("content-type"), method + ": the GET kept content-type");
+            Assert.True(arrived[1].Headers.ContainsKey("x-api-key"), method + ": the same origin lost x-api-key");
+        }
+    }
+
+    [Fact]
+    public void FetcherRedirectPastTheHopLimitIsAnsweredByTheLastOne()
+    {
+        var (res, arrived) = RedirectFetch("GET", "/round");
+        Assert.Equal(302, res["status"]);
+        Assert.Equal(6, arrived.Count);
+    }
+
+    // Nothing listens on port 9: a request the guard let through fails there.
+    [Fact]
+    public void FetcherGetOnlyGuard()
+    {
+        var liveClient = new VoxgigSolardemoSDK(new Dictionary<string, object?>
+        {
+            ["base"] = "http://127.0.0.1:9",
+        });
+        var liveUtility = liveClient.GetUtility();
+        var ctx = liveUtility.MakeContext(new Dictionary<string, object?>
+        {
+            ["opname"] = "create",
+            ["client"] = liveClient,
+            ["utility"] = liveUtility,
+        }, null);
+        var url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01";
+        Dictionary<string, object?> Def(string method) => new()
+        {
+            ["method"] = method,
+            ["headers"] = new Dictionary<string, object?>(),
+        };
+
+        var prior = Environment.GetEnvironmentVariable("VOXGIG_GETONLY_GUARD");
+        Environment.SetEnvironmentVariable("VOXGIG_GETONLY_GUARD", "TRUE");
+        try
+        {
+            var refused = Assert.Throws<VoxgigSolardemoError>(() => liveUtility.Fetcher(ctx, url, Def("POST")));
+            Assert.Equal("fetch_getonly_block", refused.Code);
+            Assert.Contains("[GET-ONLY GUARD] blocked POST /planet/p1", refused.Message);
+            Assert.DoesNotContain("GUARDKEY01", refused.Message);
+
+            var sent = Assert.ThrowsAny<Exception>(() => liveUtility.Fetcher(ctx, url, Def("GET")));
+            Assert.False(sent is VoxgigSolardemoError, sent.Message);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VOXGIG_GETONLY_GUARD", prior);
+        }
     }
 
     [Fact]
@@ -746,9 +1092,19 @@ public class PrimaryUtilityTest
         });
     }
 
+    // Read from the config, never from a probe: a probe that finds no
+    // credential is the regression this section exists to catch. xunit 2 has
+    // no runtime skip, so the skip is a printed reason.
     [Fact]
     public void PrepareAuthBasic()
     {
+        if (SdkConfig.SharedConfig()["options"] is not Dictionary<string, object?> options ||
+            !options.ContainsKey("auth"))
+        {
+            Console.WriteLine("SKIP PrepareAuthBasic: this SDK's config declares no auth, so it places no credential");
+            return;
+        }
+
         var setupOpts = TestRunner.GetSpec(Run().Spec, "prepareAuth", "DEF", "setup", "a");
         var authClient = VoxgigSolardemoSDK.TestSDK(null, setupOpts);
         var authUtility = authClient.GetUtility();

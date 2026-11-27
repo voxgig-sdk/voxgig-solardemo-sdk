@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { perlListArgs } from './utility_perl'
+import { perlListArgs, perlStringLiteral } from './utility_perl'
 
 
 // A type-correct, executable Perl literal for a param: numeric/boolean/
@@ -21,7 +21,7 @@ function perlLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return '1'
   if ('ARRAY' === k) return '[]'
   if ('OBJECT' === k) return '{}'
-  return `'${placeholder}'`
+  return perlStringLiteral(placeholder)
 }
 
 
@@ -33,9 +33,16 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `${model.const.Name}SDK->new({\n    'apikey' => $ENV{'${envName(model)}_APIKEY'},\n})`
-    : `${model.const.Name}SDK->new`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`'apikey' => $ENV{'${envName(model)}_APIKEY'},`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`'secret' => $ENV{'${envName(model)}_SECRET'},`] : []),
+    ...(0 === svars.length ? [] : [`'server' => {` +
+      svars.map((v: any) => `\n        '${v.name}' => '<${v.name}>',`).join('') + `\n    },`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `${model.const.Name}SDK->new`
+    : `${model.const.Name}SDK->new({${ctorFields.map((f: string) => '\n    ' + f).join('')}\n})`
 
   Content(`\`\`\`perl
 use lib '${target.name}/lib';
@@ -48,7 +55,7 @@ my $client = ${ctor};
   if (exampleEntity) {
     const eName = nom(exampleEntity, 'Name')
     const eVar = eName.toLowerCase()
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     if (opnames.includes('list')) {
@@ -64,13 +71,12 @@ for my $${eVar} (@$${eVar}s) {
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `{ ${loadItems.map((it: any) =>
-          `'${it.name}' => ${perlLit(it.type,
+          `${perlStringLiteral(it.name)} => ${perlLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')} }`
         : ''
       Content(`

@@ -17,20 +17,19 @@ func main() {
 	addr := flag.String("addr", ":8080", "listen address for http transport")
 	flag.Parse()
 
-	// Configure from the environment: VOXGIG_SOLARDEMO_APIKEY carries the API key and
-	// VOXGIG_SOLARDEMO_BASE optionally overrides the API base URL (e.g. production).
-	// Both injectable by a secrets vault. Unset -> nil config defaults.
+	// Configure from the environment, which a secrets vault can fill.
+	// Unset -> nil config defaults.
 	var opts map[string]any
-	if apikey := os.Getenv("VOXGIG_SOLARDEMO_APIKEY"); apikey != "" {
-		opts = map[string]any{"apikey": apikey}
-	}
 	if base := os.Getenv("VOXGIG_SOLARDEMO_BASE"); base != "" {
 		if opts == nil {
 			opts = map[string]any{}
 		}
 		opts["base"] = base
 	}
-	client := sdk.NewVoxgigSolardemoSDK(opts)
+	client, err := sdk.NewVoxgigSolardemoSDK(opts)
+	if err != nil {
+		log.Fatal(err)
+	}
 	server := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "voxgig-solardemo",

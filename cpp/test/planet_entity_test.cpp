@@ -47,6 +47,13 @@ static PlanetSetup planet_basic_setup(const Value& extra) {
   if (!idmap_resolved.is_map()) idmap_resolved = idmap;
 
   bool live = getp(env, "VOXGIG_SOLARDEMO_TEST_LIVE") == Value("TRUE");
+  if (live) {
+    // sdk-test-control.json's test.client.options seeds the live client; the
+    // generated fields below overwrite anything they name.
+    Value liveopts = live_client_options();
+    client = std::make_shared<VoxgigSolardemoSDK>(
+        Struct::merge(vlist({liveopts, extra.is_map() ? extra : vmap()})));
+  }
 
   PlanetSetup s;
   s.client = client;

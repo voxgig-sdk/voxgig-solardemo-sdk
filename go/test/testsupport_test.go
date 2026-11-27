@@ -8,12 +8,24 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	sdk "github.com/voxgig-sdk/voxgig-solardemo-sdk/go"
 )
+
+// newClient builds a client, and stops the run where construction refuses one,
+// as it does a live client whose server variable the environment leaves unset.
+func newClient(opts map[string]any) *sdk.VoxgigSolardemoSDK {
+	client, err := sdk.NewVoxgigSolardemoSDK(opts)
+	if err != nil {
+		panic(err)
+	}
+	return client
+}
 
 var envLocalOnce sync.Once
 
@@ -241,7 +253,7 @@ func getSpec(spec map[string]any, keys ...string) map[string]any {
 
 // entityData extracts the data map from an op result.
 //
-// Every entity operation resolves to the ENTITY (see AGENTS.md), so a flow
+// Every entity operation resolves to the ENTITY, so a flow
 // test that wants the record takes this hop. A plain map passes through
 // unchanged, so this is safe for the direct/prepare results too.
 func entityData(v any) any {
@@ -348,9 +360,10 @@ func (o liveObserver) Error(args ...any) {
 }
 
 // liveExisting finds the record a create-less flow reads live: the first its
-// list returns, put where the flow reads the fixture's existing records.
+// list returns, put where the flow reads the fixture's existing records. A
+// record with no value in the identity field takes the fallback identity.
 func liveExisting(t testing.TB, strict bool, data map[string]any, name string,
-	list func() (any, error)) {
+	field string, fallback any, list func() (any, error)) {
 	t.Helper()
 	found, err := list()
 	if err != nil {
@@ -366,10 +379,48 @@ func liveExisting(t testing.TB, strict bool, data map[string]any, name string,
 		liveEmpty(t, "The account has no %s record to load", name)
 		return
 	}
+	record := entityData(items[0])
+	if fields, _ := record.(map[string]any); fields == nil || fields[field] == nil {
+		if fallback == nil {
+			liveMiss(t, strict, "Live entity test blocked: the listed %s record has no %s, "+
+				"and neither *_ENTID nor the load route's example gives one", name, field)
+			return
+		}
+		filled := map[string]any{}
+		for k, v := range fields {
+			filled[k] = v
+		}
+		filled[field] = fallback
+		record = filled
+	}
 	existing, ok := data["existing"].(map[string]any)
 	if !ok {
 		existing = map[string]any{}
 		data["existing"] = existing
 	}
-	existing[name] = map[string]any{"live01": entityData(items[0])}
+	existing[name] = map[string]any{"live01": record}
+}
+
+// liveSameId compares identities by their string forms: a route
+// parameter's value is a string where the record may hold a number.
+func liveSameId(a, b any) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return liveIdString(a) == liveIdString(b)
+}
+
+func liveIdString(v any) string {
+	switch n := v.(type) {
+	case float64:
+		return strconv.FormatFloat(n, 'f', -1, 64)
+	case float32:
+		return strconv.FormatFloat(float64(n), 'f', -1, 32)
+	}
+	return fmt.Sprint(v)
+}
+
+// livePace sleeps test.live.delayMs before a live request.
+func livePace() {
+	time.Sleep(time.Duration(liveDelayMs()) * time.Millisecond)
 }

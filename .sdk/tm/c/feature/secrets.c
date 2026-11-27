@@ -59,14 +59,12 @@
 //     fails). Conflating the last two is the failure this library exists
 //     to prevent.
 //
-//   * The c core ships no HTTP client (utility/fetcher.c). The exchange
-//     therefore uses options.system.fetch when supplied - the seam every
-//     live c request already lives under - and otherwise
-//     `secrets_rawfetch`, which lives in the GENERATED feature/secrets/
-//     kinds.c: a libcurl round-trip when a plugin group is active, a
-//     transport error that says so when none is (see Config_c; the
-//     generated kinds.mk beside it is what links libcurl on the same
-//     condition).
+//   * The exchange uses options.system.fetch when supplied - the seam every
+//     live c request lives under - and otherwise `secrets_rawfetch`, which
+//     lives in the GENERATED feature/secrets/kinds.c: a libcurl round-trip
+//     when a plugin group is active, the SDK's own client (utility/http.c)
+//     when none is (see Config_c; the generated kinds.mk beside it is what
+//     links libcurl on the same condition).
 //
 //   * sek_new is documented NOT REENTRANT (a file-scope slot for the
 //     duration of the call). It runs once, in the client constructor,
@@ -89,7 +87,7 @@
 
 // The exchange transport of last resort, defined in the GENERATED
 // feature/secrets/kinds.c (Config_c) - libcurl when a plugin group is
-// active, a "no transport" error otherwise. Prototyped here rather than in
+// active, the SDK's own client otherwise. Prototyped here rather than in
 // sdk.h because core/ must not know a gated feature's internals.
 voxgig_value* secrets_rawfetch(Context* ctx, const char* url,
                                voxgig_value* fetchdef, PNError** err);
@@ -102,6 +100,7 @@ typedef struct {
   int64_t* statuses;
   size_t nstatuses;
   int64_t retries;
+  bool sameorigin;
 } SecretsExchange;
 
 typedef struct {
@@ -121,6 +120,11 @@ typedef struct {
   // The LIVE options map (root ctx options): read for `apikey` and `auth`,
   // never written.
   voxgig_value* liveopts;
+
+  // What prepare_auth was generated from: the config declares auth only
+  // where it places a credential, and Basic only where it composes one.
+  bool declared;
+  bool basic;
 
   const char* secretname;
   bool cache;
@@ -279,8 +283,15 @@ static bool spec_of_map(sek_pool* pool, voxgig_value* m, sek_spec* spec, const c
 
 // ---- credential injection ---------------------------------------------------
 
-// Write the resolved credential into THIS request's authorization header,
-// the way prepare_auth builds it (same options auth.prefix, same
+// prepare_auth's decision: auth the config declares, not suppressed by
+// `auth: null`.
+static bool secrets_authon(SecretsFeature* f) {
+  voxgig_value* auth = getp(f->liveopts, "auth");
+  return f->declared && !v_is_noval(auth) && !v_is_null(auth);
+}
+
+// Write the resolved credential into THIS request's credential header,
+// the way prepare_auth builds it (same options auth name and prefix, same
 // suppression rule), so the two cannot drift.
 //
 // `auth: null` is the documented way to send NO credential, and
@@ -294,26 +305,67 @@ static void secrets_reauth(SecretsFeature* f, voxgig_value* fetchdef) {
   voxgig_value* headers = getp(fetchdef, "headers");
   if (!voxgig_is_map(headers)) return;
 
+  // The header prepare_auth writes: auth.name, lower-cased into a copy this
+  // function frees.
+  voxgig_value* namev = getpath2(f->liveopts, "auth", "name");
+  const char* given = voxgig_is_string(namev) ? voxgig_as_string(namev) : "";
+  char* name = strdup('\0' == given[0] ? "authorization" : given);
+  if (NULL == name) return;
+  for (char* c = name; '\0' != *c; c++) {
+    if ('A' <= *c && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
+  }
+
   voxgig_value* auth = getp(f->liveopts, "auth");
-  if (v_is_noval(auth) || v_is_null(auth)) {
-    voxgig_value* k = voxgig_new_string("authorization");
+  if (!secrets_authon(f)) {
+    voxgig_value* k = voxgig_new_string(name);
     voxgig_delprop(headers, k);
     voxgig_release(k);
+    free(name);
     return;
   }
 
-  if (NULL == f->cred || '\0' == f->cred[0]) return;
+  if (NULL == f->cred || '\0' == f->cred[0]) {
+    free(name);
+    return;
+  }
+
+  // Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+  bool want_basic = false;
+  if (f->basic) get_bool(auth, "basic", &want_basic);
+  char* value = NULL;
+  if (want_basic) {
+    const char* secret = get_str(f->liveopts, "secret");
+    if (NULL == secret) secret = "";
+    size_t n = strlen(f->cred) + 1 + strlen(secret) + 1;
+    char* pair = (char*)malloc(n);
+    if (NULL == pair) {
+      free(name);
+      return;
+    }
+    snprintf(pair, n, "%s:%s", f->cred, secret);
+    value = clean_base64(pair);
+    free(pair);
+    if (NULL != value) clean_add_opts(f->liveopts, value);
+  } else {
+    value = strdup(f->cred);
+  }
+  if (NULL == value) {
+    free(name);
+    return;
+  }
 
   const char* prefix = get_str(auth, "prefix");
   if (NULL == prefix || '\0' == prefix[0]) {
-    setp(headers, "authorization", v_str(f->cred));
+    setp(headers, name, v_str(value));
   } else {
-    size_t n = strlen(prefix) + 1 + strlen(f->cred) + 1;
+    size_t n = strlen(prefix) + 1 + strlen(value) + 1;
     char* buf = (char*)malloc(n);
-    snprintf(buf, n, "%s %s", prefix, f->cred);
-    setp(headers, "authorization", v_str(buf));
+    snprintf(buf, n, "%s %s", prefix, value);
+    setp(headers, name, v_str(buf));
     free(buf);
   }
+  free(value);
+  free(name);
 }
 
 // Every value this feature resolves or buys is a secret the SDK handles,
@@ -327,6 +379,90 @@ static void secrets_setcred(SecretsFeature* f, const char* value) {
 }
 
 // ---- the exchange -----------------------------------------------------------
+
+#define SECRETS_REDIRECT_MAX 5
+
+// "scheme://host:port" of an absolute http(s) URL, the port defaulted; and,
+// in *rest, where its authority ends. 0 when it is not one.
+static int secrets_origin(const char* url, char* out, size_t size, const char** rest) {
+  const char* sep = strstr(url, "://");
+  size_t slen = NULL == sep ? 0 : (size_t)(sep - url);
+  char scheme[6] = "";
+  if (5 < slen) return 0;
+  for (size_t i = 0; i < slen; i++) {
+    scheme[i] = (char)('A' <= url[i] && url[i] <= 'Z' ? url[i] - 'A' + 'a' : url[i]);
+  }
+  int https = 0 == strcmp(scheme, "https");
+  if (!https && 0 != strcmp(scheme, "http")) return 0;
+  const char* auth = sep + 3;
+  const char* end = auth + strcspn(auth, "/?#");
+  for (const char* at = auth; at < end; at++) if ('@' == *at) auth = at + 1;
+  const char* colon = '[' == *auth ? memchr(auth, ']', (size_t)(end - auth)) : auth;
+  if (NULL == colon) return 0;
+  colon = memchr(colon, ':', (size_t)(end - colon));
+  const char* hostend = NULL == colon ? end : colon;
+  if (hostend == auth) return 0;
+  long port = https ? 443 : 80;
+  if (NULL != colon && colon + 1 < end) {
+    char* stop = NULL;
+    port = strtol(colon + 1, &stop, 10);
+    if (stop != end || port < 0 || 65535 < port) return 0;
+  }
+  int n = snprintf(out, size, "%s://%.*s:%ld", https ? "https" : "http",
+                   (int)(hostend - auth), auth, port);
+  if (n < 0 || (size_t)n >= size) return 0;
+  for (char* c = out; '\0' != *c; c++) if ('A' <= *c && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
+  if (NULL != rest) *rest = end;
+  return 1;
+}
+
+// Where a 307 or 308 points, when that is on the exchange's own origin. Any
+// other redirect would drop the body or leave the origin.
+static char* secrets_moved(sek_pool* pool, const char* url, const char* at, voxgig_value* res) {
+  int64_t status = to_int(getp(res, "status"));
+  const char* location = get_str(getp(res, "headers"), "location");
+  char own[320];
+  char from[320];
+  char to[320];
+  const char* rest = NULL;
+  if ((307 != status && 308 != status) || NULL == location || '\0' == location[0] ||
+      !secrets_origin(url, own, sizeof(own), NULL) ||
+      !secrets_origin(at, from, sizeof(from), &rest)) {
+    return NULL;
+  }
+  char* next;
+  if (NULL != strstr(location, "://")) {
+    next = sek_strdup(pool, location);
+  } else if ('/' == location[0] && '/' == location[1]) {
+    next = sek_fmt(pool, "%.*s:%s", (int)(strstr(at, "://") - at), at, location);
+  } else if ('/' == location[0]) {
+    next = sek_fmt(pool, "%.*s%s", (int)(rest - at), at, location);
+  } else if ('?' == location[0]) {
+    next = sek_fmt(pool, "%.*s%s", (int)strcspn(at, "?#"), at, location);
+  } else {
+    size_t dir = (size_t)(rest - at);
+    for (size_t i = dir; '\0' != at[i] && '?' != at[i] && '#' != at[i]; i++) {
+      if ('/' == at[i]) dir = i + 1;
+    }
+    next = sek_fmt(pool, "%.*s%s%s", (int)dir, at, dir == (size_t)(rest - at) ? "/" : "", location);
+  }
+  return secrets_origin(next, to, sizeof(to), NULL) && 0 == strcmp(own, to) ? next : NULL;
+}
+
+// One request of the exchange: options.system.fetch when supplied, else the
+// transport of last resort. A pool-owned message on failure.
+static const char* secrets_send(SecretsFeature* f, Context* ctx, voxgig_value* sys_fetch,
+                                const char* url, voxgig_value* fetchdef, voxgig_value** res) {
+  if (voxgig_is_func(sys_fetch)) {
+    *res = call_vfn(sys_fetch, clist(2, v_str(url), v_share(fetchdef)));
+    const char* emsg = get_str(*res, "__err__");
+    return NULL == emsg ? NULL : sek_strdup(f->pool, emsg);
+  }
+  PNError* ferr = NULL;
+  *res = secrets_rawfetch(ctx, url, fetchdef, &ferr);
+  return NULL == ferr ? NULL :
+    sek_strdup(f->pool, ferr->msg ? ferr->msg : "secrets: transport failed");
+}
 
 // Buy an access token with the refresh token. Answers sekreto-style: a
 // pool-owned message, or NULL for success with the token in f->cred.
@@ -375,10 +511,12 @@ static const char* secrets_buy(SecretsFeature* f, Context* ctx) {
   sek_json_set(f->pool, body, x->request, sek_json_str(f->pool, f->refresh));
   char* bodytext = sek_json_stringify(f->pool, body);
 
-  voxgig_value* fetchdef = cmap(3,
+  // Never followed: a redirect would carry the refresh token on.
+  voxgig_value* fetchdef = cmap(4,
     "method", v_str(x->method),
     "headers", cmap(1, "content-type", v_str("application/json")),
-    "body", v_str(bodytext));
+    "body", v_str(bodytext),
+    "redirect", v_str("manual"));
 
   // Deliberately NOT the SDK transport. The transport is what this feature
   // wraps, and sending the token request back through it would recurse on
@@ -387,15 +525,18 @@ static const char* secrets_buy(SecretsFeature* f, Context* ctx) {
   // supplied one (the seam every live c request already uses), else the
   // bundled transport of last resort from the generated kinds.c.
   voxgig_value* sys_fetch = getpath2(options, "system", "fetch");
-  voxgig_value* res;
-  if (voxgig_is_func(sys_fetch)) {
-    res = call_vfn(sys_fetch, clist(2, v_str(url), v_share(fetchdef)));
-    const char* emsg = get_str(res, "__err__");
-    if (NULL != emsg) return sek_strdup(f->pool, emsg);
-  } else {
-    PNError* ferr = NULL;
-    res = secrets_rawfetch(ctx, url, fetchdef, &ferr);
-    if (NULL != ferr) return sek_strdup(f->pool, ferr->msg ? ferr->msg : "secrets: transport failed");
+  voxgig_value* res = NULL;
+  const char* sent = secrets_send(f, ctx, sys_fetch, url, fetchdef, &res);
+  if (NULL != sent) return sent;
+
+  // By option alone, and only while the exchange stays on its own origin.
+  const char* at = url;
+  for (int hops = 0; x->sameorigin && hops < SECRETS_REDIRECT_MAX; hops++) {
+    char* next = secrets_moved(f->pool, url, at, res);
+    if (NULL == next) break;
+    at = next;
+    sent = secrets_send(f, ctx, sys_fetch, at, fetchdef, &res);
+    if (NULL != sent) return sent;
   }
 
   int64_t status = to_int(getp(res, "status"));
@@ -443,7 +584,7 @@ static bool secrets_spent(SecretsFeature* f, voxgig_value* res) {
 static const char* secrets_resolve(SecretsFeature* f, Context* ctx) {
   if (NULL != f->initerr) return f->initerr;
   if (f->cache && f->resolved) return NULL;
-  if (NULL == f->sek) return NULL;
+  if (NULL == f->sek || !secrets_authon(f)) return NULL;
 
   char* found = NULL;
   sek_err err = sek_try(f->sek, f->secretname, &found);
@@ -527,10 +668,9 @@ static voxgig_value* secrets_fetch(Fetcher* self, Context* ctx, const char* url,
     return st->inner->fn(st->inner, ctx, url, fetchdef, err);
   }
 
-  // `auth: null` is a deliberately unauthenticated request: a refusal of it
-  // is not an expired token and cannot be fixed by buying one.
-  voxgig_value* auth = getp(f->liveopts, "auth");
-  if (v_is_noval(auth) || v_is_null(auth)) {
+  // A refusal of an unauthenticated request is not an expired token, and
+  // retrying would transmit the credential that auth off withholds.
+  if (!secrets_authon(f)) {
     return st->inner->fn(st->inner, ctx, url, fetchdef, err);
   }
 
@@ -594,6 +734,11 @@ static void secrets_init(Feature* fb, Context* ctx, voxgig_value* options) {
   f->client = ctx->client;
   f->liveopts = ctx->options;
 
+  voxgig_value* declared = NULL == ctx->config ? NULL : getpath2(ctx->config, "options", "auth");
+  f->declared = voxgig_is_map(declared);
+  f->basic = false;
+  if (f->declared) get_bool(declared, "basic", &f->basic);
+
   // WRAP FIRST. The fail-closed gate needs the seam whatever happens
   // below - a chain that fails to build must still refuse to send - so the
   // wrapper is installed before anything here can fail, and the exchange
@@ -623,6 +768,7 @@ static void secrets_init(Feature* fb, Context* ctx, voxgig_value* options) {
     x->request = fopt_str(xopts, "request", "refresh_token");
     x->response = fopt_str(xopts, "response", "access_token");
     x->retries = fopt_int(xopts, "retries", 1);
+    x->sameorigin = 0 == strcmp("same-origin", fopt_str(xopts, "redirect", "refuse"));
     voxgig_value* sl = fopt_list(xopts, "statuses");
     if (voxgig_is_list(sl) && 0 < voxgig_as_list(sl)->len) {
       voxgig_list* l = voxgig_as_list(sl);

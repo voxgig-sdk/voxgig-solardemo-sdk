@@ -11,7 +11,7 @@
 module SdkRuntime where
 
 import Control.Exception (throwIO, try)
-import Control.Monad (forM_, when)
+import Control.Monad (filterM, forM_, when)
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 import Data.Char (chr, isAlphaNum, isHexDigit, isSpace, digitToInt, ord, toLower, toUpper)
 import Data.IORef
@@ -31,6 +31,7 @@ import VoxgigStruct
   , escurl, escre, stringify, walk, join, jsonEncode )
 import SdkTypes
 import SdkHelpers
+import SdkSchema (optSpec)
 
 -- ------------------------------------------------------------------
 -- random ids (no external dep; LCG)
@@ -233,17 +234,10 @@ cleanMaxDepth = 32
 cleanCircular :: String
 cleanCircular = "[circular]"
 
--- The `clean` block of the option spec (main.kit.optspec.clean in the sdkgen
--- base model), held here because this pack's targets read no generated
--- Schema module. Numbers are strings, like every optspec value.
 cleanOptSpec :: IO Value
-cleanOptSpec = jo
-  [ ("active", VBool True)
-  , ("keys", VStr "key,secret,token,password,passwd,authorization,cookie,credential,signature")
-  , ("values", VStr "")
-  , ("mask", VStr "[redacted]")
-  , ("hint", VStr "0")
-  , ("min", VStr "4") ]
+cleanOptSpec = do
+  clean <- flip getp "clean" =<< optSpec
+  case clean of VMap _ -> pure clean; _ -> emptyMap
 
 normkey :: String -> String
 normkey = filter (\c -> c /= '-' && c /= '_') . lower
@@ -1055,26 +1049,63 @@ prepareAuthUtil ctx = do
   specV <- readIORef (cSpec ctx)
   case specV of
     VMap _ -> do
-      headers <- getp specV "headers"
       cl <- cc ctx
       options <- clientOptionsMap cl
+      inV <- getpathS options "auth.in"
+      nameV <- getpathS options "auth.name"
+      -- The credential travels where auth.in says (a header, the query or a
+      -- cookie), under auth.name; a header name travels lower-cased.
+      let place = case inV of
+            VStr s | lowerS s `elem` ["query", "cookie"] -> lowerS s
+            _ -> "header"
+          given = case nameV of VStr s | not (null s) -> s; _ -> "Authorization"
+          name = if "header" == place then lowerS given else given
       authv <- getp options "auth"
-      case authv of
-        VNoval -> do delp headers "authorization"; pure (specV, Nothing)
-        VNull -> do delp headers "authorization"; pure (specV, Nothing)
-        _ -> do
-          apikey <- getpropAlt (VStr "__NOTFOUND__") options (VStr "apikey")
-          let isNotFound = case apikey of VStr "__NOTFOUND__" -> True; _ -> False
-              apikeyStr = case apikey of VStr s -> s; _ -> ""
-          if isNotFound || isNoval apikey || apikeyStr == ""
-            then do delp headers "authorization"; pure (specV, Nothing)
-            else do
-              apV <- getpathS options "auth.prefix"
-              let authPrefix = case apV of VStr s -> s; _ -> ""
-                  authval = if authPrefix /= "" then authPrefix ++ " " ++ apikeyStr else apikeyStr
-              setp headers "authorization" (VStr authval)
-              pure (specV, Nothing)
+      apikey <- getpropAlt (VStr "__NOTFOUND__") options (VStr "apikey")
+      apV <- getpathS options "auth.prefix"
+      basicV <- getpathS options "auth.basic"
+      let apikeyStr = case apikey of VStr s | s /= "__NOTFOUND__" -> s; _ -> ""
+          authPrefix = case apV of VStr s -> s; _ -> ""
+          prefixed c = if authPrefix /= "" then authPrefix ++ " " ++ c else c
+          noAuth = case authv of VNoval -> True; VNull -> True; _ -> False
+      if noAuth || apikeyStr == ""
+        then clearCredential specV place name
+        -- True HTTP Basic joins the two credentials, base64-encoded; it is a
+        -- header scheme, and the password may be empty (RFC 7617).
+        else if "header" == place && isTrueV basicV
+          then do
+            secret <- getpropAlt (VStr "__NOTFOUND__") options (VStr "secret")
+            let pass = case secret of VStr s | s /= "__NOTFOUND__" -> s; _ -> ""
+                b64 = base64Encode (apikeyStr ++ ":" ++ pass)
+            -- The joined, encoded pair is a wire form neither credential's
+            -- own registration covers.
+            cleanAddUtil ctx (VStr b64)
+            placeCredential specV place name (prefixed b64)
+          else placeCredential specV place name
+                 (if "header" == place then prefixed apikeyStr else apikeyStr)
+      pure (specV, Nothing)
     _ -> do e <- mkErr "auth_no_spec" "Expected context spec property to be defined."; pure (VNoval, Just e)
+
+-- A cookie has no header of its own: the credential is one name=value piece
+-- of the cookie header, beside the caller's other cookies.
+placeCredential :: Value -> String -> String -> String -> IO ()
+placeCredential specV place name val = case place of
+  "query" -> do q <- getp specV "query"; setp q name (VStr val)
+  "cookie" -> do h <- getp specV "headers"; setCookie h name (Just val)
+  _ -> do h <- getp specV "headers"; setp h name (VStr val)
+
+clearCredential :: Value -> String -> String -> IO ()
+clearCredential specV place name = case place of
+  "query" -> do q <- getp specV "query"; case q of VMap _ -> delp q name; _ -> pure ()
+  "cookie" -> do h <- getp specV "headers"; setCookie h name Nothing
+  _ -> do h <- getp specV "headers"; delp h name
+
+setCookie :: Value -> String -> Maybe String -> IO ()
+setCookie headers name val = do
+  existing <- getp headers "cookie"
+  let kept = (case existing of VStr s -> cookieKeep s [name]; _ -> [])
+        ++ maybe [] (\v -> [name ++ "=" ++ v]) val
+  if null kept then delp headers "cookie" else setp headers "cookie" (VStr (intercalate "; " kept))
 
 -- ----- transforms / result helpers -----
 
@@ -1292,13 +1323,22 @@ makePointUtil ctx = do
           pure (VNoval, Just e)
         else do
           pts <- listItems (opPoints op)
+          (reqsel, sel) <- if opInput op == "data"
+            then (,) <$> readIORef (cReqdata ctx) <*> readIORef (cData ctx)
+            else (,) <$> readIORef (cReqmatch ctx) <*> readIORef (cMatch ctx)
+          reqAction <- getp reqsel "$action"
+          let pointAction pt = do
+                selectDef <- toMap <$> getp pt "select"
+                getp selectDef "$action"
+          -- A lone point still needs the call's action to agree with its own;
+          -- the selection below refuses a mismatch either way.
+          loneAgrees <- case pts of
+            [single] -> valEqScalar reqAction <$> pointAction single
+            _ -> pure False
           case pts of
             [] -> do e <- mkErr "point_no_points" ("Operation \"" ++ opName op ++ "\" has no endpoint definitions."); pure (VNoval, Just e)
-            [single] -> do writeIORef (cPoint ctx) single; pure (single, Nothing)
+            [single] | loneAgrees -> do writeIORef (cPoint ctx) single; pure (single, Nothing)
             _ -> do
-              (reqsel, sel) <- if opInput op == "data"
-                then (,) <$> readIORef (cReqdata ctx) <*> readIORef (cData ctx)
-                else (,) <$> readIORef (cReqmatch ctx) <*> readIORef (cMatch ctx)
               let isFound pt = do
                     selectDef <- toMap <$> getp pt "select"
                     existOk <- case selectDef of
@@ -1316,7 +1356,6 @@ makePointUtil ctx = do
                       _ -> pure True
                     if not existOk then pure False
                     else do
-                      reqAction <- getp reqsel "$action"
                       selectAction <- getp selectDef "$action"
                       pure (valEqScalar reqAction selectAction)
                   findMatch [] = pure Nothing
@@ -1362,8 +1401,10 @@ makePointUtil ctx = do
                             b <- betterOwn c best
                             go (if b then c else best) cs
               matched <- findMatch pts
-              reqAction <- getp reqsel "$action"
-              chosen <- maybe (ownPoint pts) pure matched
+              -- A call without an action falls back to a point without one, as
+              -- generation does.
+              plain <- filterM (\pt -> valEqScalar VNoval <$> pointAction pt) pts
+              chosen <- maybe (ownPoint plain) pure matched
               -- select.exist can list more than the params needed to pick a
               -- point, so nothing matched. A request naming an action gets
               -- here only because that action's own point failed its exist
@@ -1374,6 +1415,10 @@ makePointUtil ctx = do
               if isNothing matched && not (isNoval reqAction)
                 then do
                   e <- mkErr "point_action_invalid" ("Operation \"" ++ opName op ++ "\" action \"" ++ vstring reqAction ++ "\" is not valid.")
+                  pure (VNoval, Just e)
+                else if isNothing matched && null plain
+                then do
+                  e <- mkErr "point_action_required" ("Operation \"" ++ opName op ++ "\" has only action endpoints; pass $action to choose one.")
                   pure (VNoval, Just e)
                 else if not (isNoval reqAction) && not (isNoval chosen)
                 then do
@@ -1673,29 +1718,6 @@ fetcherUtil ctx fullurl fetchdef = do
 -- make_options
 -- ------------------------------------------------------------------
 
-optSpecValue :: IO Value
-optSpecValue = do
-  auth <- jo [("prefix", VStr ""), ("basic", VBool False)]
-  hdrs <- jo [("`$CHILD`", VStr "`$STRING`")]
-  -- OpenAPI server-variable defaults, carried by the generated config whenever
-  -- the spec's server URL is templated. Accepted here so validation does not
-  -- reject the SDK's own config; the {name} substitution into base is a
-  -- separate concern.
-  srv <- jo [("`$CHILD`", VStr "")]
-  allow <- jo [("method", VStr "GET,PUT,POST,PATCH,DELETE,OPTIONS"), ("op", VStr "create,update,patch,load,list,remove,command,direct,graphql")]
-  entChild <- do a <- emptyMap; jo [("`$OPEN`", VBool True), ("active", VBool False), ("alias", a)]
-  ent <- jo [("`$CHILD`", entChild)]
-  featChild <- jo [("`$OPEN`", VBool True), ("active", VBool False)]
-  feat <- jo [("`$CHILD`", featChild)]
-  utilm <- emptyMap
-  sysm <- emptyMap
-  testEnt <- jo [("`$OPEN`", VBool True)]
-  test <- jo [("active", VBool False), ("entity", testEnt)]
-  clean <- cleanOptSpec
-  jo [ ("apikey", VStr ""), ("base", VStr "http://localhost:8000"), ("prefix", VStr ""), ("suffix", VStr "")
-     , ("auth", auth), ("headers", hdrs), ("server", srv), ("allow", allow), ("entity", ent), ("feature", feat)
-     , ("utility", utilm), ("system", sysm), ("test", test), ("clean", clean) ]
-
 makeOptionsUtil :: Context -> IO Value
 makeOptionsUtil ctx = do
   optionsV <- readIORef (cOptions ctx)
@@ -1753,7 +1775,7 @@ makeOptionsUtil ctx = do
       setp opts0 "feature" fmap'
       pure (Just order)
     _ -> pure Nothing
-  optspec <- optSpecValue
+  optspec <- optSpec
   sysFetch <- getpathS opts0 "system.fetch"
   em <- emptyMap
   mlist <- ja [em, cfgopts, opts0]

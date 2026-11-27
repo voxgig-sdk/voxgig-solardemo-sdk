@@ -48,10 +48,23 @@
 
 #include "../../../feature/secrets.hpp"
 
+#include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
+
+#if !defined(_WIN32)
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 using namespace sdk;
 using namespace sdk::fh;
@@ -62,6 +75,19 @@ static int CASES = 0;
     CASES++;     \
     T_RUN(fn);   \
   } while (0)
+
+// The header the credential travels in: the DEFAULT client's auth.name,
+// lower-cased as prepareAuth sends it. Read from a default client because a
+// test's `auth: null` leaves no name to read.
+static const std::string& credHeader() {
+  static const std::string name = [] {
+    std::string n = as_str(Struct::getpath(VoxgigSolardemoSDK::testSDK()->options, {"auth", "name"}));
+    if (n.empty()) return std::string("authorization");
+    for (auto& c : n) c = ('A' <= c && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+    return n;
+  }();
+  return name;
+}
 
 // ---- the recording live transport ------------------------------------------
 
@@ -76,7 +102,7 @@ struct Rec {
   std::string tokenfield = "access_token";
 
   Value fetch(const std::string& url, const Value& fetchdef) {
-    // SNAPSHOT the fetchdef: the exchange retry rewrites the authorization
+    // SNAPSHOT the fetchdef: the exchange retry rewrites the credential
     // header of the same map in place (as go does), so a recorded reference
     // would show every attempt carrying the LAST token.
     calls.push_back(vmap({{"url", Value(url)}, {"fetchdef", Struct::clone(fetchdef)}}));
@@ -94,19 +120,19 @@ struct Rec {
     return fhResponse(status, vmap({{"ok", Value(true)}, {"n", Value(n)}}), Value::undef());
   }
 
-  // The authorization header the i-th call left with ("" when none).
+  // The credential header the i-th call left with ("" when none).
   std::string auth(size_t i) const {
     if (i >= calls.size()) return "";
     Value fd = getp(calls[i], "fetchdef");
     Value h = getp(fd, "headers");
-    Value a = getp(h, "authorization");
+    Value a = getp(h, credHeader());
     return a.is_string() ? a.as_string() : "";
   }
 
   bool hasAuth(size_t i) const {
     if (i >= calls.size()) return false;
     Value h = getp(getp(calls[i], "fetchdef"), "headers");
-    return h.is_map() && !mapget(h, "authorization").is_undef();
+    return h.is_map() && !mapget(h, credHeader()).is_undef();
   }
 
   std::string body(size_t i) const {
@@ -170,10 +196,14 @@ static Value secretsOpts(const Value& providers, const Value& more = Value::unde
 }
 
 // The header prepareAuth would build for this client and token: the model
-// decides the prefix, so it is read off the live options rather than assumed.
-static std::string expectAuth(SdkClient* client, const std::string& token) {
+// decides the prefix and Basic, so both are read off the live options rather
+// than assumed. Under Basic the token is the key half of the encoded pair.
+static std::string expectAuth(SdkClient* client, const std::string& token,
+                              const std::string& secret = "") {
   std::string prefix = as_str(Struct::getpath(client->options, {"auth", "prefix"}));
-  return prefix.empty() ? token : prefix + " " + token;
+  std::string value = is_true(Struct::getpath(client->options, {"auth", "basic"}))
+    ? util::cleanBase64(token + ":" + secret) : token;
+  return prefix.empty() ? value : prefix + " " + value;
 }
 
 static Value direct(std::shared_ptr<VoxgigSolardemoSDK> client) {
@@ -272,8 +302,17 @@ static void t_auth_null_suppresses() {
   ASSERT_EQ(rec->api, 1, "auth null: the op still proceeds");
   ASSERT_FALSE(rec->hasAuth(0), "auth null: NO header even though the chain resolved");
   auto f = SecretsFeature::of(client.get());
-  if (f) ASSERT_EQ(f->credential(), std::string("CHAINKEY"),
-                   "auth null: the chain still resolved (suppression is at the header)");
+  if (f) ASSERT_EQ(f->credential(), std::string(""), "auth null: nothing is resolved");
+}
+
+static void t_resolved_key_paired() {
+  auto rec = std::make_shared<Rec>();
+  auto client = liveClient(rec, secretsOpts(vlist({memoryProvider("APIKEY", "CHAINKEY5")})),
+                           vmap({{"secret", Value(std::string("PASS01"))}}));
+  Value res = direct(client);
+  ASSERT_TRUE(okOf(res), "paired: direct failed: " + errOf(res));
+  ASSERT_EQ(rec->auth(0), expectAuth(client.get(), "CHAINKEY5", "PASS01"),
+            "paired: a resolved key is placed as prepareAuth places it, the secret kept");
 }
 
 static void t_custom_provider_verbatim() {
@@ -373,7 +412,7 @@ static void t_provider_error_fails_entity_op() {
   FhOpResult cr = ch->op(fhOp("load"));
   ASSERT_TRUE(cr.ok, "entity control: op failed: " + (cr.err ? cr.err->msg : std::string("")));
   ASSERT_EQ(crec->calls.size(), (size_t)1, "entity control: exactly one call");
-  Value auth = getp(crec->headers(0), "authorization");
+  Value auth = getp(crec->headers(0), credHeader());
   ASSERT_EQ(as_str(auth), expectAuth(ch->client.get(), "CHAINKEY"),
             "entity control: the chain credential reached the header");
 }
@@ -591,6 +630,8 @@ static void t_exchange_buys_and_carries() {
   ASSERT_TRUE(contains(rec->body(0), "\"refresh_token\":\"REFRESH1\""), "exchange: marshalled body: " + rec->body(0));
   ASSERT_EQ(rec->auth(1), expectAuth(client.get(), "ACCESS01"), "exchange: the ACCESS token is on the wire");
   ASSERT_FALSE(contains(rec->auth(1), "REFRESH1"), "exchange: the refresh token never is");
+  ASSERT_EQ(as_str(getp(getp(rec->calls[0], "fetchdef"), "redirect")), std::string("manual"),
+            "exchange: the purchase follows no redirect");
 }
 
 static void t_exchange_explicit_refresh_wins() {
@@ -623,6 +664,21 @@ static void t_exchange_401_rebuys_and_retries() {
   // calls: token, api(401), token, api(200)
   ASSERT_EQ(rec->auth(1), expectAuth(client.get(), "ACCESS01"), "401: first attempt with the first token");
   ASSERT_EQ(rec->auth(3), expectAuth(client.get(), "ACCESS02"), "401: the retry carries the NEW token");
+}
+
+static void t_exchange_retry_paired() {
+  auto rec = std::make_shared<Rec>();
+  rec->script = {401, 200};
+  auto client = liveClient(rec, secretsOpts(vlist({memoryProvider("APIKEY", "REFRESH1")}),
+                                            vmap({{"exchange", exchangeOn()}})),
+                           vmap({{"secret", Value(std::string("PASS01"))}}));
+  direct(client);
+  ASSERT_EQ(rec->api, 2, "paired 401: retried once");
+  // calls: token, api(401), token, api(200)
+  ASSERT_EQ(rec->auth(1), expectAuth(client.get(), "ACCESS01", "PASS01"),
+            "paired 401: the first attempt kept the secret");
+  ASSERT_EQ(rec->auth(3), expectAuth(client.get(), "ACCESS02", "PASS01"),
+            "paired 401: a token bought on a refusal is placed as prepareAuth places it");
 }
 
 static void t_exchange_retry_once_not_loop() {
@@ -730,6 +786,7 @@ static void t_exchange_auth_null_suppresses() {
   Value res = direct(client);
   ASSERT_FALSE(okOf(res), "auth null exchange: the 401 comes back");
   ASSERT_EQ(rec->api, 1, "auth null exchange: no retry for a deliberately unauthenticated request");
+  ASSERT_EQ(rec->token, 0, "auth null exchange: no token is bought");
   ASSERT_FALSE(rec->hasAuth(rec->calls.size() - 1), "auth null exchange: no header");
 }
 
@@ -745,7 +802,7 @@ static void t_exchange_test_mode_buys_nothing() {
   FhOpResult r = h->op(fhOp("load"));
   ASSERT_TRUE(r.ok, "test mode: op failed: " + (r.err ? r.err->msg : std::string("")));
   ASSERT_EQ(rec->calls.size(), (size_t)1, "test mode: exactly one call, and it is the API call");
-  Value auth = getp(rec->headers(0), "authorization");
+  Value auth = getp(rec->headers(0), credHeader());
   ASSERT_EQ(as_str(auth), expectAuth(h->client.get(), "test-access_token"),
             "test mode: the deterministic fake token");
 }
@@ -762,17 +819,362 @@ static void t_entity_op_gets_chain_credential() {
   FhOpResult r = h->op(fhOp("list"));
   ASSERT_TRUE(r.ok, "entity: op failed: " + (r.err ? r.err->msg : std::string("")));
   ASSERT_EQ(rec->calls.size(), (size_t)1, "entity: one call");
-  ASSERT_EQ(as_str(getp(rec->headers(0), "authorization")), expectAuth(h->client.get(), "CHAINKEY"),
+  ASSERT_EQ(as_str(getp(rec->headers(0), credHeader())), expectAuth(h->client.get(), "CHAINKEY"),
             "entity: the chain credential on the entity path");
 }
 
+// The cases: the exchange answered with a status and a Location on another
+// origin (`away`) or on its own.
+struct Moved {
+  int status;
+  bool away;
+};
+static const std::vector<Moved> MOVED = {{307, true}, {308, true}, {302, true}, {307, false}};
+
+static Value redirectClient(const std::string& base, const Value& fetch,
+                            const std::string& redirect = "") {
+  Value x = exchangeOn(vmap({{"refresh", Value(std::string("REFRESH01"))}}));
+  if (!redirect.empty()) map_put(x, "redirect", Value(redirect));
+  Value opts = vmap({
+    {"base", Value(base)},
+    {"feature", vmap({{"secrets", vmap({
+      {"active", Value(true)},
+      {"name", Value(std::string("refresh_token"))},
+      {"exchange", x}})}})}});
+  if (fetch.is_injector()) map_put(opts, "system", vmap({{"fetch", fetch}}));
+  return direct(std::make_shared<VoxgigSolardemoSDK>(opts));
+}
+
+static std::string redirectWant(int status, const std::string& base) {
+  return "token exchange failed: " + std::to_string(status) + " from " + base + "/auth/token";
+}
+
+#if !defined(_WIN32)
+
+static int redirectListener(int* port) {
+  struct sockaddr_in addr;
+  socklen_t len = sizeof(addr);
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  std::memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  if (0 != bind(fd, (struct sockaddr*)&addr, sizeof(addr)) || 0 != listen(fd, 16)) return -1;
+  getsockname(fd, (struct sockaddr*)&addr, &len);
+  *port = ntohs(addr.sin_port);
+  return fd;
+}
+
+static void redirectSay(int c, const std::string& text) {
+  size_t done = 0;
+  while (done < text.size()) {
+    ssize_t w = write(c, text.data() + done, text.size() - done);
+    if (w <= 0) return;
+    done += (size_t)w;
+  }
+}
+
+// A forked listener. The token path of the origin answers `moved`; every
+// other request is written to `log` as one line and answered with a token.
+static pid_t redirectServe(int fd, int log, const std::string& moved) {
+  std::fflush(nullptr);
+  pid_t pid = fork();
+  if (0 != pid) return pid;
+  signal(SIGPIPE, SIG_IGN);
+  for (;;) {
+    int c = accept(fd, nullptr, nullptr);
+    if (c < 0) continue;
+    std::string req;
+    char buf[4096];
+    size_t end = std::string::npos;
+    while (std::string::npos == end) {
+      ssize_t got = read(c, buf, sizeof(buf));
+      if (got <= 0) break;
+      req.append(buf, (size_t)got);
+      end = req.find("\r\n\r\n");
+    }
+    if (std::string::npos != end) {
+      std::string head = req.substr(0, end);
+      std::string lower = head;
+      for (auto& ch : lower) ch = ('A' <= ch && ch <= 'Z') ? static_cast<char>(ch - 'A' + 'a') : ch;
+      size_t cl = lower.find("\r\ncontent-length:");
+      size_t want = std::string::npos == cl ? 0 : std::strtoul(lower.c_str() + cl + 17, nullptr, 10);
+      std::string body = req.substr(end + 4);
+      while (body.size() < want) {
+        ssize_t got = read(c, buf, sizeof(buf));
+        if (got <= 0) break;
+        body.append(buf, (size_t)got);
+      }
+      std::string line = head.substr(0, head.find("\r\n"));
+      std::string target = line.substr(line.find(' ') + 1);
+      target = target.substr(0, target.find(' '));
+      if (!moved.empty() && "/api/auth/token" == target) {
+        redirectSay(c, moved);
+      } else {
+        redirectSay(log, line.substr(0, line.find(' ')) + " " + target + " " + body + "\n");
+        redirectSay(c, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+          "Content-Length: 30\r\nConnection: close\r\n\r\n{\"access_token\":\"ELSEWHERE01\"}");
+      }
+    }
+    shutdown(c, SHUT_WR);
+    close(c);
+  }
+}
+
+static int redirectLines(int log, std::string& into) {
+  char buf[1024];
+  ssize_t got;
+  while (0 < (got = read(log, buf, sizeof(buf)))) into.append(buf, (size_t)got);
+  return (int)std::count(into.begin(), into.end(), '\n');
+}
+
+// Real listeners and the vendored exchange client: a stub follows nothing.
+static void redirectListeners() {
+  int refused = 0;
+  int followed = 0;
+  std::vector<std::string> allowed;
+
+  for (const Moved& m : MOVED) {
+    int port = 0;
+    int otherport = 0;
+    int fd = redirectListener(&port);
+    int otherfd = redirectListener(&otherport);
+    int elsewhere[2];
+    int beyond[2];
+    ASSERT_TRUE(0 <= fd && 0 <= otherfd && 0 == pipe(elsewhere) && 0 == pipe(beyond),
+                "redirect: loopback listeners");
+
+    std::string location = m.away
+      ? "http://127.0.0.1:" + std::to_string(otherport) + "/api/auth/token"
+      : std::string("/api/moved/token");
+    pid_t origin = redirectServe(fd, beyond[1], "HTTP/1.1 " + std::to_string(m.status) +
+      " Moved\r\nLocation: " + location + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    pid_t other = redirectServe(otherfd, elsewhere[1], "");
+    close(fd);
+    close(otherfd);
+    close(beyond[1]);
+    close(elsewhere[1]);
+
+    std::string base = "http://127.0.0.1:" + std::to_string(port) + "/api";
+    Value res = redirectClient(base, Value::undef());
+
+    kill(origin, SIGTERM);
+    kill(other, SIGTERM);
+    waitpid(origin, nullptr, 0);
+    waitpid(other, nullptr, 0);
+
+    std::string away;
+    std::string again;
+    int reached = redirectLines(elsewhere[0], away);
+    int after = redirectLines(beyond[0], again);
+    close(elsewhere[0]);
+    close(beyond[0]);
+    followed += reached + after;
+
+    bool failed = !okOf(res) && contains(errOf(res), redirectWant(m.status, base));
+    refused += failed ? 1 : 0;
+    if (!failed || 0 < reached || 0 < after) {
+      allowed.push_back(std::to_string(m.status) + " to " + location + ": other origin got [" +
+        away + "], origin got [" + again + "], ended: " + errOf(res));
+    }
+  }
+
+  std::printf("secrets: exchange refused %d redirect(s), %d followed\n", refused, followed);
+  for (const auto& a : allowed) ASSERT_TRUE(false, "redirect: " + a);
+  ASSERT_EQ(refused, (int)MOVED.size(), "redirect: every case is a failed exchange");
+  ASSERT_EQ(followed, 0, "redirect: nothing followed a refused exchange");
+}
+
+#endif
+
+// No exchange client is compiled: the caller's system.fetch is the one
+// transport, and it is handed the redirect rule.
+static void redirectSystemFetch() {
+  const std::string base = "http://api.test/api";
+  int refused = 0;
+  int followed = 0;
+  for (const Moved& m : MOVED) {
+    std::vector<std::string> urls;
+    std::vector<std::string> modes;
+    std::string location = m.away ? "http://other.test/api/auth/token" : "/api/moved/token";
+    vs::Injector fn = [&](vs::Injection&, const Value& args, const std::string&,
+                          const Value&) -> Value {
+      urls.push_back(as_str(vs::getelem(args, Value(int64_t(0)))));
+      modes.push_back(as_str(getp(vs::getelem(args, Value(int64_t(1))), "redirect")));
+      return vmap({{"status", Value(m.status)},
+                   {"headers", vmap({{"location", Value(location)}})},
+                   {"body", Value(std::string(""))}});
+    };
+    Value res = redirectClient(base, Value(fn));
+    bool failed = !okOf(res) && contains(errOf(res), redirectWant(m.status, base));
+    refused += failed ? 1 : 0;
+    followed += urls.empty() ? 0 : (int)urls.size() - 1;
+    std::string label = std::to_string(m.status) + " to " + location + ": ";
+    ASSERT_EQ((int)urls.size(), 1, label + "system.fetch is called once");
+    ASSERT_EQ(urls.empty() ? std::string() : urls[0], base + "/auth/token", label + "with the exchange's url");
+    ASSERT_EQ(modes.empty() ? std::string() : modes[0], std::string("manual"), label + "redirect: manual");
+    ASSERT_TRUE(failed, label + errOf(res));
+  }
+  std::printf("secrets: exchange refused %d redirect(s), %d followed\n", refused, followed);
+  ASSERT_EQ(refused, (int)MOVED.size(), "redirect: every case is a failed exchange");
+  ASSERT_EQ(followed, 0, "redirect: nothing followed a refused exchange");
+}
+
+static void t_exchange_redirect_refused() {
+#if !defined(_WIN32)
+  if (!featurePlugins("secrets").empty()) {
+    redirectListeners();
+    return;
+  }
+#endif
+  redirectSystemFetch();
+}
+
+// The option through the caller's system.fetch, the one transport whose
+// answer carries a Location in every cpp build.
+static void t_exchange_redirect_same_origin() {
+  const std::string base = "http://api.test/api";
+  const std::string sent = " POST manual {\"refresh_token\":\"REFRESH01\"}";
+  const std::string asked = base + "/auth/token" + sent;
+  // The url the exchange is asked again at, empty when refused; a Location of
+  // a query alone keeps the path that answered.
+  struct Case {
+    int status;
+    std::string location;
+    std::string next;
+  };
+  const std::vector<Case> cases = {
+    {307, "/api/moved/token", base + "/moved/token"},
+    {308, "http://api.test/api/moved/token", base + "/moved/token"},
+    {307, "?step=2", base + "/auth/token?step=2"},
+    {307, "http://other.test/api/auth/token", ""},
+    {302, "/api/moved/token", ""},
+    {307, "/api/auth/token", ""}};
+
+  int followed = 0;
+  int refused = 0;
+  int elsewhere = 0;
+  size_t looped = 0;
+  std::vector<std::string> wrong;
+
+  for (const Case& c : cases) {
+    std::vector<std::string> calls;
+    vs::Injector fn = [&](vs::Injection&, const Value& args, const std::string&,
+                          const Value&) -> Value {
+      std::string url = as_str(vs::getelem(args, Value(int64_t(0))));
+      Value fd = vs::getelem(args, Value(int64_t(1)));
+      if (0 != url.rfind("http://api.test/", 0)) elsewhere++;
+      if (base + "/thing" == url) return fhResponse(200, vmap({{"ok", Value(true)}}), Value::undef());
+      calls.push_back(url + " " + as_str(getp(fd, "method")) + " " +
+                      as_str(getp(fd, "redirect")) + " " + as_str(getp(fd, "body")));
+      if (base + "/auth/token" != url) {
+        return fhResponse(200, vmap({{"access_token", Value(std::string("MOVED01"))}}), Value::undef());
+      }
+      return vmap({{"status", Value(c.status)},
+                   {"headers", vmap({{"location", Value(c.location)}})},
+                   {"body", Value(std::string(""))}});
+    };
+    Value res = redirectClient(base, Value(fn), "same-origin");
+
+    bool loop = "/api/auth/token" == c.location;
+    if (loop) looped = calls.size();
+    bool follows = !c.next.empty();
+    std::vector<std::string> want = follows ? std::vector<std::string>{asked, c.next + sent}
+      : std::vector<std::string>(loop ? std::max<size_t>(calls.size(), 1) : 1, asked);
+    bool failed = !okOf(res) && contains(errOf(res), redirectWant(c.status, base));
+    if (calls == want && (follows ? okOf(res) : failed)) {
+      (follows ? followed : refused)++;
+    } else {
+      std::string seen;
+      for (const auto& call : calls) seen += "[" + call + "]";
+      wrong.push_back(std::to_string(c.status) + " to " + c.location + ": " + errOf(res) + " " + seen);
+    }
+  }
+
+  std::printf("secrets: exchange opt-in followed %d redirect(s) on its own origin, refused %d, "
+              "%d elsewhere\n", followed, refused, elsewhere);
+  for (const auto& w : wrong) ASSERT_TRUE(false, "same-origin: " + w);
+  ASSERT_EQ(elsewhere, 0, "same-origin: the exchange reached another origin");
+  ASSERT_EQ(followed, 3, "same-origin: every redirect on the origin followed");
+  ASSERT_EQ(refused, 3, "same-origin: every other redirect refused");
+  ASSERT_EQ(looped, (size_t)6, "same-origin: a redirect to itself is followed five times");
+}
+
+// ---- auth off ----------------------------------------------------------------
+
+// Off by the config where it declares no auth, else by `auth: null`: either
+// way the feature places no credential, buys no token and retries nothing.
+static bool carries(const Rec& rec, size_t i) {
+  static const std::vector<std::string> SECRETS = {"OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01"};
+  if (rec.hasAuth(i)) return true;
+  Value headers = getp(getp(rec.calls[i], "fetchdef"), "headers");
+  if (!headers.is_map()) return false;
+  for (const auto& kv : *headers.as_map()) {
+    std::string v = as_str(kv.second);
+    for (const auto& secret : SECRETS) {
+      if (contains(v, secret)) return true;
+    }
+  }
+  return false;
+}
+
+static void t_auth_off() {
+  bool declared = getp(getp(sharedConfig(), Value("options")), Value("auth")).is_map();
+  int sent = 0;
+  int credentials = 0;
+  int bought = 0;
+
+  for (int scenario = 0; scenario < 3; scenario++) {
+    auto rec = std::make_shared<Rec>();
+    Value fopts = secretsOpts(Value::undef());
+    Value extra = vmap();
+    if (0 == scenario) {
+      fopts = secretsOpts(vlist({memoryProvider("APIKEY", "OFFKEY01")}));
+    } else if (1 == scenario) {
+      map_put(extra, "apikey", Value(std::string("OFFKEY02")));
+    } else {
+      rec->script = {401};
+      fopts = secretsOpts(vlist({memoryProvider("APIKEY", "OFFREFRESH01")}),
+                          vmap({{"exchange", exchangeOn()}}));
+    }
+    if (declared) map_put(extra, "auth", Value(nullptr));
+
+    auto client = liveClient(rec, fopts, extra);
+    direct(client);
+
+    ASSERT_EQ(rec->api, 1, "auth off: one request, not retried");
+    ASSERT_EQ(rec->token, 0, "auth off: no token bought");
+    ASSERT_FALSE(carries(*rec, rec->calls.size() - 1), "auth off: no credential sent");
+    auto f = SecretsFeature::of(client.get());
+    ASSERT_TRUE(nullptr != f, "auth off: the feature is installed");
+    if (f) ASSERT_EQ(f->credential(), std::string(""), "auth off: nothing resolved");
+
+    for (size_t i = 0; i < rec->calls.size(); i++) {
+      if (!contains(rec->url(i), rec->tokenpath) && carries(*rec, i)) credentials++;
+    }
+    sent += rec->api;
+    bought += rec->token;
+  }
+
+  std::printf("secrets: auth off by %s: %d request(s), %d credential(s), %d token(s)\n",
+              declared ? "option" : "config", sent, credentials, bought);
+}
+
 int main() {
+  // Read from the config, never from a probe: an SDK whose config declares no
+  // auth places no credential, and these tests assert on the one it places.
+  if (!getp(getp(sharedConfig(), Value("options")), Value("auth")).is_map()) {
+    std::cout << "  SKIP [secrets]: this SDK's config declares no auth, so it places no credential\n";
+    RUN(t_auth_off);
+    return sdktest::summary("secrets_test");
+  }
+
   RUN(t_inactive_apikey_as_before);
   RUN(t_inactive_no_apikey_no_header);
   RUN(t_apikey_wins_over_chain);
   RUN(t_omitted_apikey_defers);
   RUN(t_empty_apikey_defers);
   RUN(t_auth_null_suppresses);
+  RUN(t_resolved_key_paired);
   RUN(t_custom_provider_verbatim);
   RUN(t_miss_everywhere_no_header);
   RUN(t_provider_error_fails_direct);
@@ -792,6 +1194,7 @@ int main() {
   RUN(t_exchange_explicit_refresh_wins);
   RUN(t_exchange_one_purchase_many_requests);
   RUN(t_exchange_401_rebuys_and_retries);
+  RUN(t_exchange_retry_paired);
   RUN(t_exchange_retry_once_not_loop);
   RUN(t_exchange_other_status_not_expiry);
   RUN(t_exchange_statuses_configurable);
@@ -802,6 +1205,9 @@ int main() {
   RUN(t_exchange_failing_endpoint_surfaces_refusal);
   RUN(t_exchange_auth_null_suppresses);
   RUN(t_exchange_test_mode_buys_nothing);
+  RUN(t_exchange_redirect_refused);
+  RUN(t_exchange_redirect_same_origin);
+  RUN(t_auth_off);
 
   std::printf("secrets: ran %d case(s)\n", CASES);
   return sdktest::summary("secrets_test");

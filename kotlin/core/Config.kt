@@ -175,6 +175,7 @@ object Config {
     b.append("     \"active\": false,")
     b.append("     \"method\": \"POST\",")
     b.append("     \"path\": \"auth/token\",")
+    b.append("     \"redirect\": \"refuse\",")
     b.append("     \"refresh\": \"\",")
     b.append("     \"request\": \"refresh_token\",")
     b.append("     \"response\": \"access_token\",")

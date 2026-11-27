@@ -49,6 +49,7 @@ pub fn make_url_util(ctx: &Rc<Context>) -> Result<String, VoxgigSolardemoError> 
     };
 
     let suffixless = suffix.is_empty();
+    let path_slash = path.ends_with('/');
     let mut url = vs::join(
         &Value::list(vec![
             Value::str(base.clone()),
@@ -60,10 +61,15 @@ pub fn make_url_util(ctx: &Rc<Context>) -> Result<String, VoxgigSolardemoError> 
         true,
     );
 
-    // A route the definition ends with a slash keeps it: a server such as a
-    // Django REST one redirects or refuses the route without it.
-    if let Value::Str(orig) = getp(&ctx.point.borrow().clone(), "orig") {
-        if orig.ends_with('/') && suffixless && !url.ends_with('/') {
+    // A route ending in a slash keeps it, as defined or as passed to direct(), for
+    // Django, and a host with no path takes /, or luasocket reads a query as the host.
+    let orig_slash = matches!(getp(&ctx.point.borrow().clone(), "orig"),
+        Value::Str(orig) if orig.ends_with('/'));
+    if (orig_slash || path_slash) && suffixless && !url.ends_with('/') {
+        url.push('/');
+    }
+    if let Some(authority) = url.find("://") {
+        if 0 < authority && !url[authority + 3..].contains(|c| matches!(c, '/' | '?' | '#')) {
             url.push('/');
         }
     }
@@ -81,8 +87,16 @@ pub fn make_url_util(ctx: &Rc<Context>) -> Result<String, VoxgigSolardemoError> 
             .collect();
         for (key, val) in entries {
             if !val.is_noval() && !val.is_null() {
+                // A whole . or .. is a dot segment, which moves the request to another route.
+                let text = vs::stringify(&val, None, false);
+                if text == "." || text == ".." {
+                    return Err(ctx.make_error(
+                        "url_param_invalid",
+                        &format!("URL path parameter {} cannot be \"{}\".", key, text),
+                    ));
+                }
                 let pat = format!("\\{{{}\\}}", vs::esc_re(&Value::str(key.clone())));
-                let sub = vs::esc_url(&Value::str(vs::stringify(&val, None, false)));
+                let sub = vs::esc_url(&Value::str(text));
                 url = vs::re_replace(&pat, &url, &sub);
                 setp(&resmatch, &key, val);
             }

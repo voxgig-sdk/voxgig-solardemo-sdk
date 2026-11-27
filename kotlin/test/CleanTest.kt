@@ -3,9 +3,11 @@ package voxgig.voxgigsolardemosdk.sdktest
 // The canary sweep: every credential slot holds a distinctive value, every
 // diagnostic feature this SDK ships is switched on with a capturing sink, a
 // real operation runs through every outcome, and every string that leaves
-// the SDK is searched for the canaries and their encoded forms. It also
-// proves its own sensitivity: with clean switched off the canary MUST show.
+// is searched for the canaries and their encoded forms; a second sweep does
+// the same for a body of bytes. With clean off the canary MUST show.
 
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.lang.reflect.Method
@@ -30,6 +32,7 @@ import voxgig.voxgigsolardemosdk.core.Config
 import voxgig.voxgigsolardemosdk.core.Context
 import voxgig.voxgigsolardemosdk.core.Helpers
 import voxgig.voxgigsolardemosdk.core.VoxgigSolardemoSDK
+import voxgig.voxgigsolardemosdk.core.Response
 import voxgig.voxgigsolardemosdk.core.Result
 import voxgig.voxgigsolardemosdk.core.SdkEntity
 import voxgig.voxgigsolardemosdk.core.SdkError
@@ -43,7 +46,7 @@ import voxgig.voxgigsolardemosdk.utility.struct.Struct
 class CleanTest {
 
   // Generated: the credential's wire placement is fixed when the SDK is built.
-  private val authSuppressed = false
+  private val authSuppressed = true
   private val authWhere = "header"
   private val authName = "authorization"
 
@@ -55,6 +58,8 @@ class CleanTest {
   private val mask = "[redacted]"
 
   private val noOp = "no operation of this SDK completes against a plain 200; nothing to sweep"
+
+  private val noBinaryOp = "no operation of this SDK sends a binary body; nothing to sweep"
 
   private fun b64(s: String): String =
     Base64.getEncoder().encodeToString(s.toByteArray(StandardCharsets.UTF_8))
@@ -71,6 +76,21 @@ class CleanTest {
     out
   }
 
+  // The marker a body of bytes carries.
+  private val content = "CANARY-CONTENT-b7n3v9x1c5"
+  private val contentBytes = content.toByteArray(StandardCharsets.UTF_8)
+
+  // The marker a response of bytes carries, as the default transport hands
+  // on a body it read into text.
+  private val answered = "CANARY-RESPONSE-k2m8q4w6z0"
+
+  // Every value this SDK accepts as a raw body.
+  private val carriers = linkedMapOf<String, () -> Any>(
+    "ByteArray" to { contentBytes.copyOf() },
+    "InputStream" to { ByteArrayInputStream(contentBytes) },
+    "String" to { content },
+  )
+
   class Sink(val name: String, val text: String)
 
   // Header maps keep the caller's spelling; the assertion should not care.
@@ -86,15 +106,42 @@ class CleanTest {
 
   private fun leaks(text: String): List<String> = forms.filter { text.contains(it) }
 
+  // The forms bytes travel in once copied: text, a list of byte values, hex,
+  // base64 with or without its padding.
+  private fun contentLeaks(text: String, marker: String = content): List<String> {
+    val bytes = marker.toByteArray(StandardCharsets.UTF_8)
+    val flat = text.replace(Regex("\\s+"), "")
+    val found = mutableListOf<String>()
+    if (text.contains(marker)) {
+      found.add("text")
+    }
+    if (flat.contains(bytes.joinToString(","))) {
+      found.add("byte values")
+    }
+    if (flat.lowercase().contains(bytes.joinToString("") { "%02x".format(it) })) {
+      found.add("hex")
+    }
+    if (flat.contains(b64(marker).replace("=", ""))) {
+      found.add("base64")
+    }
+    return found
+  }
+
   // The SDK's own objects print their data, not a class name, so a raw spec
-  // handed back with clean off shows what it holds.
+  // handed back with clean off shows what it holds. Bytes print as their
+  // values wherever they sit, which is how a serialiser shows them.
   private fun plain(v: Any?): Any? = when (v) {
     is Spec -> linkedMapOf<String, Any?>(
       "method" to v.method, "url" to v.url, "path" to v.path,
-      "headers" to v.headers, "query" to v.query, "body" to v.body)
+      "headers" to v.headers, "query" to v.query, "body" to plain(v.body))
     is Result -> linkedMapOf<String, Any?>(
       "status" to v.status, "headers" to v.headers, "body" to v.body, "resdata" to v.resdata)
+    is Response -> linkedMapOf<String, Any?>(
+      "status" to v.status, "headers" to v.headers, "body" to plain(v.body))
     is SdkEntity -> v.data()
+    is ByteArray -> v.map { it.toInt() }
+    is Map<*, *> -> v.mapValues { plain(it.value) }
+    is List<*> -> v.map { plain(it) }
     else -> v
   }
 
@@ -119,12 +166,12 @@ class CleanTest {
       push("stack") { stack(v) }
     }
     if (v is SdkError) {
-      push("map") { Struct.jsonify(v.toMap()) }
+      push("map") { Struct.jsonify(plain(v.toMap())) }
       push("spec") { Struct.jsonify(plain(v.spec)) }
       push("result") { Struct.jsonify(plain(v.result)) }
     }
     if (v is Context) {
-      push("record") { Struct.jsonify(v.toMap()) }
+      push("record") { Struct.jsonify(plain(v.toMap())) }
     }
     return out
   }
@@ -220,6 +267,18 @@ class CleanTest {
     },
   )
 
+  // A response of bytes under the type it declares, as the default transport
+  // hands on a body it read into text and could not parse.
+  private fun bytesScenario(status: Int, type: String) = Scenario("bytes") { _, _ ->
+    linkedMapOf<String, Any?>(
+      "status" to status,
+      "statusText" to (if (status < 400) "OK" else "ERR"),
+      "headers" to linkedMapOf<String, Any?>("content-type" to type),
+      "json" to Supplier<Any?> { null },
+      "body" to answered,
+      "unreadable" to true)
+  }
+
   // Offline, as every generated suite is: the test OPTION resolves a required
   // server variable to test-<name>, and installs no transport.
   private fun offline(opts: Map<String, Any?>): MutableMap<String, Any?> {
@@ -293,7 +352,12 @@ class CleanTest {
     return construct(opts)
   }
 
-  class Target(val accessor: Method, val op: String, val match: Map<String, Any?>)
+  // media: the type its point declares for a raw body, when it sends one.
+  class Target(val accessor: Method, val op: String, val match: Map<String, Any?>,
+    val media: Any? = null) {
+    // The same operation passing more data, as an upload passes its body.
+    fun with(data: Map<String, Any?>): Target = Target(accessor, op, match + data, media)
+  }
 
   private fun accessors(): List<Method> =
     VoxgigSolardemoSDK::class.java.methods
@@ -382,6 +446,63 @@ class CleanTest {
     assumeTrue(target != null, noOp)
     return target!!
   }
+
+  // The first operation with a point that sends a raw body the model marks
+  // binary, with every path parameter of that point filled in.
+  private fun binaryOp(): Target? {
+    val plain = construct(linkedMapOf<String, Any?>("apikey" to canaryApikey))
+    val entities = Helpers.toMapAny(Config.sharedConfig()["entity"]) ?: linkedMapOf()
+    for (m in accessors()) {
+      val inst = entityOf(plain, m) ?: continue
+      val ecfg = Helpers.toMapAny(entities[inst.name]) ?: continue
+      val opdefs = Helpers.toMapAny(ecfg["op"]) ?: continue
+      for (op in opdefs.keys.sorted()) {
+        val points = Struct.getprop(opdefs[op], "points", null) as? List<*> ?: continue
+        for (point in points) {
+          val body = Struct.getprop(point, "body", null)
+          if ("raw" != Struct.getprop(body, "kind", null) ||
+            true != Struct.getprop(body, "binary", null)) {
+            continue
+          }
+          val match = linkedMapOf<String, Any?>()
+          val params = Struct.getpath(point, listOf("args", "params"))
+          if (params is List<*>) {
+            for (param in params) {
+              val name = Struct.getprop(param, "name", null)
+              if (name is String) {
+                match[name] = "p1"
+              }
+            }
+          }
+          val action = Struct.getprop(Struct.getprop(point, "select", null), "\$action", null)
+          if (action != null) {
+            match["\$action"] = action
+          }
+          return Target(m, op, match, Struct.getprop(body, "media", null))
+        }
+      }
+    }
+    return null
+  }
+
+  // No such operation is a visible skip, which prints no content line.
+  private fun binaryOrSkip(): Target {
+    val target = binaryOp()
+    if (target == null) {
+      println("clean: skipped: " + noBinaryOp)
+    }
+    assumeTrue(target != null, noBinaryOp)
+    return target!!
+  }
+
+  // What the transport was handed, as text.
+  private fun sentText(body: Any?): String = when (body) {
+    is ByteArray -> String(body, StandardCharsets.UTF_8)
+    is InputStream -> String(body.readBytes(), StandardCharsets.UTF_8)
+    else -> body.toString()
+  }
+
+  private fun body(record: Any?): Any? = Helpers.toMapAny(record)?.get("body")
 
   private fun drive(sdk: VoxgigSolardemoSDK, target: Target, ctrl: MutableMap<String, Any?>?, sinks: MutableList<Sink>): Throwable? {
     // A caller may keep the record it passed rather than read ctrl's entry.
@@ -579,6 +700,171 @@ class CleanTest {
       assertTrue(text.contains(canaryApikey) || text.contains(b64(canaryApikey + ":" + canarySecret)),
         "the raw spec should carry the credential when clean is off")
     }
+  }
+
+  @Test
+  fun noBodyOfBytesLeavesTheSdkInAnyForm() {
+    val target = binaryOrSkip()
+
+    val sinks = mutableListOf<Sink>()
+    val sent = linkedMapOf<String, Any?>()
+    val errors = linkedMapOf<String, Throwable>()
+    val explains = linkedMapOf<String, MutableMap<String, Any?>>()
+
+    for ((carrier, make) in carriers) {
+      for (scenario in scenarios.subList(0, 4)) {
+        for (variant in listOf("throw", "explain", "nothrow")) {
+          val key = carrier + "/" + scenario.name + "/" + variant
+          // The transport is where the bytes are meant to arrive, whole.
+          val seen = Scenario(scenario.name) { url, fetchdef ->
+            sent[key] = fetchdef["body"]
+            scenario.respond(url, fetchdef)
+          }
+          val sdk = makeSdk(seen, sinks, null)
+          val ctrl: MutableMap<String, Any?>? = when (variant) {
+            "throw" -> null
+            "explain" -> linkedMapOf<String, Any?>("explain" to linkedMapOf<String, Any?>())
+            else -> linkedMapOf<String, Any?>("throw" to false, "explain" to linkedMapOf<String, Any?>())
+          }
+          val err = drive(sdk, target.with(mapOf("\$body" to make())), ctrl, sinks)
+          if (err != null) {
+            errors[key] = err
+          }
+          val explain = Helpers.toMapAny(ctrl?.get("explain"))
+          if (explain != null) {
+            explains[key] = explain
+          }
+          sinks.addAll(surfaces("sdk", sdk))
+        }
+      }
+    }
+
+    val leaked = sinks
+      .map { Pair(it.name, contentLeaks(it.text)) }
+      .filter { it.second.isNotEmpty() }
+
+    println("clean: content swept " + sinks.size + " surface(s), " + leaked.size + " leak(s)")
+
+    assertEquals(0, leaked.size, "a body of bytes leaked through: " +
+      leaked.joinToString("; ") { it.first + " [" + it.second.joinToString(", ") + "]" })
+
+    // The positive half: where the body was, what describes it now is, and
+    // the request is untouched. A stream is read into bytes before the
+    // request is built, so its body is described as bytes too.
+    val desc = linkedMapOf<String, Any?>(
+      "binary\$" to "bytes", "size" to contentBytes.size, "type" to target.media)
+    for (carrier in carriers.keys) {
+      assertEquals(content, sentText(sent[carrier + "/notfound/throw"]),
+        carrier + ": the transport was handed something else")
+      val failed = errors[carrier + "/notfound/throw"] as? SdkError
+      assertNotNull(failed, carrier + ": the 404 scenario must throw the SDK error")
+      assertEquals(desc, body(failed!!.spec), carrier + ": the thrown spec")
+      assertEquals(content, sentText(failed.ctx?.spec?.body),
+        carrier + ": the live request was changed")
+      val explained = explains[carrier + "/ok/explain"]
+      assertNotNull(explained, carrier + ": the explain record")
+      assertEquals(desc, body(explained!!["spec"]), carrier + ": the explain record")
+      assertEquals(desc, body(explained["fetchdef"]), carrier + ": the explained fetch")
+    }
+
+    // By type, wherever it sits and whatever the operation: a stream is
+    // described without being read, and a sensitive name still masks.
+    val bytes = linkedMapOf<String, Any?>("binary\$" to "bytes", "size" to contentBytes.size)
+    val probe = makeSdk(scenarios[0], mutableListOf(), null)
+    val unread = ByteArrayInputStream(contentBytes)
+    assertEquals(
+      linkedMapOf<String, Any?>(
+        "upload" to linkedMapOf<String, Any?>("binary\$" to "stream"),
+        "parts" to listOf(bytes), "token" to mask),
+      probe.getUtility().clean(probe.getRootCtx(), linkedMapOf<String, Any?>(
+        "upload" to unread, "parts" to listOf(contentBytes.copyOf()),
+        "token" to contentBytes.copyOf())))
+    assertEquals(contentBytes.size, unread.available(), "clean read from the stream")
+
+    // An error is cleaned in place, and what it holds is described.
+    val held = SdkError("held", "upload failed", null)
+    held.spec = linkedMapOf<String, Any?>("body" to contentBytes.copyOf())
+    held.result = contentBytes.copyOf()
+    assertTrue(held === probe.getUtility().clean(probe.getRootCtx(), held))
+    assertEquals(linkedMapOf<String, Any?>("body" to bytes), held.spec)
+    assertEquals(bytes, held.result)
+
+    // By the model: the body is described wherever it sits in what is
+    // cleaned, other text stays, and a string cleaned alone stays a string.
+    val opctx = (errors["String/notfound/throw"] as SdkError).ctx!!
+    assertEquals(linkedMapOf<String, Any?>("held" to listOf(desc), "note" to "kept"),
+      opctx.utility!!.clean(opctx,
+        linkedMapOf<String, Any?>("held" to listOf(content), "note" to "kept")))
+    assertEquals(content, opctx.utility!!.clean(opctx, content))
+    assertEquals(linkedMapOf<String, Any?>("held" to content),
+      probe.getUtility().clean(probe.getRootCtx(), linkedMapOf<String, Any?>("held" to content)))
+  }
+
+  @Test
+  fun theSweepCanSeeABodyCleanSwitchedOffShowsTheBytes() {
+    val target = binaryOrSkip()
+
+    for ((carrier, make) in carriers) {
+      val sinks = mutableListOf<Sink>()
+      val sdk = makeSdk(scenarios[1], sinks, mapOf("active" to false))
+      val err = drive(sdk, target.with(mapOf("\$body" to make())), null, sinks)
+      assertNotNull(err, carrier + ": the 404 scenario must throw")
+      val leaked = sinks.filter { contentLeaks(it.text).isNotEmpty() }
+      assertTrue(leaked.isNotEmpty(),
+        carrier + ": with clean off, nothing showed the bytes: the sweep is blind")
+    }
+  }
+
+  @Test
+  fun noResponseOfBytesLeavesTheSdkInAnyForm() {
+    val target = usableOrSkip()
+
+    val sinks = mutableListOf<Sink>()
+    val errors = linkedMapOf<String, Throwable>()
+
+    for (status in listOf(200, 404, 500)) {
+      for (variant in listOf("throw", "explain", "nothrow")) {
+        val sdk = makeSdk(bytesScenario(status, "audio/wav"), sinks, null)
+        val ctrl: MutableMap<String, Any?>? = when (variant) {
+          "throw" -> null
+          "explain" -> linkedMapOf<String, Any?>("explain" to linkedMapOf<String, Any?>())
+          else -> linkedMapOf<String, Any?>("throw" to false, "explain" to linkedMapOf<String, Any?>())
+        }
+        val err = drive(sdk, target, ctrl, sinks)
+        if (err != null) {
+          errors[status.toString() + "/" + variant] = err
+        }
+        sinks.addAll(surfaces("sdk", sdk))
+      }
+    }
+
+    val leaked = sinks
+      .map { Pair(it.name, contentLeaks(it.text, answered)) }
+      .filter { it.second.isNotEmpty() }
+
+    println("clean: response swept " + sinks.size + " surface(s), " + leaked.size + " leak(s)")
+
+    assertEquals(0, leaked.size, "a response of bytes leaked through: " +
+      leaked.joinToString("; ") { it.first + " [" + it.second.joinToString(", ") + "]" })
+
+    // The failure still names what it could not read.
+    val failed = errors["200/throw"] as? SdkError
+    assertNotNull(failed, "a response of bytes must fail the operation")
+    assertEquals("response_content_type", failed!!.code)
+    assertTrue((failed.message ?: "").contains("audio/wav"),
+      "the error does not name the type: " + failed.message)
+  }
+
+  @Test
+  fun theSweepCanSeeAResponseCleanSwitchedOffShowsTheBytes() {
+    val target = usableOrSkip()
+
+    val sinks = mutableListOf<Sink>()
+    val sdk = makeSdk(bytesScenario(200, "audio/wav"), sinks, mapOf("active" to false))
+    val err = drive(sdk, target, null, sinks)
+    assertNotNull(err, "a response of bytes must fail the operation")
+    val leaked = sinks.filter { contentLeaks(it.text, answered).isNotEmpty() }
+    assertTrue(leaked.isNotEmpty(), "with clean off, nothing showed the response: the sweep is blind")
   }
 
   // An entity block, of per-entity settings or seeded records keyed by

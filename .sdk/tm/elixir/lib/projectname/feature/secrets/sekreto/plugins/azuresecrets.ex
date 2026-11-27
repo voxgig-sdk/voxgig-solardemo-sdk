@@ -1,5 +1,5 @@
-# VENDORED: @voxgig/sekreto sdk-20260925-1316-0 (elixir/plugins/azuresecrets.ex)
-# Source: https://github.com/voxgig/sekreto @ 163f537960de6813cc393b89843949ca3afa8cfc  [tag: sdk-20260925-1316-0]
+# VENDORED: @voxgig/sekreto sdk-20261125-1959-0 (elixir/plugins/azuresecrets.ex)
+# Source: https://github.com/voxgig/sekreto @ ee837130bf444ca46a5a46181bdd6743e118898c  [tag: sdk-20261125-1959-0]
 # License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 # Azure Key Vault, as a sekreto plugin.
 #

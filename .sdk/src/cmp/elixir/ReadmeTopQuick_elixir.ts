@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, entityIdField, opRequestShape, elixirAccessor, entityCollection, exampleVarName } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, entityIdField, opRequestShape, elixirAccessor, entityCollection, exampleVarName, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { elixirLit, elixirListArgs } from './utility_elixir'
+import { elixirLit, elixirListArgs, elixirString } from './utility_elixir'
 
 
 const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
@@ -19,9 +19,16 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `${Name}.new(H.deep(%{"apikey" => System.get_env("${envName(model)}_APIKEY")}))`
-    : `${Name}.new()`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`"apikey" => System.get_env("${envName(model)}_APIKEY")`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`"secret" => System.get_env("${envName(model)}_SECRET")`] : []),
+    ...(0 === svars.length ? [] : [`"server" => %{` +
+      svars.map((v: any) => `"${v.name}" => "<${v.name}>"`).join(', ') + `}`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `${Name}.new()`
+    : `${Name}.new(H.deep(%{${ctorFields.join(', ')}}))`
 
   Content(`\`\`\`elixir
 alias ${Name}.Helpers, as: H
@@ -34,7 +41,7 @@ sdk = ${ctor}
     const eName = nom(exampleEntity, 'Name')
     const eVar = exampleVarName(exampleEntity.name, 'elixir')
     const eCall = elixirAccessor(exampleEntity, entityCollection(model))
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     Content(`${eVar} = ${Name}.${eCall}(sdk)
@@ -54,8 +61,7 @@ end
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       // No required match keys (a singleton endpoint like /current) means no
@@ -63,7 +69,7 @@ end
       // reqmatch defaults to nil, so load/1 is the correct call.
       const loadArgs = 0 < loadItems.length
         ? `${eVar}, H.deep(%{${loadItems.map((it: any) =>
-          `"${it.name}" => ${elixirLit(it.type,
+          `${elixirString(it.name)} => ${elixirLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')}})`
         : eVar
       Content(`

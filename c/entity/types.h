@@ -88,23 +88,17 @@ typedef struct {
 // PlanetCreateData is the typed request payload for Planet.create.
 typedef struct {
   double diameter;
-  char*forbidreason;  // optional
-  char*forbidstate;  // optional
   char*id;
   char*kind;
   char*name;
-  char*terraformstate;  // optional
 } PlanetCreateData;
 
 // PlanetUpdateData is the typed request payload for Planet.update.
 typedef struct {
   char*id;
   double diameter;  // optional
-  char*forbidreason;  // optional
-  char*forbidstate;  // optional
   char*kind;  // optional
   char*name;  // optional
-  char*terraformstate;  // optional
 } PlanetUpdateData;
 
 // PlanetRemoveMatch is the typed request payload for Planet.remove.

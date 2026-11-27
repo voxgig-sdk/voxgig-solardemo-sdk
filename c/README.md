@@ -4,7 +4,7 @@
 
 The C SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic C conventions (explicit structs, function-pointer vtables, and a trailing `PNError**` out-param for errors).
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `voxgigsolardemo_moon(client, NULL)` — each
+The SDK exposes the API as semantic **Entities** — for example `voxgigsolardemo_moon(client, NULL)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -25,26 +25,41 @@ cd c && make          # builds libsdk.a
 cd c && make test     # builds + runs the test binaries
 ```
 
-Link your program against `libsdk.a` and include `core/api.h`:
+Link your program against `libsdk.a` and the libraries `make -s ldlibs`
+prints, and include `core/api.h`:
 
 ```bash
 cc -I c/core -I c/utility/struct \
-   myapp.c c/libsdk.a -lm -o myapp
+   myapp.c c/libsdk.a $(make -s -C c ldlibs) -o myapp
 ```
+
+Every global name in `libsdk.a` carries this SDK's prefix
+(`voxgigsolardemo_sdk_prepare`, `voxgigsolardemo_cmap`, ...), so one program can link several
+generated SDKs. `make` maps each short name to its prefixed one in
+`c/core/prefix.h`, which the SDK is compiled with, and each name its
+headers declare in `c/core/prefix_api.h`, which `core/api.h` includes,
+so your code keeps the short names and the SDK's private names never rename
+your own. Include `core/api.h` before any other SDK header, and give each SDK
+a source file of its own: the headers of two SDKs declare the same type names.
 
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
 ```c
+#include <stdio.h>
+#include <stdlib.h>
 #include "core/api.h"
 
-VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(NULL);
 PNError* err = NULL;
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(NULL, &err);
+if (NULL == client) {
+    fprintf(stderr, "%s\n", err->msg);
+    exit(1);
+}
 ```
 
 ### 2. List moon records
@@ -99,30 +114,35 @@ moon->vt->remove(moon, cmap(2, "id", created_id, "planet_id", v_str("example_pla
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations set `*err` on failure, so check `err` after each call:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
+```c
+Entity* planet = voxgigsolardemo_planet(client, NULL);
+PNError* err = NULL;
+Entity** planets = planet->vt->list(planet, NULL, NULL, &err);
+if (err) {
+    fprintf(stderr, "list failed: %s\n", err->msg);
+} else {
+    for (size_t i = 0; planets[i]; i++) {
+        printf("%s\n", voxgig_to_json(planets[i]->vt->data(planets[i], NULL)));
+    }
 }
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`sdk_direct()` does **not** set `*err` for an error response — it
+returns the result map. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```c
+PNError* err = NULL;
+voxgig_value* result = sdk_direct(client, cmap(3,
+    "path", v_str("/api/planet/{planet_id}/moon"),
+    "method", v_str("GET"),
+    "params", cmap(1, "planet_id", v_str("example_id"))), &err);
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
+if (!voxgig_as_bool(getp(result, "ok"))) {
+    fprintf(stderr, "request failed: %lld %s\n",
+        (long long)to_int(getp(result, "status")), voxgig_to_json(getp(result, "err")));
 }
 ```
 
@@ -136,9 +156,9 @@ For endpoints not covered by entity operations:
 ```c
 PNError* err = NULL;
 voxgig_value* result = sdk_direct(client, cmap(3,
-    "path", v_str("/api/resource/{id}"),
+    "path", v_str("/api/planet/{planet_id}/moon"),
     "method", v_str("GET"),
-    "params", cmap(1, "id", v_str("example"))), &err);
+    "params", cmap(1, "planet_id", v_str("example"))), &err);
 
 if (voxgig_as_bool(getp(result, "ok"))) {
     printf("%lld\n", (long long)to_int(getp(result, "status")));  // 200
@@ -158,9 +178,9 @@ a result map you branch on via `getp(result, "ok")`.
 ```c
 PNError* err = NULL;
 voxgig_value* fetchdef = sdk_prepare(client, cmap(3,
-    "path", v_str("/api/resource/{id}"),
-    "method", v_str("DELETE"),
-    "params", cmap(1, "id", v_str("example"))), &err);
+    "path", v_str("/api/planet/{planet_id}/moon"),
+    "method", v_str("GET"),
+    "params", cmap(1, "planet_id", v_str("example"))), &err);
 
 printf("%s\n", get_str(fetchdef, "url"));
 printf("%s\n", get_str(fetchdef, "method"));
@@ -181,24 +201,54 @@ Entity** planets = planet->vt->list(planet, NULL, NULL, &err);
 // planets[i]->vt->data(planets[i], NULL) is a mock record
 ```
 
+### Send requests over HTTP and HTTPS
+
+On a POSIX system the SDK sends each request itself: HTTP/1.1 on a
+socket, one request per connection. It reads a response framed by
+`Content-Length`, by chunks or by the connection closing, gives up on an
+exchange 30 seconds after it starts to connect, refuses a response larger
+than 32 MiB, and follows no redirect. Looking up the host comes before those
+30 seconds, and is bounded by the system resolver alone. A failure to
+connect, send or read is a `fetch_transport` error. On Windows there is no
+default transport: supply `options.system.fetch`, described next.
+
+`https://` binds the platform's OpenSSL: `make` uses it wherever its headers
+are installed (`make TLS=openssl` insists on it), and a program linking
+`libsdk.a` links what `make -s ldlibs` prints. The server's certificate is
+verified against the system's trust store and its name against the host, and
+nothing turns that off. A build made with `TLS=none` links no TLS library and
+refuses every `https://` request. Two environment variables change what is
+trusted:
+
+- `VOXGIG_SOLARDEMO_CA_BUNDLE` names a PEM file of roots added to the system's.
+- `VOXGIG_SOLARDEMO_TLS_PIN` is the SHA-256 fingerprint of the one certificate to trust
+  in place of any store, for a local service with a self-signed certificate.
+  `openssl x509 -noout -fingerprint -sha256 -in cert.pem` prints it, and the
+  host name is still checked against that certificate.
+
+
 ### Use a custom fetch function
 
 Replace the HTTP transport with your own function (the same shape the test
-transport uses):
+transport uses). A response is read through its `json` only when it carries
+a `body`:
 
 ```c
 static voxgig_value* mock_fetch(void* ud, voxgig_value* args) {
     (void)ud; (void)args;
-    return cmap(4,
+    return cmap(5,
         "status", v_num(200),
         "statusText", v_str("OK"),
         "headers", v_map(),
+        "body", v_str("{\"id\":\"mock01\"}"),
         "json", json_thunk(cmap(1, "id", v_str("mock01"))));
 }
 
+PNError* err = NULL;
 VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(2,
     "base", v_str("http://localhost:8080"),
-    "system", cmap(1, "fetch", vfn(mock_fetch, NULL))));
+    "system", cmap(1, "fetch", vfn(mock_fetch, NULL))), &err);
+if (NULL == client) fprintf(stderr, "%s\n", err->msg);
 ```
 
 ### Point at a different server
@@ -206,19 +256,16 @@ VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(2,
 Override the base URL to reach a local or staging server:
 
 ```c
+PNError* err = NULL;
 VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(cmap(1,
-    "base", v_str("http://localhost:8080")));
+    "base", v_str("http://localhost:8080")), &err);
+if (NULL == client) fprintf(stderr, "%s\n", err->msg);
 ```
 
-### Run live tests
+### Run the test suite
 
-Create a `.env.local` file at the project root:
-
-```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
-```
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 ```bash
 cd c && make test
@@ -232,7 +279,8 @@ cd c && make test
 ```c
 #include "core/api.h"
 
-VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(options);
+PNError* err = NULL;
+VoxgigSolardemoSDK* client = voxgigsolardemo_sdk_new(options, &err);
 ```
 
 Creates a new SDK client. `options` is a `voxgig_value*` map (`NULL` for
@@ -243,8 +291,9 @@ none) carrying any of the following keys:
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
 | `feature` | `map` | Feature activation flags. |
-| `system` | `map` | System overrides (e.g. a custom `fetch`). |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 ### test_sdk
 
@@ -311,7 +360,7 @@ On error, `ok` is `false` and `err` carries the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -327,9 +376,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -344,11 +393,11 @@ Create an instance: `Entity* moon = voxgigsolardemo_moon(client, NULL);`
 
 | Method | Description |
 | --- | --- |
-| `Entity* vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
 | `Entity** vt->list(e, reqmatch, ctrl, &err)` | List entities, optionally matching the given criteria: a `NULL`-terminated array, one per record. |
 | `Entity* vt->load(e, reqmatch, ctrl, &err)` | Load a single entity by match criteria. |
-| `Entity* vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity, which is returned marked as deleted. |
+| `Entity* vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
 | `Entity* vt->update(e, reqdata, ctrl, &err)` | Update an existing entity. |
+| `Entity* vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity, which is returned marked as deleted. |
 
 #### Fields
 
@@ -402,11 +451,11 @@ Create an instance: `Entity* planet = voxgigsolardemo_planet(client, NULL);`
 
 | Method | Description |
 | --- | --- |
-| `Entity* vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
 | `Entity** vt->list(e, reqmatch, ctrl, &err)` | List entities, optionally matching the given criteria: a `NULL`-terminated array, one per record. |
 | `Entity* vt->load(e, reqmatch, ctrl, &err)` | Load a single entity by match criteria. |
-| `Entity* vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity, which is returned marked as deleted. |
+| `Entity* vt->create(e, reqdata, ctrl, &err)` | Create a new entity with the given data. |
 | `Entity* vt->update(e, reqdata, ctrl, &err)` | Update an existing entity. |
+| `Entity* vt->remove(e, reqmatch, ctrl, &err)` | Remove the matching entity, which is returned marked as deleted. |
 
 #### Fields
 
@@ -454,12 +503,11 @@ Entity* created = planet->vt->create(planet, cmap(4,
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -572,7 +620,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -623,16 +671,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -640,9 +684,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a struct whose first
+member is a `Feature` holding its vtable. The vtable's `hook` function
+receives each pipeline stage's name and the context.
 
 The SDK ships with built-in features:
 
@@ -665,7 +709,9 @@ The C SDK uses a single dynamic `voxgig_value*` type throughout rather than
 a typed struct per entity. `voxgig_value` is the vendored voxgig struct
 port (a JSON-shaped tagged union: string, number, bool, list, map, null,
 undef). This mirrors the dynamic nature of the API and keeps the SDK
-flexible — no code generation is needed when the API schema changes.
+flexible: code that works with `voxgig_value` needs no regeneration when
+the API schema changes. The typed models in `entity/types.h` follow the
+schema only when the SDK is regenerated.
 
 Build request maps with the `cmap` / `clist` / `v_str` / `v_num` /
 `v_bool` helper builders, and read fields back with `getp` (or the typed
@@ -689,7 +735,7 @@ Always initialise `PNError* err = NULL;` and branch on it after each call.
 c/
 ├── core/          -- Pipeline types, config, client (client.c), api.h + sdk.h
 ├── entity/        -- Per-entity implementations (one .c each)
-├── feature/       -- Built-in features (base, test, log, ...)
+├── feature/       -- Feature implementations
 ├── utility/       -- Utilities + the vendored voxgig struct port (utility/struct)
 ├── tests/         -- Test binaries (each a standalone main())
 └── Makefile       -- Builds libsdk.a and runs every tests/*.c
@@ -702,29 +748,30 @@ accessor. Include it and link against `libsdk.a`.
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```c
+Entity* planet = voxgigsolardemo_planet(client, NULL);
+PNError* err = NULL;
+planet->vt->list(planet, NULL, NULL, &err);
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+// planet->vt->data(planet, NULL) now returns the planet data from the last list
+// planet->vt->matchv(planet, NULL) returns the last match criteria
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `vt->make` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`sdk_direct()` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `sdk_prepare()` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

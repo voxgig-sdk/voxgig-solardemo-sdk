@@ -10,7 +10,7 @@ open class VoxgigSolardemoEntityBase: Entity {
   var client: VoxgigSolardemoSDK
   var utility: Utility
   var entopts: VMap
-  var data = VMap()
+  var data: Value = .map(VMap())
   var match = VMap()
   var entctx: Context!
 
@@ -47,11 +47,11 @@ open class VoxgigSolardemoEntityBase: Entity {
   @discardableResult
   public func data(_ newdata: Value?) -> Value {
     if let nd = newdata, !isNil(nd) {
-      data = clone(nd).asMap ?? VMap()
+      data = clone(nd)
       utility.featureHook(entctx, "SetData")
     }
     utility.featureHook(entctx, "GetData")
-    return clone(.map(data))
+    return clone(data)
   }
 
   @discardableResult
@@ -88,9 +88,9 @@ open class VoxgigSolardemoEntityBase: Entity {
     throw unsupportedOp("remove", name)
   }
 
-  // Every operation resolves to the entity; `remove` additionally marks
-  // it. The instance KEEPS the data it held — a caller can still read
-  // what was deleted — but it is no longer a live record. See AGENTS.md.
+  // Every operation resolves to the entity; a remove additionally marks
+  // it deleted. The instance KEEPS the data it held — a caller can still
+  // read what was deleted — but it is no longer a live record.
   private var deletedFlag: Bool = false
 
   public func markDeleted() {
@@ -159,9 +159,9 @@ open class VoxgigSolardemoEntityBase: Entity {
     // instance, and the caller reaches the record through data(). Two
     // structural exceptions: `list` resolves to the ARRAY of entity
     // instances makeResult built, and a failed op with throwing disabled
-    // hands back the error payload unchanged. `remove` additionally marks
+    // hands back the error payload unchanged. A remove additionally marks
     // the entity deleted; it KEEPS its data, so a caller can still read
-    // what was removed. See AGENTS.md "Entity operations return ENTITIES".
+    // what was removed.
     let opname = ctx.op?.name
 
     if let result = ctx.result, result.ok, "list" != opname {
@@ -176,12 +176,11 @@ open class VoxgigSolardemoEntityBase: Entity {
 
   // Streaming operations. Runs `action` through the full pipeline and returns
   // an AsyncStream over result items, so the `streaming` feature's incremental
-  // output is reachable from a generated entity (a normal op call materialises
-  // the whole result). `callopts` parameterises the call:
+  // output, when that feature is active, is reachable from a generated entity
+  // (a normal op call materialises the whole result). `callopts` parameterises
+  // the call:
   //   - inbound (download): iterate the yielded items/chunks (from the
   //     streaming feature when active, else the materialised items);
-  //   - outbound (upload): pass a streamable payload as callopts["body"] - it
-  //     is attached to the request so the transport can send it;
   //   - callopts["ctrl"] threads pipeline control and callopts["signal"] (a
   //     native () -> Bool that returns true when aborted) is honoured between
   //     yields.
@@ -203,7 +202,7 @@ open class VoxgigSolardemoEntityBase: Entity {
       "opname": action,
       "ctrl": ctrl,
       "match": match,
-      "data": data,
+      "data": data.asMap ?? VMap(),
     ]
     if let a = args {
       // The context reads reqmatch and reqdata as a VMap, never a Value.
@@ -211,13 +210,6 @@ open class VoxgigSolardemoEntityBase: Entity {
     }
 
     let ctx = utility.makeContext(ctxmap, entctx)
-
-    // Outbound: expose the caller's streamable payload so the request builder
-    // / transport can stream it as the request body.
-    if let body = opts.entries["body"], !isNil(body) {
-      ctx.reqdata.entries["body$"] = body
-      ctx.ctrl.streamOut = body
-    }
 
     // Run the same pipeline the op methods run.
     let materialised = try runOp(ctx, {})
@@ -246,9 +238,9 @@ open class VoxgigSolardemoEntityBase: Entity {
 // An entity prints as its data, as ts and go do: `match` can hold a query
 // credential from the response match, and `dump` walks every stored property.
 extension VoxgigSolardemoEntityBase: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-  public var description: Swift.String { name + " " + jsonify(.map(data), indent: 0) }
+  public var description: Swift.String { name + " " + jsonify(data, indent: 0) }
   public var debugDescription: Swift.String { description }
   public var customMirror: Swift.Mirror {
-    Swift.Mirror(self, children: ["name": name, "data": jsonify(.map(data), indent: 0)])
+    Swift.Mirror(self, children: ["name": name, "data": jsonify(data, indent: 0)])
   }
 }

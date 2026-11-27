@@ -1,5 +1,7 @@
 package voxgig.voxgigsolardemosdk.feature
 
+import java.net.URI
+import java.util.Base64
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.BiFunction
 import java.util.function.Supplier
@@ -20,6 +22,7 @@ import voxgig.voxgigsolardemosdk.feature.secrets.sekreto.envkey
 import voxgig.voxgigsolardemosdk.feature.secrets.sekreto.specof
 import voxgig.voxgigsolardemosdk.feature.secrets.sekreto.Json as SekJson
 import voxgig.voxgigsolardemosdk.utility.defaultHttpFetch
+import voxgig.voxgigsolardemosdk.utility.resolveLocation
 import voxgig.voxgigsolardemosdk.utility.struct.Struct
 
 // Secret access via a vendored @voxgig/sekreto provider chain, and the
@@ -44,9 +47,9 @@ import voxgig.voxgigsolardemosdk.utility.struct.Struct
 // LinkedHashMap while another mutated it: a ConcurrentModificationException,
 // not merely a torn read. The credential is therefore held in FEATURE STATE
 // behind a lock, the options map stays frozen after construction, and the
-// authorization header is rewritten per request at the transport - built
-// the same way prepareAuth builds it, from the same options.auth.prefix, so
-// the two cannot drift. This is go's structural deviation, adopted for a
+// credential header is rewritten per request at the transport - built
+// the same way prepareAuth builds it, from the same options.auth name and
+// prefix, so the two cannot drift. This is go's structural deviation, adopted for a
 // sharper version of go's own reason.
 //
 // WHERE RESOLUTION HAPPENS. At the TRANSPORT SEAM, not in the PreSpec hook.
@@ -74,6 +77,8 @@ import voxgig.voxgigsolardemosdk.utility.struct.Struct
 // buys another and retries the same request once. Concurrent purchases
 // share the one in-flight exchange; test mode buys nothing and answers with
 // a deterministic fake token.
+private const val REDIRECT_MAX = 5
+
 @Suppress("UNCHECKED_CAST")
 class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
 
@@ -90,6 +95,11 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
   // The LIVE options map (the root context's options - the same instance
   // SdkClient holds). READ ONLY: this feature never writes to it.
   private var liveopts: MutableMap<String, Any?> = linkedMapOf()
+
+  // What prepareAuth was generated from: the config declares auth only
+  // where it places a credential, and Basic only where it composes one.
+  private var declared: Boolean = false
+  private var basic: Boolean = false
 
   private var secretname: String = "apikey"
   private var cache: Boolean = true
@@ -126,6 +136,7 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
     val response: String,
     val statuses: List<Int>,
     val retries: Int,
+    val redirect: String,
   )
 
   // One shared in-flight resolution: late arrivals wait on `done` and read
@@ -163,6 +174,10 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
     this.liveopts = ctx.options ?: linkedMapOf()
     this.active = FeatureOptions.foptBool(options, "active", false)
 
+    val authdecl = (ctx.config?.get("options") as? Map<*, *>)?.get("auth") as? Map<*, *>
+    this.declared = null != authdecl
+    this.basic = true == authdecl?.get("basic")
+
     if (!this.active) {
       return
     }
@@ -188,6 +203,8 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
         response = FeatureOptions.foptStr(xopts, "response", "access_token"),
         statuses = statuses,
         retries = FeatureOptions.foptInt(xopts, "retries", 1),
+        redirect = if ("same-origin" == FeatureOptions.foptStr(xopts, "redirect", "refuse"))
+          "same-origin" else "refuse",
       )
     }
 
@@ -353,11 +370,18 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
     }
   }
 
+  // prepareAuth's decision: auth the config declares, not suppressed by
+  // `auth: null`.
+  private fun authon(): Boolean = this.declared && null != this.liveopts["auth"]
+
   // Resolve once, reporting whether a credential came out of it. That
   // boolean is the whole of what resolve() needs to tell a cacheable HIT
   // from a miss it must not keep.
   private fun resolveonce(): Boolean {
     val s = this.sek ?: return false
+    if (!authon()) {
+      return false
+    }
 
     // A provider ERROR throws out of here and fails the op (via the
     // transport gate); only a MISS (null) falls through.
@@ -398,17 +422,6 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
       // API answers with an expiry status and the transport wrapper buys
       // another, which is the same path expiry takes anyway.
       return true
-    }
-
-    // `auth: null` is the documented way to send NO credential, and a
-    // purchase is a credential-bearing call: the refresh token goes to the
-    // token endpoint in the request body. withrefresh honours suppression
-    // for the RETRY, but it runs after this - by then the refresh token has
-    // already left the process, and no later check can call it back. The
-    // suppression has to be honoured here, before the first purchase, or it
-    // only ever half-held.
-    if (null == this.liveopts["auth"]) {
-      return false
     }
 
     buy()
@@ -456,7 +469,7 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
   // withrefresh buys a token and tries the request again when the API says
   // the current one is spent.
   //
-  // The retry rewrites the authorization header IN PLACE on the fetchdef,
+  // The retry rewrites the credential header IN PLACE on the fetchdef,
   // because the header was built by the synchronous prepareAuth before this
   // request left, and it carries the token that just failed.
   private fun withrefresh(
@@ -465,12 +478,9 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
     fetchdef: MutableMap<String, Any?>,
     inner: FetcherFn,
   ): Any? {
-    // `auth: null` is the documented way to send NO credential, and
-    // prepareAuth honours it by removing the header. A refusal of a
-    // deliberately unauthenticated request is not an expired token and
-    // cannot be fixed by buying one - retrying would transmit exactly the
-    // credential the caller suppressed.
-    if (null == this.liveopts["auth"]) {
+    // A refusal of an unauthenticated request is not an expired token, and
+    // retrying would transmit the credential that auth off withholds.
+    if (!authon()) {
       return inner(ctx, url, fetchdef)
     }
 
@@ -538,14 +548,29 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
     // construction (this feature never writes it), so the raw read is safe
     // on any thread.
     val auth = this.liveopts["auth"]
-    if (auth !is Map<*, *>) {
+    if (!authon() || auth !is Map<*, *>) {
       headers.remove("authorization")
       return
     }
 
-    val prefix = (auth as Map<String, Any?>)["prefix"]
-    headers["authorization"] =
-      if (prefix is String && "" != prefix) "$prefix $token" else token
+    // The header prepareAuth wrote: auth.name, lower-cased.
+    val rawname = (auth as Map<String, Any?>)["name"]
+    val name =
+      if (rawname is String && "" != rawname) rawname.lowercase() else "authorization"
+
+    val value = if (this.basic && true == auth["basic"]) pair(token) else token
+
+    val prefix = auth["prefix"]
+    headers[name] =
+      if (prefix is String && "" != prefix) "$prefix $value" else value
+  }
+
+  // Under Basic the token is the key half, as apikey is: prepareAuth's pair.
+  private fun pair(token: String): String {
+    val secret = this.liveopts["secret"] as? String ?: ""
+    val pair = Base64.getEncoder().encodeToString("$token:$secret".toByteArray(Charsets.UTF_8))
+    register(pair)
+    return pair
   }
 
   // buy an access token with the refresh token. Concurrent callers share the
@@ -624,6 +649,33 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
     return token
   }
 
+  // Where a 307 or 308 points, when that is on the exchange's own origin. Any
+  // other redirect would drop the body or leave the origin.
+  private fun moved(url: String, at: String, res: Any?): String? {
+    val status = FeatureOptions.fresStatus(res)
+    if (307 != status && 308 != status) {
+      return null
+    }
+    val location = FeatureOptions.fresHeader(res, "location")
+    if ("" == location) {
+      return null
+    }
+    return try {
+      val next = resolveLocation(URI.create(at), location)
+      val origin = originOf(next)
+      if (null != origin && origin == originOf(URI.create(url))) next.toString() else null
+    } catch (e: RuntimeException) {
+      null
+    }
+  }
+
+  private fun originOf(uri: URI): String? {
+    val scheme = uri.scheme?.lowercase() ?: return null
+    val host = uri.host?.lowercase() ?: return null
+    val port = if (uri.port < 0) (if ("https" == scheme) 443 else 80) else uri.port
+    return scheme + "://" + host + ":" + port
+  }
+
   private fun buyonce(): String {
     val x = this.exchange!!
 
@@ -650,6 +702,8 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
       "method" to x.method,
       "headers" to linkedMapOf<String, Any?>("content-type" to "application/json"),
       "body" to body,
+      // Never followed by the client: a redirect would carry the refresh token on.
+      "redirect" to "manual",
     )
 
     // Deliberately NOT the SDK transport. The transport is what this feature
@@ -664,10 +718,23 @@ class SecretsFeature : BaseFeature("secrets", "0.1.0", true) {
       sysFetch = null
     }
 
-    val res: Any? = if (sysFetch is BiFunction<*, *, *>) {
-      (sysFetch as BiFunction<String, MutableMap<String, Any?>, Any?>).apply(url, fetchdef)
-    } else {
-      defaultHttpFetch(url, fetchdef)
+    val ask = { at: String ->
+      if (sysFetch is BiFunction<*, *, *>) {
+        (sysFetch as BiFunction<String, MutableMap<String, Any?>, Any?>).apply(at, fetchdef)
+      } else {
+        defaultHttpFetch(at, fetchdef)
+      }
+    }
+
+    var res: Any? = ask(url)
+
+    // By option alone, and only while the exchange stays on its own origin.
+    var at = url
+    var hops = 0
+    while ("same-origin" == x.redirect && hops < REDIRECT_MAX) {
+      at = moved(url, at, res) ?: break
+      res = ask(at)
+      hops++
     }
 
     val status = FeatureOptions.fresStatus(res)

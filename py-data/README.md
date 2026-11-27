@@ -16,7 +16,7 @@ df.groupby("id").size()
 ```
 
 No client to construct, no pagination loop to write, no `json_normalize`
-boilerplate. Credentials are found automatically (see below).
+boilerplate.
 
 ## Install
 
@@ -29,22 +29,6 @@ pip install "git+https://github.com/voxgig-sdk/voxgig-solardemo-sdk#subdirectory
 ```
 
 Released versions are tagged at https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases.
-
-## Credentials
-
-`data()` looks in three places, in order, and stops at the first hit:
-
-1. the `token=` / `base_url=` arguments
-2. **Colab secrets** — `VOXGIG_SOLARDEMO_APIKEY`
-3. **environment variables** — the same names
-
-In Colab, open the key panel in the left sidebar, add `VOXGIG_SOLARDEMO_APIKEY`, and
-switch on notebook access for it. Elsewhere:
-
-```python
-import os
-os.environ["VOXGIG_SOLARDEMO_APIKEY"] = "your-api-key"
-```
 
 ## Accessors
 
@@ -96,9 +80,10 @@ Every frame accessor takes the same keyword arguments:
 
 - **Every page, eagerly.** Analysts want the whole table, not an iterator. The
   SDK's paging feature already normalises `Link: rel="next"`, `X-Next-Page`
-  and body-level `cursor`/`hasMore` signals; this package just drives them to
-  exhaustion. `limit=` stops early; `max_pages` is a backstop against a
-  server that never stops offering more.
+  and body-level `cursor`/`hasMore` signals; `data()` switches it on unless
+  its `feature` option sets it, and this package drives them to exhaustion.
+  `limit=` stops early; `max_pages` is a backstop against a server that
+  never stops offering more.
 - **Nullable dtypes.** Columns use pandas' nullable types (`Int64`, not
   `int64`). Optional fields are omitted freely by APIs, and NumPy's `int64`
   cannot hold a null — it would silently upcast to `float64` partway through a
@@ -121,8 +106,8 @@ Every frame accessor takes the same keyword arguments:
   with `ad.frame(result)`.
 
 ```python
-result = ad.sdk.SomeEntity().create({"name": "x"})   # full SDK, unchanged
-df = ad.frame(result)                                # shape anything
+result = ad.sdk.Moon().create({ "planet_id": "example", "diameter": 1, "id": "example", "kind": "example", "name": "example" })   # full SDK, unchanged
+df = ad.frame(result)                                                                                                             # shape anything
 ```
 
 ## Generated code

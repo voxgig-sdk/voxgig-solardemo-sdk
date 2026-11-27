@@ -69,6 +69,10 @@ impl Utility {
         u::clean::clean_key(ctx, key)
     }
 
+    pub fn clean_secret(&self, ctx: &Rc<Context>, key: &str, value: &str) -> bool {
+        u::clean::clean_secret(ctx, key, value)
+    }
+
     pub fn done(&self, ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
         u::done::done_util(ctx)
     }
@@ -105,7 +109,7 @@ impl Utility {
         u::make_context::make_context_util(spec, basectx)
     }
 
-    pub fn make_options(&self, ctx: &Rc<Context>) -> Value {
+    pub fn make_options(&self, ctx: &Rc<Context>) -> Result<Value, VoxgigSolardemoError> {
         u::make_options::make_options_util(ctx)
     }
 

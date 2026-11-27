@@ -29,16 +29,16 @@ class VoxgigSolardemoMakeResult
         if ($op->name === 'list') {
             $resdata = $result->resdata;
             $result->resdata = [];
-            if (is_array($resdata) && !empty($resdata) && $entity) {
+            // A decoded JSON object is a PHP array too: only a list holds
+            // records, as ts reads `resdata.length`, which an object lacks.
+            if (is_array($resdata) && !empty($resdata) && array_is_list($resdata) && $entity) {
                 $entities = [];
                 foreach ($resdata as $entry) {
                     $ent = $entity->make();
                     if ($entry instanceof \stdClass) {
                         $entry = (array)$entry;
                     }
-                    if (is_array($entry)) {
-                        $ent->data_set($entry);
-                    }
+                    $ent->data_set($entry);
                     $entities[] = $ent;
                 }
                 $result->resdata = $entities;

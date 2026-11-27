@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, entityIdField, entityDataIdField, pickExampleEntity, opRequestShape, safeVarName, exampleVarName, jsKey, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, entityIdField, entityDataIdField, pickExampleEntity, exampleVarName, jsKey, requiredItems, matchExampleItems, jsProp, requestExampleItems, envLocalAt, cdTarget, fact, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -12,6 +12,8 @@ import { exampleValue } from './utility_js'
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op) — never fabricate a
@@ -31,8 +33,7 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const primaryArg = (idPlaceholder: string): string => {
     if (!exampleEntity || !primaryOp) return ''
     if (isMatchOp || 'list' === primaryOp) {
-      const items = (isMatchOp ? opRequestShape(exampleEntity, primaryOp).items
-        .filter((it: any) => !it.optional || it.name === idF) : requiredItems(exampleEntity, 'list'))
+      const items = (isMatchOp ? matchExampleItems(exampleEntity, primaryOp, idF) : requiredItems(exampleEntity, 'list'))
         .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       if (0 === items.length) return ''
       const pairs = items.map((it: any) =>
@@ -40,7 +41,7 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
           it.name === idF ? idPlaceholder : 'example_' + it.name)}`)
       return `{ ${pairs.join(', ')} }`
     }
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -51,7 +52,7 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const testCallArg = primaryArg('test01')
   const stateCallArg = primaryArg('example')
   const stateDataLine = dataIdF
-    ? `console.log(data.${dataIdF})`
+    ? `console.log(${jsProp('data', dataIdF)})`
     : `console.log(data)`
 
   // The op-driven example lines, shown only when the SDK has an entity op.
@@ -87,11 +88,34 @@ ${stateDataLine}
     : ''
 
   const authActive = isAuthActive(model)
-  const apikeyTesterCtor = authActive
-    ? `new ${model.const.Name}SDK({ apikey: '...' })`
-    : `new ${model.const.Name}SDK()`
-  const apikeyExtendField = authActive ? `\n  apikey: '...',` : ''
-  const apikeyEnvLine = authActive ? `\n${envName(model)}_APIKEY=<your-key>` : ''
+  const authBasic = authActive && fact(model.main[KIT], 'auth').secret
+  // A client built over a templated URL needs the variables it has no default for.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const testerFields = [
+    ...(authActive ? [`apikey: '...'`] : []),
+    ...(authBasic ? [`secret: '...'`] : []),
+    ...(0 === svars.length ? [] : [`server: { ${svars.map((v: any) => `${v.name}: '...'`).join(', ')} }`]),
+  ]
+  const apikeyTesterCtor = 0 === testerFields.length
+    ? `new ${model.const.Name}SDK()`
+    : `new ${model.const.Name}SDK({ ${testerFields.join(', ')} })`
+  const apikeyExtendField = (authActive
+    ? `\n  apikey: '...',${authBasic ? `\n  secret: '...',` : ''}`
+    : '') + (0 === svars.length ? '' :
+      `\n  server: {${svars.map((v: any) => `\n    ${v.name}: '...',`).join('')}\n  },`)
+  const apikeyEnvLine = authActive
+    ? `\n${ENVVAR.apikey}=<your-key>${authBasic ? `\n${ENVVAR.secret}=<your-secret>` : ''}`
+    : ''
+  const serverEnvLine = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+    .map((v: any) => `\n${ENVVAR.server[v.name]}=<${v.name}>`).join('')
+  const defaulted = fact(model.main[KIT], 'server').filter((v: any) => !v.required)
+  const liveEnvNote = (0 === defaulted.length ? '' :
+    defaulted.map((v: any) => '`' + ENVVAR.server[v.name] + '`').join(', ') +
+    (1 === defaulted.length ? ', when set, replaces its server variable\'s default.\n'
+      : ', when set, replace their server variables\' defaults.\n')) +
+    'Each entity\'s tests also read `' + ENVVAR.prefix + '_TEST_<ENTITY>_ENTID`, with the\n' +
+    'entity\'s name in capitals: a JSON object of the ids of existing records, for\n' +
+    'the tests that do not create their own.\n\n'
 
   Content(`### Make a direct HTTP request
 
@@ -99,9 +123,9 @@ For endpoints not covered by entity methods:
 
 \`\`\`js
 const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example' },
+  path: '${dx.path}',
+  method: '${dx.method}',
+  params: { ${jsKey(dx.param)}: 'example' },
 })
 
 if (result.ok) {
@@ -114,9 +138,9 @@ if (result.ok) {
 
 \`\`\`js
 const fetchdef = await client.prepare({
-  path: '/api/resource/{id}',
-  method: 'DELETE',
-  params: { id: 'example' },
+  path: '${dx.path}',
+  method: '${dx.method}',
+  params: { ${jsKey(dx.param)}: 'example' },
 })
 
 // Inspect before sending
@@ -165,16 +189,16 @@ const client = new ${model.const.Name}SDK({${apikeyExtendField}
 
 ### Run live tests
 
-Create a \`.env.local\` file at the project root:
+Create a \`.env.local\` file ${envLocalAt(props.ctx$, target)}:
 
 \`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
+${ENVVAR.live}=TRUE${apikeyEnvLine}${serverEnvLine}
 \`\`\`
 
-Then run:
+${liveEnvNote}Then run:
 
 \`\`\`bash
-cd js && npm test
+${cdTarget(target)}npm test
 \`\`\`
 
 `)

@@ -1,4 +1,4 @@
-import { flowSteps, opReachable, invalidRequest } from '@voxgig/sdkgen'
+import { flowSteps, opReachable, invalidRequest, flowLoadRoute, flowLoadReadsRecord } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -19,6 +19,7 @@ import {
   buildIdNames,
   getMatchEntries,
   entityDataIdField,
+  entityRecordIdField,
 } from '@voxgig/sdkgen'
 
 
@@ -65,10 +66,9 @@ const TestEntity = cmp(function TestEntity(props: any) {
     idmapObj[n] = String(n).toUpperCase()
   }
   const allSteps = Object.values(flowSteps(basicflow)) as any[]
-  const updateStep = allSteps.find((s: any) => s.o === 'update')
-  const updateData = updateStep?.d
-    ? Object.entries(updateStep.d).filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
-    : []
+  const updateData = Object.entries(Object.assign({}, ...allSteps
+    .filter((s: any) => 'update' === s.o || 'patch' === s.o).map((s: any) => s.d || {})))
+    .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
   for (const [k, v] of updateData as any[]) {
     if (null == idmapObj[k] && null != idmapObj[v as string]) {
       idmapObj[k] = idmapObj[v as string]
@@ -103,8 +103,8 @@ ${failureTests(SDK, entity, accessor)}
 ${failureScopes(SDK, entity, accessor)}
     rep.scope("${ENTLOWER}.basic") {
       val entityData = Helpers.toMapAny(SdkTestSupport.readJson(
-          "../.sdk/test/entity/${ENTLOWER}/${EntityName}TestData.json"))
-      val options = new LinkedHashMap[String, Object]()
+          "${ctx$.stdrep.SDKREL}/.sdk/test/entity/${ENTLOWER}/${EntityName}TestData.json"))
+${fixtureIdentity(entity)}      val options = new LinkedHashMap[String, Object]()
       options.put("entity", entityData.get("existing"))
       val client = ${SDK}.testSDK(options, null)
 
@@ -125,9 +125,9 @@ ${failureScopes(SDK, entity, accessor)}
     // shipped "existing" fixtures here, mirroring the ts generator. Guarded on a
     // DATA id field — an entity that carries no id has no `.get("id")` to read.
     const flowHasCreate = allSteps.some((s: any) => s.o === 'create')
-    const needsPreambleData = !flowHasCreate &&
-      null != entityDataIdField(entity) &&
-      allSteps.some((s: any) => ['load', 'update', 'remove'].includes(s.o))
+    const needsPreambleData = !flowHasCreate && (null != entityDataIdField(entity) ?
+      allSteps.some((s: any) => ['load', 'update', 'patch', 'remove'].includes(s.o)) :
+      allSteps.some((s: any) => flowLoadReadsRecord(entity, s)))
     if (needsPreambleData) {
       const preambleData = scalaVarName(entity.name + '_ref01_data')
       Content(`      val ${preambleData}Raw = Struct.items(Helpers.toMapAny(
@@ -161,7 +161,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`      // CREATE
 `)
@@ -184,7 +184,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
       rep.check("${ENTLOWER}.create.map", ${datavar} != null, "expected create result to be a map")
 `)
   if (null != entityDataIdField(entity)) {
-    Content(`      rep.check("${ENTLOWER}.create.id", ${datavar} != null && ${datavar}.get("id") != null, "expected created entity to have an id")
+    Content(`      rep.check("${ENTLOWER}.create.id", ${datavar} != null && ${datavar}.get(${rid(entity)}) != null, "expected created entity to have an id")
 `)
   }
 }
@@ -199,7 +199,7 @@ const generateList: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`      // LIST
 `)
@@ -242,12 +242,12 @@ const generateList: OpGen = (ctx, step, index) => {
 
       if ('ItemExists' === validator.apply && hasRefData && hasDataId) {
         Content(`      val ${listvar}Found = Struct.select(
-          SdkTestSupport.entityListToData(${listvar}), SdkTestSupport.om("id" -> ${refDataVar}.get("id")))
+          SdkTestSupport.entityListToData(${listvar}), SdkTestSupport.om(${rid(entity)} -> ${refDataVar}.get(${rid(entity)})))
       rep.check("${ENTLOWER}.list.exists", !Struct.isempty(${listvar}Found), "expected to find created entity in list")
 `)
       } else if ('ItemNotExists' === validator.apply && hasRefData && hasDataId) {
         Content(`      val ${listvar}NotFound = Struct.select(
-          SdkTestSupport.entityListToData(${listvar}), SdkTestSupport.om("id" -> ${refDataVar}.get("id")))
+          SdkTestSupport.entityListToData(${listvar}), SdkTestSupport.om(${rid(entity)} -> ${refDataVar}.get(${rid(entity)})))
       rep.check("${ENTLOWER}.list.notexists", Struct.isempty(${listvar}NotFound), "expected removed entity to not be in list")
 `)
       }
@@ -267,11 +267,11 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasDataId = null != entityDataIdField(entity)
 
-  Content(`      // UPDATE
+  Content(`      // ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`      val ${entvar} = client.${accessor}(null)
@@ -280,7 +280,7 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   Content(`      val ${datavar}Up = new LinkedHashMap[String, Object]()
 `)
   if (hasDataId) {
-    Content(`      ${datavar}Up.put("id", ${srcdatavar}.get("id"))
+    Content(`      ${datavar}Up.put("id", ${srcdatavar}.get(${rid(entity)}))
 `)
   }
 
@@ -307,16 +307,16 @@ const generateUpdate: OpGen = (ctx, step, index) => {
     }
   }
 
-  Content(`      val ${resdatavar}Result = ${entvar}.update(${datavar}Up, null)
+  Content(`      val ${resdatavar}Result = ${entvar}.${step.o}(${datavar}Up, null)
       val ${resdatavar} = Helpers.toMapAny(${resdatavar}Result match { case e: SdkEntity => e.data(); case o => o })
-      rep.check("${ENTLOWER}.update.map", ${resdatavar} != null, "expected update result to be a map")
+      rep.check("${ENTLOWER}.${step.o}.map", ${resdatavar} != null, "expected ${step.o} result to be a map")
 `)
   if (hasDataId) {
-    Content(`      rep.eq("${ENTLOWER}.update.id", ${datavar}Up.get("id"), ${resdatavar}.get("id"))
+    Content(`      rep.eq("${ENTLOWER}.${step.o}.id", ${datavar}Up.get("id"), ${resdatavar}.get(${rid(entity)}))
 `)
   }
   if (hasMark) {
-    Content(`      rep.eq("${ENTLOWER}.update.mark", ${markdefvar}Value, ${resdatavar}.get(${markdefvar}Name))
+    Content(`      rep.eq("${ENTLOWER}.${step.o}.mark", ${markdefvar}Value, ${resdatavar}.get(${markdefvar}Name))
 `)
   }
 }
@@ -332,7 +332,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const hasEntVar = priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const flowHasCreate = Object.values(flowSteps(flow)).some((s: any) => (s as any).o === 'create')
   const preambleRef = entity.name + '_ref01'
@@ -354,7 +354,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
     Content(`      val ${entvar} = client.${accessor}(null)
 `)
   }
-  if (!hasSrcData && hasDataId) {
+  if (!hasSrcData && (hasDataId || flowLoadReadsRecord(entity, step))) {
     Content(`      val ${srcdatavar}Raw = Struct.items(Helpers.toMapAny(
           Struct.getpath(entityData, "existing.${ENTLOWER}")))
       val ${srcdatavar} = Helpers.toMapAny(${srcdatavar}Raw.get(0).get(1))
@@ -363,14 +363,14 @@ const generateLoad: OpGen = (ctx, step, index) => {
   Content(`      val ${matchvar} = new LinkedHashMap[String, Object]()
 `)
   if (hasDataId) {
-    Content(`      ${matchvar}.put("id", ${srcdatavar}.get("id"))
-${parentMatch(step, matchvar)}      val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
+    Content(`      ${matchvar}.put("id", ${srcdatavar}.get(${rid(entity)}))
+${loadMatch(entity, step, matchvar, srcdatavar)}      val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
       val ${datavar}LoadResult = Helpers.toMapAny(${datavar}Loaded match { case e: SdkEntity => e.data(); case o => o })
       rep.check("${ENTLOWER}.load.map", ${datavar}LoadResult != null, "expected load result to be a map")
-      rep.eq("${ENTLOWER}.load.id", ${srcdatavar}.get("id"), ${datavar}LoadResult.get("id"))
+      rep.eq("${ENTLOWER}.load.id", ${srcdatavar}.get(${rid(entity)}), ${datavar}LoadResult.get(${rid(entity)}))
 `)
   } else {
-    Content(`${parentMatch(step, matchvar)}      val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
+    Content(`${loadMatch(entity, step, matchvar, srcdatavar)}      val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
       rep.check("${ENTLOWER}.load.nonnull", ${datavar}Loaded != null, "expected load result to be non-null")
 `)
   }
@@ -392,7 +392,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`      // REMOVE
 `)
@@ -401,9 +401,35 @@ const generateRemove: OpGen = (ctx, step, index) => {
 `)
   }
   Content(`      val ${matchvar} = new LinkedHashMap[String, Object]()
-      ${matchvar}.put("id", ${srcdatavar}.get("id"))
+      ${matchvar}.put("id", ${srcdatavar}.get(${rid(entity)}))
 ${parentMatch(step, matchvar)}      ${entvar}.remove(${matchvar}, null)
 `)
+}
+
+
+// The record field the entity's identity is read from, as a Scala string.
+function rid(entity: any): string {
+  return JSON.stringify(entityRecordIdField(entity))
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  const field = entityRecordIdField(entity)
+  return 'id' === field ? '' : `      entityData.get("existing") match {
+        case fixtureEntities: java.util.Map[_, _] => fixtureEntities.get(${JSON.stringify(entity.name)}) match {
+          case fixtureRecords: java.util.Map[_, _] => fixtureRecords.values().toArray.foreach {
+            case fixtureRec: java.util.Map[_, _] if null != fixtureRec.get("id") =>
+              fixtureRec.asInstanceOf[java.util.Map[String, Object]]
+                .put(${JSON.stringify(field)}, fixtureRec.get("id").asInstanceOf[Object])
+            case _ =>
+          }
+          case _ =>
+        }
+        case _ =>
+      }
+`
 }
 
 
@@ -417,10 +443,40 @@ function parentMatch(step: any, matchvar: string): string {
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding; this suite runs offline only.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string): string {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar)
+  }
+  if (route.offline) {
+    return parentMatch(step, matchvar) + route.args.filter((arg) => null != arg.field)
+      .map((arg) => `      ${srcdatavar}.get("${arg.field}") match {
+        case v @ (_: String | _: java.lang.Number | _: java.lang.Boolean) => ${matchvar}.put("${arg.name}", v)
+        case _ =>
+      }
+`).join('')
+  }
+  return route.args.map((arg) => {
+    const get = (key: string) => `idmap.get("${key}")`
+    const bound = 1 === arg.idmap.length ? get(arg.idmap[0]) :
+      `Option(${get(arg.idmap[0])}).getOrElse(${get(arg.idmap[1])})`
+    return `      ${matchvar}.put("${arg.name}", ${null == arg.field ? bound : `${srcdatavar}.get("${arg.field}") match {
+        case v @ (_: String | _: java.lang.Number | _: java.lang.Boolean) => v
+        case _ => ${bound}
+      }`})
+`
+  }).join('')
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }

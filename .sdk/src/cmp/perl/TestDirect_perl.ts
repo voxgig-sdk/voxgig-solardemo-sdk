@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -11,18 +12,39 @@ import {
   File,
   cmp,
   snakify,
-  isAuthActive, envName, envToken,
-  serverVarEnv,
-  serverVariables,
+  isAuthActive,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
   liveStrict,
   liveStrictNote,
+  pointIsGraphql,
+  graphqlDirectSkip,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 import { perlStringLiteral } from './utility_perl'
 
 
 // Blocked without the ids its request needs, rather than sent with undef.
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, label: string, block: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, label, keys).map((miss) =>
+    `  if ($setup->{live} && ($ENV{${LIVE_GETONLY_ENV}} // '') eq 'TRUE' && !defined $setup->{idmap}{${perlStringLiteral(miss.key)}}) {
+    note(${perlStringLiteral(liveExcludedLines({ excluded: [miss] })[0])});
+    note(${perlStringLiteral(liveExcludedSummary({ excluded: [miss] }))});
+    pass('${label}: skipped, a GET-only live run excludes it');
+    last ${block};
+  }
+`).join('')
+}
+
+
 function liveKeysBlock(N: string, label: string, block: string, keys: string[],
   entidEnvVar: string): string {
   return 0 === keys.length ? '' : `  if ($setup->{live}) {
@@ -88,31 +110,32 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const ctx$ = props.ctx$
   const model: Model = ctx$.model
 
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const target = props.target
 
   const N = model.const.Name
-  const PROJECTNAME = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n    '${PROJECTNAME}_APIKEY' => '',`
+    ? `\n    '${ENVVAR.apikey}' => '',${authSecret ? `\n    '${ENVVAR.secret}' => '',` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `\n      'apikey' => $env->{'${PROJECTNAME}_APIKEY'},`
+    ? `\n      'apikey' => $env->{'${ENVVAR.apikey}'},${authSecret ? `\n      'secret' => $env->{'${ENVVAR.secret}'},` : ''}`
     : ''
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: makeOptions raises rather than
   // request a URL with a literal `{account_id}` in it. So the live suite
   // takes them from the environment the same way it takes the apikey.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n    '${serverVarEnv(PROJECTNAME, v.name)}' => ${perlStringLiteral(v.dflt)},`).join('')
+    .map((v: any) => `\n    '${ENVVAR.server[v.name]}' => ${perlStringLiteral(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' : `
       'server' => {${svars
       .map((v: any) => `
-        '${v.name}' => $env->{'${serverVarEnv(PROJECTNAME, v.name)}'},`).join('')}
+        '${v.name}' => $env->{'${ENVVAR.server[v.name]}'},`).join('')}
       },`
 
   const opnames = Object.keys(entity.op || {})
@@ -127,16 +150,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const listOp = entity.op?.list
 
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Only path params that actually appear in the URL template drive direct-
   // test path-param setup and URL-substitution asserts (see TestDirect_rb).
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -149,15 +167,12 @@ const TestDirect = cmp(function TestDirect(props: any) {
     _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
   // Required query params with spec-provided examples - needed in live mode.
-  const loadQuery = loadPoint?.g?.query || []
-  const loadLiveQueryEntries = loadQuery
-    .filter((q: any) => q.r && undefined !== q.ex && null !== q.ex)
-  const loadLiveQueryLines = loadLiveQueryEntries
-    .map((q: any) => `    $query->{'${q.n}'} = ${perlScalar(q.ex)};`)
+  const loadLiveQueryLines = liveQueryExamples(loadPoint)
+    .map(([name, ex]) => `    $query->{'${name}'} = ${perlScalar(ex)};`)
     .join('\n')
 
   const loadAllHaveExamples =
@@ -167,7 +182,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     ? loadParams.map((p: any) => `    $params->{'${p.n}'} = ${perlScalar(p.ex)};`).join('\n')
     : ''
 
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const listLiveQueryLines = liveQueryExamples(listPoint)
+    .map(([name, ex]) => `    $query->{'${name}'} = ${perlScalar(ex)};\n`).join('')
 
   // The *_ENTID key a live test reads a parameter's value from.
   const liveKey = (param: any): string =>
@@ -199,7 +218,14 @@ sub live_ok {
 
 `)
 
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`SKIP: {
+  skip('${graphqlDirectSkip('list', entity.name)}', 1);
+}
+
+`)
+    }
+    else if (hasList && listPoint) {
       const label = 'direct-list-' + entity.name
       Content(`DIRECT_LIST: {
   my $setup = ${entity.name}_direct_setup([
@@ -213,10 +239,12 @@ sub live_ok {
     pass('${label}: skipped via sdk-test-control.json');
     last DIRECT_LIST;
   }
-${liveKeysBlock(N, label, 'DIRECT_LIST', listParams.map(liveKey), entidEnvVar)}  my $client = $setup->{client};
+${getOnlyKeysBlock(model, entity, label, 'DIRECT_LIST', listParams.map(liveKey))}${liveKeysBlock(N, label, 'DIRECT_LIST', listParams.map(liveKey), entidEnvVar)}  ${N}TestRunner::live_pace() if $setup->{live};
+  my $client = $setup->{client};
 
   my $params = {};
-`)
+  my $query = {};
+${listLiveQueryLines ? '  if ($setup->{live}) {\n' + listLiveQueryLines + '  }\n' : ''}`)
       listParams.forEach((lp: any, i: number) => {
         Content(`  $params->{'${lp.n}'} = $setup->{live} ? $setup->{idmap}{'${liveKey(lp)}'} : 'direct0${i + 1}';
 `)
@@ -226,6 +254,7 @@ ${liveKeysBlock(N, label, 'DIRECT_LIST', listParams.map(liveKey), entidEnvVar)} 
     'path' => '${listPath}',
     'method' => 'GET',
     'params' => $params,
+    'query' => $query,
   });
   if ($setup->{live}) {
     if (!live_ok($result)) {
@@ -251,10 +280,19 @@ ${liveKeysBlock(N, label, 'DIRECT_LIST', listParams.map(liveKey), entidEnvVar)} 
 `)
     }
 
-    if (hasLoad && loadPoint) {
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`SKIP: {
+  skip('${graphqlDirectSkip('load', entity.name)}', 1);
+}
+
+`)
+    }
+    else if (hasLoad && loadPoint) {
       const label = 'direct-load-' + entity.name
-      const discover = !loadAllHaveExamples && hasList && 0 < loadParams.length
-      const idParam = loadParams.find((p: any) => 'id' === p.n)?.n ?? loadParams[0]?.n ?? 'id'
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const discover = null != discovery
+      const idParam = discovery?.param
+      const idField = discovery?.field
       const loadLiveIdKeys: string[] = loadAllHaveExamples ? [] :
         discover ? listParams.map(liveKey).concat(loadParams.filter((p: any) => idParam !== p.n).map(liveKey)) :
           loadParams.map(liveKey)
@@ -267,7 +305,8 @@ ${liveKeysBlock(N, label, 'DIRECT_LIST', listParams.map(liveKey), entidEnvVar)} 
     pass('${label}: skipped via sdk-test-control.json');
     last DIRECT_LOAD;
   }
-${liveKeysBlock(N, label, 'DIRECT_LOAD', [...new Set(loadLiveIdKeys)], entidEnvVar)}  my $client = $setup->{client};
+${getOnlyKeysBlock(model, entity, label, 'DIRECT_LOAD', [...new Set(loadLiveIdKeys)])}${liveKeysBlock(N, label, 'DIRECT_LOAD', [...new Set(loadLiveIdKeys)], entidEnvVar)}  ${N}TestRunner::live_pace() if $setup->{live};
+  my $client = $setup->{client};
 
   my $params = {};
   my $query = {};
@@ -277,10 +316,14 @@ ${loadLiveQueryLines ? loadLiveQueryLines + '\n' : ''}`)
         Content(loadExampleLines + '\n')
       }
       else if (discover) {
+        // The list sends the query its route requires, as direct-list does.
+        const listQuery = liveQueryExamples(listPoint)
+          .map(([name, ex]) => `${perlScalar(name)} => ${perlScalar(ex)}`).join(', ')
         Content(`    my $list_result = $client->direct({
       'path' => '${listPath}',
       'method' => 'GET',
-      'params' => {${listParams.map((p: any) => `'${p.n}' => $setup->{idmap}{'${liveKey(p)}'}`).join(', ')}},
+      'params' => {${listParams.map((p: any) => `'${p.n}' => $setup->{idmap}{'${liveKey(p)}'}`).join(', ')}},${'' === listQuery ? '' : `
+      'query' => {${listQuery}},`}
     });
     if (!live_ok($list_result)) {
       ${N}TestRunner::live_miss(LIVE_STRICT, '${label}', 'Live list discovery failed: ' . ${N}TestRunner::live_describe($list_result));
@@ -296,7 +339,7 @@ ${loadLiveQueryLines ? loadLiveQueryLines + '\n' : ''}`)
       last DIRECT_LOAD;
     }
     my $first = ref $records->[0] eq 'HASH' ? $records->[0] : {};
-    my $found = $first->{'${idParam}'} // $first->{'id'};
+    my $found = $first->{'${idField}'};
     if (!defined $found) {
       ${N}TestRunner::live_miss(LIVE_STRICT, '${label}', 'Live load blocked: discovery returned no usable identity');
       last DIRECT_LOAD;
@@ -364,10 +407,10 @@ sub ${entity.name}_direct_setup {
 
   my $env = ${N}TestRunner::env_override({
     '${entidEnvVar}' => {},
-    '${PROJECTNAME}_TEST_LIVE' => 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
+    '${ENVVAR.live}' => 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
   });
 
-  my $live = ((($env->{'${PROJECTNAME}_TEST_LIVE'}) || '') eq 'TRUE') ? 1 : 0;
+  my $live = ((($env->{'${ENVVAR.live}'}) || '') eq 'TRUE') ? 1 : 0;
 
   if ($live) {
     # live_client_options() FIRST so the generated fields below win:
@@ -377,7 +420,10 @@ sub ${entity.name}_direct_setup {
       %{ ${N}TestRunner::live_client_options() },${apikeyLiveField}${serverLiveField}
     });
     my $idmap = $env->{'${entidEnvVar}'};
-    return {
+${0 === exampleIds.length ? '' : `    # A path parameter's example stands in for an id *_ENTID does not give.
+    $idmap = { ${exampleIds.map(([key, ex]) => `'${key}' => ${perlScalar(ex)}`).join(', ')},
+      %{ ref $idmap eq 'HASH' ? $idmap : {} } };
+`}    return {
       'client' => $client,
       'calls' => $calls,
       'live' => 1,

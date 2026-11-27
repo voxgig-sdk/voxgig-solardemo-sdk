@@ -283,6 +283,28 @@ function utilWith(fetcher) {
         (0, node_assert_1.strictEqual)(o.__derived__.featureorder.join(','), 'cache,retry');
     });
 });
+(0, node_test_1.describe)('pipeline:makeOptions', () => {
+    (0, node_test_1.test)('clients built from one options object keep its maps and see its edits', () => {
+        const probe = { x: 1 };
+        const testopts = { active: true };
+        const options = { entity: { probe }, feature: { test: testopts } };
+        const first = new __1.VoxgigSolardemoSDK(options);
+        (0, node_assert_1.strictEqual)(options.entity.probe, probe);
+        (0, node_assert_1.strictEqual)(options.feature.test, testopts);
+        probe.x = 2;
+        const second = new __1.VoxgigSolardemoSDK(options);
+        (0, node_assert_1.strictEqual)(second.options().entity.probe.x, 2);
+        (0, node_assert_1.strictEqual)(first.options().entity.probe.x, 1);
+    });
+    (0, node_test_1.test)('a config option does not reach the caller\'s maps', () => {
+        const options = { entity: { probe: { x: 1 } } };
+        const ctx = { utility: __1.stdutil, options, config: { options: { entity: { probe: { y: 5 } } } } };
+        const o = __1.stdutil.makeOptions(ctx);
+        (0, node_assert_1.strictEqual)(o.entity.probe.x, 1);
+        (0, node_assert_1.strictEqual)(o.entity.probe.y, 5);
+        (0, node_assert_1.deepStrictEqual)(options, { entity: { probe: { x: 1 } } });
+    });
+});
 // A cookie credential as prepareAuth writes it: `<scheme>=K` for the probe
 // key, with no scheme prefix and nothing else in the bag.
 const COOKIE_PAIR = /^[^=;]+=K$/;

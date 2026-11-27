@@ -1,5 +1,5 @@
 
-import { cmp, Content, entityIdField, pickExampleEntity, opRequestShape, safeVarName, exampleVarName, jsKey, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, entityIdField, pickExampleEntity, safeVarName, exampleVarName, jsKey, requiredItems, matchExampleItems, requestExampleItems } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -34,8 +34,7 @@ const client = ${model.const.Name}SDK.test()
     if (isMatchOp || 'list' === primaryOp) {
       // Every REQUIRED match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from.
-      const items = (isMatchOp ? opRequestShape(exampleEntity, primaryOp).items
-        .filter((it: any) => !it.optional || it.name === idF) : requiredItems(exampleEntity, 'list'))
+      const items = (isMatchOp ? matchExampleItems(exampleEntity, primaryOp, idF) : requiredItems(exampleEntity, 'list'))
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       arg = 0 < items.length
@@ -44,7 +43,7 @@ const client = ${model.const.Name}SDK.test()
             it.name === idF ? 'test01' : 'example_' + it.name)}`).join(', ')} }`
         : ''
     } else if ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp) {
-      const items = opRequestShape(exampleEntity, primaryOp).items
+      const items = requestExampleItems(exampleEntity, primaryOp)
         .filter((it: any) => it.name !== idF && it.name !== 'id')
       const required = items.filter((it: any) => !it.optional)
       const chosen = required.length ? required : items.slice(0, 3)

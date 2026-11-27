@@ -1,12 +1,12 @@
 
-import { cmp, each, Content, canonToType, canonKey, canonScalarKey, entityIdField, opRequestShape, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, canonKey, canonScalarKey, entityIdField, entityOps, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { kotlinVarName, kotlinListMatch } from './utility_kotlin'
+import { kotlinVarName, kotlinListMatch, kotlinString } from './utility_kotlin'
 
 
 // Type names come from the shared canonToType 'kotlin' column (single source of truth).
@@ -19,7 +19,7 @@ function kotlinLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return 'listOf<Any?>()'
   if ('OBJECT' === k) return 'mapOf<String, Any?>()'
-  return `"${placeholder}"`
+  return kotlinString(placeholder)
 }
 
 
@@ -55,9 +55,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     // Model-driven id key: null when this entity has no id-like field.
     const idF = entityIdField(entity)
@@ -71,8 +69,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -107,8 +105,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
-        Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${desc} |
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
+        Content(`| \`${field.n}\` | \`${canonToType(field.t, 'kotlin').replace(/\|/g, '\\|')}\` | ${desc} |
 `)
       })
 
@@ -116,17 +114,16 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
+    if (opnames.includes('load')) {
       // The id key plus every REQUIRED match key (parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `mutableMapOf<String, Any?>(${loadItems.map((it: any) =>
-          `"${it.name}" to ${kotlinLit(it.type,
+          `${kotlinString(it.name)} to ${kotlinLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)}`).join(', ')})`
         : 'null'
       Content(`#### Example: Load
@@ -138,7 +135,7 @@ val ${eVar} = client.${accessor}(null).load(${loadArg}, null)
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`kotlin
@@ -148,11 +145,11 @@ val ${eVar}List = client.${accessor}(null).list(${kotlinListMatch(entity)}, null
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member must appear — including a
       // required id and parent keys like page_id — with a real literal.
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
@@ -161,7 +158,7 @@ val ${eVar} = client.${accessor}(null).create(mutableMapOf<String, Any?>(
 `)
       createItems.map((it: any, i: number) => {
         const comma = i < createItems.length - 1 ? ',' : ''
-        Content(`    "${it.name}" to ${kotlinLit(it.type, 'example_' + it.name)}${comma}  // ${canonToType(it.type, target.name)}
+        Content(`    ${kotlinString(it.name)} to ${kotlinLit(it.type, 'example_' + it.name)}${comma}  // ${canonToType(it.type, 'kotlin')}
 `)
       })
       Content(`), null)

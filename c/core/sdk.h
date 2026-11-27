@@ -23,6 +23,14 @@
 #ifndef VOXGIGSOLARDEMO_SDK_H
 #define VOXGIGSOLARDEMO_SDK_H
 
+// Written by `make` beside this header: each global name the SDK's headers
+// declare, renamed to carry its own prefix. The SDK itself is compiled with
+// prefix.h, which renames every name it defines. First, so the vendored
+// headers below are renamed as well.
+#ifndef VOXGIGSOLARDEMO_SDK_UNPREFIXED
+#include "prefix_api.h"
+#endif
+
 #include "voxgig_struct.h"
 
 #include <stdbool.h>
@@ -52,9 +60,11 @@ typedef struct PNError {
   char* msg;   // human message
   voxgig_value* result; // cleaned snapshot (NULL until makeError)
   voxgig_value* spec;   // cleaned snapshot (NULL until makeError)
+  int status;           // HTTP status, -1 when there was no response
 } PNError;
 
 PNError* pn_error_new(const char* code, const char* msg);
+bool pn_error_not_found(const PNError* e);
 // The error as a record and as its default print: the message and the
 // cleaned snapshots, nothing the pipeline holds live. Malloc'd string.
 voxgig_value* pn_error_to_value(PNError* e);
@@ -240,11 +250,17 @@ Response* response_new(voxgig_value* resmap);
 PNError* unreadable_body(Context* ctx, int64_t status, voxgig_value* headers,
                          voxgig_value* text, voxgig_value* sent, PNError* failed);
 
+// A header's value under its name in any case; "" when it has none.
+const char* response_header(voxgig_value* headers, const char* name);
+
+// A response whose body is bytes: by the model, or by the type it declares.
+bool response_is_binary(voxgig_value* point, const char* type);
+
 // ===========================================================================
 // SdkResult (mirrors core/result.rs)
 // ===========================================================================
 
-// Stream producer attached by the streaming feature.
+// Stream producer, attached by the streaming feature when it is active.
 typedef voxgig_value* (*StreamFn)(void* ud); // returns a List of items
 
 struct SdkResult {
@@ -303,6 +319,11 @@ struct Fetcher {
 voxgig_value* fetcher_util(Fetcher* self, Context* ctx, const char* url,
                            voxgig_value* fetchdef, PNError** err);
 
+// The SDK's own HTTP/1.1 client (utility/http.c), which fetcher_util calls
+// when no system.fetch is supplied: a transport-shaped response map, or
+// NULL with a fetch_transport error.
+voxgig_value* http_fetch(Context* ctx, const char* url, voxgig_value* fetchdef, PNError** err);
+
 // ===========================================================================
 // Utility bundle (mirrors core/utility_type.rs)
 // ===========================================================================
@@ -318,12 +339,12 @@ voxgig_value* utility_fetch(Utility* u, Context* ctx, const char* url,
                             voxgig_value* fetchdef, PNError** err);
 
 // ===========================================================================
-// Entity (vtable; mirrors core/types.rs Entity + VoxgigSolardemoEntity)
+// Entity (vtable; mirrors core/types.rs Entity + VoxgigSolardemoEntityBase)
 // ===========================================================================
 
 // Every operation resolves to the ENTITY, not the raw data. `list` resolves
 // to a NULL-terminated array of them, one per record; the record is reached
-// through `data`. See AGENTS.md "Entity operations return ENTITIES".
+// through `data`.
 //
 // `voxgig_value` cannot carry an entity - it is a closed data union
 // (UNDEF|NULL|BOOL|INT|DOUBLE|STRING|LIST|MAP|FUNC|SENTINEL), and adding a
@@ -335,13 +356,13 @@ typedef struct EntityVT {
   voxgig_value* (*data)(Entity*, voxgig_value* args);   // args NULL => none
   voxgig_value* (*matchv)(Entity*, voxgig_value* args); // args NULL => none
 
-  // `remove` resolves to the entity, marked. The instance KEEPS the data it
-  // held - a caller can still read what was deleted - but it is no longer a
-  // live record.
+  // A remove resolves to the entity, marked deleted. The instance KEEPS the
+  // data it held - a caller can still read what was deleted - but it is no
+  // longer a live record.
   void (*mark_deleted)(Entity*);
   bool (*deleted)(Entity*);
 
-  // CRUD ops (VoxgigSolardemoEntity). On error set *err and return NULL.
+  // CRUD ops (VoxgigSolardemoEntityBase). On error set *err and return NULL.
   Entity* (*load)(Entity*, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err);
   // Returns a NULL-terminated Entity* array (never NULL on success).
   Entity** (*list)(Entity*, voxgig_value* reqmatch, voxgig_value* ctrl, PNError** err);
@@ -464,7 +485,7 @@ Utility* sdk_get_utility(VoxgigSolardemoSDK* sdk);      // utility_copy
 Context* sdk_get_root_ctx(VoxgigSolardemoSDK* sdk);
 
 // Constructors / prepare / direct are in the generated client.c:
-VoxgigSolardemoSDK* voxgigsolardemo_sdk_new(voxgig_value* options);
+VoxgigSolardemoSDK* voxgigsolardemo_sdk_new(voxgig_value* options, PNError** err);
 VoxgigSolardemoSDK* test_sdk(voxgig_value* testopts, voxgig_value* sdkopts);
 voxgig_value* sdk_prepare(VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err);
 voxgig_value* sdk_direct(VoxgigSolardemoSDK* sdk, voxgig_value* fetchargs, PNError** err);
@@ -507,6 +528,7 @@ char* clean_str(Context* ctx, const char* val); // returns malloc'd
 void clean_add_util(Context* ctx, const char* value);
 void clean_add_opts(voxgig_value* options, const char* value);
 bool clean_key_util(Context* ctx, const char* key);
+bool clean_secret_util(Context* ctx, const char* key, const char* value);
 voxgig_value* clean_opts(voxgig_value* options, voxgig_value* val);
 voxgig_value* clean_make_config(voxgig_value* cleanopts);
 voxgig_value* clean_split_values(voxgig_value* values);
@@ -522,7 +544,7 @@ void feature_hook_util(Context* ctx, const char* name);
 void feature_init_util(Context* ctx, Feature* f);
 voxgig_value* make_fetch_def_util(Context* ctx, PNError** err);
 Context* make_context_util(CtxSpec spec, Context* basectx);
-voxgig_value* make_options_util(Context* ctx);
+voxgig_value* make_options_util(Context* ctx, PNError** err);
 Response* make_request_util(Context* ctx, PNError** err);
 Response* make_response_util(Context* ctx, PNError** err);
 SdkResult* make_result_util(Context* ctx, PNError** err);

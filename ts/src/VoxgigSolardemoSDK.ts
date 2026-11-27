@@ -1,4 +1,4 @@
-// VoxgigSolardemo Ts SDK
+// VoxgigSolardemo TypeScript SDK
 
 import { MoonEntity } from './entity/MoonEntity'
 import { PlanetEntity } from './entity/PlanetEntity'
@@ -76,8 +76,8 @@ class VoxgigSolardemoSDK {
 
     // Add features in the resolved order (makeOptions puts an explicit
     // array order first, else defaults to test-first). Ordering matters:
-    // the `test` feature installs the base mock transport and the transport
-    // features (retry/cache/netsim/proxy/ratelimit) wrap whatever is current,
+    // the `test` feature installs the base mock transport and the features
+    // whose model declares `transport: 'wrap'` wrap whatever is current,
     // so `test` must be added before them to sit at the base of the chain.
     const extend = this._options.extend || []
 
@@ -173,6 +173,13 @@ secrets() {
       for (let key in uheaders) {
         spec.headers[key] = uheaders[key]
       }
+    }
+
+    // A raw request has no point to declare its response type, so it asks
+    // for the JSON it reads: an API that negotiates on Accept otherwise
+    // answers in its own default format. A caller's own accept wins.
+    if (!Object.keys(spec.headers).some((key) => 'accept' === key.toLowerCase())) {
+      spec.headers.accept = 'application/json'
     }
 
     

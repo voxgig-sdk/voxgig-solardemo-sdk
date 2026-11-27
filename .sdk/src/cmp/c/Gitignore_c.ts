@@ -14,6 +14,9 @@ const Gitignore = cmp(async function Gitignore(_props: any) {
 *.a
 a.out
 corpus-scoreboard.json
+build/
+core/prefix.h
+core/prefix_api.h
 
 # IDE / OS
 .idea/

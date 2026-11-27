@@ -1,12 +1,12 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { cppVarName, cppListMatch } from './utility_cpp'
+import { cppVarName, cppListMatch, cppEscape } from './utility_cpp'
 
 
 // A type-correct C++ literal for a param.
@@ -17,7 +17,7 @@ function cppLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'Value(true)'
   if ('ARRAY' === k) return 'vlist()'
   if ('OBJECT' === k) return 'vmap()'
-  return `Value("${placeholder}")`
+  return `Value("${cppEscape(placeholder)}")`
 }
 
 
@@ -30,12 +30,18 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
 
   const Name = model.const.Name
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `const char* apikey = std::getenv("${envName(model)}_APIKEY");
-auto client = std::make_shared<${Name}SDK>(vmap({
-    {"apikey", Value(apikey ? apikey : "")},
-}));`
-    : `auto client = ${Name}SDK::create();`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`{"apikey", Value(apikey ? apikey : "")},`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`{"secret", Value(secret ? secret : "")},`] : []),
+    ...(0 === svars.length ? [] : [`{"server", vmap({` +
+      svars.map((v: any) => `{"${v.name}", Value("<${v.name}>")}`).join(', ') + `})},`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `auto client = ${Name}SDK::create();`
+    : (authActive ? `const char* apikey = std::getenv("${envName(model)}_APIKEY");\n` : '') +
+      (fact(model.main[KIT], 'auth').secret ? `const char* secret = std::getenv("${envName(model)}_SECRET");\n` : '') +
+      `auto client = std::make_shared<${Name}SDK>(vmap({${ctorFields.map((f: string) => '\n    ' + f).join('')}\n}));`
   const ctorIncludes = authActive
     ? `#include <cstdlib>
 #include "core/sdk.hpp"`
@@ -53,7 +59,7 @@ ${ctor}
   if (exampleEntity) {
     const acc = cppVarName(exampleEntity.name)
     const eVar = acc
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field.
     const idF = entityIdField(exampleEntity)
 
@@ -68,13 +74,12 @@ for (const auto& ${eVar} : ${eVar}s) {
 
     if (opnames.includes('load')) {
       // Every REQUIRED load-match key (id first, then parent path params).
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `vmap({${loadItems.map((it: any) =>
-          `{"${it.name}", ${cppLit(it.type,
+          `{"${cppEscape(it.name)}", ${cppLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}}`).join(', ')}})`
         : 'Value::undef()'
       Content(`

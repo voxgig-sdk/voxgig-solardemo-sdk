@@ -1,4 +1,4 @@
-import { flowSteps, invalidRequest, opReachable } from '@voxgig/sdkgen'
+import { flowSteps, invalidRequest, opReachable, flowLoadRoute, flowLoadReadsRecord, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -17,7 +17,8 @@ import {
   cmp,
   each,
   buildIdNames,
-  getMatchEntries, envName, envToken
+  getMatchEntries, entityRecordIdField,
+  isAuthActive,
 } from '@voxgig/sdkgen'
 
 
@@ -33,9 +34,9 @@ type GenCtx = {
 type OpGen = (ctx: GenCtx, step: ModelEntityFlowStep, index: number) => void
 
 
-// Generates <entity>_entity_test.cpp: the model-driven basic-flow test
-// (unit mode against the in-memory mock transport). Mirrors the rust/go
-// TestEntity generators.
+// Generates <entity>_entity_test.cpp: the model-driven basic-flow test, in
+// unit mode against the in-memory mock transport, or live through a client
+// built from the environment. Mirrors the rust/go TestEntity generators.
 const TestEntity = cmp(function TestEntity(props: any) {
   const ctx$ = props.ctx$
   const model: Model = ctx$.model
@@ -44,7 +45,19 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const entity: ModelEntity = props.entity
 
   const ProjectName = model.const.Name
-  const PROJUPPER = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJUPPER = ENVVAR.prefix
+  const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
+  const svars = fact(model.main[KIT], 'server')
+  const credEnvEntry = (authActive ? `,\n    {"${ENVVAR.apikey}", Value("")}` : '') +
+    (authSecret ? `,\n    {"${ENVVAR.secret}", Value("")}` : '')
+  const serverEnvEntry = svars
+    .map((v: any) => `,\n    {"${ENVVAR.server[v.name]}", Value(${JSON.stringify(v.dflt)})}`).join('')
+  const liveFields = (authActive ? `    map_put(liveopts, "apikey", getp(env, "${ENVVAR.apikey}"));\n` : '') +
+    (authSecret ? `    map_put(liveopts, "secret", getp(env, "${ENVVAR.secret}"));\n` : '') +
+    (0 === svars.length ? '' : `    map_put(liveopts, "server", vmap({${svars
+      .map((v: any) => `{${JSON.stringify(v.name)}, getp(env, "${ENVVAR.server[v.name]}")}`).join(', ')}}));\n`)
 
   const basicflow: ModelEntityFlow | undefined =
     getModelPath(model, `main.${KIT}.flow.Basic${nom(entity, 'Name')}Flow`)
@@ -56,10 +69,9 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const idnamesStr = idnames.map(n => `Value("${n}")`).join(', ')
 
   const allSteps = Object.values(flowSteps(basicflow)) as any[]
-  const updateStep = allSteps.find((s: any) => s.o === 'update')
-  const updateData = updateStep?.d
-    ? Object.entries(updateStep.d).filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
-    : []
+  const updateData = Object.entries(Object.assign({}, ...allSteps
+    .filter((s: any) => 'update' === s.o || 'patch' === s.o).map((s: any) => s.d || {})))
+    .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
   const aliases = updateData.map(([k, v]: any) => [k, v])
 
   const genCtx: GenCtx = { model, entity, flow: basicflow }
@@ -93,9 +105,9 @@ struct ${entity.Name}Setup {
 static ${entity.Name}Setup ${evar}_basic_setup(const Value& extra) {
   load_env_local();
 
-  std::string entity_data_file = "../.sdk/test/entity/${entity.name}/${entity.Name}TestData.json";
+  std::string entity_data_file = "${ctx$.stdrep.SDKREL}/.sdk/test/entity/${entity.name}/${entity.Name}TestData.json";
   Value entity_data = vs::parse_json(read_file(entity_data_file));
-
+${fixtureIdentity(entity)}
   Value options = vmap({{"entity", getp(entity_data, "existing")}});
   auto client = ${ProjectName}SDK::testSDK(options, extra);
 
@@ -112,12 +124,12 @@ static ${entity.Name}Setup ${evar}_basic_setup(const Value& extra) {
   if (!idmap.is_map()) idmap = vmap();
 
   Value env = env_override(vmap({
-    {"${PROJUPPER}_TEST_${envToken(entity.name)}_ENTID", idmap},
-    {"${PROJUPPER}_TEST_LIVE", Value("FALSE")},
-    {"${PROJUPPER}_TEST_EXPLAIN", Value("FALSE")}
+    {"${ENVVAR.entid[entity.name]}", idmap},
+    {"${ENVVAR.live}", Value("FALSE")},
+    {"${PROJUPPER}_TEST_EXPLAIN", Value("FALSE")}${credEnvEntry}${serverEnvEntry}
   }));
 
-  Value idmap_resolved = Helpers::toMapAny(getp(env, "${PROJUPPER}_TEST_${envToken(entity.name)}_ENTID"));
+  Value idmap_resolved = Helpers::toMapAny(getp(env, "${ENVVAR.entid[entity.name]}"));
   if (!idmap_resolved.is_map()) idmap_resolved = idmap;
 `)
 
@@ -130,7 +142,14 @@ static ${entity.Name}Setup ${evar}_basic_setup(const Value& extra) {
     }
 
     Content(`
-  bool live = getp(env, "${PROJUPPER}_TEST_LIVE") == Value("TRUE");
+  bool live = getp(env, "${ENVVAR.live}") == Value("TRUE");
+  if (live) {
+    // sdk-test-control.json's test.client.options seeds the live client; the
+    // generated fields below overwrite anything they name.
+    Value liveopts = live_client_options();
+${liveFields}    client = std::make_shared<${ProjectName}SDK>(
+        Struct::merge(vlist({liveopts, extra.is_map() ? extra : vmap()})));
+  }
 
   ${entity.Name}Setup s;
   s.client = client;
@@ -397,7 +416,7 @@ const generateCreate: OpGen = (ctx, step: any, index) => {
     ASSERT_TRUE(${datavar}.is_map(), "expected create result to be a map");
 `)
   if (null != ctx.entity.id) {
-    Content(`    ASSERT_TRUE(!getp(${datavar}, "id").is_undef(), "expected created entity to have an id");
+    Content(`    ASSERT_TRUE(!getp(${datavar}, ${rid(ctx.entity)}).is_undef(), "expected created entity to have an id");
 `)
   }
   Content(`  }
@@ -414,7 +433,7 @@ const generateList: OpGen = (ctx, step: any, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`  // LIST
 `)
@@ -445,14 +464,14 @@ const generateList: OpGen = (ctx, step: any, index) => {
       if ('ItemExists' === validator.apply && hasRefData) {
         const refDataVar = cppVarName(validRef + '_data')
         Content(`  {
-    std::vector<Value> found = Struct::select(entity_list_to_data(${listvar}), vmap({{"id", getp(${refDataVar}, "id")}}));
+    std::vector<Value> found = Struct::select(entity_list_to_data(${listvar}), vmap({{${rid(entity)}, getp(${refDataVar}, ${rid(entity)})}}));
     ASSERT_TRUE(!found.empty(), "expected to find created entity in list");
   }
 `)
       } else if ('ItemNotExists' === validator.apply && hasRefData) {
         const refDataVar = cppVarName(validRef + '_data')
         Content(`  {
-    std::vector<Value> found = Struct::select(entity_list_to_data(${listvar}), vmap({{"id", getp(${refDataVar}, "id")}}));
+    std::vector<Value> found = Struct::select(entity_list_to_data(${listvar}), vmap({{${rid(entity)}, getp(${refDataVar}, ${rid(entity)})}}));
     ASSERT_TRUE(found.empty(), "expected removed entity to not be in list");
   }
 `)
@@ -472,10 +491,10 @@ const generateUpdate: OpGen = (ctx, step: any, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
   const hasEntIdU = null != entity.id
 
-  Content(`  // UPDATE
+  Content(`  // ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`  auto ${entvar} = client->${cppVarName(entity.name)}();
@@ -484,7 +503,7 @@ const generateUpdate: OpGen = (ctx, step: any, index) => {
   Content(`  Value ${datavar}_up = vmap();
 `)
   if (hasEntIdU) {
-    Content(`  setp(${datavar}_up, "id", getp(${srcdatavar}, "id"));
+    Content(`  setp(${datavar}_up, "id", getp(${srcdatavar}, ${rid(entity)}));
 `)
   }
   if (step.d) {
@@ -508,13 +527,13 @@ const generateUpdate: OpGen = (ctx, step: any, index) => {
       }
     }
   }
-  Content(`  Value ${resdatavar}_result = ${entvar}->update(Struct::clone(${datavar}_up), Value::undef())->data();
+  Content(`  Value ${resdatavar}_result = ${entvar}->${step.o}(Struct::clone(${datavar}_up), Value::undef())->data();
   Value ${resdatavar} = Helpers::toMapAny(${resdatavar}_result);
   if (!${resdatavar}.is_map()) ${resdatavar} = vmap();
-  ASSERT_TRUE(${resdatavar}.is_map(), "expected update result to be a map");
+  ASSERT_TRUE(${resdatavar}.is_map(), "expected ${step.o} result to be a map");
 `)
   if (hasEntIdU) {
-    Content(`  ASSERT_EQ_VAL(getp(${resdatavar}, "id"), getp(${datavar}_up, "id"), "expected update result id to match");
+    Content(`  ASSERT_EQ_VAL(getp(${resdatavar}, ${rid(entity)}), getp(${datavar}_up, "id"), "expected ${step.o} result id to match");
 `)
   }
   if (markname) {
@@ -534,8 +553,12 @@ const generateLoad: OpGen = (ctx, step: any, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const hasEntVar = priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
   const hasEntId = null != entity.id
+  const created = (s: any) => cppVarName(s.i?.datavar ?? ((s.i?.ref ?? entity.name + '_ref01') + '_data' + (s.i?.suffix ?? '')))
+  const hasSrcData = priorSteps.some((s: any) => 'create' === s.o && created(s) === srcdatavar) ||
+    (!Object.values(flowSteps(flow)).some((s: any) => 'create' === s.o) &&
+      srcdatavar === cppVarName(entity.name + '_ref01') + '_data')
 
   Content(`  // LOAD
 `)
@@ -543,16 +566,24 @@ const generateLoad: OpGen = (ctx, step: any, index) => {
     Content(`  auto ${entvar} = client->${cppVarName(entity.name)}();
 `)
   }
+  if (!hasEntId && !hasSrcData && flowLoadReadsRecord(entity, step)) {
+    Content(`  Value ${srcdatavar} = vmap();
+  {
+    std::vector<Value> its = Struct::items(Helpers::toMapAny(Struct::getpath(setup.data, {"existing", "${entity.name}"})));
+    ${srcdatavar} = its.empty() ? vmap() : Helpers::toMapAny(pair_val(its[0]));
+  }
+`)
+  }
   if (hasEntId) {
-    Content(`  Value ${matchvar} = vmap({{"id", getp(${srcdatavar}, "id")}});
-${parentMatch(step, matchvar, '  ')}  Value ${datavar}_loaded = ${entvar}->load(Struct::clone(${matchvar}), Value::undef())->data();
+    Content(`  Value ${matchvar} = vmap({{"id", getp(${srcdatavar}, ${rid(entity)})}});
+${loadMatch(entity, step, matchvar, srcdatavar, '  ')}  Value ${datavar}_loaded = ${entvar}->load(Struct::clone(${matchvar}), Value::undef())->data();
   Value ${datavar}_load_result = Helpers::toMapAny(${datavar}_loaded);
   ASSERT_TRUE(${datavar}_load_result.is_map(), "expected load result to be a map");
-  ASSERT_EQ_VAL(getp(${datavar}_load_result, "id"), getp(${srcdatavar}, "id"), "expected load result id to match");
+  ASSERT_EQ_VAL(getp(${datavar}_load_result, ${rid(entity)}), getp(${srcdatavar}, ${rid(entity)}), "expected load result id to match");
 `)
   } else {
     Content(`  Value ${matchvar} = vmap();
-${parentMatch(step, matchvar, '  ')}  Value ${datavar}_loaded = ${entvar}->load(${matchvar}, Value::undef())->data();
+${loadMatch(entity, step, matchvar, srcdatavar, '  ')}  Value ${datavar}_loaded = ${entvar}->load(${matchvar}, Value::undef())->data();
   ASSERT_TRUE(!${datavar}_loaded.is_undef(), "expected load result to be non-nil");
 `)
   }
@@ -568,7 +599,7 @@ const generateRemove: OpGen = (ctx, step: any, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`  // REMOVE
 `)
@@ -577,10 +608,33 @@ const generateRemove: OpGen = (ctx, step: any, index) => {
 `)
   }
   Content(`  {
-    Value ${matchvar} = vmap({{"id", getp(${srcdatavar}, "id")}});
+    Value ${matchvar} = vmap({{"id", getp(${srcdatavar}, ${rid(entity)})}});
 ${parentMatch(step, matchvar, '    ')}    ${entvar}->remove(Struct::clone(${matchvar}), Value::undef());
   }
 `)
+}
+
+
+// The record field the entity's identity is read from, as a C++ string.
+function rid(entity: any): string {
+  return JSON.stringify(entityRecordIdField(entity))
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  return 'id' === entityRecordIdField(entity) ? '' : `
+  Value fixture_recs = getp(getp(entity_data, "existing"), "${entity.name}");
+  if (fixture_recs.is_map()) {
+    for (const auto& fixture_key : Struct::keysof(fixture_recs)) {
+      Value fixture_rec = getp(fixture_recs, fixture_key);
+      if (fixture_rec.is_map() && !getp(fixture_rec, "id").is_undef()) {
+        setp(fixture_rec, ${rid(entity)}, getp(fixture_rec, "id"));
+      }
+    }
+  }
+`
 }
 
 
@@ -599,10 +653,47 @@ ${indent}}
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding offline.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string, indent: string): string {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar, indent)
+  }
+  if (route.offline) {
+    const own = route.args.filter((arg) => null != arg.field)
+    return parentMatch(step, matchvar, indent) + (0 === own.length ? '' : `${indent}if (!setup.live) {
+${own.map((arg) => `${indent}  {
+${indent}    Value own = getp(${srcdatavar}, "${arg.field}");
+${indent}    if (own.is_string() || own.is_number() || own.is_bool()) setp(${matchvar}, "${arg.name}", own);
+${indent}  }
+`).join('')}${indent}}
+`)
+  }
+  return route.args.map((arg) => {
+    const [first, then] = arg.idmap
+    const fallback = (inner: string) => null == then ? '' :
+      `${inner}if (parent_id.is_undef() || parent_id.is_null()) parent_id = getp(setup.idmap, "${then}");
+`
+    return `${indent}{
+${null == arg.field ? `${indent}  Value parent_id = getp(setup.idmap, "${first}");
+${fallback(indent + '  ')}` : `${indent}  Value parent_id = getp(${srcdatavar}, "${arg.field}");
+${indent}  if (!(parent_id.is_string() || parent_id.is_number() || parent_id.is_bool())) {
+${indent}    parent_id = getp(setup.idmap, "${first}");
+${fallback(indent + '    ')}${indent}  }
+`}${indent}  setp(${matchvar}, "${arg.name}", parent_id);
+${indent}}
+`
+  }).join('')
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }

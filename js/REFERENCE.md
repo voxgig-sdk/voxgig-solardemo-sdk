@@ -7,8 +7,8 @@ Complete API reference for the VoxgigSolardemo JavaScript SDK.
 
 ### Constructor
 
-```ts
-new VoxgigSolardemoSDK(options?: object)
+```js
+new VoxgigSolardemoSDK(options)
 ```
 
 Create a new SDK client instance.
@@ -18,12 +18,13 @@ Create a new SDK client instance.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `object` | SDK configuration options. |
-| `options.base` | `string` | Base URL for API requests. |
-| `options.prefix` | `string` | URL prefix appended after base. |
-| `options.suffix` | `string` | URL suffix appended after path. |
-| `options.headers` | `object` | Custom headers for all requests. |
-| `options.feature` | `object` | Feature configuration. |
-| `options.system` | `object` | System overrides (e.g. custom fetch). |
+| `options.base` | `string` | Base URL of the API server. |
+| `options.prefix` | `string` | URL path prefix prepended to all requests. |
+| `options.suffix` | `string` | URL path suffix appended to all requests. |
+| `options.headers` | `object` | Headers sent with every request. |
+| `options.feature` | `object` | Feature activation flags. |
+| `options.extend` | `Feature[]` | Additional feature instances to load. |
+| `options.system` | `object` | System overrides, such as a custom fetch function. |
 
 
 ### Static Methods
@@ -32,7 +33,7 @@ Create a new SDK client instance.
 
 Create a test client with mock features active.
 
-```ts
+```js
 const client = VoxgigSolardemoSDK.test()
 ```
 
@@ -131,7 +132,7 @@ as `callopts.signal`, and ends when it aborts.
 
 ## MoonEntity
 
-```ts
+```js
 const moon = client.Moon()
 ```
 
@@ -147,11 +148,27 @@ const moon = client.Moon()
 
 ### Operations
 
+#### `list(match: object, ctrl?: object)`
+
+List entities matching the given criteria. Resolves to an array of entities, one per record.
+
+```js
+const results = await client.Moon().list({ planet_id: "example" })
+```
+
+#### `load(match: object, ctrl?: object)`
+
+Load a single entity matching the given criteria. Resolves to the entity, whose record `data()` reads.
+
+```js
+const result = await client.Moon().load({ id: 'moon_id', planet_id: 'planet_id' })
+```
+
 #### `create(data: object, ctrl?: object)`
 
 Create a new entity with the given data. Resolves to the created entity.
 
-```ts
+```js
 const result = await client.Moon().create({
   planet_id: 'example_planet_id',
   diameter: 1,
@@ -161,40 +178,24 @@ const result = await client.Moon().create({
 })
 ```
 
-#### `list(match: object, ctrl?: object)`
+#### `update(data: object, ctrl?: object)`
 
-List entities matching the given criteria. Resolves to an array of entities, one per record.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity.
 
-```ts
-const results = await client.Moon().list({ planet_id: "example" })
-```
-
-#### `load(match: object, ctrl?: object)`
-
-Load a single entity matching the given criteria. Resolves to the entity, whose record `data()` reads.
-
-```ts
-const result = await client.Moon().load({ id: 'moon_id', planet_id: 'planet_id' })
+```js
+const result = await client.Moon().update({
+  id: 'moon_id',
+  planet_id: 'planet_id',
+  // Fields to update
+})
 ```
 
 #### `remove(match: object, ctrl?: object)`
 
 Remove the entity matching the given criteria. Resolves to the entity, marked as deleted.
 
-```ts
+```js
 const result = await client.Moon().remove({ id: 'moon_id', planet_id: 'planet_id' })
-```
-
-#### `update(data: object, ctrl?: object)`
-
-Update an existing entity. The data must include the entity `id`. Resolves to the updated entity.
-
-```ts
-const result = await client.Moon().update({
-  id: 'moon_id',
-  planet_id: 'planet_id',
-  // Fields to update
-})
 ```
 
 ### Common Methods
@@ -227,7 +228,7 @@ Return a copy of the entity options.
 
 ## PlanetEntity
 
-```ts
+```js
 const planet = client.Planet()
 ```
 
@@ -245,11 +246,27 @@ const planet = client.Planet()
 
 ### Operations
 
+#### `list(match: object, ctrl?: object)`
+
+List entities matching the given criteria. Resolves to an array of entities, one per record.
+
+```js
+const results = await client.Planet().list()
+```
+
+#### `load(match: object, ctrl?: object)`
+
+Load a single entity matching the given criteria. Resolves to the entity, whose record `data()` reads.
+
+```js
+const result = await client.Planet().load({ id: 'planet_id' })
+```
+
 #### `create(data: object, ctrl?: object)`
 
 Create a new entity with the given data. Resolves to the created entity.
 
-```ts
+```js
 const result = await client.Planet().create({
   diameter: 1,
   id: 'example_id',
@@ -258,39 +275,23 @@ const result = await client.Planet().create({
 })
 ```
 
-#### `list(match: object, ctrl?: object)`
+#### `update(data: object, ctrl?: object)`
 
-List entities matching the given criteria. Resolves to an array of entities, one per record.
+Update an existing entity. The data must include the entity `id`. Resolves to the updated entity.
 
-```ts
-const results = await client.Planet().list()
-```
-
-#### `load(match: object, ctrl?: object)`
-
-Load a single entity matching the given criteria. Resolves to the entity, whose record `data()` reads.
-
-```ts
-const result = await client.Planet().load({ id: 'planet_id' })
+```js
+const result = await client.Planet().update({
+  id: 'planet_id',
+  // Fields to update
+})
 ```
 
 #### `remove(match: object, ctrl?: object)`
 
 Remove the entity matching the given criteria. Resolves to the entity, marked as deleted.
 
-```ts
+```js
 const result = await client.Planet().remove({ id: 'planet_id' })
-```
-
-#### `update(data: object, ctrl?: object)`
-
-Update an existing entity. The data must include the entity `id`. Resolves to the updated entity.
-
-```ts
-const result = await client.Planet().update({
-  id: 'planet_id',
-  // Fields to update
-})
 ```
 
 ### Common Methods
@@ -338,7 +339,7 @@ Return a copy of the entity options.
 
 Features are activated via the `feature` option:
 
-```ts
+```js
 const client = new VoxgigSolardemoSDK({
   feature: {
     debug: { active: true },
@@ -358,10 +359,10 @@ const client = new VoxgigSolardemoSDK({
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -372,10 +373,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -578,7 +579,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -591,6 +592,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -618,10 +620,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

@@ -18,7 +18,7 @@ clean:
 	@echo "No clean step for Ruby"
 
 # --- Release: publish to RubyGems -----------------------------------------
-# Build the gem and push it to RubyGems, then tag rb/vX.Y.Z. Run headless under
+# Build the gem and push it to RubyGems, then push its release tag. Run headless under
 # the boru key vault, which injects GEM_HOST_API_KEY + the GitHub token (never on
 # disk or argv):
 #   boru vault exec --for=gem=<alias> --for=github=<alias> -- make publish
@@ -39,6 +39,7 @@ publish: test
 	  exit 0; \
 	fi; \
 	gem push *.gem; \
+	if [ -z "$(TAG)" ]; then echo "No release tag: the model cuts none for this package."; exit 0; fi; \
 	git tag -a "$(TAG)" -m "rb v$(VERSION)"; \
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	if [ -n "$$token" ] && printf '%s' "$$url" | grep -q '^https://github.com/'; then \

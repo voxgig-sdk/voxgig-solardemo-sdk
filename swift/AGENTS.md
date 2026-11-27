@@ -1,6 +1,6 @@
 # VoxgigSolardemo Swift — Agent Guide
 
-The Swift client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Swift client for the Solar System API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `swift/` directory.
@@ -12,6 +12,10 @@ cd ../.sdk
 npm run build        # only if you changed a component
 npm run generate     # refreshes this swift/ directory
 ```
+
+Each `npm run generate` rewrites every file it generates, so an edit
+made to generated output is lost, and deletes the files it generated before
+and no longer emits. A target or a phase switched off is left as it was.
 
 Then build and test the generated output:
 
@@ -33,24 +37,28 @@ make test
 Decision rule: *same for every API → template; depends on the API →
 component.* After editing a component run `npm run build` before
 `npm run generate`; template-only edits just need `npm run generate`.
+`target add` and `feature add` overwrite the templates and components
+in `.sdk/` (`main: kit: copies: 'overwrite'`): set `copies` to
+`'merge'` before customising them, so that an add merges toolchain updates
+into the edited copies.
 
 ## Features in this target
 
-Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aontu`; customise
-the runtime under `.sdk/tm/swift/feature/` and regenerate.
+Each feature's hooks and default activation come from
+`.sdk/model/feature/<name>.aontu`. Its runtime is generated from the template
+listed here: customise that and regenerate.
 
-| Feature | Runtime file | Active hooks |
+| Feature | Template | Active hooks |
 | --- | --- | --- |
-| **debug** — Debug capture | `feature/debug_feature.swift` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
-| **idempotency** — Idempotency | `feature/idempotency_feature.swift` | `PreRequest` |
-| **metrics** — Metrics | `feature/metrics_feature.swift` | `PreDone`, `PrePoint`, `PreUnexpected` |
-| **paging** — Paging | `feature/paging_feature.swift` | `PreRequest`, `PreResult` |
-| **ratelimit** — Rate limiting | `feature/ratelimit_feature.swift` | — |
-| **retry** — Retry | `feature/retry_feature.swift` | — |
-| **secrets** — Secrets | `feature/secrets_feature.swift` | `PreSpec` |
-| **test** — Test transport | `feature/test_feature.swift` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
-| **timeout** — Timeout | `feature/timeout_feature.swift` | — |
+| **debug** — Debug capture | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/DebugFeature.swift` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/IdempotencyFeature.swift` | `PreRequest` |
+| **metrics** — Metrics | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/MetricsFeature.swift` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/PagingFeature.swift` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/RatelimitFeature.swift` | — |
+| **retry** — Retry | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/RetryFeature.swift` | — |
+| **secrets** — Secrets | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/SecretsFeature.swift` | `PreSpec` |
+| **test** — Test transport | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/TestFeature.swift` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `.sdk/tm/swift/Sources/ProjectNameSDK/feature/TimeoutFeature.swift` | — |
 
 ---
 

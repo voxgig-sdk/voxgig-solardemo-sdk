@@ -55,6 +55,63 @@ public class MoonEntityTest {
           reason == null || "".equals(reason)
               ? "skipped via sdk-test-control.json" : reason);
     }
+    if (setup.live && "TRUE".equals(System.getenv("VOXGIG_GETONLY_GUARD"))) {
+      System.out.println("LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}");
+      System.out.println("LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}");
+      System.out.println("LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}");
+      System.out.println("LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}");
+    if (setup.live) {
+      for (String liveKey : new String[] { "planet01" }) {
+        if (setup.syntheticOnly || setup.idmap.get(liveKey) == null) {
+          RunnerSupport.liveMiss(LIVE_STRICT, "Live entity test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
+        }
+      }
+    }
+    VoxgigSolardemoSDK client = setup.client;
+    if (setup.live) {
+      Object liveId = setup.syntheticOnly ? null : setup.idmap.get("moon01");
+      RunnerSupport.livePace();
+      RunnerSupport.liveExisting(setup.data, LIVE_STRICT, "moon",
+          "id", liveId, () -> {
+        Map<String, Object> match = new LinkedHashMap<>(); match.put("planet_id", setup.idmap.get("planet01"));
+        return client.moon(null).list(match, null);
+      });
+    }
+
+    // Bootstrap entity data from existing test data (no create step in flow).
+    List<List<Object>> moonRef01DataRaw = Struct.items(Helpers.toMapAny(
+        Struct.getpath(setup.data, "existing.moon")));
+    Map<String, Object> moonRef01Data = moonRef01DataRaw.isEmpty()
+        ? null : Helpers.toMapAny(moonRef01DataRaw.get(0).get(1));
+
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
+    // LIST
+    SdkEntity moonRef01Ent = client.moon(null);
+    Map<String, Object> moonRef01Match = new LinkedHashMap<>();
+    moonRef01Match.put("planet_id", setup.idmap.get("planet01"));
+
+    Object moonRef01ListResult = moonRef01Ent.list(moonRef01Match, null);
+    assertTrue(moonRef01ListResult instanceof List,
+        "expected list result to be an array, got " + moonRef01ListResult);
+
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
+    // LOAD
+    Map<String, Object> moonRef01MatchDt0 = new LinkedHashMap<>();
+    moonRef01MatchDt0.put("id", moonRef01Data.get("id"));
+    moonRef01MatchDt0.put("planet_id", moonRef01Data.get("planet_id") instanceof String || moonRef01Data.get("planet_id") instanceof Number
+        || moonRef01Data.get("planet_id") instanceof Boolean ? moonRef01Data.get("planet_id") : (null != setup.idmap.get("planet_id") ? setup.idmap.get("planet_id") : setup.idmap.get("planet01")));
+    Object moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null);
+    Map<String, Object> moonRef01DataDt0LoadResult = Helpers.toMapAny(moonRef01DataDt0Loaded instanceof SdkEntity ? ((SdkEntity) moonRef01DataDt0Loaded).data() : moonRef01DataDt0Loaded);
+    assertNotNull(moonRef01DataDt0LoadResult, "expected load result to be a map");
+    assertTrue(RunnerSupport.liveSameId(moonRef01DataDt0LoadResult.get("id"), moonRef01Data.get("id")), "expected load result id to match");
+
+      return;
+    }
+
     if (setup.live) {
       for (String liveKey : new String[] { "planet01" }) {
         if (setup.syntheticOnly || setup.idmap.get(liveKey) == null) {
@@ -64,6 +121,9 @@ public class MoonEntityTest {
     }
     VoxgigSolardemoSDK client = setup.client;
 
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     // CREATE
     SdkEntity moonRef01Ent = client.moon(null);
     Map<String, Object> moonRef01Data = Helpers.toMapAny(Struct.getprop(
@@ -75,6 +135,9 @@ public class MoonEntityTest {
     assertNotNull(moonRef01Data, "expected create result to be a map");
     assertNotNull(moonRef01Data.get("id"), "expected created entity to have an id");
 
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     // LIST
     Map<String, Object> moonRef01Match = new LinkedHashMap<>();
     moonRef01Match.put("planet_id", setup.idmap.get("planet01"));
@@ -89,6 +152,9 @@ public class MoonEntityTest {
         Struct.jm("id", moonRef01Data.get("id")));
     assertFalse(Struct.isempty(foundItem), "expected to find created entity in list");
 
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     // UPDATE
     Map<String, Object> moonRef01DataUp0Up = new LinkedHashMap<>();
     moonRef01DataUp0Up.put("id", moonRef01Data.get("id"));
@@ -101,22 +167,26 @@ public class MoonEntityTest {
     Object moonRef01ResdataUp0Result = moonRef01Ent.update(moonRef01DataUp0Up, null);
     Map<String, Object> moonRef01ResdataUp0 = Helpers.toMapAny(moonRef01ResdataUp0Result instanceof SdkEntity ? ((SdkEntity) moonRef01ResdataUp0Result).data() : moonRef01ResdataUp0Result);
     assertNotNull(moonRef01ResdataUp0, "expected update result to be a map");
-    assertEquals(moonRef01DataUp0Up.get("id"), moonRef01ResdataUp0.get("id"),
-        "expected update result id to match");
+    assertTrue(RunnerSupport.liveSameId(moonRef01ResdataUp0.get("id"), moonRef01DataUp0Up.get("id")), "expected update result id to match");
     assertEquals(moonRef01MarkdefUp0Value, moonRef01ResdataUp0.get(moonRef01MarkdefUp0Name),
         "expected " + moonRef01MarkdefUp0Name + " to be updated");
 
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     // LOAD
     Map<String, Object> moonRef01MatchDt0 = new LinkedHashMap<>();
     moonRef01MatchDt0.put("id", moonRef01Data.get("id"));
-    moonRef01MatchDt0.put("planet_id", null != setup.idmap.get("planet_id")
-        ? setup.idmap.get("planet_id") : setup.idmap.get("planet01"));
+    moonRef01MatchDt0.put("planet_id", moonRef01Data.get("planet_id") instanceof String || moonRef01Data.get("planet_id") instanceof Number
+        || moonRef01Data.get("planet_id") instanceof Boolean ? moonRef01Data.get("planet_id") : (null != setup.idmap.get("planet_id") ? setup.idmap.get("planet_id") : setup.idmap.get("planet01")));
     Object moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null);
     Map<String, Object> moonRef01DataDt0LoadResult = Helpers.toMapAny(moonRef01DataDt0Loaded instanceof SdkEntity ? ((SdkEntity) moonRef01DataDt0Loaded).data() : moonRef01DataDt0Loaded);
     assertNotNull(moonRef01DataDt0LoadResult, "expected load result to be a map");
-    assertEquals(moonRef01Data.get("id"), moonRef01DataDt0LoadResult.get("id"),
-        "expected load result id to match");
+    assertTrue(RunnerSupport.liveSameId(moonRef01DataDt0LoadResult.get("id"), moonRef01Data.get("id")), "expected load result id to match");
 
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     // REMOVE
     Map<String, Object> moonRef01MatchRm0 = new LinkedHashMap<>();
     moonRef01MatchRm0.put("id", moonRef01Data.get("id"));
@@ -124,6 +194,9 @@ public class MoonEntityTest {
         ? setup.idmap.get("planet_id") : setup.idmap.get("planet01"));
     moonRef01Ent.remove(moonRef01MatchRm0, null);
 
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     // LIST
     Map<String, Object> moonRef01MatchRt0 = new LinkedHashMap<>();
     moonRef01MatchRt0.put("planet_id", setup.idmap.get("planet01"));

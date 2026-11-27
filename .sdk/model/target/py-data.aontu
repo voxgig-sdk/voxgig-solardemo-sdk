@@ -7,6 +7,8 @@ main: kit: target: 'py-data': {
   module: name: 'voxgig-solardemo'
   base: 'node_modules/@voxgig/sdkgen/project/.sdk'
   package: '@voxgig/sdkgen'
+  surface: 'data'
+  consumes: 'py'
   srcfeature: false
 
   phase: {

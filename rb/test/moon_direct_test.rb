@@ -34,15 +34,18 @@ class MoonDirectTest < Minitest::Test
         end
       end
     end
+    Runner.live_pace if setup[:live]
     client = setup[:client]
 
     params = {}
+    query = {}
     params["planet_id"] = setup[:live] ? setup[:idmap]["planet01"] : "direct01"
 
     result = client.direct({
       "path" => "api/planet/{planet_id}/moon",
       "method" => "GET",
       "params" => params,
+      "query" => query,
     })
     if setup[:live]
       unless live_ok(result)
@@ -76,6 +79,7 @@ class MoonDirectTest < Minitest::Test
         end
       end
     end
+    Runner.live_pace if setup[:live]
     client = setup[:client]
 
     params = {}
@@ -97,7 +101,7 @@ class MoonDirectTest < Minitest::Test
         Runner.live_empty("The account has no moon record to load")
       end
       first = records[0].is_a?(Hash) ? records[0] : {}
-      found = first.fetch("id", first["id"])
+      found = first["id"]
       if found.nil?
         Runner.live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity")
       end

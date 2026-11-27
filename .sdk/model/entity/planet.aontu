@@ -183,12 +183,9 @@ main: kit: entity: planet: {
         {
           bf: [
             "diameter"
-            "forbidReason"
-            "forbidState"
             "id"
             "kind"
             "name"
-            "terraformState"
           ]
           co: {
             id: "POST /api/planet"
@@ -356,12 +353,9 @@ main: kit: entity: planet: {
         {
           bf: [
             "diameter"
-            "forbidReason"
-            "forbidState"
             "id"
             "kind"
             "name"
-            "terraformState"
           ]
           co: {
             id: "PUT /api/planet/{planet_id}"

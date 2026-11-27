@@ -51,6 +51,13 @@ static MoonSetup moon_basic_setup(const Value& extra) {
   }
 
   bool live = getp(env, "VOXGIG_SOLARDEMO_TEST_LIVE") == Value("TRUE");
+  if (live) {
+    // sdk-test-control.json's test.client.options seeds the live client; the
+    // generated fields below overwrite anything they name.
+    Value liveopts = live_client_options();
+    client = std::make_shared<VoxgigSolardemoSDK>(
+        Struct::merge(vlist({liveopts, extra.is_map() ? extra : vmap()})));
+  }
 
   MoonSetup s;
   s.client = client;
@@ -141,8 +148,11 @@ static void moon_entity_basic() {
   // LOAD
   Value moon_ref01_match_dt0 = vmap({{"id", getp(moon_ref01_data, "id")}});
   {
-    Value parent_id = getp(setup.idmap, "planet_id");
-    if (parent_id.is_undef() || parent_id.is_null()) parent_id = getp(setup.idmap, "planet01");
+    Value parent_id = getp(moon_ref01_data, "planet_id");
+    if (!(parent_id.is_string() || parent_id.is_number() || parent_id.is_bool())) {
+      parent_id = getp(setup.idmap, "planet_id");
+      if (parent_id.is_undef() || parent_id.is_null()) parent_id = getp(setup.idmap, "planet01");
+    }
     setp(moon_ref01_match_dt0, "planet_id", parent_id);
   }
   Value moon_ref01_data_dt0_loaded = moon_ref01_ent->load(Struct::clone(moon_ref01_match_dt0), Value::undef())->data();

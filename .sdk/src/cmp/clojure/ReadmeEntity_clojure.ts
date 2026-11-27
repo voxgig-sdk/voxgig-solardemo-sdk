@@ -1,12 +1,12 @@
 
-import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, opRequestShape, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, entityOps, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { cljListMatch } from './utility_clojure'
+import { cljListMatch, cljString } from './utility_clojure'
 
 
 // A type-correct Clojure literal for a field's canonical type. The create
@@ -18,7 +18,7 @@ function cljLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return '(vs/jt)'
   if ('OBJECT' === k) return '(vs/jm)'
-  return `"${placeholder}"`
+  return cljString(placeholder)
 }
 
 
@@ -68,9 +68,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     // Model-driven id key: null when this entity has no id-like field.
     const idF = entityIdField(entity)
@@ -81,8 +79,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -90,6 +88,15 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
     Content(`Create an instance: \`(def ${eLow} (api/${eLow} client nil))\`
 
 `)
+
+    // The first example of an entity requires its namespace: the quick start
+    // requires only its own entity's, and a reader starts from this section.
+    let required = false
+    const requireLine = () => {
+      if (required) return ''
+      required = true
+      return `(require '[sdk.entity.${eLow} :as e-${eLow}])\n\n`
+    }
 
     if (opnames.length > 0) {
       Content(`#### Operations
@@ -117,7 +124,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
         Content(`| \`${field.n}\` | \`${cljType(field.t)}\` | ${desc} |
 `)
       })
@@ -126,51 +133,50 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
+    if (opnames.includes('load')) {
       // The id key plus every REQUIRED match key (parent path params like
       // page_id) — the same shape the runtime resolves path params from.
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `(vs/jm ${loadItems.map((it: any) =>
-          `"${it.name}" ${cljLit(it.type,
+          `${cljString(it.name)} ${cljLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)}`).join(' ')})`
         : 'nil'
       Content(`#### Example: Load
 
 \`\`\`clojure
-(def ${eLow} (e-${eLow}/load (api/${eLow} client nil) ${loadArg} nil))
+${requireLine()}(def ${eLow} (e-${eLow}/load (api/${eLow} client nil) ${loadArg} nil))
 \`\`\`
 
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`clojure
-(def ${eLow}s (e-${eLow}/list (api/${eLow} client nil) ${cljListMatch(entity)} nil))
+${requireLine()}(def ${eLow}s (e-${eLow}/list (api/${eLow} client nil) ${cljListMatch(entity)} nil))
 \`\`\`
 
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member must appear.
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
 \`\`\`clojure
-(def ${eLow}
+${requireLine()}(def ${eLow}
   (e-${eLow}/create (api/${eLow} client nil)
     (vs/jm
 `)
       createItems.map((it: any) => {
-        Content(`      "${it.name}" ${cljLit(it.type, 'example_' + it.name)}  ;; ${cljType(it.type)}
+        Content(`      ${cljString(it.name)} ${cljLit(it.type, 'example_' + it.name)}  ;; ${cljType(it.type)}
 `)
       })
       Content(`      )

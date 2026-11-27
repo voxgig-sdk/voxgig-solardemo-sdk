@@ -34,9 +34,9 @@ object VoxgigSolardemoTypes {
 
   data class PlanetListMatch(val diameter: Double?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val terraformState: String?)
 
-  data class PlanetCreateData(val diameter: Double?, val forbidReason: String?, val forbidState: String?, val id: String?, val kind: String?, val name: String?, val terraformState: String?)
+  data class PlanetCreateData(val diameter: Double?, val id: String?, val kind: String?, val name: String?)
 
-  data class PlanetUpdateData(val id: String?, val diameter: Double?, val forbidReason: String?, val forbidState: String?, val kind: String?, val name: String?, val terraformState: String?)
+  data class PlanetUpdateData(val id: String?, val diameter: Double?, val kind: String?, val name: String?)
 
   data class PlanetRemoveMatch(val id: String?)
 

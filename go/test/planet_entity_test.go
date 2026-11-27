@@ -45,7 +45,7 @@ func TestPlanetEntity(t *testing.T) {
 		}
 	})
 
-	// Feature #4: the entity Stream(action, ...) method runs the op pipeline and
+	// The entity Stream(action, ...) method runs the op pipeline and
 	// returns a channel over result items. With the streaming feature active it
 	// yields the feature's incremental output; otherwise it falls back to the
 	// materialised list so Stream always yields.
@@ -200,9 +200,79 @@ func TestPlanetEntity(t *testing.T) {
 				return
 			}
 		}
+		if setup.live && os.Getenv("VOXGIG_GETONLY_GUARD") == "TRUE" {
+			t.Log("LIVE STEP {\"id\":\"planet.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/forbid\"}")
+			t.Log("LIVE STEP {\"id\":\"planet.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}\"}")
+			t.Log("LIVE STEP {\"id\":\"planet.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}\"}")
+			t.Log("LIVE STEP {\"id\":\"planet.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+		client := setup.client
+		_ = client
+		if setup.live {
+			var _liveId any
+			if !setup.syntheticOnly {
+				_liveId = setup.idmap["planet01"]
+			}
+			livePace()
+			liveExisting(t, planetEntityLiveStrict, setup.data, "planet", "id", _liveId,
+				func() (any, error) {
+					return client.Planet(nil).List(map[string]any{}, nil)
+				})
+		}
+
+		// Bootstrap entity data from existing test data (no create step in flow).
+		planetRef01DataRaw := vs.Items(core.ToMapAny(vs.GetPath(setup.data, "existing.planet")))
+		var planetRef01Data map[string]any
+		if len(planetRef01DataRaw) > 0 {
+			planetRef01Data = core.ToMapAny(planetRef01DataRaw[0][1])
+		}
+		// Discard guards against Go's unused-var check when the flow's steps
+		// happen not to consume the bootstrap data (e.g. list-only flows).
+		_ = planetRef01Data
+
+		if setup.live {
+			livePace()
+		}
+		// LIST
+		planetRef01Ent := client.Planet(nil)
+		planetRef01Match := map[string]any{}
+
+		planetRef01ListResult, err := planetRef01Ent.List(planetRef01Match, nil)
+		if err != nil {
+			t.Fatalf("list failed: %v", err)
+		}
+		_, planetRef01ListOk := planetRef01ListResult.([]any)
+		if !planetRef01ListOk {
+			t.Fatalf("expected list result to be an array, got %T", planetRef01ListResult)
+		}
+
+		if setup.live {
+			livePace()
+		}
+		// LOAD
+		planetRef01MatchDt0 := map[string]any{
+			"id": planetRef01Data["id"],
+		}
+		planetRef01DataDt0Loaded, err := planetRef01Ent.Load(planetRef01MatchDt0, nil)
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
+		planetRef01DataDt0LoadResult := core.ToMapAny(entityData(planetRef01DataDt0Loaded))
+		if planetRef01DataDt0LoadResult == nil {
+			t.Fatal("expected load result to be a map")
+		}
+		if !liveSameId(planetRef01DataDt0LoadResult["id"], planetRef01Data["id"]) {
+			t.Fatal("expected load result id to match")
+		}
+
+		return
+		}
+
 		client := setup.client
 		_ = client
 
+		if setup.live {
+			livePace()
+		}
 		// CREATE
 		planetRef01Ent := client.Planet(nil)
 		planetRef01Data := core.ToMapAny(vs.GetProp(
@@ -220,6 +290,9 @@ func TestPlanetEntity(t *testing.T) {
 			t.Fatal("expected created entity to have an id")
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// LIST
 		planetRef01Match := map[string]any{}
 
@@ -237,6 +310,9 @@ func TestPlanetEntity(t *testing.T) {
 			t.Fatal("expected to find created entity in list")
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// UPDATE
 		planetRef01DataUp0Up := map[string]any{
 			"id": planetRef01Data["id"],
@@ -254,13 +330,16 @@ func TestPlanetEntity(t *testing.T) {
 		if planetRef01ResdataUp0 == nil {
 			t.Fatal("expected update result to be a map")
 		}
-		if planetRef01ResdataUp0["id"] != planetRef01DataUp0Up["id"] {
+		if !liveSameId(planetRef01ResdataUp0["id"], planetRef01DataUp0Up["id"]) {
 			t.Fatal("expected update result id to match")
 		}
 		if planetRef01ResdataUp0[planetRef01MarkdefUp0Name] != planetRef01MarkdefUp0Value {
 			t.Fatalf("expected %s to be updated, got %v", planetRef01MarkdefUp0Name, planetRef01ResdataUp0[planetRef01MarkdefUp0Name])
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// LOAD
 		planetRef01MatchDt0 := map[string]any{
 			"id": planetRef01Data["id"],
@@ -273,10 +352,13 @@ func TestPlanetEntity(t *testing.T) {
 		if planetRef01DataDt0LoadResult == nil {
 			t.Fatal("expected load result to be a map")
 		}
-		if planetRef01DataDt0LoadResult["id"] != planetRef01Data["id"] {
+		if !liveSameId(planetRef01DataDt0LoadResult["id"], planetRef01Data["id"]) {
 			t.Fatal("expected load result id to match")
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// REMOVE
 		planetRef01MatchRm0 := map[string]any{
 			"id": planetRef01Data["id"],
@@ -286,6 +368,9 @@ func TestPlanetEntity(t *testing.T) {
 			t.Fatalf("remove failed: %v", err)
 		}
 
+		if setup.live {
+			livePace()
+		}
 		// LIST
 		planetRef01MatchRt0 := map[string]any{}
 
@@ -374,7 +459,7 @@ func planetBasicSetup(extra map[string]any) *entityTestSetup {
 			},
 			extraOpts,
 		})
-		client = sdk.NewVoxgigSolardemoSDK(core.ToMapAny(mergedOpts))
+		client = newClient(core.ToMapAny(mergedOpts))
 	}
 
 	live := env["VOXGIG_SOLARDEMO_TEST_LIVE"] == "TRUE"

@@ -1,5 +1,5 @@
 
-import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, safeVarName, exampleVarName, seededList, litPair } from '@voxgig/sdkgen'
+import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, safeVarName, exampleVarName, seededList, litPair, matchExampleItems, requestExampleItems } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -41,8 +41,7 @@ const ReadmeTopTest = cmp(function ReadmeTopTest(props: any) {
     } else if (isMatchOp) {
       // Every REQUIRED match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from.
-      const items = opRequestShape(exampleEntity, primaryOp).items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const items = matchExampleItems(exampleEntity, primaryOp, idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       callArg = 0 < items.length
@@ -50,7 +49,7 @@ const ReadmeTopTest = cmp(function ReadmeTopTest(props: any) {
           litPair('rb', it.name, it.name === idF ? '"test01"' : rbLit(it.type))).join(', ')} }`
         : ''
     } else if ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp) {
-      const items = opRequestShape(exampleEntity, primaryOp).items
+      const items = requestExampleItems(exampleEntity, primaryOp)
         .filter((it: any) => it.name !== idF && it.name !== 'id')
       const required = items.filter((it: any) => !it.optional)
       const chosen = required.length ? required : items.slice(0, 3)

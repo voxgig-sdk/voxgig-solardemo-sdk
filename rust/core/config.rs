@@ -130,6 +130,7 @@ pub fn make_config() -> Value {
                         ("active".to_string(), Value::Bool(false)),
                         ("method".to_string(), Value::str("POST")),
                         ("path".to_string(), Value::str("auth/token")),
+                        ("redirect".to_string(), Value::str("refuse")),
                         ("refresh".to_string(), Value::str("")),
                         ("request".to_string(), Value::str("refresh_token")),
                         ("response".to_string(), Value::str("access_token")),

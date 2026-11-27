@@ -56,19 +56,22 @@ func makePointUtil(_ ctx: Context) throws -> VMap? {
       "Operation \"\(op.name)\" has no endpoint definitions.")
   }
 
-  if op.points.count == 1 {
+  let reqselector: VMap
+  let selector: VMap
+  if op.input == "data" {
+    reqselector = ctx.reqdata
+    selector = ctx.data
+  } else {
+    reqselector = ctx.reqmatch
+    selector = ctx.match
+  }
+
+  // A lone point still needs the call's action to agree with its own; the
+  // selection below refuses a mismatch either way.
+  if op.points.count == 1 &&
+    gp(reqselector, "$action") == gp(gp(op.points[0], "select"), "$action") {
     ctx.point = op.points[0]
   } else {
-    let reqselector: VMap
-    let selector: VMap
-    if op.input == "data" {
-      reqselector = ctx.reqdata
-      selector = ctx.data
-    } else {
-      reqselector = ctx.reqmatch
-      selector = ctx.match
-    }
-
     var point: VMap? = nil
     var matched = false
     for candidate in op.points {
@@ -223,7 +226,7 @@ func makeSpecUtil(_ ctx: Context) throws -> Spec {
   if "graphql" == gp(ctx.point, "kind").asString {
     // GraphQL addresses one endpoint: no path parts, no query string, and
     // the body carries the operation. prepareBody is skipped deliberately —
-    // it only emits a body for data-input ops, whereas every GraphQL op
+    // it builds only a REST body, whereas every GraphQL op
     // posts one, including load/list/remove.
     ctx.spec!.body = utility.graphqlBody(ctx)
     ctx.spec!.path = ""
@@ -266,10 +269,14 @@ func makeUrlUtil(_ ctx: Context) throws -> String {
   // Sent with the request, never recorded as the entity's match.
   let authquery = spec.authquery
 
-  // A route the definition ends with a slash keeps it: a server such as a
-  // Django REST one redirects or refuses the route without it.
-  if let orig = gp(ctx.point, "orig").asString, orig.hasSuffix("/"), spec.suffix.isEmpty,
-     !url.hasSuffix("/") {
+  // A route ending in a slash keeps it, as defined or as passed to direct(), for
+  // Django, and a host with no path takes /, or luasocket reads a query as the host.
+  let slashed = (gp(ctx.point, "orig").asString?.hasSuffix("/") ?? false) || spec.path.hasSuffix("/")
+  if slashed, spec.suffix.isEmpty, !url.hasSuffix("/") {
+    url += "/"
+  }
+  if let authority = url.range(of: "://"), url.startIndex < authority.lowerBound,
+     !url[authority.upperBound...].contains(where: { "/?#".contains($0) }) {
     url += "/"
   }
 
@@ -277,8 +284,13 @@ func makeUrlUtil(_ ctx: Context) throws -> String {
     let key = item[0].asString ?? ""
     let val = item[1]
     if !isNil(val) {
+      // A whole . or .. is a dot segment, which moves the request to another route.
+      let text = stringify(val)
+      if text == "." || text == ".." {
+        throw ctx.makeError("url_param_invalid", "URL path parameter " + key + " cannot be \"" + text + "\".")
+      }
       let pattern = "\\{" + escre(.string(key)) + "\\}"
-      url = regexReplace(url, pattern, escurl(.string(stringify(val))))
+      url = regexReplace(url, pattern, escurl(.string(text)))
       resmatch.entries[key] = val
     }
   }
@@ -455,9 +467,7 @@ func makeResultUtil(_ ctx: Context) throws -> Result {
       let entities = VList()
       for entry in list.items {
         let ent = entity.make()
-        if let entryMap = entry.asMap {
-          ent.data(.map(entryMap))
-        }
+        ent.data(entry)
         entities.items.append(.nat(ent))
       }
       result.resdata = .list(entities)

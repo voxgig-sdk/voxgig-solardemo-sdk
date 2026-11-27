@@ -84,17 +84,11 @@ class PlanetListMatch(TypedDict, total=False):
     terraformState: str
 
 
-class PlanetCreateDataRequired(TypedDict):
+class PlanetCreateData(TypedDict):
     diameter: float
     id: str
     kind: str
     name: str
-
-
-class PlanetCreateData(PlanetCreateDataRequired, total=False):
-    forbidReason: str
-    forbidState: str
-    terraformState: str
 
 
 class PlanetUpdateDataRequired(TypedDict):
@@ -103,11 +97,8 @@ class PlanetUpdateDataRequired(TypedDict):
 
 class PlanetUpdateData(PlanetUpdateDataRequired, total=False):
     diameter: float
-    forbidReason: str
-    forbidState: str
     kind: str
     name: str
-    terraformState: str
 
 
 class PlanetRemoveMatch(TypedDict):

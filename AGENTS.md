@@ -7,8 +7,8 @@ from an API model; the generator, model, templates, and components all live in
 a template, or a component and regenerate.
 
 There are companion guides deeper in the tree: one per language
-(`<lang>/AGENTS.md`) and one per feature
-(`<lang>/src/feature/<name>/AGENTS.md`).
+(`<lang>/AGENTS.md`), and one per feature in a target that keeps each
+feature in its own directory (`<lang>/src/feature/<name>/AGENTS.md`).
 
 ## Project map
 
@@ -23,8 +23,8 @@ There are companion guides deeper in the tree: one per language
 | `dart` | `dart/` | [`dart/AGENTS.md`](./dart/AGENTS.md) |
 | `elixir` | `elixir/` | [`elixir/AGENTS.md`](./elixir/AGENTS.md) |
 | `go` | `go/` | [`go/AGENTS.md`](./go/AGENTS.md) |
-| `go-cli` | `go-cli/` — A CLI surface, not an SDK client library. | [`go-cli/AGENTS.md`](./go-cli/AGENTS.md) |
-| `go-mcp` | `go-mcp/` — An MCP server surface for AI agents, not an SDK client library. | [`go-mcp/AGENTS.md`](./go-mcp/AGENTS.md) |
+| `go-cli` | `go-cli/` — A CLI surface, not an SDK client library. | — |
+| `go-mcp` | `go-mcp/` — An MCP server surface for AI agents, not an SDK client library. | — |
 | `haskell` | `haskell/` | [`haskell/AGENTS.md`](./haskell/AGENTS.md) |
 | `java` | `java/` | [`java/AGENTS.md`](./java/AGENTS.md) |
 | `js` | `js/` | [`js/AGENTS.md`](./js/AGENTS.md) |
@@ -35,27 +35,26 @@ There are companion guides deeper in the tree: one per language
 | `perl` | `perl/` | [`perl/AGENTS.md`](./perl/AGENTS.md) |
 | `php` | `php/` | [`php/AGENTS.md`](./php/AGENTS.md) |
 | `py` | `py/` | [`py/AGENTS.md`](./py/AGENTS.md) |
-| `py-data` | `py-data/` — A pandas/notebook surface layered on the sibling Python SDK, not an SDK client library. | [`py-data/AGENTS.md`](./py-data/AGENTS.md) |
+| `py-data` | `py-data/` — A pandas/notebook surface layered on the sibling Python SDK, not an SDK client library. | — |
 | `rb` | `rb/` | [`rb/AGENTS.md`](./rb/AGENTS.md) |
 | `rust` | `rust/` | [`rust/AGENTS.md`](./rust/AGENTS.md) |
 | `scala` | `scala/` | [`scala/AGENTS.md`](./scala/AGENTS.md) |
-| `seneca-provider` | `seneca-provider/` | [`seneca-provider/AGENTS.md`](./seneca-provider/AGENTS.md) |
+| `seneca-provider` | `seneca-provider/` | — |
 | `swift` | `swift/` | [`swift/AGENTS.md`](./swift/AGENTS.md) |
 | `ts` | `ts/` | [`ts/AGENTS.md`](./ts/AGENTS.md) |
 | `zig` | `zig/` | [`zig/AGENTS.md`](./zig/AGENTS.md) |
 
 **Features** (9): `debug`, `idempotency`, `metrics`, `paging`, `ratelimit`, `retry`, `secrets`, `test`, `timeout`.
 
-Each feature is generated into every SDK target — as a directory
-`<lang>/src/feature/<name>/` (ts/js) or a flat file in the `<lang>/feature/`
-package (other languages). Each target's guide documents its features.
+Each feature is generated into each SDK target that supports it, and each
+target's guide documents where that target keeps its features.
 
 **Entities** (2): `Moon`, `Planet`.
 
 ## Generating and updating the SDK
 
 All generation is driven from the `.sdk/` directory. The generated language
-directories (`ts/`, `go/`, …) are **build output** — never edit them by
+directories (`c/`, `clojure/`, …) are **build output** — never edit them by
 hand; fix the model, a template, or a component and regenerate.
 
 ```bash
@@ -66,15 +65,13 @@ npm run build                 # compile .sdk/src/cmp -> .sdk/dist
 npm run generate              # emit/refresh the SDK into ../<lang>
 ```
 
-`generate` **merges** into existing files and does **not** re-apply
-placeholder substitution to merged content. If you ever see a literal
-`ProjectName` or `GOMODULE` in generated output, delete that one file and
-regenerate it fresh:
-
-```bash
-rm <lang>/<the-file-with-the-placeholder>
-npm run generate
-```
+Each `npm run generate` rewrites every file it generates, so an edit
+made to generated output is lost, and deletes the files it generated before
+and no longer emits. A target or a phase switched off is left as it was.
+`target add` and `feature add` overwrite the templates and components
+in `.sdk/` (`main: kit: copies: 'overwrite'`): set `copies` to
+`'merge'` before customising them, so that an add merges toolchain updates
+into the edited copies.
 
 Note: the `voxgig-sdkgen` CLI only *scaffolds* (`target add` /
 `feature add`). Generation itself runs via `npm run generate` (backed by
@@ -102,18 +99,16 @@ so nothing downstream complains. To inspect the model layer **without side
 effects**, use `npm run dry-generate` (`-y`, writes nothing). Never
 `--no-config` in anything whose output might be committed.
 
-**Regeneration never DELETES.** A file the generator has stopped emitting
-stays in the tree, and `git status` is silent because it is committed and
-unchanged. Narrowing a feature's plugin selection, or dropping a target, can
-leave whole modules behind that nothing references and no test covers.
-
-To find either, the target trees must be deleted and regenerated — a
-regeneration in place cannot see stale output at all.
+**Dropping a target deletes nothing.** A run deletes only what it no longer
+emits from the targets and phases that ran, so a target dropped from the
+model, or a phase switched off, leaves its files in the tree, and `git
+status` is silent because they are committed and unchanged. Delete them by
+hand.
 ## Adding a feature
 
 A **feature** is a pipeline extension: an object of hooks that fire at named
 stages of every entity operation (each target's guide documents its
-features). Built-in features are `log` and `test`.
+features).
 
 ```bash
 cd .sdk
@@ -121,18 +116,24 @@ npm run add-feature <name>    # e.g. log  (comma-separated for several)
 npm run build && npm run generate
 ```
 
-To author a **new** feature:
+To author a **new** feature, when editing a template cannot make the change:
 
 1. Define its model at `.sdk/model/feature/<name>.aontu` — `name: key()`,
    `title`, `version`, `active`, `config.options.active`, a `hook`
    map (`<Stage>: active: true`), and per-language `deps`.
-2. Register it in `.sdk/model/feature/feature-index.aontu` with
-   `@"<name>.aontu"`.
-3. Provide the per-language runtime under that target's feature template dir
+2. Provide the per-language runtime under that target's feature template dir
    (`.sdk/tm/<lang>/src/feature/<name>/` for ts/js, `.sdk/tm/<lang>/feature/`
    otherwise) — the `FEATURE_Name` / `FEATURE_VERSION` placeholders are
-   substituted on `add-feature`.
-4. `npm run add-feature <name> && npm run build && npm run generate`.
+   substituted when `generate` copies it.
+3. `npm run add-feature <name> && npm run build && npm run generate`. No
+   package provides the name, so the add registers the feature in
+   `feature-index.aontu` and copies nothing: the files in `.sdk` are its
+   source.
+
+A target of the project's own is written the same way:
+`.sdk/model/target/<name>.aontu`, `.sdk/src/cmp/<name>/` and
+`.sdk/tm/<name>/`, then `npm run add-target <name>`. Never put a package
+folder such as `ext/` inside the project: sdkgen refuses it.
 ## Customising: model, templates, components
 
 Each language target is generated from **two layers**:

@@ -5,9 +5,27 @@ import {
   walk,
 } from '@voxgig/struct'
 
+import {
+  canonKey,
+  clientOptions,
+  entityIdField,
+  fact,
+  opRequestShape,
+  requiredItems,
+} from '@voxgig/sdkgen'
+
+import { KIT } from '@voxgig/apidef'
+
 
 function projectPath(suffix?: string): string {
   return Path.normalize(Path.join(__dirname, '../../..', suffix ?? ''))
+}
+
+
+// The cabal package name, which the manifest, its file and the docs share.
+function pkgName(model: any): string {
+  const org = (model.origin || 'voxgig-sdk').replace(/-sdk$/, '')
+  return `${org}-${model.name}-sdk`.toLowerCase().replace(/[^a-z0-9-]/g, '-')
 }
 
 
@@ -119,10 +137,113 @@ function clean(o: any, dropDefaults?: boolean): any {
 }
 
 
+// A type-correct Haskell `Value` literal for a field's canonical type.
+function hsLit(type: any): string {
+  const k = canonKey(type)
+  if ('INTEGER' === k || 'NUMBER' === k) return 'VNum 1'
+  if ('BOOLEAN' === k) return 'VBool True'
+  if ('ARRAY' === k || 'OBJECT' === k) return 'VNoval'
+  return 'VStr "example"'
+}
+
+
+const TEST_ID = 'test01'
+
+
+// A test-mode example's call argument, and the do-block lines that bind
+// `seed` to a mock seed holding the record that call reads: testSdk0 starts
+// with an empty mock.
+function hsTestCall(ent: any, op: string, indent: string): { argExpr: string, seedLines: string } {
+  const idF = entityIdField(ent)
+  const isId = (it: any) => it.name === idF || 'id' === it.name
+  const idLit = 'VStr ' + hsString(TEST_ID)
+  const lit = (it: any) => isId(it) ? idLit : hsLit(it.type)
+
+  const data = 'create' === op || 'update' === op || 'patch' === op
+  let items: any[] = []
+  if ('load' === op || 'remove' === op) {
+    items = opRequestShape(ent, op).items.filter((it: any) => !it.optional || it.name === idF)
+  }
+  else if ('list' === op) {
+    items = requiredItems(ent, 'list')
+  }
+  else if (data) {
+    const own = opRequestShape(ent, op).items.filter((it: any) => !isId(it))
+    const required = own.filter((it: any) => !it.optional)
+    items = required.length ? required : own.slice(0, 3)
+  }
+  items = [...items].sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+
+  const jo = (entries: [string, string][]) =>
+    'jo [' + entries.map(([name, value]) => '(' + hsString(name) + ', ' + value + ')').join(', ') + ']'
+  const call: [string, string][] = items.map((it: any) => [it.name, lit(it)])
+
+  const record = new Map<string, string>([['id', idLit]])
+  if (null != idF) record.set(idF, idLit)
+  if (!data) call.forEach(([name, value]) => record.set(name, value))
+
+  const seedLines = [
+    'seedRecord <- ' + jo([...record]),
+    'seedRecords <- ' + jo([[TEST_ID, 'seedRecord']]),
+    'seedEntities <- ' + jo([[ent.name, 'seedRecords']]),
+    'seed <- ' + jo([['entity', 'seedEntities']]),
+  ].map((line) => indent + line).join('\n')
+
+  return { argExpr: 0 < call.length ? jo(call) : 'emptyMap', seedLines }
+}
+
+
+// The client options SdkRuntime reads, which has no `extend`.
+const HS_OPTIONS = ['server', 'apikey', 'secret', 'base', 'prefix', 'suffix', 'headers', 'feature', 'system']
+
+const HS_OPTION_KIND: Record<string, string> = { string: 'String', map: 'Value', list: 'Value' }
+
+// One table row per option, `| <key> | <type> | <description> |`.
+function hsOptionRows(model: any, key: (name: string) => string): string {
+  return clientOptions(model).filter((o: any) => HS_OPTIONS.includes(o.name))
+    .map((o: any) => '| ' + key(o.name) + ' | `' + HS_OPTION_KIND[o.kind] + '` | ' + o.desc + ' |\n').join('')
+}
+
+
+// The do-block lines that construct `sdk` with what the API needs from its
+// caller, and the import they need.
+function hsClient(model: any): { imports: string, lines: string } {
+  const kit = model.main[KIT]
+  const auth = fact(kit, 'auth')
+  const lines: string[] = []
+  const opts: string[] = []
+  if (auth.apikey) {
+    lines.push('mkey <- lookupEnv ' + hsString(fact(kit, 'env').apikey))
+    opts.push('("apikey", maybe VNoval VStr mkey)')
+  }
+  if (auth.secret) {
+    lines.push('msecret <- lookupEnv ' + hsString(fact(kit, 'env').secret))
+    opts.push('("secret", maybe VNoval VStr msecret)')
+  }
+  const svars = fact(kit, 'server').filter((v: any) => v.required)
+  if (0 < svars.length) {
+    lines.push('server <- jo [' + svars.map((v: any) =>
+      '(' + hsString(v.name) + ', VStr ' + hsString('<' + v.name + '>') + ')').join(', ') + ']')
+    opts.push('("server", server)')
+  }
+  lines.push(...(0 === opts.length ? ['sdk <- Sdk.newSdk0'] :
+    ['opts <- jo [' + opts.join(', ') + ']', 'sdk <- Sdk.newSdk opts']))
+  return {
+    imports: auth.apikey ? 'import System.Environment (lookupEnv)\n' : '',
+    lines: lines.map((line) => '  ' + line + '\n').join(''),
+  }
+}
+
+
 export {
   clean,
   formatHsValue,
+  hsClient,
+  hsOptionRows,
+  hsLit,
   hsString,
+  hsTestCall,
   hsVarName,
+  pkgName,
   projectPath,
 }

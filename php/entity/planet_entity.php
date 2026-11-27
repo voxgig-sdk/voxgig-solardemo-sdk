@@ -14,7 +14,7 @@ class PlanetEntity
     private $_client;
     private $_utility;
     private array $_entopts;
-    private array $_data;
+    private mixed $_data;
     private array $_match;
     private $_entctx;
     private bool $_deleted = false;
@@ -67,9 +67,9 @@ class PlanetEntity
     }
 
     /**
-     * A `remove` marks the entity deleted. The instance KEEPS the data it
+     * A remove marks the entity deleted. The instance KEEPS the data it
      * held — a caller can still read what was removed — but it is no longer a
-     * live record. See AGENTS.md "Entity operations return ENTITIES".
+     * live record.
      *
      * The remove path below already called markDeleted(); php was the one
      * target that never declared it (cpp and swift both do), so any SDK whose
@@ -98,8 +98,9 @@ class PlanetEntity
      */
     public function data_set($args): void
     {
-        if ($args) {
-            $this->_data = VoxgigSolardemoHelpers::to_map(Struct::clone($args)) ?? [];
+        if ($args !== null) {
+            $data = Struct::clone($args);
+            $this->_data = $data instanceof \stdClass ? (array)$data : $data;
             ($this->_utility->feature_hook)($this->_entctx, "SetData");
         }
     }
@@ -134,14 +135,12 @@ class PlanetEntity
     }
 
     /**
-     * Feature #4: run `action` through the full pipeline and yield result
-     * items, so the `streaming` feature's incremental output is reachable from
-     * a generated entity (a normal op call materialises the whole result).
-     * `callopts` parameterises the call:
+     * Run `action` through the full pipeline and yield result
+     * items, so the `streaming` feature's incremental output, when that
+     * feature is active, is reachable from a generated entity (a normal op
+     * call materialises the whole result). `callopts` parameterises the call:
      *   - inbound (download): yield items/chunks (from the streaming feature
      *     when active, else the materialised items);
-     *   - outbound (upload): an iterable `body` in callopts is attached to the
-     *     request so the transport can stream the payload;
      *   - `ctrl` (pipeline control) and `signal` (cancellation) honoured.
      */
     public function stream(string $action, ?array $args = null, ?array $callopts = null): \Generator
@@ -166,14 +165,6 @@ class PlanetEntity
         }
 
         $ctx = ($utility->make_context)($ctxmap, $this->_entctx);
-
-        // Outbound: expose the caller's iterable payload so the request builder
-        // / transport can stream it as the request body.
-        $body = $callopts['body'] ?? null;
-        if ($body !== null) {
-            $ctx->reqdata['body$'] = $body;
-            $ctx->meta['stream_out'] = $body;
-        }
 
         $aborted = function () use ($signal): bool {
             if ($signal === null) {
@@ -230,7 +221,9 @@ class PlanetEntity
         } catch (\Throwable $err) {
             // What a hook throws here must not escape the cleaning below.
             try {
-                ($utility->feature_hook)($ctx, "PreUnexpected");
+                if (!$ctx->unexpected_fired) {
+                    ($utility->feature_hook)($ctx, "PreUnexpected");
+                }
             } catch (\Throwable $hookerr) {
                 $err = $hookerr;
             }
@@ -290,11 +283,11 @@ class PlanetEntity
     /**
      * Load a single Planet.
      *
-     * @param PlanetLoadMatch|array|null $reqmatch Match criteria (id/query
-     *   fields) as an assoc-array; a typed PlanetLoadMatch names the shape.
+     * @param PlanetLoadMatch|array|null $reqmatch Match fields as an
+     *   assoc-array; a typed PlanetLoadMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return PlanetEntity The loaded Planet entity, whose data_get() reads
-     *   its record; throws VoxgigSolardemoError on failure (item-5 convention).
+     *   its record; throws VoxgigSolardemoError on failure.
      */
     public function load(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -329,7 +322,7 @@ class PlanetEntity
      *   of Planet fields) as an assoc-array; PlanetListMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return PlanetEntity[] The Planet entities, one per record, each read
-     *   with data_get(); throws VoxgigSolardemoError on failure (item-5 convention).
+     *   with data_get(); throws VoxgigSolardemoError on failure.
      */
     public function list(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -361,7 +354,7 @@ class PlanetEntity
      *   a typed PlanetCreateData names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return PlanetEntity The created Planet entity, whose data_get() reads
-     *   its record; throws VoxgigSolardemoError on failure (item-5 convention).
+     *   its record; throws VoxgigSolardemoError on failure.
      */
     public function create(?array $reqdata = null, $ctrl = null): mixed
     {
@@ -393,7 +386,7 @@ class PlanetEntity
      *   a typed PlanetUpdateData names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return PlanetEntity The updated Planet entity, whose data_get() reads
-     *   its record; throws VoxgigSolardemoError on failure (item-5 convention).
+     *   its record; throws VoxgigSolardemoError on failure.
      */
     public function update(?array $reqdata = null, $ctrl = null): mixed
     {
@@ -426,11 +419,11 @@ class PlanetEntity
     /**
      * Remove an Planet matching the given criteria.
      *
-     * @param PlanetRemoveMatch|array|null $reqmatch Match criteria (id/query
-     *   fields) as an assoc-array; PlanetRemoveMatch names the shape.
+     * @param PlanetRemoveMatch|array|null $reqmatch Match fields as an
+     *   assoc-array; PlanetRemoveMatch names the shape.
      * @param mixed $ctrl Optional per-call control overrides.
      * @return PlanetEntity The removed Planet entity, marked as deleted; throws
-     *   VoxgigSolardemoError on failure (item-5 convention).
+     *   VoxgigSolardemoError on failure.
      */
     public function remove(?array $reqmatch = null, $ctrl = null): mixed
     {
@@ -466,7 +459,10 @@ class PlanetEntity
         } catch (\Throwable $err) {
             // What a hook throws here must not escape the cleaning below.
             try {
-                ($utility->feature_hook)($ctx, "PreUnexpected");            } catch (\Throwable $hookerr) {
+                // Once per operation: make_error fires it for its own error.
+                if (!$ctx->unexpected_fired) {
+                    ($utility->feature_hook)($ctx, "PreUnexpected");                }
+            } catch (\Throwable $hookerr) {
                 $err = $hookerr;
             }
             $err = $this->_unexpected($ctx, $err);
@@ -536,9 +532,9 @@ class PlanetEntity
         // instance, and the caller reaches the record through data(). Two
         // structural exceptions: `list` resolves to the ARRAY of entity
         // instances make_result built, and a failed op with throwing disabled
-        // hands back the error payload unchanged. `remove` additionally marks
+        // hands back the error payload unchanged. A remove additionally marks
         // the entity deleted; it KEEPS its data, so a caller can still read
-        // what was removed. See AGENTS.md "Entity operations return ENTITIES".
+        // what was removed.
         $opname = $ctx->op === null ? null : $ctx->op->name;
 
         if ($ctx->result !== null && $ctx->result->ok && $opname !== 'list') {

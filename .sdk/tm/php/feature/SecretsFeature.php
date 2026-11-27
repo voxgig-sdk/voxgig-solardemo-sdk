@@ -74,7 +74,7 @@ class VoxgigSolardemoSecretsMapProvider implements \Voxgig\Sekreto\Provider
 // no way to refuse them when the chain is broken. The transport is the ONE
 // seam every wire path crosses (utility/MakeRequest.php and Main's
 // raw_request both call `$utility->fetcher`), so the wrapper installed in
-// init() resolves there, rewrites the authorization header prepare_auth
+// init() resolves there, rewrites the credential header prepare_auth
 // built, and refuses the request outright when a provider errors.
 //
 // MISS vs ERROR (sekreto's invariant): a provider MISS falls through - the
@@ -94,6 +94,8 @@ class VoxgigSolardemoSecretsMapProvider implements \Voxgig\Sekreto\Provider
 // and answers with a deterministic fake token.
 class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
 {
+    private const REDIRECT_MAX = 5;
+
     private mixed $client = null;
 
     /** @var array<string,mixed> */
@@ -105,6 +107,11 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
     // options_map() is a deep clone, and this runs on every send.
     /** @var array<string,mixed> */
     private array $liveopts = [];
+
+    // What prepare_auth was generated from: the config declares auth only
+    // where it places a credential, and Basic only where it composes one.
+    private bool $declared = false;
+    private bool $basic = false;
 
     private string $secretname = 'apikey';
     private bool $cache = true;
@@ -161,6 +168,10 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
         $this->active = ($options['active'] ?? null) === true;
         $this->rootctx = $ctx;
 
+        $declared = \Voxgig\Struct\Struct::getpath($ctx->config, 'options.auth');
+        $this->declared = is_array($declared);
+        $this->basic = $this->declared && true === ($declared['basic'] ?? null);
+
         if (!$this->active) {
             return;
         }
@@ -191,6 +202,7 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
                 'response' => self::str($xopts['response'] ?? null, 'access_token'),
                 'statuses' => $statuses,
                 'retries' => is_numeric($xopts['retries'] ?? null) ? (int)$xopts['retries'] : 1,
+                'redirect' => 'same-origin' === ($xopts['redirect'] ?? null) ? 'same-origin' : 'refuse',
             ];
         }
 
@@ -362,7 +374,7 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
     // from a miss it must not cache.
     private function resolve_once(): bool
     {
-        if (null === $this->sekreto) {
+        if (null === $this->sekreto || !$this->authon()) {
             return false;
         }
 
@@ -408,17 +420,6 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
             return true;
         }
 
-        // `auth: null` is the documented way to send NO credential, and a
-        // purchase is a credential-bearing call: the refresh token goes to
-        // the token endpoint in the request body. with_refresh honours
-        // suppression for the RETRY, but it runs after this - by then the
-        // refresh token has already left the process, and no later check
-        // can call it back. The suppression has to be honoured here, before
-        // the first purchase, or it only ever half-held.
-        if (null === ($this->liveopts['auth'] ?? null)) {
-            return false;
-        }
-
         $this->buy();
 
         return true;
@@ -427,17 +428,14 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
     // Buy a token and try the request again when the API says the current
     // one is spent.
     //
-    // The retry rewrites the authorization header IN PLACE on the fetchdef,
+    // The retry rewrites the credential header IN PLACE on the fetchdef,
     // because the header was built by the synchronous prepare_auth before
     // this request left, and it carries the token that just failed.
     private function with_refresh(VoxgigSolardemoContext $ctx, string $url, array $fetchdef, mixed $inner): array
     {
-        // `auth: null` is the documented way to send NO credential, and
-        // prepare_auth honours it by removing the header. A refusal of a
-        // deliberately unauthenticated request is not an expired token and
-        // cannot be fixed by buying one - retrying would transmit exactly
-        // the credential the caller suppressed.
-        if (null === ($this->liveopts['auth'] ?? null)) {
+        // A refusal of an unauthenticated request is not an expired token,
+        // and retrying would transmit the credential that auth off withholds.
+        if (!$this->authon()) {
             return $inner($ctx, $url, $fetchdef);
         }
 
@@ -561,11 +559,26 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
         // feature wraps, and sending the token request back through it
         // would recurse on the first expiry - and would route the exchange
         // through the test mock, which knows nothing about it.
-        [$res, $err] = $fetch($url, [
+        $fetchdef = [
             'method' => $x['method'],
             'headers' => ['content-type' => 'application/json'],
             'body' => $body,
-        ]);
+            // Never followed by the client: a redirect would carry the refresh token on.
+            'redirect' => 'manual',
+        ];
+
+        [$res, $err] = $fetch($url, $fetchdef);
+
+        // By option alone, and only while the exchange stays on its own origin.
+        $at = $url;
+        for ($hops = 0; null === $err && 'same-origin' === $x['redirect'] && $hops < self::REDIRECT_MAX; $hops++) {
+            $next = self::moved($url, $at, $res);
+            if (null === $next) {
+                break;
+            }
+            $at = $next;
+            [$res, $err] = $fetch($at, $fetchdef);
+        }
 
         if (null !== $err) {
             throw new \Voxgig\Sekreto\SekretoError(
@@ -610,7 +623,7 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
         $this->cred = is_string($value) ? $value : '';
     }
 
-    // Rebuild the authorization header from the credential, exactly as
+    // Rebuild the credential header from the credential, exactly as
     // prepare_auth builds it.
     private function inject(array &$fetchdef, string $token): void
     {
@@ -618,12 +631,21 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
             return;
         }
 
+        // The header prepare_auth writes: auth.name, lower-cased.
+        $name = \Voxgig\Struct\Struct::getpath($this->liveopts, 'auth.name');
+        $name = is_string($name) && '' !== $name
+            ? strtolower($name) : 'authorization';
+
         // Suppressed auth means NO header, the same answer prepare_auth
         // gives - and so does an empty credential.
-        if (null === ($this->liveopts['auth'] ?? null) || '' === $token) {
-            unset($fetchdef['headers']['authorization']);
+        if (!$this->authon() || '' === $token) {
+            unset($fetchdef['headers'][$name]);
             return;
         }
+
+        $value = $this->basic
+            && true === (\Voxgig\Struct\Struct::getpath($this->liveopts, 'auth.basic') ?? null)
+            ? $this->pair($token) : $token;
 
         $prefix = \Voxgig\Struct\Struct::getpath($this->liveopts, 'auth.prefix');
         if (!is_string($prefix)) {
@@ -631,8 +653,24 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
         }
 
         // Empty prefix (raw apiKey credential) must not add a leading space.
-        $fetchdef['headers']['authorization'] = '' === $prefix
-            ? $token : $prefix . ' ' . $token;
+        $fetchdef['headers'][$name] = '' === $prefix
+            ? $value : $prefix . ' ' . $value;
+    }
+
+    // prepare_auth's decision: auth the config declares, not suppressed by
+    // `auth: null`.
+    private function authon(): bool
+    {
+        return $this->declared && null !== ($this->liveopts['auth'] ?? null);
+    }
+
+    // Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+    private function pair(string $token): string
+    {
+        $secret = $this->liveopts['secret'] ?? null;
+        $pair = base64_encode($token . ':' . (is_string($secret) ? $secret : ''));
+        $this->_register($pair);
+        return $pair;
     }
 
     // One chain entry as sekreto will take it: a ProviderSpec array (it has
@@ -695,6 +733,31 @@ class VoxgigSolardemoSecretsFeature extends VoxgigSolardemoBaseFeature
         }
         $plugs = VoxgigSolardemoConfig::feature_plugins($this->name);
         return is_array($plugs) ? $plugs : [];
+    }
+
+    // Where a method-keeping redirect points, when that is on the exchange's
+    // own origin. Any other redirect would drop the body or leave the origin.
+    private static function moved(string $url, string $at, mixed $res): ?string
+    {
+        $status = is_array($res) && is_numeric($res['status'] ?? null) ? (int)$res['status'] : 0;
+        if (307 !== $status && 308 !== $status) {
+            return null;
+        }
+        $location = $res['headers']['location'] ?? null;
+        if (!is_string($location) || '' === $location) {
+            return null;
+        }
+        $next = VoxgigSolardemoFetcher::resolveLocation($at, $location);
+        $origin = function (?string $u): ?string {
+            $p = null === $u ? false : parse_url(strtolower($u));
+            if (!is_array($p) || !isset($p['scheme'], $p['host'])) {
+                return null;
+            }
+            return $p['scheme'] . '://' . $p['host'] . ':' .
+                ($p['port'] ?? ('https' === $p['scheme'] ? 443 : 80));
+        };
+        $here = $origin($url);
+        return null !== $here && $here === $origin($next) ? $next : null;
     }
 
     private static function str(mixed $value, string $dflt): string

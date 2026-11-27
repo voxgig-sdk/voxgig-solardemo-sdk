@@ -25,8 +25,10 @@ pub use crate::core::result::{SdkResult, StreamFn};
 pub use crate::core::sdk::{test_sdk, VoxgigSolardemoSDK};
 pub use crate::core::spec::Spec;
 pub use crate::core::types::{
-    Entity, Feature, FeatureRef, FetcherFn, OutVal, VoxgigSolardemoEntity,
+    Entity, Feature, FeatureRef, FetcherFn, OutVal, VoxgigSolardemoEntityBase,
 };
+// The trait's former name, kept so code written against it still compiles.
+pub use crate::core::types::VoxgigSolardemoEntityBase as VoxgigSolardemoEntity;
 pub use crate::core::utility_type::Utility;
 pub use crate::feature::base::BaseFeature;
 pub use crate::utility::jsonparse::json_parse;
@@ -37,7 +39,7 @@ pub use crate::utility::voxgigstruct::Value;
 // `voxgig_solardemo_sdk::test()` for the common no-options case.
 use std::rc::Rc;
 
-pub fn new() -> Rc<VoxgigSolardemoSDK> {
+pub fn new() -> Result<Rc<VoxgigSolardemoSDK>, VoxgigSolardemoError> {
     VoxgigSolardemoSDK::new(Value::Noval)
 }
 

@@ -1,5 +1,5 @@
 
-const envlocal = __dirname + '/../../../.env.local'
+const envlocal = __dirname + '/../../../../.env.local'
 require('../../utility').loadEnvLocal(envlocal)
 
 const { test, describe, afterEach } = require('node:test')
@@ -45,6 +45,7 @@ describe('MoonDirect', async () => {
     const { client, calls } = setup
 
     const params = {}
+    const query = {}
     if (setup.live) {
       const listResult = await client.direct({
         path: 'api/planet/{planet_id}/moon',
@@ -62,10 +63,11 @@ describe('MoonDirect', async () => {
       if (0 === listResult.data.length) {
         return void liveEmpty(t, 'The account has no moon record to load')
       }
-      if (null == listResult.data[0]?.id) {
+      const candidateId = listResult.data[0]?.id
+      if (null == candidateId) {
         return void liveMiss(t, LIVE_STRICT, 'Live load blocked: discovery returned no usable identity')
       }
-      params.id = listResult.data[0].id
+      params.id = candidateId
       params.planet_id = setup.idmap['planet01']
     } else {
       params.id = 'direct01'
@@ -76,6 +78,7 @@ describe('MoonDirect', async () => {
       path: 'api/planet/{planet_id}/moon/{id}',
       method: 'GET',
       params,
+      query,
     })
 
     if (setup.live) {
@@ -104,6 +107,7 @@ describe('MoonDirect', async () => {
     const { client, calls } = setup
 
     const params = {}
+    const query = {}
     if (setup.live) {
       params.planet_id = setup.idmap['planet01']
     } else {
@@ -114,6 +118,7 @@ describe('MoonDirect', async () => {
       path: 'api/planet/{planet_id}/moon',
       method: 'GET',
       params,
+      query,
     })
 
     if (setup.live) {

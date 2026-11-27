@@ -26,8 +26,7 @@ npm install ./voxgig-solardemo-sdk/js
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 
 ### Create a Client
@@ -105,7 +104,7 @@ if (result.ok) {
 
 Entity operations reject on failure, so wrap them in `try` / `catch`:
 
-```ts
+```js
 try {
   const planets = await client.Planet().list()
   console.log(planets.map((item) => item.data()))
@@ -118,11 +117,11 @@ The low-level `direct()` method does **not** throw — it returns the
 result envelope. Branch on `ok`; on failure `status` holds the HTTP status
 (for error responses) and `err` holds the error:
 
-```ts
+```js
 const result = await client.direct({
-  path: '/api/resource/{id}',
+  path: '/api/planet/{planet_id}/moon',
   method: 'GET',
-  params: { id: 'example_id' },
+  params: { planet_id: 'example_id' },
 })
 
 if (!result.ok) {
@@ -139,9 +138,9 @@ For endpoints not covered by entity methods:
 
 ```js
 const result = await client.direct({
-  path: '/api/resource/{id}',
+  path: '/api/planet/{planet_id}/moon',
   method: 'GET',
-  params: { id: 'example' },
+  params: { planet_id: 'example' },
 })
 
 if (result.ok) {
@@ -154,9 +153,9 @@ if (result.ok) {
 
 ```js
 const fetchdef = await client.prepare({
-  path: '/api/resource/{id}',
-  method: 'DELETE',
-  params: { id: 'example' },
+  path: '/api/planet/{planet_id}/moon',
+  method: 'GET',
+  params: { planet_id: 'example' },
 })
 
 // Inspect before sending
@@ -228,6 +227,10 @@ Create a `.env.local` file at the project root:
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
+
 Then run:
 
 ```bash
@@ -250,8 +253,10 @@ new VoxgigSolardemoSDK(options?)
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
-| `feature` | `object` | Feature activation flags (e.g. `{ test: { active: true } }`). |
+| `headers` | `object` | Headers sent with every request. |
+| `feature` | `object` | Feature activation flags. |
 | `extend` | `Feature[]` | Additional feature instances to load. |
+| `system` | `object` | System overrides, such as a custom fetch function. |
 
 #### Methods
 
@@ -344,7 +349,7 @@ The `prepare()` method returns:
 | `name` |  |
 | `planet_id` |  |
 
-Operations: create, list, load, remove, update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -360,9 +365,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: create, list, load, remove, update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -377,11 +382,11 @@ Create an instance: `const moon = client.Moon()`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list(match)` | List entities matching the criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -395,19 +400,19 @@ Create an instance: `const moon = client.Moon()`
 
 #### Example: Load
 
-```ts
+```js
 const moon = await client.Moon().load({ id: 'moon_id', planet_id: 'planet_id' })
 ```
 
 #### Example: List
 
-```ts
+```js
 const moons = await client.Moon().list({ planet_id: "example" })
 ```
 
 #### Example: Create
 
-```ts
+```js
 const moon = await client.Moon().create({
   planet_id: 'example_planet_id',
   diameter: 1,
@@ -426,11 +431,11 @@ Create an instance: `const planet = client.Planet()`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list(match)` | List entities matching the criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -446,19 +451,19 @@ Create an instance: `const planet = client.Planet()`
 
 #### Example: Load
 
-```ts
+```js
 const planet = await client.Planet().load({ id: 'planet_id' })
 ```
 
 #### Example: List
 
-```ts
+```js
 const planets = await client.Planet().list()
 ```
 
 #### Example: Create
 
-```ts
+```js
 const planet = await client.Planet().create({
   diameter: 1,
   id: 'example_id',
@@ -469,12 +474,11 @@ const planet = await client.Planet().create({
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -587,7 +591,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -638,16 +642,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -681,7 +681,7 @@ voxgig-solardemo/
 ├── src/
 │   ├── VoxgigSolardemoSDK.js        # Main SDK class
 │   ├── entity/             # Entity implementations
-│   ├── feature/            # Built-in features (Base, Test, Log)
+│   ├── feature/            # Feature implementations
 │   └── utility/            # Utility functions
 └── test/                   # Test suites
 ```
@@ -698,7 +698,7 @@ Entity instances are stateful. After a successful `list`, the entity
 stores the returned data and match criteria internally. Subsequent
 calls on the same instance can rely on this state.
 
-```ts
+```js
 const planet = client.Planet()
 await planet.list()
 
@@ -712,7 +712,8 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
 The `direct` method gives full control over the HTTP request. Use it
 for non-standard endpoints, bulk operations, or any path not modelled

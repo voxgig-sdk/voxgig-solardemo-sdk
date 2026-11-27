@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -20,7 +20,7 @@ function zigLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'h.vbool(true)'
   if ('ARRAY' === k) return 'h.olist()'
   if ('OBJECT' === k) return 'h.omap()'
-  return `h.vstr("${placeholder}")`
+  return `h.vstr(${JSON.stringify(placeholder)})`
 }
 
 
@@ -32,16 +32,26 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `sdk.${model.const.Name}SDK.new(h.jo(&.{\n    .{ "apikey", h.vstr(std.posix.getenv("${envName(model)}_APIKEY") orelse "") },\n}))`
-    : `sdk.${model.const.Name}SDK.new(h.vnull())`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`.{ "apikey", h.vstr(init.environ_map.get("${envName(model)}_APIKEY") orelse "") },`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`.{ "secret", h.vstr(init.environ_map.get("${envName(model)}_SECRET") orelse "") },`] : []),
+    ...(0 === svars.length ? [] : [`.{ "server", h.jo(&.{ ` +
+      svars.map((v: any) => `.{ "${v.name}", h.vstr("<${v.name}>") }`).join(', ') + ` }) },`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `sdk.${model.const.Name}SDK.new(h.vnull())`
+    : `sdk.${model.const.Name}SDK.new(h.jo(&.{${ctorFields.map((f: string) => '\n    ' + f).join('')}\n}))`
 
   Content(`\`\`\`zig
 const std = @import("std");
 const sdk = @import("sdk");
 const h = sdk.h;
 
-const client = ${ctor};
+${authActive ? '// init is the std.process.Init that main receives.\n' : ''}const client = switch (${ctor}) {
+    .ok => |c| c,
+    .err => |e| std.debug.panic("{s}", .{e.msg}),
+};
 
 `)
 
@@ -49,7 +59,7 @@ const client = ${ctor};
     const eName = nom(exampleEntity, 'Name')
     const eVar = zigVarName(exampleEntity.name)
     const method = zigVarName(exampleEntity.name)
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
@@ -71,13 +81,12 @@ switch (client.${method}(h.vnull()).list(${zigListMatch(exampleEntity)}, h.vnull
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `h.jo(&.{${loadItems.map((it: any) =>
-          `.{ "${it.name}", ${zigLit(it.type,
+          `.{ ${JSON.stringify(it.name)}, ${zigLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)} }`).join(', ')}})`
         : 'h.vnull()'
       Content(`

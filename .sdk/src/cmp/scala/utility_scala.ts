@@ -7,7 +7,11 @@ import {
   canonScalarKey,
   requiredItems,
   javaMapOf,
+  javaMapItems,
+  fact,
 } from '@voxgig/sdkgen'
+
+import { KIT } from '@voxgig/apidef'
 
 import {
   clone,
@@ -21,24 +25,7 @@ function projectPath(suffix?: string): string {
 
 
 function scalaPackage(model: any): string {
-  const org = String(model.origin || 'voxgig-sdk')
-    .replace(/-sdk$/, '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-  const name = String(model.name)
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-  return org + '.' + name + 'sdk'
-}
-
-
-// Maven-style coordinates (used by Package_scala for the publish metadata).
-function mavenGroupId(model: any): string {
-  const org = String(model.origin || 'voxgig-sdk')
-    .replace(/-sdk$/, '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-  return 'com.' + org
+  return fact(model.main[KIT], 'package').jvm
 }
 
 
@@ -111,21 +98,22 @@ function jsonAppendLines(value: any, bufname: string): string {
     .join('')
 }
 
-// Map.of and Map.entry reject a null value, so NULL keeps the placeholder.
+// javaMapItems leaves a null-only member out of Map.of, which rejects a null.
 function scalaLit(type: any, placeholder: string = 'example'): string {
   const k = canonScalarKey(type)
+  if ('NULL' === k) return 'null'
   if ('INTEGER' === k) return '1L'
   if ('NUMBER' === k) return '1.0'
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return 'java.util.List.of()'
   if ('OBJECT' === k) return 'java.util.Map.of()'
-  return `"${placeholder}"`
+  return JSON.stringify(placeholder)
 }
 
 
 // A list's required parameters as its match.
 function scalaListMatch(entity: any): string {
-  const items = requiredItems(entity, 'list')
+  const items = javaMapItems(requiredItems(entity, 'list'))
   return 0 < items.length
     ? javaMapOf(items.map((it: any) => `${JSON.stringify(it.name)}, ${scalaLit(it.type)}`), 'java.util.')
     : 'null'
@@ -136,7 +124,6 @@ export {
   scalaLit,
   scalaListMatch,
   cleanModel,
-  mavenGroupId,
   jsonAppendLines,
   projectPath,
   scalaPackage,

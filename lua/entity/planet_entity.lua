@@ -48,13 +48,17 @@ end
 -- also holds the client and the utility.
 function PlanetEntity:to_record()
   local rec = self._utility.clean(self._entctx, vs.clone(self._data or {}))
-  rec["voxgig$entity"] = self._name
+  if type(rec) == "table" then
+    rec["voxgig$entity"] = self._name
+  end
   return rec
 end
 
 PlanetEntity.__tostring = function(self)
   local rec = self:to_record()
-  rec["voxgig$entity"] = nil
+  if type(rec) == "table" then
+    rec["voxgig$entity"] = nil
+  end
   return self._name .. " " .. json.encode(rec)
 end
 
@@ -72,9 +76,9 @@ function PlanetEntity:make()
 end
 
 
--- Every operation resolves to the entity; `remove` additionally marks
--- it. The instance KEEPS the data it held — a caller can still read what
--- was deleted — but it is no longer a live record. See AGENTS.md.
+-- Every operation resolves to the entity; a remove additionally marks it
+-- deleted. The instance KEEPS the data it held — a caller can still read
+-- what was deleted — but it is no longer a live record.
 function PlanetEntity:mark_deleted()
   self._deleted = true
 end
@@ -87,7 +91,7 @@ end
 
 function PlanetEntity:data_set(args)
   if args ~= nil then
-    self._data = helpers.to_map(vs.clone(args)) or {}
+    self._data = vs.clone(args)
     self._utility.feature_hook(self._entctx, "SetData")
   end
 end
@@ -113,15 +117,13 @@ function PlanetEntity:match_get()
 end
 
 
--- Feature #4: run `action` through the full pipeline and return a stateful
--- iterator over result items, so the `streaming` feature's incremental output
--- is reachable from a generated entity (a normal op call materialises the
--- whole result). Use it as `for item in ent:stream("list") do ... end`.
--- `callopts` parameterises the call:
+-- Run `action` through the full pipeline and return a stateful
+-- iterator over result items, so the `streaming` feature's incremental
+-- output, when that feature is active, is reachable from a generated entity
+-- (a normal op call materialises the whole result). Use it as `for item in
+-- ent:stream("list") do ... end`. `callopts` parameterises the call:
 --   - inbound (download): iterate items/chunks (from the streaming feature
 --     when active, else the materialised items);
---   - outbound (upload): an iterable `body` in callopts is attached to the
---     request so the transport can stream the payload;
 --   - `ctrl` (pipeline control) and `signal` (cancellation) honoured.
 function PlanetEntity:stream(action, args, callopts)
   local utility = self._utility
@@ -149,15 +151,6 @@ function PlanetEntity:stream(action, args, callopts)
   end
 
   local ctx = utility.make_context(ctxmap, self._entctx)
-
-  -- Outbound: expose the caller's iterable payload so the request builder /
-  -- transport can stream it as the request body.
-  local body = callopts["body"]
-  if body ~= nil then
-    ctx.reqdata = ctx.reqdata or {}
-    ctx.reqdata["body$"] = body
-    ctx.meta["stream_out"] = body
-  end
 
   local function aborted()
     if signal == nil then
@@ -238,7 +231,10 @@ function PlanetEntity:stream(action, args, callopts)
     end
 
     -- What a hook raises here must not escape the cleaning below.
-    local hookok, hookerr = pcall(utility.feature_hook, ctx, "PreUnexpected")
+    local hookok, hookerr = true, nil
+    if not ctx.unexpected_fired then
+      hookok, hookerr = pcall(utility.feature_hook, ctx, "PreUnexpected")
+    end
     if not hookok then
       item = hookerr
     end
@@ -453,7 +449,10 @@ function PlanetEntity:_run_op(ctx, post_done)
 
   -- What a hook raises here must not escape the cleaning below.
   local hookok, hookerr = pcall(function()
-    utility.feature_hook(ctx, "PreUnexpected")
+    -- Once per operation: make_error fires it for its own error.
+    if not ctx.unexpected_fired then
+      utility.feature_hook(ctx, "PreUnexpected")
+    end
   end)
   if not hookok then
     out = hookerr
@@ -544,9 +543,9 @@ function PlanetEntity:_run_steps(ctx, post_done)
   -- instance, and the caller reaches the record through data(). Two
   -- structural exceptions: `list` resolves to the ARRAY of entity
   -- instances make_result built, and a failed op with throwing disabled
-  -- hands back the error payload unchanged. `remove` additionally marks
+  -- hands back the error payload unchanged. A remove additionally marks
   -- the entity deleted; it KEEPS its data, so a caller can still read
-  -- what was removed. See AGENTS.md "Entity operations return ENTITIES".
+  -- what was removed.
   local opname = ctx.op ~= nil and ctx.op.name or nil
 
   if ctx.result ~= nil and ctx.result.ok and opname ~= "list" then

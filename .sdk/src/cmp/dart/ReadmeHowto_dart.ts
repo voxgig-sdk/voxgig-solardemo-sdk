@@ -1,5 +1,4 @@
-
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, safeVarName, exampleVarName } from '@voxgig/sdkgen'
+import { cmp, Content, pickExampleEntity, exampleVarName, directRoute, cdTarget, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,20 +6,14 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-
-// A type-correct Dart literal for a field's canonical type.
-function dartLit(type: any): string {
-  const k = canonScalarKey(type)
-  if ('INTEGER' === k || 'NUMBER' === k) return '1'
-  if ('BOOLEAN' === k) return 'true'
-  if ('ARRAY' === k) return '<dynamic>[]'
-  if ('OBJECT' === k) return '<String, dynamic>{}'
-  return "'example'"
-}
+import { dartTestCall } from './utility_dart'
 
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
+  const kit = model.main[KIT]
+  const ENV = fact(kit, 'env')
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op) — never fabricate a
@@ -29,19 +22,8 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { entity: exampleEntity, primaryOp } = pickExampleEntity(entity)
   const eName = exampleEntity ? nom(exampleEntity, 'Name') : 'Entity'
   const eVar = exampleVarName(eName.toLowerCase(), 'dart')
-  // Model-driven id key: null when the entity has no id-like field.
-  const idF = exampleEntity ? entityIdField(exampleEntity) : null
-  const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
-  let testArg = ''
-  if (exampleEntity && isMatchOp) {
-    testArg = idF ? `{'${idF}': 'test01'}` : ''
-  } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
-      .filter((it: any) => it.name !== idF && it.name !== 'id')
-    const required = items.filter((it: any) => !it.optional)
-    const chosen = required.length ? required : items.slice(0, 3)
-    testArg = `{${chosen.map((it: any) => `'${it.name}': ${dartLit(it.type)}`).join(', ')}}`
-  }
+  const testCall = exampleEntity && primaryOp ? dartTestCall(exampleEntity, primaryOp, '') : null
+  const testArg = testCall ? testCall.arg : ''
 
   // The op-driven test-mode line, shown only when the SDK has an entity op.
   // A direct()-only SDK (no ops anywhere) shows a direct() call instead.
@@ -57,12 +39,23 @@ for (final item in ${eVar}s) {
 // data() reads its mock record.
 final ${eVar} = await client.${eName}().${primaryOp}(${testArg});
 print(${eVar}.data());`
-    : `final result = await client.direct({'path': '/api/resource', 'method': 'GET'});
+    : `final result = await client.direct({'path': '${dx.path}', 'method': '${dx.method}'});
 print(result);`
 
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\nexport ${envName(model)}_APIKEY=<your-key>`
+  // What the live tests read: the key, the Basic secret, the server variables.
+  const apikeyEnvLine = fact(kit, 'auth').apikey
+    ? `\nexport ${ENV.apikey}=<your-key>${fact(kit, 'auth').secret ? `\nexport ${ENV.secret}=<your-secret>` : ''}`
     : ''
+  const serverEnvLine = fact(kit, 'server').filter((v: any) => v.required)
+    .map((v: any) => `\nexport ${ENV.server[v.name]}=<${v.name}>`).join('')
+  const defaulted = fact(kit, 'server').filter((v: any) => !v.required)
+  const liveEnvNote = (0 === defaulted.length ? '' :
+    defaulted.map((v: any) => '`' + ENV.server[v.name] + '`').join(', ') +
+    (1 === defaulted.length ? ', when set, replaces its server variable\'s default.\n'
+      : ', when set, replace their server variables\' defaults.\n')) +
+    'Each entity\'s tests also read `' + ENV.prefix + '_TEST_<ENTITY>_ENTID`, with the\n' +
+    'entity\'s name in capitals: a JSON object of the ids of existing records, for\n' +
+    'the tests that do not create their own.\n\n'
 
   Content(`### Make a direct HTTP request
 
@@ -70,9 +63,9 @@ For endpoints not covered by entity methods:
 
 \`\`\`dart
 final result = await client.direct({
-  'path': '/api/resource/{id}',
-  'method': 'GET',
-  'params': {'id': 'example'},
+  'path': '${dx.path}',
+  'method': '${dx.method}',
+  'params': {'${dx.param}': 'example'},
 });
 
 if (true == result['ok']) {
@@ -92,9 +85,9 @@ if (true == result['ok']) {
 \`\`\`dart
 // prepare() returns the fetch definition (or an error value on failure).
 final fetchdef = await client.prepare({
-  'path': '/api/resource/{id}',
-  'method': 'DELETE',
-  'params': {'id': 'example'},
+  'path': '${dx.path}',
+  'method': '${dx.method}',
+  'params': {'${dx.param}': 'example'},
 });
 
 print(fetchdef['url']);
@@ -107,7 +100,10 @@ print(fetchdef['headers']);
 Create a mock client for unit testing — no server required:
 
 \`\`\`dart
-final client = ${model.const.Name}SDK.test();
+${testCall
+    ? `// The offline mock starts empty: seed the record the call reads.
+final client = ${model.const.Name}SDK.test(${testCall.seed});`
+    : `final client = ${model.const.Name}SDK.test();`}
 
 ${testModeExample}
 \`\`\`
@@ -139,13 +135,13 @@ final client = ${model.const.Name}SDK({
 Set the live-mode environment variables:
 
 \`\`\`bash
-export ${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
+export ${ENV.live}=TRUE${apikeyEnvLine}${serverEnvLine}
 \`\`\`
 
-Then run:
+${liveEnvNote}Then run:
 
 \`\`\`bash
-cd ${target.name} && dart run test/main.dart
+${cdTarget(target)}dart run test/main.dart
 \`\`\`
 
 `)

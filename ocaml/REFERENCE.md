@@ -23,12 +23,12 @@ Create a new SDK client instance from a `value` options map. Use
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `value` | SDK configuration options (a Map). |
-| `base` | `string` | Base URL for API requests. |
-| `prefix` | `string` | URL prefix appended after base. |
-| `suffix` | `string` | URL suffix appended after path. |
-| `headers` | `map` | Custom headers for all requests. |
-| `feature` | `map` | Feature configuration. |
-| `system` | `map` | System overrides (e.g. custom fetch). |
+| `base` | `string` | Base URL of the API server. |
+| `prefix` | `string` | URL path prefix prepended to all requests. |
+| `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
+| `feature` | `map` | Feature activation flags. |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 
 ### Static constructors
@@ -99,24 +99,9 @@ let moon = Sdk_client.moon client Noval
 
 ### Operations
 
-#### `e_create reqdata ctrl : entity_obj`
-
-Create a new entity with the given data. Resolves to the created entity and raises on error.
-
-```ocaml
-let result = (Sdk_client.moon client Noval).e_create (jo [
-    ("planet_id", (Str "example_planet_id"));  (* string *)
-    ("diameter", (Num 1.));  (* float *)
-    ("id", (Str "example_id"));  (* string *)
-    ("kind", (Str "example_kind"));  (* string *)
-    ("name", (Str "example_name"));  (* string *)
-]) Noval
-let result_data = result.e_data_get ()
-```
-
 #### `e_list reqmatch ctrl : entity_obj list`
 
-List entities matching the given criteria. The match is optional — pass `(empty_map ())` to list all records. Resolves to one entity per record and raises on error.
+List entities matching the given criteria. The match must include `planet_id`. Resolves to one entity per record and raises on error.
 
 ```ocaml
 (* One ENTITY per record; the record is reached with e_data_get. *)
@@ -133,12 +118,18 @@ let result = (Sdk_client.moon client Noval).e_load (jo [("id", (Str "moon_id"));
 let result_data = result.e_data_get ()
 ```
 
-#### `e_remove reqmatch ctrl : entity_obj`
+#### `e_create reqdata ctrl : entity_obj`
 
-Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`e_deleted`); it keeps the data it held. Raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```ocaml
-let result = (Sdk_client.moon client Noval).e_remove (jo [("id", (Str "moon_id")); ("planet_id", (Str "planet_id"))]) Noval
+let result = (Sdk_client.moon client Noval).e_create (jo [
+    ("planet_id", (Str "example_planet_id"));  (* string *)
+    ("diameter", (Num 1.));  (* float *)
+    ("id", (Str "example_id"));  (* string *)
+    ("kind", (Str "example_kind"));  (* string *)
+    ("name", (Str "example_name"));  (* string *)
+]) Noval
 let result_data = result.e_data_get ()
 ```
 
@@ -152,6 +143,15 @@ let result = (Sdk_client.moon client Noval).e_update (jo [
     ("planet_id", (Str "planet_id"));
     (* Fields to update *)
 ]) Noval
+let result_data = result.e_data_get ()
+```
+
+#### `e_remove reqmatch ctrl : entity_obj`
+
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`e_deleted`); it keeps the data it held. Raises on error.
+
+```ocaml
+let result = (Sdk_client.moon client Noval).e_remove (jo [("id", (Str "moon_id")); ("planet_id", (Str "planet_id"))]) Noval
 let result_data = result.e_data_get ()
 ```
 
@@ -204,20 +204,6 @@ let planet = Sdk_client.planet client Noval
 
 ### Operations
 
-#### `e_create reqdata ctrl : entity_obj`
-
-Create a new entity with the given data. Resolves to the created entity and raises on error.
-
-```ocaml
-let result = (Sdk_client.planet client Noval).e_create (jo [
-    ("diameter", (Num 1.));  (* float *)
-    ("id", (Str "example_id"));  (* string *)
-    ("kind", (Str "example_kind"));  (* string *)
-    ("name", (Str "example_name"));  (* string *)
-]) Noval
-let result_data = result.e_data_get ()
-```
-
 #### `e_list reqmatch ctrl : entity_obj list`
 
 List entities matching the given criteria. The match is optional — pass `(empty_map ())` to list all records. Resolves to one entity per record and raises on error.
@@ -237,12 +223,17 @@ let result = (Sdk_client.planet client Noval).e_load (jo [("id", (Str "planet_id
 let result_data = result.e_data_get ()
 ```
 
-#### `e_remove reqmatch ctrl : entity_obj`
+#### `e_create reqdata ctrl : entity_obj`
 
-Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`e_deleted`); it keeps the data it held. Raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```ocaml
-let result = (Sdk_client.planet client Noval).e_remove (jo [("id", (Str "planet_id"))]) Noval
+let result = (Sdk_client.planet client Noval).e_create (jo [
+    ("diameter", (Num 1.));  (* float *)
+    ("id", (Str "example_id"));  (* string *)
+    ("kind", (Str "example_kind"));  (* string *)
+    ("name", (Str "example_name"));  (* string *)
+]) Noval
 let result_data = result.e_data_get ()
 ```
 
@@ -255,6 +246,15 @@ let result = (Sdk_client.planet client Noval).e_update (jo [
     ("id", (Str "planet_id"));
     (* Fields to update *)
 ]) Noval
+let result_data = result.e_data_get ()
+```
+
+#### `e_remove reqmatch ctrl : entity_obj`
+
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`e_deleted`); it keeps the data it held. Raises on error.
+
+```ocaml
+let result = (Sdk_client.planet client Noval).e_remove (jo [("id", (Str "planet_id"))]) Noval
 let result_data = result.e_data_get ()
 ```
 
@@ -324,10 +324,10 @@ let client = Sdk_client.make (jo [
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -338,10 +338,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -544,7 +544,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -557,6 +557,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -584,10 +585,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

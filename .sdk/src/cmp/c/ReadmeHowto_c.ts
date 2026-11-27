@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, envName, canonScalarKey, entityIdField, pickExampleEntity, requiredItems, matchExampleItems, targetFeatures, requestExampleItems, cdTarget, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -28,8 +28,43 @@ function cmapExpr(pairs: string[]): string {
 }
 
 
+// What the SDK's own transport does, which is what a reader needs before
+// deciding to replace it.
+function transportText(model: any, target: any): string {
+  const env = envName(model)
+  const proxy = null != targetFeatures(model, target).proxy
+  return `On a POSIX system the SDK sends each request itself: HTTP/1.1 on a
+socket, one request per connection. It reads a response framed by
+\`Content-Length\`, by chunks or by the connection closing, gives up on an
+exchange 30 seconds after it starts to connect, refuses a response larger
+than 32 MiB, and follows no redirect. Looking up the host comes before those
+30 seconds, and is bounded by the system resolver alone. A failure to
+connect, send or read is a \`fetch_transport\` error. On Windows there is no
+default transport: supply \`options.system.fetch\`, described next.
+
+\`https://\` binds the platform's OpenSSL: \`make\` uses it wherever its headers
+are installed (\`make TLS=openssl\` insists on it), and a program linking
+\`libsdk.a\` links what \`make -s ldlibs\` prints. The server's certificate is
+verified against the system's trust store and its name against the host, and
+nothing turns that off. A build made with \`TLS=none\` links no TLS library and
+refuses every \`https://\` request. Two environment variables change what is
+trusted:
+
+- \`${env}_CA_BUNDLE\` names a PEM file of roots added to the system's.
+- \`${env}_TLS_PIN\` is the SHA-256 fingerprint of the one certificate to trust
+  in place of any store, for a local service with a self-signed certificate.
+  \`openssl x509 -noout -fingerprint -sha256 -in cert.pem\` prints it, and the
+  host name is still checked against that certificate.
+${proxy ? `
+With the \`proxy\` feature, a request goes through its \`http://\` proxy, and an
+\`https://\` request through a \`CONNECT\` tunnel to it.
+` : ''}`
+}
+
+
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
 
   const ident = cIdent(model)
   const entity = getModelPath(model, `main.${KIT}.entity`)
@@ -43,12 +78,15 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = 'NULL'
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `cmap(1, "${idF}", v_str("test01"))` : 'NULL'
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = cmapExpr(items.map((it: any) =>
+      `${cString(it.name)}, ${it.name === idF ? 'v_str("test01")' : cLit(it.type)}`))
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
     const chosen = requiredItems(exampleEntity, 'list')
     testArg = cmapExpr(chosen.map((it: any) => `${cString(it.name)}, ${cLit(it.type)}`))
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -71,10 +109,6 @@ Entity* result = ${evar}->vt->${primaryOp}(${evar}, ${testArg}, NULL, &err);
     "method", v_str("GET")), &err);
 printf("%s\\n", voxgig_to_json(result));`
 
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
-    : ''
-
   Content(`### Make a direct HTTP request
 
 For endpoints not covered by entity operations:
@@ -82,9 +116,9 @@ For endpoints not covered by entity operations:
 \`\`\`c
 PNError* err = NULL;
 voxgig_value* result = sdk_direct(client, cmap(3,
-    "path", v_str("/api/resource/{id}"),
-    "method", v_str("GET"),
-    "params", cmap(1, "id", v_str("example"))), &err);
+    "path", v_str("${dx.path}"),
+    "method", v_str("${dx.method}"),
+    "params", cmap(1, "${dx.param}", v_str("example"))), &err);
 
 if (voxgig_as_bool(getp(result, "ok"))) {
     printf("%lld\\n", (long long)to_int(getp(result, "status")));  // 200
@@ -104,9 +138,9 @@ a result map you branch on via \`getp(result, "ok")\`.
 \`\`\`c
 PNError* err = NULL;
 voxgig_value* fetchdef = sdk_prepare(client, cmap(3,
-    "path", v_str("/api/resource/{id}"),
-    "method", v_str("DELETE"),
-    "params", cmap(1, "id", v_str("example"))), &err);
+    "path", v_str("${dx.path}"),
+    "method", v_str("${dx.method}"),
+    "params", cmap(1, "${dx.param}", v_str("example"))), &err);
 
 printf("%s\\n", get_str(fetchdef, "url"));
 printf("%s\\n", get_str(fetchdef, "method"));
@@ -124,24 +158,32 @@ PNError* err = NULL;
 ${testModeExample}
 \`\`\`
 
+### Send requests over HTTP and HTTPS
+
+${transportText(model, target)}
+
 ### Use a custom fetch function
 
 Replace the HTTP transport with your own function (the same shape the test
-transport uses):
+transport uses). A response is read through its \`json\` only when it carries
+a \`body\`:
 
 \`\`\`c
 static voxgig_value* mock_fetch(void* ud, voxgig_value* args) {
     (void)ud; (void)args;
-    return cmap(4,
+    return cmap(5,
         "status", v_num(200),
         "statusText", v_str("OK"),
         "headers", v_map(),
+        "body", v_str("{\\"id\\":\\"mock01\\"}"),
         "json", json_thunk(cmap(1, "id", v_str("mock01"))));
 }
 
+PNError* err = NULL;
 ${model.const.Name}SDK* client = ${ident}_sdk_new(cmap(2,
     "base", v_str("http://localhost:8080"),
-    "system", cmap(1, "fetch", vfn(mock_fetch, NULL))));
+    "system", cmap(1, "fetch", vfn(mock_fetch, NULL))), &err);
+if (NULL == client) fprintf(stderr, "%s\\n", err->msg);
 \`\`\`
 
 ### Point at a different server
@@ -149,22 +191,19 @@ ${model.const.Name}SDK* client = ${ident}_sdk_new(cmap(2,
 Override the base URL to reach a local or staging server:
 
 \`\`\`c
+PNError* err = NULL;
 ${model.const.Name}SDK* client = ${ident}_sdk_new(cmap(1,
-    "base", v_str("http://localhost:8080")));
+    "base", v_str("http://localhost:8080")), &err);
+if (NULL == client) fprintf(stderr, "%s\\n", err->msg);
 \`\`\`
 
-### Run live tests
+### Run the test suite
 
-Create a \`.env.local\` file at the project root:
-
-\`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
-\`\`\`
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 \`\`\`bash
-cd ${target.name} && make test
+${cdTarget(target)}make test
 \`\`\`
 
 `)

@@ -79,6 +79,15 @@ private func testResolveMatch(_ ctx2: Context, _ explicitMatch: VMap) -> VMap {
   return VMap()
 }
 
+// The entity's declared identity field (`entity.id.field`), where it names
+// one other than the `id` every record already carries.
+private func testDeclaredIdField(_ config: VMap?, _ entityName: String) -> String? {
+  guard let config = config,
+        let field = getpath(.map(config), jtp("entity", entityName, "id", "field")).asString,
+        field != "", field != "id" else { return nil }
+  return field
+}
+
 // The record the mock keeps: the request data without `$body`, which only the
 // wire carries.
 private func testRecord(_ reqdata: VMap) -> VMap {
@@ -131,7 +140,7 @@ private func testBuildArgs(_ ctx: Context, _ op: Operation, _ args: VMap?) -> Va
     let argsPath = getpath(point, jtp("args", kind))
     reqdArgs.items.append(contentsOf: select(argsPath, .map(vm(("reqd", .bool(true))))).asList?.items ?? [])
   }
-  let reqd = transform(.list(reqdArgs), jtp("`$EACH`", "", "`$KEY.name`"))
+  let reqd = transformKept(.list(reqdArgs), jtp("`$EACH`", "", "`$KEY.name`"))
 
   let qand = VList()
   let q = VMap()
@@ -197,6 +206,9 @@ public final class TestFeature: BaseFeature {
     _ = walk(.map(entity), { key, val, _, path in
       if path.count == 2, val.isMap, key.asString != nil {
         val.asMap!.entries["id"] = .string(strkey(key))
+        if let idField = testDeclaredIdField(ctx.config, path[0]) {
+          val.asMap!.entries[idField] = .string(strkey(key))
+        }
       }
       return val
     }, nil)
@@ -214,7 +226,7 @@ public final class TestFeature: BaseFeature {
           extra.entries["statusText"] = .string("Not found")
           return testRespond(ctx2, 404, .noval, extra)
         }
-        delprop(ent, .string("$KEY"))
+        _ = try? delprop(ent, .string("$KEY"))
         return testRespond(ctx2, 200, clone(ent), nil)
       } else if op.name == "list" {
         let args = testBuildArgs(ctx2, op, ctx2.reqmatch)
@@ -225,7 +237,7 @@ public final class TestFeature: BaseFeature {
           return testRespond(ctx2, 404, .noval, extra)
         }
         if let fl = found.asList {
-          for item in fl.items { delprop(item, .string("$KEY")) }
+          for item in fl.items { _ = try? delprop(item, .string("$KEY")) }
         }
         return testRespond(ctx2, 200, clone(found), nil)
       } else if op.name == "update" || op.name == "patch" {
@@ -252,7 +264,7 @@ public final class TestFeature: BaseFeature {
         if ent.isMap {
           _ = merge(.list(VList([ent, .map(testRecord(ctx2.reqdata))])))
         }
-        delprop(ent, .string("$KEY"))
+        _ = try? delprop(ent, .string("$KEY"))
         return testRespond(ctx2, 200, clone(ent), nil)
       } else if op.name == "remove" {
         let args = testBuildArgs(ctx2, op, testResolveMatch(ctx2, ctx2.reqmatch))
@@ -260,7 +272,7 @@ public final class TestFeature: BaseFeature {
         let ent = getelem(found, .int(0))
         if let entm2 = ent.asMap {
           let id = gp(entm2, "id")
-          delprop(.map(entmap), id)
+          _ = try? delprop(.map(entmap), id)
         }
         return testRespond(ctx2, 200, .noval, nil)
       } else if op.name == "create" {
@@ -275,8 +287,11 @@ public final class TestFeature: BaseFeature {
         let ent = clone(.map(testRecord(ctx2.reqdata)))
         if let entm = ent.asMap {
           entm.entries["id"] = id
+          if let idField = testDeclaredIdField(ctx2.config, op.entity), isNil(entm.entries[idField] ?? .noval) {
+            entm.entries[idField] = id
+          }
           if let idStr = id.asString { entmap.entries[idStr] = .map(entm) }
-          delprop(.map(entm), .string("$KEY"))
+          _ = try? delprop(.map(entm), .string("$KEY"))
           return testRespond(ctx2, 200, clone(.map(entm)), nil)
         }
         return testRespond(ctx2, 200, ent, nil)
