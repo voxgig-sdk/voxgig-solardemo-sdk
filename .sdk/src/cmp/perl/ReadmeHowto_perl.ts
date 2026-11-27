@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, canonScalarKey, entityIdField, pickExampleEntity, requiredItems, matchExampleItems, requestExampleItems, envLocalAt, cdTarget, fact, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -24,6 +24,8 @@ function perlLit(type: any): string {
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op). primaryOp is null only
@@ -37,12 +39,16 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = ''
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `{ '${idF}' => 'test01' }` : ''
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = 0 < items.length
+      ? `{ ${items.map((it: any) => `${perlStringLiteral(it.name)} => ${it.name === idF ? "'test01'" : perlLit(it.type)}`).join(', ')} }`
+      : ''
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
     const chosen = requiredItems(exampleEntity, 'list')
     testArg = `{ ${chosen.map((it: any) => `${perlStringLiteral(it.name)} => ${perlLit(it.type)}`).join(', ')} }`
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -52,15 +58,25 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   // The op-driven test-mode line, shown only when the SDK has an entity op.
   // A direct()-only SDK (no ops anywhere) shows a direct() call instead.
   const testModeExample = primaryOp
-    ? `# Entity ops return the entity, and list one per record; they die on error.
+    ? `# Entity ops return the entity${'list' === primaryOp ? ', and list one per record' : ''}; they die on error.
 my $${eVar} = $client->${eName}->${primaryOp}(${testArg});
 # data_get on an entity reads its mock response record`
     : `my $result = $client->direct({ 'path' => '/api/resource', 'method' => 'GET' });
 print $result->{ok}, "\\n";`
 
   const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
+    ? `\n${ENVVAR.apikey}=<your-key>${fact(model.main[KIT], 'auth').secret ? `\n${ENVVAR.secret}=<your-secret>` : ''}`
     : ''
+  const serverEnvLine = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+    .map((v: any) => `\n${ENVVAR.server[v.name]}=<${v.name}>`).join('')
+  const defaulted = fact(model.main[KIT], 'server').filter((v: any) => !v.required)
+  const liveEnvNote = (0 === defaulted.length ? '' :
+    defaulted.map((v: any) => '`' + ENVVAR.server[v.name] + '`').join(', ') +
+    (1 === defaulted.length ? ', when set, replaces its server variable\'s default.\n'
+      : ', when set, replace their server variables\' defaults.\n')) +
+    'Each entity\'s tests also read `' + ENVVAR.prefix + '_TEST_<ENTITY>_ENTID`, with the\n' +
+    'entity\'s name in capitals: a JSON object of the ids of existing records, for\n' +
+    'the tests that do not create their own.\n\n'
 
   Content(`### Make a direct HTTP request
 
@@ -68,9 +84,9 @@ For endpoints not covered by entity methods:
 
 \`\`\`perl
 my $result = $client->direct({
-    'path' => '/api/resource/{id}',
-    'method' => 'GET',
-    'params' => { 'id' => 'example' },
+    'path' => '${dx.path}',
+    'method' => '${dx.method}',
+    'params' => { '${dx.param}' => 'example' },
 });
 
 if ($result->{ok}) {
@@ -90,9 +106,9 @@ else {
 \`\`\`perl
 # prepare() returns the fetch definition and dies on error.
 my $fetchdef = $client->prepare({
-    'path' => '/api/resource/{id}',
-    'method' => 'DELETE',
-    'params' => { 'id' => 'example' },
+    'path' => '${dx.path}',
+    'method' => '${dx.method}',
+    'params' => { '${dx.param}' => 'example' },
 });
 
 print $fetchdef->{url}, "\\n";
@@ -133,16 +149,16 @@ my $client = ${model.const.Name}SDK->new({
 
 ### Run live tests
 
-Create a \`.env.local\` file at the project root:
+Create a \`.env.local\` file ${envLocalAt(props.ctx$, target)}:
 
 \`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
+${ENVVAR.live}=TRUE${apikeyEnvLine}${serverEnvLine}
 \`\`\`
 
-Then run:
+${liveEnvNote}Then run:
 
 \`\`\`bash
-cd ${target.name} && prove -Ilib t/
+${cdTarget(target)}prove -Ilib t/
 \`\`\`
 
 `)

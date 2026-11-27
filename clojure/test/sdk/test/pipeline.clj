@@ -30,10 +30,177 @@
 
 (defn- fake-client-opts [opts] {:options (atom opts) :mode (atom "test") :features (atom []) :store (atom {})})
 
+;; A POST, then a GET, to a closed port: the guard's code and message, or
+;; "sent" for a request it let through.
+(defn getonly-probe []
+  (let [sdk (client/make-sdk (vs/jm "base" "http://127.0.0.1:9"))
+        ctx (make-ctx sdk "create")
+        url "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01"]
+    (apply str (for [method ["POST" "GET"]]
+                 (let [[_ err] ((core/uget ctx :fetcher) ctx url (vs/jm "method" method "headers" (vs/jm)))]
+                   (if (= "fetch_getonly_block" (:code err))
+                     (str (:code err) " " (:msg err) "\n")
+                     "sent\n"))))))
+
+;; A Django route answers its slashless form with a relative Location. The
+;; transport follows each hop, and answers a "manual" fetch with the 3xx.
+(defn- redirect-check []
+  (let [seen (java.util.Collections/synchronizedList (java.util.ArrayList.))
+        moved {"/redirect/r1" [301 "/redirect/r1/"] "/redirect/r1/" [308 "done"]}
+        server (com.sun.net.httpserver.HttpServer/create (java.net.InetSocketAddress. "127.0.0.1" 0) 0)]
+    (.createContext server "/"
+                    (reify com.sun.net.httpserver.HttpHandler
+                      (handle [_ ex]
+                        (let [path (.getRawPath (.getRequestURI ex))
+                              [code to] (get moved path)
+                              body (.getBytes (if (= path "/redirect/r1/done") "{\"id\":\"r1\"}" "") "UTF-8")
+                              size (alength ^bytes body)]
+                          (.add seen path)
+                          (when to (.set (.getResponseHeaders ex) "Location" to))
+                          (.set (.getResponseHeaders ex) "Content-Type" "application/json")
+                          (.sendResponseHeaders ex (int (or code (if (pos? size) 200 404))) (long (if (pos? size) size -1)))
+                          (.write (.getResponseBody ex) body)
+                          (.close ex)))))
+    (.start server)
+    (try
+      (let [base (str "http://127.0.0.1:" (.getPort (.getAddress server)))
+            sdk (client/make-sdk (vs/jm "base" base))
+            ctx (make-ctx sdk "load")
+            fetch (fn [& kvs] ((core/uget ctx :fetcher) ctx (str base "/redirect/r1")
+                               (apply vs/jm "method" "GET" "headers" (vs/jm) kvs)))
+            [res err] (fetch)
+            [manual merr] (fetch "redirect" "manual")]
+        (t/is-eq err nil "error")
+        (t/is-eq (mget res "status") 200 "status")
+        (t/is-eq (mget res "body") "{\"id\":\"r1\"}" "body")
+        (t/is-eq (vec seen) ["/redirect/r1" "/redirect/r1/" "/redirect/r1/done" "/redirect/r1"] "hops")
+        (t/is-eq merr nil "manual error")
+        (t/is-eq (mget manual "status") 301 "manual status"))
+      (finally (.stop server 0)))))
+
+;; A listener that records each request, and answers it as `answer` says.
+(defn- origin-server ^com.sun.net.httpserver.HttpServer [^java.util.List seen answer]
+  (let [server (com.sun.net.httpserver.HttpServer/create (java.net.InetSocketAddress. "127.0.0.1" 0) 0)]
+    (.createContext server "/"
+                    (reify com.sun.net.httpserver.HttpHandler
+                      (handle [_ ex]
+                        (let [path (.getRawPath (.getRequestURI ex))
+                              [code to] (answer path)
+                              sent (alength (.readAllBytes (.getRequestBody ex)))
+                              body (.getBytes (if to "" "{\"id\":\"r1\"}") "UTF-8")
+                              size (alength ^bytes body)]
+                          (.add seen {:path path
+                                      :body sent
+                                      :headers (into {} (for [[k v] (.getRequestHeaders ex)]
+                                                          [(clojure.string/lower-case k) (first v)]))})
+                          (when to (.set (.getResponseHeaders ex) "Location" to))
+                          (.set (.getResponseHeaders ex) "Content-Type" "application/json")
+                          (.sendResponseHeaders ex (int code) (long (if (pos? size) size -1)))
+                          (.write (.getResponseBody ex) body)
+                          (.close ex)))))
+    (.start server)
+    server))
+
+(def ^:private redirect-secret "REDIRECT-SECRET-q1w2e3r4")
+(def ^:private redirect-headers
+  ["authorization" "cookie" "x-api-key" "private-token" "x-acme-auth" "x-tenant"])
+
+(defn- sent-headers [seen]
+  (mapv (fn [req] (filterv #(contains? (:headers req) %) redirect-headers)) seen))
+
+;; The API origin, and another that its /cross and /upload redirect to. The
+;; check is given a fetch through a client holding the secret as its apikey,
+;; and what each origin received.
+(defn- with-origins [check]
+  (let [api-seen (java.util.Collections/synchronizedList (java.util.ArrayList.))
+        other-seen (java.util.Collections/synchronizedList (java.util.ArrayList.))
+        other (origin-server other-seen (fn [_] [200 nil]))
+        landed (str "http://127.0.0.1:" (.getPort (.getAddress other)) "/landed")
+        moved {"/cross" [302 landed] "/same" [302 "/landed"] "/upload" [307 landed]
+               "/loop" [302 "/loop"]}
+        api (origin-server api-seen (fn [path] (get moved path [200 nil])))
+        base (str "http://127.0.0.1:" (.getPort (.getAddress api)))
+        fetch (fn [path method body & opts]
+                (let [sdk (client/make-sdk (apply vs/jm "base" base "apikey" redirect-secret opts))
+                      ctx (make-ctx sdk "load")
+                      fetchdef (vs/jm "method" method
+                                      "headers" (vs/jm "authorization" "Bearer abc" "cookie" "sid=abc"
+                                                       "x-api-key" "K-1234" "private-token" "T-5678"
+                                                       "x-acme-auth" (str "v1 " redirect-secret)
+                                                       "x-tenant" "acme"))]
+                  (when body (.put ^java.util.Map fetchdef "body" body))
+                  (.clear api-seen)
+                  (.clear other-seen)
+                  ((core/uget ctx :fetcher) ctx (str base path) fetchdef)))]
+    (try (check fetch api-seen other-seen)
+         (finally (.stop api 0) (.stop other 0)))))
+
+;; Another origin is sent no credential: not the names every client drops, nor
+;; a header the SDK holds as a secret by its name or by a registered value.
+(defn- redirect-credential-check [fetch api-seen other-seen]
+  (doseq [opts [[] ["clean" (vs/jm "active" false)]]]
+    (let [[res err] (apply fetch "/cross" "GET" nil opts)
+          label (if (seq opts) "clean off: " "clean on: ")]
+      (t/is-eq err nil (str label "error"))
+      (t/is-eq (mget res "status") 200 (str label "status"))
+      (t/is-eq (sent-headers api-seen) [redirect-headers] (str label "the API origin"))
+      (t/is-eq (sent-headers other-seen) [["x-tenant"]] (str label "another origin")))))
+
+(defn- redirect-same-origin-check [fetch api-seen other-seen]
+  (let [[res err] (fetch "/same" "GET" nil)]
+    (t/is-eq err nil "error")
+    (t/is-eq (mget res "status") 200 "status")
+    (t/is-eq (sent-headers api-seen) [redirect-headers redirect-headers] "every header, at each hop")
+    (t/is-eq (count other-seen) 0 "another origin")))
+
+;; A body is not sent on to another origin: the 3xx is the answer.
+(defn- redirect-body-check [fetch api-seen other-seen]
+  (doseq [method ["PUT" "POST"]]
+    (let [[res err] (fetch "/upload" method "payload")]
+      (t/is-eq err nil (str method ": error"))
+      (t/is-eq (mget res "status") 307 (str method ": status"))
+      (t/is-eq (mapv :body api-seen) [7] (str method ": the API origin"))
+      (t/is-eq (count other-seen) 0 (str method ": another origin")))))
+
+;; Five hops are followed, so six requests; the last 3xx is the answer.
+(defn- redirect-limit-check [fetch api-seen _other-seen]
+  (let [[res err] (fetch "/loop" "GET" nil)]
+    (t/is-eq err nil "error")
+    (t/is-eq (mget res "status") 302 "status")
+    (t/is-eq (mapv :path api-seen) (vec (repeat 6 "/loop")) "requests")))
+
+;; A JVM cannot set its own environment, so the probe runs in a child JVM.
+(defn- getonly-child []
+  (let [pb (ProcessBuilder. ^java.util.List
+            [(.orElse (.command (.info (java.lang.ProcessHandle/current))) "java")
+             "-cp" (System/getProperty "java.class.path") "clojure.main" "-e"
+             "(require 'sdk.test.pipeline) (print (sdk.test.pipeline/getonly-probe)) (flush) (System/exit 0)"])
+        _ (.put (.environment pb) "VOXGIG_GETONLY_GUARD" "TRUE")
+        _ (.redirectErrorStream pb true)
+        proc (.start pb)
+        text (slurp (.getInputStream proc))]
+    (t/is-eq (.waitFor proc) 0 text)
+    text))
+
 (defn run [rec]
   (let [sdk (client/test-sdk nil nil)
         utility (core/get-utility sdk)]
     (letfn [(chk [name thunk] (t/run-check rec name thunk))]
+
+      ;; ---- fetcher ----
+      ;; Nothing listens on port 9: a request the guard let through fails there.
+      (chk "fetcher-getonly-guard"
+           (fn [] (let [out (if (= "TRUE" (System/getenv "VOXGIG_GETONLY_GUARD")) (getonly-probe) (getonly-child))]
+                    (t/is-true (clojure.string/starts-with?
+                                out "fetch_getonly_block [GET-ONLY GUARD] blocked POST /planet/p1\n") out)
+                    (t/is-true (clojure.string/ends-with? (clojure.string/trim out) "\nsent") out)
+                    (t/is-true (not (clojure.string/includes? out "GUARDKEY01")) out))))
+
+      (chk "fetcher-redirect" redirect-check)
+      (chk "fetcher-redirect-credential" #(with-origins redirect-credential-check))
+      (chk "fetcher-redirect-same-origin" #(with-origins redirect-same-origin-check))
+      (chk "fetcher-redirect-body" #(with-origins redirect-body-check))
+      (chk "fetcher-redirect-limit" #(with-origins redirect-limit-check))
 
       ;; ---- make-point ----
       (chk "point-rejects-disallowed-op"
@@ -59,7 +226,7 @@
                     (let [[out err] ((core/uget ctx :make-point) ctx)]
                       (t/is-nil err "no err")
                       (t/is-true (identical? out preset) "preset")))))
-      ;; gotcha #2: a feature (rbac) places an error in out.point; make-point
+      ;; A feature (rbac) places an error in out.point; make-point
       ;; must surface it before any network use.
       (chk "point-surfaces-feature-error"
            (fn [] (let [ctx (make-ctx sdk "load")
@@ -218,7 +385,7 @@
                     (t/is-throws (fn [] ((core/uget ctx :make-error) ctx (core/ctx-error ctx "rbac_denied" "denied")))
                                  "rbac_denied" "preserves code"))))
 
-      ;; ---- feature ordering (gotcha #4) ----
+      ;; ---- feature ordering ----
       (chk "feature-add-appends-in-order"
            (fn [] (let [ctx (make-ctx sdk "load")]
                     (reset! (:features sdk) [])
@@ -243,7 +410,7 @@
                     (let [miss (named "z4")] (swap! miss assoc :_options (vs/jm "__before__" "missing")) ((core/uget ctx :feature-add) ctx miss))
                     (t/is-deep (names) ["a" "z2" "z3" "b" "z4"] "append fallback"))))
 
-      ;; ---- feature order (PR review #2) ----
+      ;; ---- feature order ----
       ;; make-options resolves the feature add-order into
       ;; __derived__.featureorder: a map defaults test-first (so the test mock
       ;; is the base transport), an explicit array preserves the developer

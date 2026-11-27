@@ -10,7 +10,7 @@
 #
 # 1. SPEC PATH. omni's own spec resolution expects the caller to hand it
 #    a usable path. A relative path is absolutized against THIS file's
-#    directory (test/), so the existing '../../.sdk/test/test.json'
+#    directory (test/), so the existing '../SDKREL/.sdk/test/test.json'
 #    constant keeps working verbatim wherever the suite is run from.
 #
 # 2. PROVIDER DELEGATION. Corpus-driven contexts get `ctx.client` set to
@@ -301,7 +301,7 @@ module VoxgigSolardemoOmni
       err_map = res_map['err']
       if err_map.is_a?(::Hash) && err_map['message'].is_a?(::String) &&
          !err_map['message'].empty?
-        ctx.result.err = VoxgigSolardemoError.new('', err_map['message'])
+        ctx.result.err = VoxgigSolardemoError.new(err_map['message'])
       end
     end
 

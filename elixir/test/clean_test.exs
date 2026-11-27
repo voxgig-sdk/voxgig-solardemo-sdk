@@ -2,9 +2,10 @@
 #
 # Every credential slot holds a distinctive value, every diagnostic feature
 # this SDK ships is switched on with a capturing sink, a real operation runs
-# through every outcome, and every string that leaves the SDK is searched for
-# the canaries and their encoded forms. It also proves its own sensitivity:
-# with clean switched off the canary MUST show.
+# through every outcome, and every string that leaves is searched for the
+# canaries and their encoded forms; further sweeps do the same for a body
+# of bytes and a response of bytes. With clean switched off the canary MUST
+# show.
 #
 # A struct node inspects as a handle, so the SDK's own records (the error's
 # result and spec, the explain record, every sink record, the context's
@@ -20,7 +21,7 @@ defmodule VoxgigSolardemo.CleanTest do
   alias VoxgigSolardemo.FeatureHarness, as: FH
 
   # Generated: the credential's wire placement is fixed when the SDK is built.
-  @auth %{suppressed: false, where: "header",
+  @auth %{suppressed: true, where: "header",
           name: "authorization", basic: false}
 
   @canary %{
@@ -39,6 +40,31 @@ defmodule VoxgigSolardemo.CleanTest do
   end
 
   defp leaks(text), do: Enum.filter(forms_of(), &String.contains?(text, &1))
+
+  # The marker a body of bytes carries.
+  @content "CANARY-CONTENT-b7n3v9x1c5"
+
+  # The marker a response of bytes carries, as the transport hands it on.
+  @response "CANARY-RESPONSE-k2m8q4w6z0"
+
+  # Every value this SDK accepts as a raw body: a binary, as text and as
+  # bytes that are not text, which print as a list of byte values.
+  defp carriers, do: [{"string", @content}, {"bytes", <<137>> <> @content}]
+
+  # The forms bytes travel in once copied: text, a list of byte values, hex,
+  # base64.
+  defp content_leaks(text, marker \\ @content) do
+    flat = String.replace(text, ~r/\s+/, "")
+
+    [
+      {"text", [marker]},
+      {"byte values", [Enum.join(:binary.bin_to_list(marker), ",")]},
+      {"hex", [Base.encode16(marker), Base.encode16(marker, case: :lower)]},
+      {"base64", [Base.encode64(marker)]}
+    ]
+    |> Enum.filter(fn {_form, needles} -> String.contains?(flat, needles) end)
+    |> Enum.map(&elem(&1, 0))
+  end
 
   # Header maps keep the caller's spelling; the assertion should not care.
   defp header(m, name) do
@@ -134,6 +160,19 @@ defmodule VoxgigSolardemo.CleanTest do
       "headers", h,
       "body", S.jsonify(data),
       "json", fn -> data end
+    ])
+  end
+
+  # A response of bytes under the type it declares, as the transport hands
+  # on a body it could not read as JSON.
+  defp bytes_response(status, type) do
+    S.jm([
+      "status", status,
+      "statusText", if(status < 400, do: "OK", else: "ERR"),
+      "headers", S.jm(["content-type", type]),
+      "body", @response,
+      "json", fn -> nil end,
+      "unreadable", true
     ])
   end
 
@@ -270,6 +309,33 @@ defmodule VoxgigSolardemo.CleanTest do
           _ -> nil
         catch
           _, _ -> nil
+        end
+      end)
+    end)
+  end
+
+  # The first operation with a point that sends a raw body the model marks
+  # binary, with every path parameter of that point filled in.
+  defp binary_op do
+    config = S.getprop(VoxgigSolardemo.get_root_ctx(construct(S.jm(["apikey", @canary.apikey]))), "config")
+
+    Enum.find_value(candidates(), fn {name, acc, op, _params} ->
+      opname = List.last(String.split(name, "."))
+      entname = String.replace_suffix(name, "." <> opname, "")
+
+      points =
+        config |> S.getprop("entity") |> S.getprop(entname) |> S.getprop("op") |> S.getprop(opname)
+        |> S.getprop("points")
+
+      Enum.find_value(H.entries(points), fn {_i, point} ->
+        body = S.getprop(point, "body")
+
+        if S.getprop(body, "kind") == "raw" and S.getprop(body, "binary") == true do
+          params = H.entries(S.getprop(S.getprop(point, "args"), "params"))
+          match = Map.new(for {_j, p} <- params, is_binary(S.getprop(p, "name")), do: {S.getprop(p, "name"), "p1"})
+          action = S.getprop(S.getprop(point, "select"), "$action")
+          match = if action != nil, do: Map.put(match, "$action", action), else: match
+          {{name, acc, op, match}, S.getprop(body, "media")}
         end
       end)
     end)
@@ -632,5 +698,156 @@ defmodule VoxgigSolardemo.CleanTest do
     assert "LISTED-SECRET-2" in values
     assert "123456789" in values
     refute "not-a-secret" in values
+  end
+
+  @no_binary "no operation of this SDK sends a binary body; nothing to sweep"
+
+  test "no body of bytes leaves the SDK in any form" do
+    case binary_op() do
+      nil -> IO.puts("SKIP no body of bytes leaves the SDK in any form: " <> @no_binary)
+      {target, media} -> sweep_content(target, media)
+    end
+  end
+
+  test "the sweep can see a body: clean switched off shows the bytes" do
+    case binary_op() do
+      nil -> IO.puts("SKIP the sweep can see a body: " <> @no_binary)
+      {target, _media} -> sweep_content_blind(target)
+    end
+  end
+
+  defp described(node), do: if(S.ismap(node), do: Map.new(H.entries(node)), else: node)
+
+  defp sweep_content({name, acc, op, match}, media) do
+    sinks = S.jt([])
+    sent = S.jm([])
+
+    variants = [
+      {"throw", fn -> S.jm([]) end},
+      {"explain", fn -> S.jm(["explain", S.jm([])]) end},
+      {"nothrow", fn -> S.jm(["throw", false, "explain", S.jm([])]) end}
+    ]
+
+    {errors, explains} =
+      for {cname, body} <- carriers(), {sname, respond} <- Enum.take(scenarios(), 4),
+          {vname, mkctrl} <- variants, reduce: {%{}, %{}} do
+        {errors, explains} ->
+          key = cname <> "/" <> sname <> "/" <> vname
+
+          # The transport is where the bytes are meant to arrive, whole.
+          seen = fn url, fd ->
+            S.setprop(sent, key, S.getprop(fd, "body"))
+            respond.(url, fd)
+          end
+
+          sdk = make_sdk(seen, sinks, [])
+          ctrl = mkctrl.()
+          err = drive(sdk, {name, acc, op, Map.put(match, "$body", body)}, ctrl, sinks)
+          add(sinks, forms("sdk", sdk))
+          errors = if err != nil, do: Map.put(errors, key, err), else: errors
+          ex = S.getprop(ctrl, "explain")
+          explains = if ex != nil, do: Map.put(explains, key, ex), else: explains
+          {errors, explains}
+      end
+
+    all = sink_list(sinks)
+    leaked = Enum.filter(all, fn s -> content_leaks(s.text) != [] end)
+
+    IO.puts("clean: content swept #{length(all)} surface(s), #{length(leaked)} leak(s)")
+
+    assert leaked == [],
+           "a body of bytes leaked through: " <>
+             Enum.map_join(leaked, "; ", fn s -> s.name <> " [" <> Enum.join(content_leaks(s.text), ", ") <> "]" end)
+
+    for {cname, body} <- carriers() do
+      # The request itself is untouched: what the transport was handed is the body.
+      assert S.getprop(sent, cname <> "/notfound/throw") == body,
+             cname <> ": the transport was handed something else"
+
+      # The positive half: where the body was, what describes it now is.
+      desc = %{"binary$" => "bytes", "size" => byte_size(body)}
+      desc = if media != nil, do: Map.put(desc, "type", media), else: desc
+      failed = errors[cname <> "/notfound/throw"]
+      assert match?(%VoxgigSolardemo.Error{}, failed), cname <> ": the 404 scenario must throw"
+      assert described(S.getprop(failed.spec, "body")) == desc, cname <> ": the thrown spec"
+      explained = S.getprop(explains[cname <> "/ok/explain"], "spec")
+      assert described(S.getprop(explained, "body")) == desc, cname <> ": the explain record"
+    end
+  end
+
+  defp sweep_content_blind({name, acc, op, match}) do
+    [_ok, {_nf, notfound} | _] = scenarios()
+
+    for {cname, body} <- carriers() do
+      sinks = S.jt([])
+      sdk = make_sdk(notfound, sinks, [{"active", false}])
+      err = drive(sdk, {name, acc, op, Map.put(match, "$body", body)}, S.jm([]), sinks)
+      assert err != nil, cname <> ": the 404 scenario must throw"
+
+      assert Enum.any?(sink_list(sinks), fn s -> content_leaks(s.text) != [] end),
+             cname <> ": with clean off, nothing showed the bytes: the sweep is blind"
+    end
+  end
+
+  test "no response of bytes leaves the SDK in any form" do
+    case usable_op() do
+      nil -> IO.puts("SKIP no response of bytes leaves the SDK in any form: " <> @no_target)
+      target -> sweep_response(target)
+    end
+  end
+
+  test "the sweep can see a response: clean switched off shows the bytes" do
+    case usable_op() do
+      nil -> IO.puts("SKIP the sweep can see a response: " <> @no_target)
+      target -> sweep_response_blind(target)
+    end
+  end
+
+  defp sweep_response(target) do
+    sinks = S.jt([])
+
+    variants = [
+      {"throw", fn -> S.jm([]) end},
+      {"explain", fn -> S.jm(["explain", S.jm([])]) end},
+      {"nothrow", fn -> S.jm(["throw", false, "explain", S.jm([])]) end}
+    ]
+
+    errors =
+      for status <- [200, 404, 500], {vname, mkctrl} <- variants, reduce: %{} do
+        errors ->
+          sdk = make_sdk(fn _url, _fd -> {bytes_response(status, "audio/wav"), nil} end, sinks, [])
+          err = drive(sdk, target, mkctrl.(), sinks)
+          add(sinks, forms("sdk", sdk))
+          if err != nil, do: Map.put(errors, "#{status}/" <> vname, err), else: errors
+      end
+
+    all = sink_list(sinks)
+    leaked = Enum.filter(all, fn s -> content_leaks(s.text, @response) != [] end)
+
+    IO.puts("clean: response swept #{length(all)} surface(s), #{length(leaked)} leak(s)")
+
+    assert leaked == [],
+           "a response of bytes leaked through: " <>
+             Enum.map_join(leaked, "; ", fn s ->
+               s.name <> " [" <> Enum.join(content_leaks(s.text, @response), ", ") <> "]"
+             end)
+
+    # The failure still names what it could not read.
+    failed = errors["200/throw"]
+    assert match?(%VoxgigSolardemo.Error{}, failed), "a response of bytes must fail the operation"
+    assert failed.code == "response_content_type"
+
+    assert String.contains?(Exception.message(failed), "audio/wav"),
+           "the error does not name the type: " <> Exception.message(failed)
+  end
+
+  defp sweep_response_blind(target) do
+    sinks = S.jt([])
+    respond = fn _url, _fd -> {bytes_response(200, "audio/wav"), nil} end
+    err = drive(make_sdk(respond, sinks, [{"active", false}]), target, S.jm([]), sinks)
+    assert err != nil, "a response of bytes must fail the operation"
+
+    assert Enum.any?(sink_list(sinks), fn s -> content_leaks(s.text, @response) != [] end),
+           "with clean off, nothing showed the response: the sweep is blind"
   end
 end

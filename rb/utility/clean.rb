@@ -4,6 +4,7 @@ require 'set'
 require_relative '../schema'
 require_relative '../core/error'
 require_relative 'struct/voxgig_struct'
+require_relative 'media'
 
 module VoxgigSolardemoUtilities
   # Everything that leaves the pipeline passes through clean: the error, the
@@ -18,6 +19,9 @@ module VoxgigSolardemoUtilities
 
     # Marks a value the copy must omit (a Proc), as ts omits `undefined`.
     DROP = Object.new.freeze
+
+    # The key of what stands in for a body of bytes; its value is the kind.
+    BINARY = "binary$"
 
     def self.normkey(key)
       key.to_s.downcase.gsub(/[-_]/, "")
@@ -122,6 +126,66 @@ module VoxgigSolardemoUtilities
       cfg["keys"].any? { |k| nk.include?(k) }
     end
 
+    # The request body of a point the model marks binary, and a response
+    # body that is bytes, each with its type. A response read as text does
+    # not say how many bytes it was, so it is not sized.
+    def self.binary_bodies(ctx)
+      # A String shorter than the registry accepts is not told from ordinary text.
+      min = config(ctx)["min"]
+      known = ->(v) { !v.nil? && !(v.is_a?(String) && v.length < min) }
+      point = ctx.respond_to?(:point) ? ctx.point : nil
+      bodies = []
+
+      body = VoxgigStruct.getprop(point, "body")
+      if VoxgigStruct.getprop(body, "kind") == "raw" && VoxgigStruct.getprop(body, "binary") == true
+        spec = ctx.respond_to?(:spec) ? ctx.spec : nil
+        reqdata = ctx.respond_to?(:reqdata) ? ctx.reqdata : nil
+        media = VoxgigStruct.getprop(body, "media")
+        bodies << {
+          "live" => [spec.respond_to?(:body) ? spec.body : nil,
+            reqdata.is_a?(Hash) ? reqdata[RAW_BODY] : nil].select(&known),
+          "type" => media.is_a?(String) ? media : nil,
+          "sized" => true,
+        }
+      end
+
+      response = ctx.respond_to?(:response) ? ctx.response : nil
+      if response.respond_to?(:body) && response.respond_to?(:headers)
+        type = VoxgigSolardemoUtilities.header_value(response.headers, "content-type")
+        if VoxgigSolardemoUtilities.binary_response?(point, type)
+          bodies << { "live" => [response.body].select(&known),
+            "type" => type.empty? ? nil : type, "sized" => false }
+        end
+      end
+
+      bodies.reject { |bin| bin["live"].empty? }
+    end
+
+    # The same object, or a String of the same bytes whatever its encoding.
+    def self.same_body?(live, val)
+      return true if live.equal?(val)
+      return false unless live.is_a?(String) && val.is_a?(String) && live.bytesize == val.bytesize
+      live == val || (live.encoding != val.encoding && live.b == val.b)
+    end
+
+    # Bytes are described, never copied (ADR-006): the kind, and the size and
+    # media type where they are known. A String is bytes only as a live
+    # body; an IO is read once, so it is a stream.
+    def self.describe_binary(val, bins)
+      bin = bins.find { |b| b["live"].any? { |live| same_body?(live, val) } }
+      desc = nil
+      if val.is_a?(String)
+        unless bin.nil?
+          desc = { BINARY => "bytes" }
+          desc["size"] = val.bytesize if bin["sized"]
+        end
+      elsif val.respond_to?(:read)
+        desc = { BINARY => "stream" }
+      end
+      desc["type"] = bin["type"] if !desc.nil? && !bin.nil? && !bin["type"].nil?
+      desc
+    end
+
     # A plain-data copy of what is about to leave: `to_h` is honoured (an
     # entity gives its data, a context its record), procs are dropped,
     # cycles are cut, and no live object is shared with the copy - masking
@@ -129,11 +193,12 @@ module VoxgigSolardemoUtilities
     # `to_h` copies as its instance variables, an exception as its message
     # and fields; its `ctx` is the one field never copied, as the context
     # holds the error that holds the context.
-    def self.snapshot(cfg, val, key, depth, seen)
+    def self.snapshot(cfg, bin, val, key, depth, seen)
       return val if val.nil?
 
       if val.is_a?(String)
-        return sensitive_key?(cfg, key) ? mask_value(cfg, val) : clean_string(cfg, val)
+        return mask_value(cfg, val) if sensitive_key?(cfg, key)
+        return describe_binary(val, bin) || clean_string(cfg, val)
       end
 
       return DROP if val.is_a?(Proc) || val.is_a?(Method)
@@ -146,25 +211,28 @@ module VoxgigSolardemoUtilities
 
       return cfg["mask"] if sensitive_key?(cfg, key)
 
+      desc = describe_binary(val, bin)
+      return desc unless desc.nil?
+
       seen.push(val)
       begin
         if val.is_a?(Array)
           out = []
           val.each_with_index do |item, i|
-            v = snapshot(cfg, item, i, depth + 1, seen)
+            v = snapshot(cfg, bin, item, i, depth + 1, seen)
             out << v unless v.equal?(DROP)
           end
           return out
         end
 
-        return plain(cfg, val, depth, seen) if val.is_a?(Hash)
+        return plain(cfg, bin, val, depth, seen) if val.is_a?(Hash)
 
         if val.is_a?(Exception)
           out = { "message" => clean_string(cfg, val.message.to_s) }
           val.instance_variables.each do |ivar|
             name = ivar.to_s.delete_prefix("@")
             next if name == "ctx"
-            v = snapshot(cfg, val.instance_variable_get(ivar), name, depth + 1, seen)
+            v = snapshot(cfg, bin, val.instance_variable_get(ivar), name, depth + 1, seen)
             out[clean_name(cfg, out, name)] = v unless v.equal?(DROP)
           end
           return out
@@ -172,34 +240,34 @@ module VoxgigSolardemoUtilities
 
         if val.is_a?(Struct) || (val.respond_to?(:to_h) && !val.is_a?(Enumerable))
           begin
-            return snapshot(cfg, val.to_h, key, depth + 1, seen)
+            return snapshot(cfg, bin, val.to_h, key, depth + 1, seen)
           rescue StandardError
             nil
           end
         end
 
-        return snapshot(cfg, val.to_a, key, depth + 1, seen) if val.is_a?(Set)
+        return snapshot(cfg, bin, val.to_a, key, depth + 1, seen) if val.is_a?(Set)
 
-        ivars(cfg, val, depth, seen)
+        ivars(cfg, bin, val, depth, seen)
       ensure
         seen.pop
       end
     end
 
-    def self.plain(cfg, val, depth, seen)
+    def self.plain(cfg, bin, val, depth, seen)
       out = {}
       val.each do |k, v|
-        c = snapshot(cfg, v, k, depth + 1, seen)
+        c = snapshot(cfg, bin, v, k, depth + 1, seen)
         out[clean_name(cfg, out, k)] = c unless c.equal?(DROP)
       end
       out
     end
 
-    def self.ivars(cfg, val, depth, seen)
+    def self.ivars(cfg, bin, val, depth, seen)
       out = {}
       val.instance_variables.each do |ivar|
         name = ivar.to_s.delete_prefix("@")
-        c = snapshot(cfg, val.instance_variable_get(ivar), name, depth + 1, seen)
+        c = snapshot(cfg, bin, val.instance_variable_get(ivar), name, depth + 1, seen)
         out[clean_name(cfg, out, name)] = c unless c.equal?(DROP)
       end
       out
@@ -239,6 +307,8 @@ module VoxgigSolardemoUtilities
 
       return clean_string(cfg, val) if val.is_a?(String)
 
+      bin = binary_bodies(ctx)
+
       if val.is_a?(Exception)
         if val.is_a?(VoxgigSolardemoError)
           val.msg = clean_string(cfg, val.msg.to_s)
@@ -250,7 +320,7 @@ module VoxgigSolardemoUtilities
               val.instance_variable_set(ivar,
                 sensitive_key?(cfg, name) ? mask_value(cfg, v) : clean_string(cfg, v))
             elsif !v.nil? && !v.is_a?(Numeric) && v != true && v != false
-              val.instance_variable_set(ivar, snapshot(cfg, v, name, 1, []))
+              val.instance_variable_set(ivar, snapshot(cfg, bin, v, name, 1, []))
             end
           end
           return val
@@ -265,7 +335,7 @@ module VoxgigSolardemoUtilities
         return out
       end
 
-      out = snapshot(cfg, val, nil, 0, [])
+      out = snapshot(cfg, bin, val, nil, 0, [])
       out.equal?(DROP) ? nil : out
     end
 
@@ -316,9 +386,19 @@ module VoxgigSolardemoUtilities
     def self.key?(ctx, key)
       sensitive_key?(config(ctx), key)
     end
+
+    # Whether a named value is a secret: by its name, or by a registered value
+    # it holds. Answered with clean off too: a redirect asks, not a diagnostic.
+    def self.secret?(ctx, key, value)
+      cfg = config(ctx)
+      sensitive_key?(cfg, key) ||
+        (value.is_a?(String) && cfg["values"].any? { |v| value.include?(v) })
+    end
   end
 
   Clean = ->(ctx, val) { CleanSupport.clean(ctx, val) }
 
   CleanAdd = ->(ctx, value) { CleanSupport.add(ctx, value) }
+
+  CleanSecret = ->(ctx, key, value) { CleanSupport.secret?(ctx, key, value) }
 end

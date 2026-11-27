@@ -7,7 +7,11 @@ import {
   canonScalarKey,
   requiredItems,
   javaMapOf,
+  javaMapItems,
+  fact,
 } from '@voxgig/sdkgen'
+
+import { KIT } from '@voxgig/apidef'
 
 import {
   clone,
@@ -20,29 +24,11 @@ function projectPath(suffix?: string): string {
 }
 
 
-// The Java package root for the generated SDK, mirroring how the go target
-// derives GOMODULE: org segment from model.origin, name segment from the
-// model name (e.g. origin voxgig-sdk + name solardemo -> voxgig.solardemosdk).
-// Each runtime piece lives under it: <pkg>.core, <pkg>.utility,
-// <pkg>.utility.struct, <pkg>.feature, <pkg>.entity, <pkg>.sdktest.
+// The Java package root, the project's JVM package fact. Each runtime piece
+// lives under it: <pkg>.core, <pkg>.utility, <pkg>.utility.struct,
+// <pkg>.feature, <pkg>.entity, <pkg>.sdktest.
 function javaPackage(model: any): string {
-  const org = String(model.origin || 'voxgig-sdk')
-    .replace(/-sdk$/, '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-  const name = String(model.name)
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-  return org + '.' + name + 'sdk'
-}
-
-
-function mavenGroupId(model: any): string {
-  const org = String(model.origin || 'voxgig-sdk')
-    .replace(/-sdk$/, '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-  return 'com.' + org
+  return fact(model.main[KIT], 'package').jvm
 }
 
 
@@ -112,21 +98,22 @@ function jsonAppendLines(value: any, bufname: string): string {
     .join('')
 }
 
-// Map.of and Map.entry reject a null value, so NULL keeps the placeholder.
+// javaMapItems leaves a null-only member out of Map.of, which rejects a null.
 function javaLit(type: any, placeholder: string = 'example'): string {
   const k = canonScalarKey(type)
+  if ('NULL' === k) return 'null'
   if ('INTEGER' === k) return '1L'
   if ('NUMBER' === k) return '1.0'
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return 'List.of()'
   if ('OBJECT' === k) return 'Map.of()'
-  return `"${placeholder}"`
+  return JSON.stringify(placeholder)
 }
 
 
 // A list's required parameters as its match.
 function javaListMatch(entity: any): string {
-  const items = requiredItems(entity, 'list')
+  const items = javaMapItems(requiredItems(entity, 'list'))
   return 0 < items.length
     ? javaMapOf(items.map((it: any) => `${JSON.stringify(it.name)}, ${javaLit(it.type)}`))
     : 'null'
@@ -140,6 +127,5 @@ export {
   javaPackage,
   javaVarName,
   jsonAppendLines,
-  mavenGroupId,
   projectPath,
 }

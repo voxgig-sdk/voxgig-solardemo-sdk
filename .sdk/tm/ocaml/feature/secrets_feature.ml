@@ -84,6 +84,7 @@ type xchg = {
   xresponse : string;
   xstatuses : int list;
   xretries : int;
+  xsameorigin : bool;
 }
 
 (* The message an exception carries, whichever library raised it: sekreto's
@@ -138,6 +139,64 @@ let trim_slashes_left (s : string) : string =
   while !i < n && s.[!i] = '/' do incr i done;
   String.sub s !i (n - !i)
 
+let redirect_max = 5
+
+(* An absolute http or https url as its scheme, its authority and the rest. *)
+let url_parts (url : string) : (string * string * string) option =
+  let scheme, start =
+    if String.starts_with ~prefix:"https://" (String.lowercase_ascii url) then ("https", 8)
+    else if String.starts_with ~prefix:"http://" (String.lowercase_ascii url) then ("http", 7)
+    else ("", 0) in
+  if 0 = start then None
+  else begin
+    let n = String.length url in
+    let rec stop i = if i >= n || String.contains "/?#" url.[i] then i else stop (i + 1) in
+    let e = stop start in
+    let auth = String.sub url start (e - start) in
+    if "" = auth || String.contains auth '@' then None
+    else Some (scheme, auth, String.sub url e (n - e))
+  end
+
+(* Scheme, host and port, with the scheme's default port. *)
+let url_origin (url : string) : string option =
+  match url_parts url with
+  | None -> None
+  | Some (scheme, auth, _) ->
+    let auth = String.lowercase_ascii auth in
+    let ported = match String.rindex_opt auth ':' with
+      | Some i -> not (String.contains_from auth i ']')
+      | None -> false in
+    Some (scheme ^ "://" ^ auth ^ (if ported then "" else if "https" = scheme then ":443" else ":80"))
+
+let resolve_url (at : string) (location : string) : string option =
+  if None <> url_parts location then Some location
+  else match url_parts at with
+    | None -> None
+    | Some (scheme, auth, rest) ->
+      if String.starts_with ~prefix:"//" location then Some (scheme ^ ":" ^ location)
+      else if String.starts_with ~prefix:"/" location then Some (scheme ^ "://" ^ auth ^ location)
+      else if String.starts_with ~prefix:"?" location then
+        let cut = match String.index_from_opt rest 0 '?', String.index_from_opt rest 0 '#' with
+          | Some i, Some j -> min i j | Some i, None | None, Some i -> i
+          | None, None -> String.length rest in
+        Some (scheme ^ "://" ^ auth ^ String.sub rest 0 cut ^ location)
+      else
+        let path = match String.index_opt rest '?' with Some i -> String.sub rest 0 i | None -> rest in
+        let dir = match String.rindex_opt path '/' with
+          | Some i -> String.sub path 0 (i + 1) | None -> "/" in
+        Some (scheme ^ "://" ^ auth ^ dir ^ location)
+
+(* Where a redirect keeping method and body (307 or 308) points, on the
+ * exchange's own origin. Any other would drop the body or leave the origin.
+ * The bundled transport answers no headers: only a supplied fetch is followed. *)
+let moved (url : string) (at : string) (res : value) : string option =
+  match to_int (getp res "status"), getp (getp res "headers") "location" with
+  | (307 | 308), Str location when "" <> location ->
+    (match resolve_url at location with
+     | Some next when None <> url_origin next && url_origin next = url_origin url -> Some next
+     | _ -> None)
+  | _ -> None
+
 (* Build the feature. `plugins` are the plugin DEFINITIONS the model
  * selected for this feature, emitted by Config_ocaml from the catalogue's
  * active `plugin.def.ocaml` entries (`Sdk_config.feature_plugins "secrets"`).
@@ -164,6 +223,10 @@ let make ?(plugins : Defs.definition list = [])
   let cred = ref "" in
   (* The refresh credential the chain resolved, for every later purchase. *)
   let refresh = ref "" in
+  (* What prepare_auth was generated from: the config declares auth only
+   * where it places a credential, and Basic only where it composes one. *)
+  let declared = ref false in
+  let basic = ref false in
 
   let refuse (msg : string) =
     (match !initerr with None -> initerr := Some msg | Some _ -> ()) in
@@ -179,13 +242,25 @@ let make ?(plugins : Defs.definition list = [])
   let live_options () : value =
     match !client with Some c -> c.cl_options | None -> empty_map () in
 
+  (* prepare_auth's decision: auth the config declares, not suppressed by
+   * `auth: null`. *)
+  let authon () : bool =
+    !declared && (match getp (live_options ()) "auth" with Map _ -> true | _ -> false) in
+
+  (* Under Basic the token is the key half, as apikey is: prepare_auth's pair. *)
+  let pair (token : string) : string =
+    let secret = match getp (live_options ()) "secret" with Str s -> s | _ -> "" in
+    let joined = base64_encode (token ^ ":" ^ secret) in
+    register joined;
+    joined in
+
   let bucket () : value =
     match !client with
     | Some c -> track_bucket c "secrets" (fun () ->
         jo [("resolves", Num 0.); ("refusals", Num 0.); ("buys", Num 0.); ("retries", Num 0.)])
     | None -> empty_map () in
 
-  (* Rewrite the authorization header on THIS request from the resolved
+  (* Rewrite the credential header on THIS request from the resolved
    * credential, the way prepare_auth builds it: `auth: null` (Noval or a
    * stored Null - the documented way to send NO credential) means no
    * header, else options.auth.prefix + the token. *)
@@ -193,11 +268,18 @@ let make ?(plugins : Defs.definition list = [])
     match getp fetchdef "headers" with
     | Map _ as headers ->
       let opts = live_options () in
-      (match getp opts "auth" with
-       | Map _ ->
-         let prefix = match getpath_s opts "auth.prefix" with Str s -> s | _ -> "" in
-         setp headers "authorization" (Str (if prefix <> "" then prefix ^ " " ^ token else token))
-       | _ -> ignore (delprop headers (Str "authorization")))
+      (* The header prepare_auth writes: auth.name, lower-cased. *)
+      let name = match getpath_s opts "auth.name" with
+        | Str s when s <> "" -> String.lowercase_ascii s
+        | _ -> "authorization" in
+      if authon () then begin
+        let value =
+          if !basic && (match getpath_s opts "auth.basic" with Bool b -> b | _ -> false)
+          then pair token else token in
+        let prefix = match getpath_s opts "auth.prefix" with Str s -> s | _ -> "" in
+        setp headers name (Str (if prefix <> "" then prefix ^ " " ^ value else value))
+      end
+      else ignore (delprop headers (Str name))
     | _ -> () in
 
   let spent (x : xchg) (res : value) : bool =
@@ -225,7 +307,9 @@ let make ?(plugins : Defs.definition list = [])
       let fetchdef = jo [
         ("method", Str x.xmethod);
         ("headers", jo [("content-type", Str "application/json")]);
-        ("body", Str (jsonify (jo [(x.xrequest, Str !refresh)])))] in
+        ("body", Str (jsonify (jo [(x.xrequest, Str !refresh)])));
+        (* Never followed by the client: a redirect would carry the refresh token on. *)
+        ("redirect", Str "manual")] in
       let fetch =
         match getpath_s opts "system.fetch" with
         | Func _ as sf -> Some (fun url fd -> call_vfn sf (ja [Str url; fd]))
@@ -237,7 +321,13 @@ let make ?(plugins : Defs.definition list = [])
                ^ "HTTP client is not compiled; supply options.system.fetch or activate a "
                ^ "plugin group")
       | Some fetch ->
-        (match fetch url fetchdef with
+        (* By option alone, and only while the exchange stays on its own origin. *)
+        let rec ask at hops =
+          let res = fetch at fetchdef in
+          match if x.xsameorigin && hops < redirect_max then moved url at res else None with
+          | Some next -> ask next (hops + 1)
+          | None -> res in
+        (match ask url 0 with
          | exception e -> Error (exn_message e)
          | res ->
            (match get_str res "__err__" with
@@ -287,6 +377,7 @@ let make ?(plugins : Defs.definition list = [])
   let resolve () : (unit, string) Stdlib.result =
     match !sek with
     | None -> Ok ()
+    | Some _ when not (authon ()) -> Ok ()
     | Some s ->
       bump_num (bucket ()) "resolves" 1.;
       (match Sekreto.tryget s !secretname with
@@ -316,16 +407,13 @@ let make ?(plugins : Defs.definition list = [])
             else (match buy x with Ok _ -> Ok () | Error m -> Error m))) in
 
   (* Buy a token and try the request again when the API says the current
-   * one is spent. The retry rewrites the authorization header IN PLACE on
+   * one is spent. The retry rewrites the credential header IN PLACE on
    * the fetchdef, because the header carries the token that just failed. *)
   let withrefresh (x : xchg) fctx url fetchdef inner : (value * sdk_error option) =
-    (* `auth: null` is the documented way to send NO credential, and
-     * prepare_auth honours it by removing the header. A refusal of a
-     * deliberately unauthenticated request is not an expired token and
-     * cannot be fixed by buying one. *)
-    match getp (live_options ()) "auth" with
-    | Noval | Null -> inner fctx url fetchdef
-    | _ ->
+    (* A refusal of an unauthenticated request is not an expired token, and
+     * retrying would transmit the credential that auth off withholds. *)
+    if not (authon ()) then inner fctx url fetchdef
+    else
       let rec attempt (n : int) =
         (* The credential THIS attempt goes out with, captured before it
          * leaves: it is what tells a stale refusal apart from a fresh one. *)
@@ -379,6 +467,9 @@ let make ?(plugins : Defs.definition list = [])
       if f.f_active then begin
         let c = cc ctx in
         client := Some c;
+        let declared_auth = getpath_s ctx.c_config "options.auth" in
+        declared := (match declared_auth with Map _ -> true | _ -> false);
+        basic := (match getp declared_auth "basic" with Bool b -> b | _ -> false);
         secretname := (let n = opt_str opts "name" ~default:"apikey" in if "" = n then "apikey" else n);
         cache := (getp opts "cache" <> Bool false);
 
@@ -397,6 +488,7 @@ let make ?(plugins : Defs.definition list = [])
                xresponse = opt_str xopts "response" ~default:"access_token";
                xstatuses = (if [] = statuses then [401] else statuses);
                xretries = opt_int xopts "retries" ~default:1;
+              xsameorigin = getp xopts "redirect" = Str "same-origin";
              }
            end else None);
 

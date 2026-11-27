@@ -25,6 +25,6 @@
 # aontu unifies, so two concrete values for one path conflict rather than
 # override. That is why this is a second entry point and not a one-line
 # overlay on sdk.aontu.
-@"sdk-base.aontu"
+@"./sdk-base.aontu"
 
 main: kit: target: 'seneca-provider': active: true

@@ -35,7 +35,7 @@ class PrimaryUtilityTest extends TestCase
 {
     // Resolved against test/Omni.php's own directory, so the suite works
     // from any working directory.
-    private const TEST_JSON_FILE = '../../.sdk/test/test.json';
+    private const TEST_JSON_FILE = '../SDKREL/.sdk/test/test.json';
 
     // Sections deliberately left empty in the shared corpus
     // (.sdk/test/primary/<name>.aontu carries a PENDING header). Everything
@@ -808,6 +808,12 @@ class PrimaryUtilityTest extends TestCase
 
     public function test_prepare_auth_basic(): void
     {
+        // Read from the config, never from a probe: a probe that finds no
+        // credential is the regression this section exists to catch.
+        if (!array_key_exists('auth', VoxgigSolardemoConfig::shared_config()['options'] ?? [])) {
+            $this->markTestSkipped("this SDK's config declares no auth, so it places no credential");
+        }
+
         $R = self::runpack();
         $setup = $R['spec']['prepareAuth']['DEF']['setup']['a'] ?? null;
         $auth_client = VoxgigSolardemoSDK::test(null, is_array($setup) ? $setup : null);
@@ -1038,5 +1044,21 @@ class PrimaryUtilityTest extends TestCase
             VoxgigSolardemoOmni::sync_ctx($ctxmap, $ctx);
             return $result;
         });
+    }
+
+    // A 204 has no body: struct's no-value sentinel is truthy, so held as
+    // resdata an update would take it for data and replace the entity's.
+    public function test_transform_response_no_value(): void
+    {
+        $client = self::client();
+        $utility = $client->get_utility();
+        $ctx = VoxgigSolardemoOmni::ctx_from_map([
+            'result' => ['ok' => true, 'status' => 204, 'body' => null],
+            'spec' => ['step' => ''],
+            'point' => ['transform' => ['res' => '`body.data`']],
+        ], $client, $utility);
+
+        $this->assertNull(($utility->transform_response)($ctx));
+        $this->assertNull($ctx->result->resdata);
     }
 }

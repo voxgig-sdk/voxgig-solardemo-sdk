@@ -18,6 +18,7 @@
 #   context object as the map omni walks, camelCase keys included.
 
 require "minitest/autorun"
+require "socket"
 require "json"
 require_relative "../VoxgigSolardemo_sdk"
 require_relative "omni"
@@ -81,7 +82,7 @@ class PrimaryUtilityTest < Minitest::Test
     return nil unless m.is_a?(Hash)
     msg = m["message"]
     return nil unless msg.is_a?(String) && !msg.empty?
-    VoxgigSolardemoError.new(m["code"] || "", msg)
+    VoxgigSolardemoError.new(msg, code: m["code"] || "")
   end
 
 
@@ -276,6 +277,192 @@ class PrimaryUtilityTest < Minitest::Test
     _, err = blocked_utility.fetcher.call(ctx, "http://example.com/test", fetchdef)
     assert err, "expected blocked error"
     assert_includes err.to_s.downcase, "blocked"
+  end
+
+  # A Django route answers its slashless form with a relative Location. The
+  # transport follows each hop, and answers a "manual" fetch with the 3xx.
+  def test_fetcher_redirect
+    seen = Queue.new
+    moved = { "/redirect/r1" => [301, "/redirect/r1/"], "/redirect/r1/" => [308, "done"] }
+    server = TCPServer.new("127.0.0.1", 0)
+    thread = Thread.new do
+      loop do
+        sock = server.accept
+        path = sock.gets.to_s.split(" ")[1].to_s
+        nil until ["\r\n", "\n", nil].include?(sock.gets)
+        seen << path
+        hop = moved[path]
+        body = path == "/redirect/r1/done" ? '{"id":"r1"}' : ""
+        status = hop ? hop[0] : (body.empty? ? 404 : 200)
+        sock.write("HTTP/1.1 #{status} X\r\n#{hop ? "Location: #{hop[1]}\r\n" : ""}" \
+          "Content-Type: application/json\r\nContent-Length: #{body.bytesize}\r\n" \
+          "Connection: close\r\n\r\n#{body}")
+        sock.close
+      end
+    end
+    base = "http://127.0.0.1:#{server.addr[1]}"
+    live_client = VoxgigSolardemoSDK.new({ "base" => base })
+    live_utility = live_client.get_utility
+    ctx = live_utility.make_context.call({
+      "opname" => "load",
+      "client" => live_client,
+      "utility" => live_utility,
+    }, nil)
+
+    res, err = live_utility.fetcher.call(ctx, "#{base}/redirect/r1", { "method" => "GET", "headers" => {} })
+    assert_nil err
+    assert_equal 200, res["status"]
+    assert_equal({ "id" => "r1" }, res["json"].call)
+    assert_equal ["/redirect/r1", "/redirect/r1/", "/redirect/r1/done"], Array.new(seen.size) { seen.pop }
+
+    res, err = live_utility.fetcher.call(ctx, "#{base}/redirect/r1",
+      { "method" => "GET", "headers" => {}, "redirect" => "manual" })
+    assert_nil err
+    assert_equal 301, res["status"]
+  ensure
+    thread&.kill
+    server&.close
+  end
+
+  REDIRECT_SECRET = "REDIRECT-SECRET-q7w3e9r1"
+  REDIRECT_CREDENTIALS = %w[authorization cookie x-api-key private-token x-acme-auth].freeze
+
+  # x-acme-auth is not a sensitive name: a credential by the value it holds.
+  def redirect_headers
+    {
+      "authorization" => "Bearer #{REDIRECT_SECRET}",
+      "cookie" => "sid=#{REDIRECT_SECRET}",
+      "x-api-key" => REDIRECT_SECRET,
+      "private-token" => "pt-12345",
+      "x-acme-auth" => "v1 #{REDIRECT_SECRET}",
+      "x-tenant" => "acme",
+    }
+  end
+
+  # Records what reaches it, and answers a path in `routes` with its redirect.
+  def redirect_listener(arrived, where, routes)
+    server = TCPServer.new("127.0.0.1", 0)
+    thread = Thread.new do
+      loop do
+        sock = server.accept
+        method, path = sock.gets.to_s.split(" ")
+        headers = {}
+        while (line = sock.gets) && !["\r\n", "\n"].include?(line)
+          name, value = line.chomp.split(":", 2)
+          headers[name.downcase] = value.to_s.strip
+        end
+        sent = sock.read(headers["content-length"].to_i).to_s
+        arrived << { "where" => where, "method" => method, "path" => path, "headers" => headers, "body" => sent }
+        hop = routes[path]
+        body = hop ? "" : '{"id":"r1"}'
+        sock.write("HTTP/1.1 #{hop ? hop[0] : 200} X\r\n#{hop ? "Location: #{hop[1]}\r\n" : ""}" \
+          "Content-Type: application/json\r\nContent-Length: #{body.bytesize}\r\n" \
+          "Connection: close\r\n\r\n#{body}")
+        sock.close
+      end
+    end
+    [server, thread]
+  end
+
+  # The API's origin redirects; the other origin, another port, records what
+  # reaches it. The secret is registered as a caller's is: as the apikey.
+  def with_redirect_origins(options = {})
+    arrived = Queue.new
+    other, otherthread = redirect_listener(arrived, "other", {})
+    otherbase = "http://127.0.0.1:#{other.addr[1]}"
+    api, apithread = redirect_listener(arrived, "api", {
+      "/out" => [302, "#{otherbase}/landed"],
+      "/out307" => [307, "#{otherbase}/landed"],
+      "/in" => [302, "/landed"],
+    })
+    apibase = "http://127.0.0.1:#{api.addr[1]}"
+    client = VoxgigSolardemoSDK.new({ "base" => apibase, "apikey" => REDIRECT_SECRET }.merge(options))
+    utility = client.get_utility
+    ctx = utility.make_context.call({ "opname" => "load" }, client.get_root_ctx)
+    fetch = lambda do |path, fetchdef|
+      res, err = utility.fetcher.call(ctx, "#{apibase}#{path}", fetchdef)
+      [res, err, Array.new(arrived.size) { arrived.pop }]
+    end
+    yield fetch
+  ensure
+    [otherthread, apithread].each { |t| t&.kill }
+    [other, api].each { |s| s&.close }
+  end
+
+  def assert_redirect_other_origin(options)
+    with_redirect_origins(options) do |fetch|
+      res, err, arrived = fetch.call("/out", { "method" => "GET", "headers" => redirect_headers })
+      assert_nil err
+      assert_equal 200, res["status"]
+      assert_equal ["api /out", "other /landed"], arrived.map { |a| "#{a['where']} #{a['path']}" }
+      REDIRECT_CREDENTIALS.each do |name|
+        refute_nil arrived[0]["headers"][name], "the API itself was not sent #{name}"
+        assert_nil arrived[1]["headers"][name], "another origin was sent #{name}"
+      end
+      assert_equal "acme", arrived[1]["headers"]["x-tenant"]
+      refute_includes arrived[1]["headers"].to_s, REDIRECT_SECRET
+    end
+  end
+
+  def test_fetcher_redirect_other_origin_carries_no_credential
+    assert_redirect_other_origin({})
+  end
+
+  def test_fetcher_redirect_other_origin_with_clean_off
+    assert_redirect_other_origin({ "clean" => { "active" => false } })
+  end
+
+  def test_fetcher_redirect_same_origin_keeps_headers
+    with_redirect_origins do |fetch|
+      res, err, arrived = fetch.call("/in", { "method" => "GET", "headers" => redirect_headers })
+      assert_nil err
+      assert_equal 200, res["status"]
+      assert_equal ["api /in", "api /landed"], arrived.map { |a| "#{a['where']} #{a['path']}" }
+      (REDIRECT_CREDENTIALS + ["x-tenant"]).each do |name|
+        refute_nil arrived[1]["headers"][name], "the same origin lost #{name}"
+      end
+    end
+  end
+
+  # A PUT follows nothing. A GET follows, and Net::HTTP sends the body it is given.
+  def test_fetcher_redirect_body_stays_on_its_origin
+    with_redirect_origins do |fetch|
+      %w[PUT GET].each do |method|
+        res, err, arrived = fetch.call("/out307",
+          { "method" => method, "headers" => redirect_headers, "body" => "BODY-#{REDIRECT_SECRET}" })
+        assert_nil err
+        assert_equal 307, res["status"], method
+        assert_equal ["api /out307"], arrived.map { |a| "#{a['where']} #{a['path']}" }, method
+        assert_equal "BODY-#{REDIRECT_SECRET}", arrived[0]["body"]
+      end
+    end
+  end
+
+  # Nothing listens on port 9: a request the guard let through fails there.
+  def test_fetcher_getonly_guard
+    live_client = VoxgigSolardemoSDK.new({ "base" => "http://127.0.0.1:9" })
+    live_utility = live_client.get_utility
+    ctx = live_utility.make_context.call({
+      "opname" => "create",
+      "client" => live_client,
+      "utility" => live_utility,
+    }, nil)
+    url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01"
+    prior = ENV["VOXGIG_GETONLY_GUARD"]
+    ENV["VOXGIG_GETONLY_GUARD"] = "TRUE"
+    begin
+      _, err = live_utility.fetcher.call(ctx, url, { "method" => "POST", "headers" => {} })
+      assert_kind_of VoxgigSolardemoError, err
+      assert_equal "fetch_getonly_block", err.code
+      assert_includes err.msg, "[GET-ONLY GUARD] blocked POST /planet/p1"
+      refute_includes err.msg, "GUARDKEY01"
+
+      _, geterr = live_utility.fetcher.call(ctx, url, { "method" => "GET", "headers" => {} })
+      assert geterr, "expected the GET to reach the closed port"
+      refute_kind_of VoxgigSolardemoError, geterr
+    ensure
+      ENV["VOXGIG_GETONLY_GUARD"] = prior
+    end
   end
 
 
@@ -525,6 +712,12 @@ class PrimaryUtilityTest < Minitest::Test
   # === prepareAuth ===
 
   def test_prepare_auth_basic
+    # Read from the config, never from a probe: a probe that finds no
+    # credential is the regression this section exists to catch.
+    unless VoxgigSolardemoConfig.shared_config["options"].key?("auth")
+      skip("this SDK's config declares no auth, so it places no credential")
+    end
+
     setup_opts = @spec.dig("prepareAuth", "DEF", "setup", "a")
     auth_client = VoxgigSolardemoSDK.test(nil, setup_opts)
 

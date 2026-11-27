@@ -20,7 +20,6 @@ const Entity = types.Entity;
 
 // Every operation resolves to the ENTITY, not the raw data — `list` to a
 // slice of them, one per record; the record is reached through `data()`.
-// See AGENTS.md "Entity operations return ENTITIES".
 //
 // `Value` cannot carry an entity (it is a closed data union) and the shared
 // `OpResult` cannot name a per-entity type, so each entity declares its own
@@ -43,7 +42,7 @@ pub const PlanetEntity = struct {
     data: Value,
     mtch: Value,
     entctx: ?*Context = null,
-    // Set once a successful `remove` resolves on this instance.
+    // Set when a remove marks this instance deleted.
     deleted: bool = false,
 
     pub fn new(client: *sdk.VoxgigSolardemoSDK, entopts_in: Value) *PlanetEntity {
@@ -94,7 +93,7 @@ pub const PlanetEntity = struct {
     }
 
     // Runs the pipeline and hands back THIS entity: run_op has just absorbed
-    // the result into it. See AGENTS.md "Entity operations return ENTITIES".
+    // the result into it.
     fn run_op_ent(self: *PlanetEntity, ctx: *Context, post_done: *const fn (*PlanetEntity, *Context) void) EntResult {
         return switch (self.run_op(ctx, post_done)) {
             .err => |e| EntResult{ .err = e },
@@ -102,9 +101,9 @@ pub const PlanetEntity = struct {
         };
     }
 
-    // `remove` resolves to the entity, marked. The instance KEEPS the data it
-    // held — a caller can still read what was deleted — but it is no longer a
-    // live record.
+    // A remove resolves to the entity, marked deleted. The instance KEEPS the
+    // data it held — a caller can still read what was deleted — but it is no
+    // longer a live record.
     pub fn mark_deleted(self: *PlanetEntity) void {
         self.deleted = true;
     }
@@ -161,14 +160,13 @@ pub const PlanetEntity = struct {
 
     /// Streaming operation. Runs `action` through the full pipeline and
     /// returns the result items, so the `streaming` feature's incremental
-    /// output is reachable from a generated entity (a normal op call
-    /// materialises the whole result). This runtime is synchronous and zig
-    /// has no built-in lazy iterators, so the items are a materialised slice
-    /// the caller walks; a failed operation is `.err`, as an operation's is.
-    /// `callopts` parameterises the call: inbound yields the streaming
-    /// feature's items when active, else the materialised items; outbound
-    /// attaches an iterable `body` to the request (reqdata `body$`); `ctrl`
-    /// threads pipeline control.
+    /// output, when that feature is active, is reachable from a generated
+    /// entity (a normal op call materialises the whole result). This runtime
+    /// is synchronous and zig has no built-in lazy iterators, so the items
+    /// are a materialised slice the caller walks; a failed operation is
+    /// `.err`, as an operation's is. `callopts` parameterises the call:
+    /// inbound yields the streaming feature's items when active, else the
+    /// materialised items; `ctrl` threads pipeline control.
     pub fn stream(self: *PlanetEntity, action: []const u8, args: Value, callopts: Value) StreamResult {
         const utility = self.utility;
 
@@ -199,21 +197,9 @@ pub const PlanetEntity = struct {
             .reqmatch = reqmatch,
         }, self.ent_ctx());
 
-        // Outbound: attach a caller `body` so the transport can stream a
-        // request payload (reqdata `body$`).
-        const body = h.getp(stream_opts, "body");
-        if (!h.is_noval(body)) {
-            const reqdata: Value = switch (ctx.reqdata) {
-                .object => ctx.reqdata,
-                else => h.omap(),
-            };
-            h.setp(reqdata, "body$", body);
-            ctx.reqdata = reqdata;
-        }
-
-        // Run the same pipeline as run_op, firing the feature hooks (the
-        // streaming feature attaches result.stream on PreResult). A failed
-        // step leaves through make_error, as an operation's does.
+        // Run the same pipeline as run_op, firing the feature hooks (an
+        // active streaming feature attaches result.stream on PreResult). A
+        // failed step leaves through make_error, as an operation's does.
         utility.feature_hook(ctx, "PrePoint");
         const point = utility.make_point(ctx) catch return streamItems(self.opError(ctx));
         ctx.out_set("point", OutVal{ .val = point });
@@ -287,11 +273,7 @@ pub const PlanetEntity = struct {
     fn data_impl(self: *PlanetEntity, args: ?Value) Value {
         if (args) |arg| {
             if (!h.is_noval(arg)) {
-                const cloned = h.to_map(h.clone(arg));
-                self.data = switch (cloned) {
-                    .object => cloned,
-                    else => h.omap(),
-                };
+                self.data = if (arg == .null) h.omap() else h.clone(arg);
                 self.utility.feature_hook(self.ent_ctx(), "SetData");
             }
         }
@@ -362,9 +344,7 @@ pub const PlanetEntity = struct {
         if (out == .array) {
             for (out.array.data.items) |entry| {
                 const ent = PlanetEntity.new(self.client, h.clone(self.entopts));
-                if (entry == .object) {
-                    _ = ent.data_impl(entry);
-                }
+                _ = ent.data_impl(entry);
                 items.append(h.A(), ent) catch {};
             }
         }

@@ -20,12 +20,13 @@ Create a new SDK client instance.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `dict` | SDK configuration options. |
-| `options["base"]` | `str` | Base URL for API requests. |
-| `options["prefix"]` | `str` | URL prefix appended after base. |
-| `options["suffix"]` | `str` | URL suffix appended after path. |
-| `options["headers"]` | `dict` | Custom headers for all requests. |
-| `options["feature"]` | `dict` | Feature configuration. |
-| `options["system"]` | `dict` | System overrides (e.g. custom fetch). |
+| `options["base"]` | `str` | Base URL of the API server. |
+| `options["prefix"]` | `str` | URL path prefix prepended to all requests. |
+| `options["suffix"]` | `str` | URL path suffix appended to all requests. |
+| `options["headers"]` | `dict` | Headers sent with every request. |
+| `options["feature"]` | `dict` | Feature activation flags. |
+| `options["extend"]` | `list` | Additional feature instances to load. |
+| `options["system"]` | `dict` | System overrides, such as a custom fetch function. |
 
 
 ### Static Methods
@@ -99,23 +100,9 @@ moon = client.Moon()
 
 ### Operations
 
-#### `create(reqdata, ctrl=None) -> MoonEntity`
-
-Create a new entity with the given data. Returns the created entity and raises on error.
-
-```python
-result = client.Moon().create({
-    "planet_id": "example_planet_id",  # str
-    "diameter": 1,  # float
-    "id": "example_id",  # str
-    "kind": "example_kind",  # str
-    "name": "example_name",  # str
-})
-```
-
 #### `list(reqmatch=None, ctrl=None) -> list[MoonEntity]`
 
-List entities matching the given criteria. The match is optional — call `list()` with no argument to list all records. Returns a list of entities, one per record, and raises on error.
+List entities matching the given criteria. The match must include `planet_id`. Returns a list of entities, one per record, and raises on error.
 
 ```python
 results = client.Moon().list({"planet_id": "example"})
@@ -131,12 +118,18 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 result = client.Moon().load({"id": "moon_id", "planet_id": "planet_id"})
 ```
 
-#### `remove(reqmatch, ctrl=None) -> MoonEntity`
+#### `create(reqdata, ctrl=None) -> MoonEntity`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```python
-result = client.Moon().remove({"id": "moon_id", "planet_id": "planet_id"})
+result = client.Moon().create({
+    "planet_id": "example_planet_id",  # str
+    "diameter": 1,  # float
+    "id": "example_id",  # str
+    "kind": "example_kind",  # str
+    "name": "example_name",  # str
+})
 ```
 
 #### `update(reqdata, ctrl=None) -> MoonEntity`
@@ -149,6 +142,14 @@ result = client.Moon().update({
     "planet_id": "planet_id",
     # Fields to update
 })
+```
+
+#### `remove(reqmatch, ctrl=None) -> MoonEntity`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+
+```python
+result = client.Moon().remove({"id": "moon_id", "planet_id": "planet_id"})
 ```
 
 ### Common Methods
@@ -200,19 +201,6 @@ planet = client.Planet()
 
 ### Operations
 
-#### `create(reqdata, ctrl=None) -> PlanetEntity`
-
-Create a new entity with the given data. Returns the created entity and raises on error.
-
-```python
-result = client.Planet().create({
-    "diameter": 1,  # float
-    "id": "example_id",  # str
-    "kind": "example_kind",  # str
-    "name": "example_name",  # str
-})
-```
-
 #### `list(reqmatch=None, ctrl=None) -> list[PlanetEntity]`
 
 List entities matching the given criteria. The match is optional — call `list()` with no argument to list all records. Returns a list of entities, one per record, and raises on error.
@@ -231,12 +219,17 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 result = client.Planet().load({"id": "planet_id"})
 ```
 
-#### `remove(reqmatch, ctrl=None) -> PlanetEntity`
+#### `create(reqdata, ctrl=None) -> PlanetEntity`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```python
-result = client.Planet().remove({"id": "planet_id"})
+result = client.Planet().create({
+    "diameter": 1,  # float
+    "id": "example_id",  # str
+    "kind": "example_kind",  # str
+    "name": "example_name",  # str
+})
 ```
 
 #### `update(reqdata, ctrl=None) -> PlanetEntity`
@@ -248,6 +241,14 @@ result = client.Planet().update({
     "id": "planet_id",
     # Fields to update
 })
+```
+
+#### `remove(reqmatch, ctrl=None) -> PlanetEntity`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+
+```python
+result = client.Planet().remove({"id": "planet_id"})
 ```
 
 ### Common Methods
@@ -316,10 +317,10 @@ client = VoxgigSolardemoSDK({
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -330,10 +331,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -536,7 +537,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -549,6 +550,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -576,10 +578,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

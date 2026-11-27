@@ -11,13 +11,31 @@ use voxgig_solardemo_sdk::{VoxgigSolardemoSDK, Value};
 
 const BASE: &str = "http://secrets.test/api";
 
+// Read from the config, never from a probe: an SDK whose config declares no
+// auth places no credential, and these tests assert on the one it places.
+// The test harness has no skip of its own at run time, so the skip is a
+// printed reason.
+fn skipped_without_auth() -> bool {
+    if declares_auth() {
+        return false;
+    }
+    println!("SKIP secrets: this SDK's config declares no auth, so it places no credential");
+    true
+}
+
+fn declares_auth() -> bool {
+    matches!(getp(&getp(&voxgig_solardemo_sdk::make_config(), "options"), "auth"), Value::Map(_))
+}
+
 // ---- the counted transport ---------------------------------------------
 
 #[derive(Clone)]
 struct Call {
     url: String,
     auth: Option<String>,
+    values: String,
     body: Option<String>,
+    redirect: Option<String>,
 }
 
 /// A `system.fetch` that records every call it is handed, so "sent" is a
@@ -87,10 +105,24 @@ impl Wire {
                 _ => String::new(),
             };
             let fetchdef = getp(arg, "1");
+            let values = match getp(&fetchdef, "headers") {
+                Value::Map(m) => m
+                    .borrow()
+                    .values()
+                    .map(|v| match v {
+                        Value::Str(s) => s.clone(),
+                        _ => String::new(),
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+                _ => String::new(),
+            };
             w.calls.borrow_mut().push(Call {
                 url: url.clone(),
                 auth: authof(&fetchdef),
+                values,
                 body: get_str(&fetchdef, "body"),
+                redirect: get_str(&fetchdef, "redirect"),
             });
 
             if w.istoken(&url) {
@@ -165,20 +197,68 @@ fn response(status: i64, body: Value) -> Value {
     ])
 }
 
+// The header the credential travels in: the DEFAULT client's auth.name,
+// lower-cased as prepare_auth sends it. Read from a default client because a
+// test's `auth: null` leaves no name to read.
+fn cred_header() -> &'static str {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        let client = voxgig_solardemo_sdk::test_sdk(Value::Noval, Value::Noval);
+        match getpath(&["auth", "name"], &client.options_map()) {
+            Value::Str(s) if !s.is_empty() => s.to_ascii_lowercase(),
+            _ => "authorization".to_string(),
+        }
+    })
+}
+
 fn authof(fetchdef: &Value) -> Option<String> {
-    match getpath(&["headers", "authorization"], fetchdef) {
+    match getpath(&["headers", cred_header()], fetchdef) {
         Value::Str(s) => Some(s),
         _ => None,
     }
 }
 
+// The form prepare_auth writes, from the DEFAULT client's auth: under Basic
+// the token is the key half of the encoded pair, and a prefix is
+// space-joined.
+fn cred_form() -> &'static (String, bool) {
+    static FORM: std::sync::OnceLock<(String, bool)> = std::sync::OnceLock::new();
+    FORM.get_or_init(|| {
+        let auth = getp(&voxgig_solardemo_sdk::test_sdk(Value::Noval, Value::Noval).options_map(), "auth");
+        let prefix = match getp(&auth, "prefix") {
+            Value::Str(s) => s,
+            _ => String::new(),
+        };
+        (prefix, matches!(getp(&auth, "basic"), Value::Bool(true)))
+    })
+}
+
+// The header value prepare_auth writes for a token.
+fn credential(token: &str, secret: &str) -> String {
+    let (prefix, basic) = cred_form();
+    let value = if *basic {
+        voxgig_solardemo_sdk::utility::clean::base64_encode(format!("{}:{}", token, secret).as_bytes())
+    } else {
+        token.to_string()
+    };
+    if prefix.is_empty() {
+        value
+    } else {
+        format!("{} {}", prefix, value)
+    }
+}
+
 fn credential_is(header: Option<String>, token: &str) {
-    let got = header.unwrap_or_default();
-    assert!(
-        got == token || got.ends_with(&format!(" {}", token)),
-        "expected the Authorization header to carry {}, got: {:?}",
-        token,
-        got
+    paired_is(header, token, "");
+}
+
+fn paired_is(header: Option<String>, token: &str, secret: &str) {
+    assert_eq!(
+        header,
+        Some(credential(token, secret)),
+        "expected the {} header to carry {}",
+        cred_header(),
+        token
     );
 }
 
@@ -189,17 +269,27 @@ fn call_auth(calls: &[Call], i: usize) -> Option<String> {
 // ---- clients ------------------------------------------------------------
 
 fn sdk(wire: &Wire, secrets: Vec<(&str, Value)>) -> Rc<VoxgigSolardemoSDK> {
+    sdk_with(wire, secrets, vec![])
+}
+
+// `extra` is client options beside the feature's own.
+fn sdk_with(wire: &Wire, secrets: Vec<(&str, Value)>, extra: Vec<(&str, Value)>) -> Rc<VoxgigSolardemoSDK> {
     let fopts = jo(vec![("active", Value::Bool(true))]);
     for (k, v) in secrets {
         voxgig_solardemo_sdk::core::helpers::setp(&fopts, k, v);
     }
 
-    VoxgigSolardemoSDK::new(jo(vec![
+    let opts = jo(vec![
         ("base", Value::str(BASE)),
         ("allow", jo(vec![("op", Value::str("direct,graphql"))])),
         ("system", jo(vec![("fetch", wire.fetch())])),
         ("feature", jo(vec![("secrets", fopts)])),
-    ]))
+    ]);
+    for (k, v) in extra {
+        voxgig_solardemo_sdk::core::helpers::setp(&opts, k, v);
+    }
+
+    VoxgigSolardemoSDK::new(opts).unwrap()
 }
 
 fn providers(list: Vec<Value>) -> (&'static str, Value) {
@@ -290,6 +380,9 @@ fn entity_request(client: &Rc<VoxgigSolardemoSDK>, path: &str) -> Option<String>
 
 #[test]
 fn inactive_leaves_the_apikey_option_exactly_as_it_was() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
 
     // Not `sdk()`: the point is a client with the feature OFF.
@@ -308,7 +401,7 @@ fn inactive_leaves_the_apikey_option_exactly_as_it_was() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -327,6 +420,9 @@ fn inactive_leaves_the_apikey_option_exactly_as_it_was() {
 
 #[test]
 fn apikey_option_still_wins_over_the_chain() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
 
     // The explicit credential is a CLIENT option, not a feature option -
@@ -347,7 +443,7 @@ fn apikey_option_still_wins_over_the_chain() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -374,6 +470,9 @@ fn apikey_option_still_wins_over_the_chain() {
 
 #[test]
 fn an_omitted_apikey_defers_to_the_chain() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = sdk(&wire, vec![providers(vec![memory("APIKEY", "CHAINKEY01")])]);
 
@@ -397,7 +496,29 @@ fn an_omitted_apikey_defers_to_the_chain() {
 }
 
 #[test]
+fn a_resolved_key_is_placed_as_prepare_auth_places_it_the_secret_kept() {
+    if skipped_without_auth() {
+        return;
+    }
+    let wire = Wire::new();
+    let client = sdk_with(
+        &wire,
+        vec![providers(vec![memory("APIKEY", "CHAINKEY05")])],
+        vec![("secret", Value::str("PASS01"))],
+    );
+
+    client
+        .direct(jo(vec![("path", Value::str("/thing"))]))
+        .expect("direct");
+
+    paired_is(call_auth(&wire.api(), 0), "CHAINKEY05", "PASS01");
+}
+
+#[test]
 fn an_explicitly_empty_apikey_also_defers_to_the_chain() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str(BASE)),
@@ -414,7 +535,7 @@ fn an_explicitly_empty_apikey_also_defers_to_the_chain() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -428,6 +549,9 @@ fn an_explicitly_empty_apikey_also_defers_to_the_chain() {
 // transport injection must honour too.
 #[test]
 fn auth_null_suppresses_the_credential_chain_or_no_chain() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str(BASE)),
@@ -444,7 +568,7 @@ fn auth_null_suppresses_the_credential_chain_or_no_chain() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -468,6 +592,9 @@ fn auth_null_suppresses_the_credential_chain_or_no_chain() {
 
 #[test]
 fn auth_null_suppresses_an_explicit_apikey_too() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str(BASE)),
@@ -485,7 +612,7 @@ fn auth_null_suppresses_an_explicit_apikey_too() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -496,6 +623,9 @@ fn auth_null_suppresses_an_explicit_apikey_too() {
 
 #[test]
 fn a_miss_everywhere_leaves_the_header_off() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = sdk(
         &wire,
@@ -516,6 +646,9 @@ fn a_miss_everywhere_leaves_the_header_off() {
 // half that must not be "fixed" by making every miss fail.
 #[test]
 fn a_miss_falls_through_to_the_next_provider() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let asked: Rc<RefCell<i64>> = Rc::new(RefCell::new(0));
     let n = asked.clone();
@@ -542,6 +675,9 @@ fn a_miss_falls_through_to_the_next_provider() {
 
 #[test]
 fn a_callable_provider_is_accepted_verbatim() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let asked: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
     let seen = asked.clone();
@@ -570,6 +706,9 @@ fn a_callable_provider_is_accepted_verbatim() {
 
 #[test]
 fn a_provider_error_fails_direct_rather_than_sending() {
+    if skipped_without_auth() {
+        return;
+    }
     // THE RULE, asserted first so a regression reports the leak itself.
     let wire = Wire::new();
     let res = sdk(&wire, vec![providers(vec![broken()])])
@@ -616,6 +755,9 @@ fn a_provider_error_fails_direct_rather_than_sending() {
 
 #[test]
 fn a_provider_error_fails_graphql_rather_than_sending() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let res = sdk(&wire, vec![providers(vec![broken()])])
         .graphql("{ thing }", Value::empty_map(), Value::empty_map())
@@ -658,6 +800,9 @@ fn a_provider_error_fails_graphql_rather_than_sending() {
 
 #[test]
 fn a_provider_error_fails_the_entity_path_rather_than_sending() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let err = entity_request(&sdk(&wire, vec![providers(vec![broken()])]), "/thing");
 
@@ -693,6 +838,9 @@ fn a_provider_error_fails_the_entity_path_rather_than_sending() {
 // request rather than send it without a credential.
 #[test]
 fn an_unknown_provider_kind_refuses_rather_than_sending() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let res = sdk(
         &wire,
@@ -729,6 +877,9 @@ const MALFORMED_MSG: &str = "sekreto: not a provider or a provider spec";
 
 #[test]
 fn a_malformed_provider_entry_refuses_rather_than_being_dropped() {
+    if skipped_without_auth() {
+        return;
+    }
     // CONTROL first: the same construction with a WORKING provider reaches
     // the transport exactly once, carrying its credential. Without this a
     // zero below could mean UNWIRED rather than REFUSED.
@@ -797,6 +948,9 @@ fn a_malformed_provider_entry_refuses_rather_than_being_dropped() {
 // an empty or duplicated one is a kind nothing can name.
 #[test]
 fn the_selected_plugin_kinds_have_distinct_names() {
+    if skipped_without_auth() {
+        return;
+    }
     let defs = voxgig_solardemo_sdk::feature::secrets::plugins::definitions();
     let mut names: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
     let count = names.len();
@@ -812,6 +966,9 @@ fn the_selected_plugin_kinds_have_distinct_names() {
 
 #[test]
 fn a_selected_plugin_kind_is_in_the_sdk_vocabulary() {
+    if skipped_without_auth() {
+        return;
+    }
     let defs = voxgig_solardemo_sdk::feature::secrets::plugins::definitions();
     if !defs.iter().any(|d| "hashicorp" == d.name) {
         // No vault group in this project's model: nothing to assert.
@@ -845,6 +1002,9 @@ fn a_selected_plugin_kind_is_in_the_sdk_vocabulary() {
 // failing with the original error long after the vault recovered.
 #[test]
 fn a_provider_recovers_after_a_transient_failure() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let calls = Rc::new(RefCell::new(0i64));
     let n = calls.clone();
@@ -882,6 +1042,9 @@ fn a_provider_recovers_after_a_transient_failure() {
 // `cache: false` is documented as "every resolve asks the chain again".
 #[test]
 fn cache_false_asks_the_chain_on_every_request() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let calls = Rc::new(RefCell::new(0i64));
     let n = calls.clone();
@@ -918,6 +1081,9 @@ fn cache_false_asks_the_chain_on_every_request() {
 // resolution after a miss meant the chain was never asked again for the life
 #[test]
 fn cache_true_re_asks_after_a_miss() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let calls = Rc::new(RefCell::new(0i64));
     let present = Rc::new(RefCell::new(false));
@@ -967,6 +1133,9 @@ fn cache_true_re_asks_after_a_miss() {
 // fix above must not turn every request into a chain walk.
 #[test]
 fn cache_true_keeps_a_hit() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let calls = Rc::new(RefCell::new(0i64));
     let n = calls.clone();
@@ -996,6 +1165,9 @@ fn cache_true_keeps_a_hit() {
 // stop going out.
 #[test]
 fn an_uncached_miss_retracts_the_credential() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let calls = Rc::new(RefCell::new(0i64));
     let n = calls.clone();
@@ -1032,6 +1204,9 @@ fn an_uncached_miss_retracts_the_credential() {
 
 #[test]
 fn the_secret_name_is_configurable() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = sdk(
         &wire,
@@ -1050,6 +1225,9 @@ fn the_secret_name_is_configurable() {
 
 #[test]
 fn sekreto_is_live_for_arbitrary_secrets_and_redaction() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = sdk(
         &wire,
@@ -1099,6 +1277,9 @@ fn bodyof(call: &Call) -> Value {
 
 #[test]
 fn the_refresh_token_buys_an_access_token_and_the_request_carries_it() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = exchange_sdk(&wire, vec![exchange(vec![])]);
 
@@ -1112,12 +1293,20 @@ fn the_refresh_token_buys_an_access_token_and_the_request_carries_it() {
         Value::str(REFRESH),
         "the refresh token is sent in the request field"
     );
+    assert_eq!(
+        wire.token()[0].redirect.as_deref(),
+        Some("manual"),
+        "the exchange must ask system.fetch to follow no redirect"
+    );
     assert_eq!(wire.api().len(), 1);
     credential_is(call_auth(&wire.api(), 0), "ACCESS01");
 }
 
 #[test]
 fn an_explicit_exchange_refresh_wins_over_the_chain() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = exchange_sdk(
         &wire,
@@ -1136,6 +1325,9 @@ fn an_explicit_exchange_refresh_wins_over_the_chain() {
 
 #[test]
 fn one_purchase_serves_many_requests() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = exchange_sdk(&wire, vec![exchange(vec![])]);
 
@@ -1155,6 +1347,9 @@ fn one_purchase_serves_many_requests() {
 
 #[test]
 fn an_expiry_buys_another_token_and_retries_the_same_request() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new().apistatus(&[401, 200]);
     let client = exchange_sdk(&wire, vec![exchange(vec![])]);
 
@@ -1174,7 +1369,35 @@ fn an_expiry_buys_another_token_and_retries_the_same_request() {
 }
 
 #[test]
+fn a_token_bought_on_a_refusal_is_placed_as_prepare_auth_places_it() {
+    if skipped_without_auth() {
+        return;
+    }
+    let wire = Wire::new().apistatus(&[401, 200]);
+    let client = sdk_with(
+        &wire,
+        vec![
+            ("name", Value::str("refresh_token")),
+            providers(vec![memory("REFRESH_TOKEN", REFRESH)]),
+            exchange(vec![]),
+        ],
+        vec![("secret", Value::str("PASS01"))],
+    );
+
+    client
+        .direct(jo(vec![("path", Value::str("/thing"))]))
+        .expect("direct");
+
+    assert_eq!(wire.api().len(), 2, "expected the request to be retried");
+    paired_is(call_auth(&wire.api(), 0), "ACCESS01", "PASS01");
+    paired_is(call_auth(&wire.api(), 1), "ACCESS02", "PASS01");
+}
+
+#[test]
 fn the_retry_happens_once_not_in_a_loop() {
+    if skipped_without_auth() {
+        return;
+    }
     // Every API call is refused: a second refusal on a token bought moments
     // ago is a real failure, and spinning on it would hang instead.
     let wire = Wire::new().apistatus(&[401]);
@@ -1190,6 +1413,9 @@ fn the_retry_happens_once_not_in_a_loop() {
 
 #[test]
 fn a_status_outside_exchange_statuses_is_not_an_expiry() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new().apistatus(&[403]);
     let client = exchange_sdk(&wire, vec![exchange(vec![])]);
 
@@ -1203,6 +1429,9 @@ fn a_status_outside_exchange_statuses_is_not_an_expiry() {
 
 #[test]
 fn exchange_statuses_are_configurable() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new().apistatus(&[403, 200]);
     let client = exchange_sdk(
         &wire,
@@ -1221,6 +1450,9 @@ fn exchange_statuses_are_configurable() {
 
 #[test]
 fn the_endpoint_and_field_names_are_configurable_and_the_body_is_serialised() {
+    if skipped_without_auth() {
+        return;
+    }
     // A JSON-HOSTILE refresh token: it must arrive as this literal value,
     // which only holds if the body is serialised rather than concatenated.
     const NASTY: &str = "re\"fresh\\01\nline";
@@ -1259,6 +1491,9 @@ fn the_endpoint_and_field_names_are_configurable_and_the_body_is_serialised() {
 
 #[test]
 fn an_explicit_apikey_is_spent_before_anything_is_bought() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str(BASE)),
@@ -1277,7 +1512,7 @@ fn an_explicit_apikey_is_spent_before_anything_is_bought() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -1289,6 +1524,9 @@ fn an_explicit_apikey_is_spent_before_anything_is_bought() {
 
 #[test]
 fn a_held_apikey_that_has_expired_falls_through_to_the_exchange() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new().apistatus(&[401, 200]);
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str(BASE)),
@@ -1307,7 +1545,7 @@ fn a_held_apikey_that_has_expired_falls_through_to_the_exchange() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -1319,6 +1557,9 @@ fn a_held_apikey_that_has_expired_falls_through_to_the_exchange() {
 
 #[test]
 fn no_refresh_token_anywhere_is_an_error_not_an_unauthenticated_call() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = sdk(
         &wire,
@@ -1350,6 +1591,9 @@ fn no_refresh_token_anywhere_is_an_error_not_an_unauthenticated_call() {
 
 #[test]
 fn a_failing_token_endpoint_surfaces_the_api_refusal_not_a_spin() {
+    if skipped_without_auth() {
+        return;
+    }
     // The first purchase succeeds; the second (after the 401) does not.
     let wire = Wire::new().apistatus(&[401]).tokenstatus(&[200, 500]);
     let client = exchange_sdk(&wire, vec![exchange(vec![])]);
@@ -1364,6 +1608,9 @@ fn a_failing_token_endpoint_surfaces_the_api_refusal_not_a_spin() {
 
 #[test]
 fn exchange_auth_null_suppresses_and_is_never_retried() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new().apistatus(&[401]);
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str(BASE)),
@@ -1382,7 +1629,7 @@ fn exchange_auth_null_suppresses_and_is_never_retried() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -1414,6 +1661,9 @@ fn exchange_auth_null_suppresses_and_is_never_retried() {
 
 #[test]
 fn the_exchange_has_a_raw_transport_when_no_system_fetch_is_given() {
+    if skipped_without_auth() {
+        return;
+    }
     // Port 1 is reserved and never listening, so the connection is refused
     // immediately rather than hanging on a timeout.
     let client = VoxgigSolardemoSDK::new(jo(vec![
@@ -1431,7 +1681,7 @@ fn the_exchange_has_a_raw_transport_when_no_system_fetch_is_given() {
                 ]),
             )]),
         ),
-    ]));
+    ])).unwrap();
 
     let res = client
         .direct(jo(vec![("path", Value::str("/thing"))]))
@@ -1446,12 +1696,302 @@ fn the_exchange_has_a_raw_transport_when_no_system_fetch_is_given() {
     );
 }
 
+type Seen = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
+
+// A listener that records each request, answering it with `answer`; it stops,
+// closing the socket, once `stop` is set and one more connection wakes it.
+fn listener(
+    answer: std::sync::Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
+    seen: Seen,
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+) -> (u16, std::thread::JoinHandle<()>) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = server.local_addr().unwrap().port();
+    let handle = std::thread::spawn(move || {
+        for stream in server.incoming() {
+            if stop.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
+            let mut stream = match stream {
+                Ok(stream) => stream,
+                Err(_) => continue,
+            };
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap_or(0);
+            let mut words = line.split(' ');
+            let method = words.next().unwrap_or("").trim().to_string();
+            let path = words.next().unwrap_or("").to_string();
+            let mut size = 0;
+            loop {
+                let mut header = String::new();
+                if 0 == reader.read_line(&mut header).unwrap_or(0) || header.trim().is_empty() {
+                    break;
+                }
+                if let Some((name, value)) = header.split_once(':') {
+                    if name.trim().eq_ignore_ascii_case("content-length") {
+                        size = value.trim().parse::<usize>().unwrap_or(0);
+                    }
+                }
+            }
+            let mut body = vec![0u8; size];
+            let _ = reader.read_exact(&mut body);
+            let reply = match answer(&path) {
+                Some(head) => format!("HTTP/1.1 {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", head),
+                None => {
+                    seen.lock().unwrap().push(format!(
+                        "{} {} {}",
+                        method,
+                        path,
+                        String::from_utf8_lossy(&body)
+                    ));
+                    let json = "{\"access_token\":\"ELSEWHERE01\"}";
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                         Content-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        json.len(),
+                        json
+                    )
+                }
+            };
+            let _ = stream.write_all(reply.as_bytes());
+        }
+    });
+    (port, handle)
+}
+
+// The origin answers the exchange as `case` says, counting it, and records
+// what else it gets; the other origin records everything.
+struct Origins {
+    case: std::sync::Arc<std::sync::Mutex<(i64, String)>>,
+    exchanged: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    elsewhere: Seen,
+    followed: Seen,
+    origin: String,
+    base: String,
+    away: String,
+    ports: Vec<u16>,
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    threads: Vec<std::thread::JoinHandle<()>>,
+}
+
+impl Origins {
+    fn start() -> Origins {
+        use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+        use std::sync::{Arc, Mutex};
+
+        let stop = Arc::new(AtomicBool::new(false));
+        let case: Arc<Mutex<(i64, String)>> = Arc::new(Mutex::new((307, String::new())));
+        let exchanged = Arc::new(AtomicUsize::new(0));
+        let elsewhere = Seen::default();
+        let followed = Seen::default();
+
+        let (otherport, otherthread) =
+            listener(Arc::new(|_path: &str| None), elsewhere.clone(), stop.clone());
+        let answering = case.clone();
+        let counting = exchanged.clone();
+        let (originport, originthread) = listener(
+            Arc::new(move |path: &str| {
+                if "/api/auth/token" != path {
+                    return None;
+                }
+                counting.fetch_add(1, Ordering::SeqCst);
+                let (status, location) = answering.lock().unwrap().clone();
+                Some(format!("{} Moved\r\nLocation: {}", status, location))
+            }),
+            followed.clone(),
+            stop.clone(),
+        );
+
+        let origin = format!("http://127.0.0.1:{}", originport);
+        Origins {
+            case,
+            exchanged,
+            elsewhere,
+            followed,
+            base: format!("{}/api", origin),
+            origin,
+            away: format!("http://127.0.0.1:{}/api/auth/token", otherport),
+            ports: vec![otherport, originport],
+            stop,
+            threads: vec![otherthread, originthread],
+        }
+    }
+
+    fn client(&self, extra: Vec<(&str, Value)>) -> Rc<VoxgigSolardemoSDK> {
+        let mut xopts = vec![("refresh", Value::str(REFRESH))];
+        xopts.extend(extra);
+        VoxgigSolardemoSDK::new(jo(vec![
+            ("base", Value::str(self.base.clone())),
+            ("allow", jo(vec![("op", Value::str("direct,graphql"))])),
+            (
+                "feature",
+                jo(vec![(
+                    "secrets",
+                    jo(vec![
+                        ("active", Value::Bool(true)),
+                        ("name", Value::str("refresh_token")),
+                        exchange(xopts),
+                    ]),
+                )]),
+            ),
+        ]))
+        .unwrap()
+    }
+
+    fn close(self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        for port in &self.ports {
+            let _ = std::net::TcpStream::connect(("127.0.0.1", *port));
+        }
+        for thread in self.threads {
+            thread.join().unwrap();
+        }
+    }
+}
+
+fn direct_message(res: Result<Value, voxgig_solardemo_sdk::core::error::VoxgigSolardemoError>) -> String {
+    match res {
+        Ok(res) => get_str(&res, "err").unwrap_or_else(|| format!("{:?}", res)),
+        Err(err) => err.msg,
+    }
+}
+
+#[test]
+fn a_redirect_answering_the_exchange_is_a_failure_and_nothing_follows_it() {
+    if skipped_without_auth() {
+        return;
+    }
+    let o = Origins::start();
+    let cases: Vec<(i64, String)> = vec![
+        (307, o.away.clone()),
+        (308, o.away.clone()),
+        (302, o.away.clone()),
+        (307, "/api/moved/token".to_string()),
+    ];
+
+    let mut refused = 0;
+    let mut allowed: Vec<String> = Vec::new();
+
+    for (status, location) in cases.iter() {
+        *o.case.lock().unwrap() = (*status, location.clone());
+
+        let message =
+            direct_message(o.client(vec![]).direct(jo(vec![("path", Value::str("/thing"))])));
+
+        if message.contains(&format!(
+            "token exchange failed: {} from {}/auth/token",
+            status, o.base
+        )) {
+            refused += 1;
+        } else {
+            allowed.push(format!("{} to {}: {}", status, location, message));
+        }
+    }
+
+    let elsewhere = o.elsewhere.lock().unwrap().clone();
+    let followed = o.followed.lock().unwrap().clone();
+    o.close();
+    println!(
+        "secrets: exchange refused {} redirect(s), {} followed",
+        refused,
+        elsewhere.len() + followed.len()
+    );
+
+    assert!(elsewhere.is_empty(), "the exchange reached another origin: {:?}", elsewhere);
+    assert!(followed.is_empty(), "a request followed a refused exchange: {:?}", followed);
+    assert!(allowed.is_empty(), "a redirect was not a failed exchange: {:?}", allowed);
+    assert_eq!(refused, cases.len());
+}
+
+#[test]
+fn with_the_option_a_redirect_on_the_exchanges_own_origin_is_followed_and_no_other() {
+    if skipped_without_auth() {
+        return;
+    }
+    use std::sync::atomic::Ordering;
+
+    let o = Origins::start();
+    // The target the exchange is asked again at, if followed; a Location of a
+    // query alone keeps the path that answered.
+    let cases: Vec<(i64, String, Option<&str>)> = vec![
+        (307, "/api/moved/token".to_string(), Some("/api/moved/token")),
+        (308, format!("{}/api/moved/token", o.origin), Some("/api/moved/token")),
+        (307, "?step=2".to_string(), Some("/api/auth/token?step=2")),
+        (307, o.away.clone(), None),
+        (302, "/api/moved/token".to_string(), None),
+        (307, "/api/auth/token".to_string(), None),
+    ];
+
+    let mut wrong: Vec<String> = Vec::new();
+    let mut followed = 0;
+    let mut refused = 0;
+    let mut looped = 0;
+
+    for (status, location, next) in cases.iter() {
+        *o.case.lock().unwrap() = (*status, location.clone());
+        o.followed.lock().unwrap().clear();
+        o.exchanged.store(0, Ordering::SeqCst);
+
+        let res = o
+            .client(vec![("redirect", Value::str("same-origin"))])
+            .direct(jo(vec![("path", Value::str("/thing"))]));
+        let ok = matches!(&res, Ok(r) if getp(r, "ok") == Value::Bool(true));
+        let message = direct_message(res);
+        let seen: Vec<String> =
+            o.followed.lock().unwrap().iter().map(|s| s.trim().to_string()).collect();
+        let report = format!("{} to {}: {} {:?}", status, location, message, seen);
+
+        if let Some(next) = next {
+            let asked = format!("POST {} {{\"refresh_token\":\"{}\"}}", next, REFRESH);
+            if ok && 2 == seen.len() && asked == seen[0] {
+                followed += 1;
+            } else {
+                wrong.push(report);
+            }
+        } else if seen.is_empty()
+            && message.contains(&format!(
+                "token exchange failed: {} from {}/auth/token",
+                status, o.base
+            ))
+        {
+            refused += 1;
+        } else {
+            wrong.push(report);
+        }
+
+        if "/api/auth/token" == location {
+            looped = o.exchanged.load(Ordering::SeqCst);
+        }
+    }
+
+    let elsewhere = o.elsewhere.lock().unwrap().clone();
+    o.close();
+    println!(
+        "secrets: exchange opt-in followed {} redirect(s) on its own origin, refused {}, {} elsewhere",
+        followed,
+        refused,
+        elsewhere.len()
+    );
+
+    assert!(elsewhere.is_empty(), "the exchange reached another origin: {:?}", elsewhere);
+    assert!(wrong.is_empty(), "{:?}", wrong);
+    assert_eq!(followed, 3);
+    assert_eq!(refused, 3);
+    // A redirect to itself stops at the hop limit.
+    assert_eq!(looped, 6);
+}
+
 
 // TEST MODE BUYS NOTHING: the test feature replaces the transport so no
 // request leaves the process, and an exchange would be the one call it
 // could not stop.
 #[test]
 fn test_mode_buys_nothing_and_needs_no_token_endpoint() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = voxgig_solardemo_sdk::test_sdk(
         Value::Noval,
@@ -1489,6 +2029,9 @@ fn test_mode_buys_nothing_and_needs_no_token_endpoint() {
 // The exchange OFF leaves the feature exactly as it was.
 #[test]
 fn exchange_off_leaves_the_feature_exactly_as_it_was() {
+    if skipped_without_auth() {
+        return;
+    }
     let wire = Wire::new();
     let client = sdk(&wire, vec![providers(vec![memory("APIKEY", "PLAINKEY01")])]);
 
@@ -1505,6 +2048,67 @@ fn exchange_off_leaves_the_feature_exactly_as_it_was() {
 // and an unused import would be a warning in a template that ships.
 #[test]
 fn helpers_are_the_ones_the_seam_uses() {
+    if skipped_without_auth() {
+        return;
+    }
     assert_eq!(to_int(&Value::Num(401.0)), 401);
     assert!(matches!(ja(vec![Value::Noval]), Value::List(_)));
+}
+
+// Off by the config where it declares no auth, else by `auth: null`: either
+// way the feature places no credential, buys no token and retries nothing.
+#[test]
+fn auth_off_places_no_credential_and_buys_no_token() {
+    let declared = declares_auth();
+    let secrets = ["OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01"];
+    let carries =
+        |call: &Call| call.auth.is_some() || secrets.iter().any(|s| call.values.contains(s));
+    let mut sent: Vec<Call> = Vec::new();
+    let mut bought = 0;
+
+    let scenarios: Vec<(&str, Vec<(&str, Value)>, Vec<(&str, Value)>, i64)> = vec![
+        ("a key the chain resolves", vec![providers(vec![memory("APIKEY", "OFFKEY01")])], vec![], 200),
+        ("an explicit apikey", vec![], vec![("apikey", Value::str("OFFKEY02"))], 200),
+        (
+            "a refusal",
+            vec![
+                ("name", Value::str("refresh_token")),
+                providers(vec![memory("REFRESH_TOKEN", "OFFREFRESH01")]),
+                exchange(vec![]),
+            ],
+            vec![],
+            401,
+        ),
+    ];
+
+    for (what, fopts, mut extra, status) in scenarios {
+        if declared {
+            extra.push(("auth", Value::Null));
+        }
+        let wire = Wire::new().apistatus(&[status]);
+        let client = sdk_with(&wire, fopts, extra);
+
+        let _ = client.direct(jo(vec![("path", Value::str("/thing"))]));
+
+        assert_eq!(wire.api().len(), 1, "{}: a request was retried with auth off: {}", what, wire.trace());
+        assert_eq!(wire.token().len(), 0, "{}: a token was bought with auth off: {}", what, wire.trace());
+        assert!(!carries(&wire.api()[0]), "{}: a credential was sent with auth off: {}", what, wire.trace());
+        assert_eq!(
+            secrets_call(&client, vec![Value::str("credential")]),
+            Value::str(""),
+            "{}: the feature resolved a credential with auth off",
+            what
+        );
+
+        sent.extend(wire.api());
+        bought += wire.token().len();
+    }
+
+    println!(
+        "secrets: auth off by {}: {} request(s), {} credential(s), {} token(s)",
+        if declared { "option" } else { "config" },
+        sent.len(),
+        sent.iter().filter(|c| carries(c)).count(),
+        bought
+    );
 }

@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, canonScalarKey, entityIdField, pickExampleEntity, requiredItems, matchExampleItems, requestExampleItems, envLocalAt, cdTarget, fact, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -24,6 +24,8 @@ function kotlinLit(type: any): string {
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const SDK = model.const.Name + 'SDK'
 
@@ -39,13 +41,18 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = 'null'
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `mutableMapOf<String, Any?>("${idF}" to "test01")` : 'null'
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = 0 < items.length
+      ? `mutableMapOf<String, Any?>(${items.map((it: any) =>
+        `${kotlinString(it.name)} to ${it.name === idF ? '"test01"' : kotlinLit(it.type)}`).join(', ')})`
+      : 'null'
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
     const chosen = requiredItems(exampleEntity, 'list')
     testArg = `mutableMapOf<String, Any?>(${chosen.map((it: any) =>
       `${kotlinString(it.name)} to ${kotlinLit(it.type)}`).join(', ')})`
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -72,8 +79,18 @@ println(${eVar}.data())`
 println(result)`
 
   const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
+    ? `\n${ENVVAR.apikey}=<your-key>${fact(model.main[KIT], 'auth').secret ? `\n${ENVVAR.secret}=<your-secret>` : ''}`
     : ''
+  const serverEnvLine = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+    .map((v: any) => `\n${ENVVAR.server[v.name]}=<${v.name}>`).join('')
+  const defaulted = fact(model.main[KIT], 'server').filter((v: any) => !v.required)
+  const liveEnvNote = (0 === defaulted.length ? '' :
+    defaulted.map((v: any) => '`' + ENVVAR.server[v.name] + '`').join(', ') +
+    (1 === defaulted.length ? ', when set, replaces its server variable\'s default.\n'
+      : ', when set, replace their server variables\' defaults.\n')) +
+    'Each entity\'s tests also read `' + ENVVAR.prefix + '_TEST_<ENTITY>_ENTID`, with the\n' +
+    'entity\'s name in capitals: a JSON object of the ids of existing records, for\n' +
+    'the tests that do not create their own.\n\n'
 
   Content(`### Make a direct HTTP request
 
@@ -81,9 +98,9 @@ For endpoints not covered by entity methods:
 
 \`\`\`kotlin
 val result = client.direct(mutableMapOf<String, Any?>(
-    "path" to "/api/resource/{id}",
-    "method" to "GET",
-    "params" to mapOf("id" to "example")))
+    "path" to "${dx.path}",
+    "method" to "${dx.method}",
+    "params" to mapOf("${dx.param}" to "example")))
 
 if (result["ok"] == true) {
     println(result["status"])  // 200
@@ -102,9 +119,9 @@ else {
 \`\`\`kotlin
 // prepare() returns the fetch definition and raises on error.
 val fetchdef = client.prepare(mutableMapOf<String, Any?>(
-    "path" to "/api/resource/{id}",
-    "method" to "DELETE",
-    "params" to mapOf("id" to "example")))
+    "path" to "${dx.path}",
+    "method" to "${dx.method}",
+    "params" to mapOf("${dx.param}" to "example")))
 
 println(fetchdef["url"])
 println(fetchdef["method"])
@@ -143,16 +160,16 @@ val client = ${SDK}(mutableMapOf<String, Any?>(
 
 ### Run live tests
 
-Create a \`.env.local\` file at the project root:
+Create a \`.env.local\` file ${envLocalAt(props.ctx$, target)}:
 
 \`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
+${ENVVAR.live}=TRUE${apikeyEnvLine}${serverEnvLine}
 \`\`\`
 
-Then run:
+${liveEnvNote}Then run:
 
 \`\`\`bash
-cd kotlin && gradle test
+${cdTarget(target)}gradle test
 \`\`\`
 
 `)

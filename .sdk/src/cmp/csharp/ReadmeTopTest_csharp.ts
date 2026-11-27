@@ -1,5 +1,5 @@
 
-import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, requiredItems, matchExampleItems, requestExampleItems } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -45,8 +45,7 @@ var client = ${model.const.Name}SDK.TestSDK(null, null);
     if (isMatchOp || ('list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length)) {
       // Every REQUIRED match key (id first) — the same shape that generates
       // the op's request type, so the block stays honest.
-      const items = (isMatchOp ? opRequestShape(exampleEntity, primaryOp).items
-        .filter((it: any) => !it.optional || it.name === idF) : requiredItems(exampleEntity, 'list'))
+      const items = (isMatchOp ? matchExampleItems(exampleEntity, primaryOp, idF) : requiredItems(exampleEntity, 'list'))
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       arg = 0 < items.length
@@ -54,7 +53,7 @@ var client = ${model.const.Name}SDK.TestSDK(null, null);
           ` [${csStringLiteral(it.name)}] = ${isMatchOp && it.name === idF ? '"test01"' : csLit(it.type)}`).join(',')} }`
         : 'null'
     } else if ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp) {
-      const items = opRequestShape(exampleEntity, primaryOp).items
+      const items = requestExampleItems(exampleEntity, primaryOp)
         .filter((it: any) => it.name !== idF && it.name !== 'id')
       const required = items.filter((it: any) => !it.optional)
       const chosen = required.length ? required : items.slice(0, 3)

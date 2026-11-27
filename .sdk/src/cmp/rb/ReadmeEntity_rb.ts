@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, canonToType, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, canonKey, canonScalarKey, entityIdField, safeVarName, exampleVarName, entityOps, matchExampleItems, litString, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -16,7 +16,7 @@ function rbLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return '[]'
   if ('OBJECT' === k) return '{}'
-  return `"${placeholder}"`
+  return litString('rb', placeholder)
 }
 
 
@@ -53,9 +53,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     const idF = entityIdField(entity)
     // Sanitise the local variable name — an entity whose lowercased name is a
@@ -67,8 +65,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -103,8 +101,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
-        Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${desc} |
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
+        Content(`| \`${field.n}\` | \`${canonToType(field.t, 'rb').replace(/\|/g, '\\|')}\` | ${desc} |
 `)
       })
 
@@ -112,14 +110,13 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+    if (opnames.includes('load')) {
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `{ ${loadItems.map((it: any) =>
-          `"${it.name}" => ${rbLit(it.type,
+          `${litString('rb', it.name)} => ${rbLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)}`).join(', ')} }`
         : ''
       Content(`#### Example: Load
@@ -132,7 +129,7 @@ ${eVar} = client.${entity.Name}.load(${loadArg})
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`ruby
@@ -144,13 +141,13 @@ ${eVar}s.each { |item| puts item.data_get }
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member must appear — including a
       // required id and parent keys like page_id — with a real, executable
       // literal (the doc test RUNS this block, so a comment placeholder
       // would break it).
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
@@ -158,7 +155,7 @@ ${eVar}s.each { |item| puts item.data_get }
 ${eVar} = client.${entity.Name}.create({
 `)
       createItems.map((it: any) => {
-        Content(`  "${it.name}" => ${rbLit(it.type, 'example_' + it.name)}, # ${canonToType(it.type, target.name)}
+        Content(`  ${litString('rb', it.name)} => ${rbLit(it.type, 'example_' + it.name)}, # ${canonToType(it.type, 'rb')}
 `)
       })
       Content(`})

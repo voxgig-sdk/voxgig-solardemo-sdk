@@ -14,7 +14,7 @@ type EntyClass struct {
 	client  *core.ProjectNameSDK
 	utility *core.Utility
 	entopts map[string]any
-	data    map[string]any
+	data    any
 	match   map[string]any
 	entctx  *core.Context
 	deleted bool
@@ -64,8 +64,12 @@ func (e *EntyClass) GoString() string {
 }
 
 func (e *EntyClass) MarshalJSON() ([]byte, error) {
+	data, ok := e.data.(map[string]any)
+	if !ok {
+		return json.Marshal(e.data)
+	}
 	out := map[string]any{}
-	for k, v := range e.data {
+	for k, v := range data {
 		out[k] = v
 	}
 	out["voxgig$entity"] = "EntityName"
@@ -77,7 +81,7 @@ func (e *EntyClass) MarkDeleted() {
 }
 
 
-// Deleted reports whether a successful Remove has resolved on this instance.
+// Deleted reports whether a remove has marked this instance deleted.
 func (e *EntyClass) Deleted() bool {
 	return e.deleted
 }
@@ -93,10 +97,7 @@ func (e *EntyClass) Make() core.Entity {
 
 func (e *EntyClass) Data(args ...any) any {
 	if len(args) > 0 && args[0] != nil {
-		e.data = core.ToMapAny(vs.Clone(args[0]))
-		if e.data == nil {
-			e.data = map[string]any{}
-		}
+		e.data = vs.Clone(args[0])
 		e.utility.FeatureHook(e.entctx, "SetData")
 	}
 
@@ -175,13 +176,6 @@ func (e *EntyClass) Stream(action string, args map[string]any, callopts map[stri
 	utility := e.utility
 	ctx := utility.MakeContext(ctxmap, e.entctx)
 	ctx.Meta["stream"] = callopts
-
-	// Outbound: expose the caller's payload so the request builder / transport
-	// can stream it as the request body.
-	if body := callopts["body"]; body != nil {
-		ctx.Reqdata["body$"] = body
-		ctx.Meta["stream_out"] = body
-	}
 
 	send := func(item core.StreamItem) bool {
 		select {

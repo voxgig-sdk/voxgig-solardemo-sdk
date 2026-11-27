@@ -10,7 +10,7 @@ use crate::core::context::{Context, CtxSpec};
 use crate::core::error::ProjectNameError;
 use crate::core::helpers::{get_bool, getp, setp, to_map};
 use crate::core::sdk::ProjectNameSDK;
-use crate::core::types::{Entity, ProjectNameEntity};
+use crate::core::types::{Entity, ProjectNameEntityBase};
 use crate::core::utility_type::Utility;
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
@@ -24,7 +24,7 @@ pub struct EntyClass {
     data: RefCell<Value>,
     mtch: RefCell<Value>,
     entctx: RefCell<Option<Rc<Context>>>,
-    // Set once a successful `remove` resolves on this instance.
+    // Set when a remove marks this instance deleted.
     deleted: RefCell<bool>,
 }
 
@@ -76,7 +76,7 @@ impl EntyClass {
 
     // Runs the pipeline and returns the terminal result VALUE. The entity
     // contract lives one level up, in the op methods below: they call this,
-    // then hand back the entity (see AGENTS.md). It is split that way because
+    // then hand back the entity. It is split that way because
     // `Value` is a closed data union that cannot carry an entity.
     fn run_op(
         &self,
@@ -171,18 +171,6 @@ impl EntyClass {
             Some(&self.ent_ctx()),
         );
 
-        // Outbound: attach a caller `body` so the transport can stream a
-        // request payload (reqdata `body$`).
-        let body = getp(&stream_opts, "body");
-        if !body.is_noval() && !body.is_null() {
-            let reqdata = match ctx.reqdata.borrow().clone() {
-                Value::Map(m) => Value::Map(m),
-                _ => Value::empty_map(),
-            };
-            setp(&reqdata, "body$", body);
-            *ctx.reqdata.borrow_mut() = reqdata;
-        }
-
         // Run the same pipeline as run_op. A failed step leaves through
         // make_error, as an operation's does.
         let fail = |e: ProjectNameError| self.utility.make_error(&ctx, Some(e)).map(stream_items);
@@ -276,11 +264,7 @@ impl Entity for EntyClass {
     fn data(&self, args: Option<&Value>) -> Value {
         if let Some(arg) = args {
             if !arg.is_noval() && !arg.is_null() {
-                let cloned = to_map(&vs::clone(arg));
-                *self.data.borrow_mut() = match cloned {
-                    Value::Map(m) => Value::Map(m),
-                    _ => Value::empty_map(),
-                };
+                *self.data.borrow_mut() = vs::clone(arg);
                 self.utility.feature_hook(&self.ent_ctx(), "SetData");
             }
         }
@@ -306,7 +290,7 @@ impl Entity for EntyClass {
     }
 }
 
-impl ProjectNameEntity for EntyClass {
+impl ProjectNameEntityBase for EntyClass {
     // #LoadOp
 
     // #ListOp

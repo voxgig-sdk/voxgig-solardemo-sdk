@@ -63,7 +63,10 @@ defmodule VoxgigSolardemo.Pipeline do
     # What a hook raises here must not escape the cleaning below.
     {e, st} =
       try do
-        Utility.feature_hook(ctx, "PreUnexpected")
+        # Once per operation: make_error fires it for its own error.
+        if S.getprop(ctx, "unexpected_fired") != true do
+          Utility.feature_hook(ctx, "PreUnexpected")
+        end
 
         {e, st}
       rescue

@@ -19,7 +19,7 @@ import '../lib/utility/ErrUtility.dart' show errmsg;
 // Generated: the credential's wire placement is fixed when the SDK is built.
 // The dart runtime always carries the credential in the Authorization
 // header (its prepareAuth is header-only), so that is the slot asserted.
-const AUTH = <String, dynamic>{"suppressed":false,"where":"header","name":"authorization","basic":false};
+const AUTH = <String, dynamic>{"suppressed":true,"where":"header","name":"authorization","basic":false};
 
 const CANARY = <String, String>{
   'apikey': 'CANARY-APIKEY-k9x2m7q4p1',

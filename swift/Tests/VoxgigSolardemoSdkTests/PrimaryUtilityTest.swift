@@ -83,7 +83,7 @@ final class PrimaryUtilityTest: XCTestCase {
         return XCTFail("test corpus section \"\(name)\" missing - check the " +
           "name against .sdk/test/primary/", file: file, line: line)
       }
-      let basic = section.get("basic")
+      var basic = section.get("basic")
       guard let count = basic.setCount else {
         return XCTFail("test corpus section \"\(name)\" has no basic.set list " +
           "- zero cases would run", file: file, line: line)
@@ -95,12 +95,43 @@ final class PrimaryUtilityTest: XCTestCase {
       }
       if 0 == count { return }
 
+      if "prepareAuth" == name {
+        guard let cred = authCredential() else {
+          return XCTFail("prepareAuth placed no credential in headers or query",
+            file: file, line: line)
+        }
+        basic = basic.retargetingAuth(query: cred.query, name: cred.name, pair: cred.pair)
+      }
+
       try run.runset(basic, subject)
       print("ok primary.\(name): \(count)/\(count)")
     } catch {
       XCTFail("primary.\(name): \(OmniResolver.message(error))",
         file: file, line: line)
     }
+  }
+
+  // Where this SDK's prepareAuth puts the credential, probed once over empty
+  // headers and query. `pair` is the `<scheme>=` lead-in of a cookie
+  // credential, which rides the header bag under "cookie".
+  private func authCredential() -> (query: Bool, name: String, pair: String)? {
+    let probe = VoxgigSolardemoSDK.testSDK(nil, vm(("apikey", .string("PROBE")),
+      ("auth", .map(vm(("prefix", .string("")), ("basic", .bool(false)))))))
+    let utility = probe.getUtility()
+    let ctx = utility.makeContext(["opname": "load", "client": probe, "utility": utility],
+      probe.getRootCtx())
+    let spec = Spec(vm(("headers", .map(VMap())), ("query", .map(VMap())), ("step", .string("s"))))
+    ctx.spec = spec
+    guard nil != (try? utility.prepareAuth(ctx)) else { return nil }
+    for query in [false, true] {
+      for (name, value) in (query ? spec.query : spec.headers).entries {
+        let text = value.asString ?? ""
+        let pair = !query && "cookie" == name && text.hasSuffix("=PROBE")
+          ? String(text.dropLast("PROBE".count)) : ""
+        return (query, name, pair)
+      }
+    }
+    return nil
   }
 
   // The DEF.setup options a section names, as SDK options.
@@ -394,6 +425,303 @@ final class PrimaryUtilityTest: XCTestCase {
     }
   }
 
+  // A Django route answers its slashless form with a relative Location. The
+  // transport follows each hop, and answers a "manual" fetch with the 3xx.
+  func testFetcherRedirect() throws {
+    #if os(Linux)
+    let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+    #else
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    #endif
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+    var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+    _ = withUnsafeMutablePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa -> Int32 in
+        #if os(Linux)
+        return bind(fd, sa, len)
+        #else
+        // A bare bind here names an instance method XCTestCase inherits.
+        return Darwin.bind(fd, sa, len)
+        #endif
+      }
+    }
+    listen(fd, 8)
+    _ = withUnsafeMutablePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &len) }
+    }
+    let base = "http://127.0.0.1:\(UInt16(bigEndian: addr.sin_port))"
+    defer { close(fd) }
+
+    let lock = NSLock()
+    var seen: [String] = []
+    let moved = ["/redirect/r1": "301 X\r\nLocation: /redirect/r1/", "/redirect/r1/": "308 X\r\nLocation: done"]
+    Thread.detachNewThread {
+      for _ in 0..<4 {
+        let conn = accept(fd, nil, nil)
+        if conn < 0 { return }
+        var head = ""
+        var buf = [UInt8](repeating: 0, count: 4096)
+        while !head.contains("\r\n\r\n") {
+          let got = buf.withUnsafeMutableBytes { read(conn, $0.baseAddress, $0.count) }
+          if got <= 0 { break }
+          head += String(decoding: buf[0..<got], as: UTF8.self)
+        }
+        let parts = head.split(separator: " ")
+        let path = 1 < parts.count ? String(parts[1]) : ""
+        lock.lock(); seen.append(path); lock.unlock()
+        let body = path == "/redirect/r1/done" ? "{\"id\":\"r1\"}" : ""
+        let status = moved[path] ?? (body.isEmpty ? "404 X" : "200 X")
+        let reply = Array(("HTTP/1.1 \(status)\r\nContent-Type: application/json\r\n" +
+          "Content-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)").utf8)
+        _ = reply.withUnsafeBytes { write(conn, $0.baseAddress, $0.count) }
+        close(conn)
+      }
+    }
+
+    let opts = VMap()
+    opts.entries["base"] = .string(base)
+    let liveClient = VoxgigSolardemoSDK(opts)
+    let liveUtility = liveClient.getUtility()
+    let ctx = liveUtility.makeContext(
+      ["opname": "load", "client": liveClient, "utility": liveUtility], nil)
+    func def(_ redirect: String?) -> VMap {
+      let fetchdef = VMap()
+      fetchdef.entries["method"] = .string("GET")
+      fetchdef.entries["headers"] = .map(VMap())
+      if let redirect = redirect { fetchdef.entries["redirect"] = .string(redirect) }
+      return fetchdef
+    }
+
+    let res = try liveUtility.fetcher(ctx, base + "/redirect/r1", def(nil))
+    XCTAssertEqual(gp(res, "status").asInt, 200)
+    XCTAssertEqual(gp(res, "body").asString, "{\"id\":\"r1\"}")
+    lock.lock(); let sent = seen; lock.unlock()
+    XCTAssertEqual(sent, ["/redirect/r1", "/redirect/r1/", "/redirect/r1/done"])
+
+    let manual = try liveUtility.fetcher(ctx, base + "/redirect/r1", def("manual"))
+    XCTAssertEqual(gp(manual, "status").asInt, 301)
+  }
+
+  private typealias Arrival = (at: String, headers: [String: String], body: String)
+
+  private static let redirectSecret = "REDIRECT-SECRET-q7w3e9r1"
+  private static let redirectCredentials = [
+    "authorization", "cookie", "x-api-key", "private-token", "x-acme-auth",
+  ]
+
+  // x-acme-auth is not a sensitive name: a credential by the value it holds.
+  private func redirectHeaders() -> VMap {
+    let secret = PrimaryUtilityTest.redirectSecret
+    return vm(
+      ("authorization", .string("Bearer " + secret)),
+      ("cookie", .string("sid=" + secret)),
+      ("x-api-key", .string(secret)),
+      ("private-token", .string("pt-12345")),
+      ("x-acme-auth", .string("v1 " + secret)),
+      ("x-tenant", .string("acme")))
+  }
+
+  // A listener on a loopback port of its own: its descriptor and its origin.
+  private func redirectListener() -> (Int32, String) {
+    #if os(Linux)
+    let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+    #else
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    #endif
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+    var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+    _ = withUnsafeMutablePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa -> Int32 in
+        #if os(Linux)
+        return bind(fd, sa, len)
+        #else
+        // A bare bind here names an instance method XCTestCase inherits.
+        return Darwin.bind(fd, sa, len)
+        #endif
+      }
+    }
+    listen(fd, 8)
+    _ = withUnsafeMutablePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &len) }
+    }
+    return (fd, "http://127.0.0.1:\(UInt16(bigEndian: addr.sin_port))")
+  }
+
+  // The API's origin redirects; the other origin, another port, keeps what
+  // reaches it. Each serves until it is told to stop. The secret is
+  // registered as a caller's is: as the apikey. Answers the response, the
+  // error and what arrived.
+  private func redirectFetch(
+    _ options: VMap, _ path: String, _ body: String?
+  ) -> (res: Value, failed: Error?, arrived: [Arrival]) {
+    let (apifd, apibase) = redirectListener()
+    let (otherfd, otherbase) = redirectListener()
+    let routes = [
+      "/out": "302 X\r\nLocation: \(otherbase)/landed",
+      "/out307": "307 X\r\nLocation: \(otherbase)/landed",
+      "/in": "302 X\r\nLocation: /landed",
+    ]
+
+    let lock = NSLock()
+    var arrived: [Arrival] = []
+    for (fd, origin) in [(apifd, "api"), (otherfd, "other")] {
+      Thread.detachNewThread {
+        while true {
+          let conn = accept(fd, nil, nil)
+          if conn < 0 { return }
+          var text = ""
+          var buf = [UInt8](repeating: 0, count: 4096)
+          while !text.contains("\r\n\r\n") {
+            let got = buf.withUnsafeMutableBytes { read(conn, $0.baseAddress, $0.count) }
+            if got <= 0 { break }
+            text += String(decoding: buf[0..<got], as: UTF8.self)
+          }
+          let parts = text.components(separatedBy: "\r\n\r\n")
+          let lines = parts[0].components(separatedBy: "\r\n")
+          let first = lines[0].split(separator: " ")
+          let target = 1 < first.count ? String(first[1]) : ""
+          var headers: [String: String] = [:]
+          for line in lines.dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            let name = String(line[..<colon]).lowercased()
+            headers[name] = String(line[line.index(after: colon)...])
+              .trimmingCharacters(in: .whitespaces)
+          }
+          var sent = parts.dropFirst().joined(separator: "\r\n\r\n")
+          let length = Int(headers["content-length"] ?? "") ?? 0
+          while sent.utf8.count < length {
+            let got = buf.withUnsafeMutableBytes { read(conn, $0.baseAddress, $0.count) }
+            if got <= 0 { break }
+            sent += String(decoding: buf[0..<got], as: UTF8.self)
+          }
+          if target != "/stop" {
+            lock.lock()
+            arrived.append((at: origin + " " + target, headers: headers, body: sent))
+            lock.unlock()
+          }
+          let moved = origin == "api" ? routes[target] : nil
+          let status = moved ?? "200 X"
+          let answer = moved == nil ? "{\"id\":\"r1\"}" : ""
+          let reply = Array(("HTTP/1.1 \(status)\r\nContent-Type: application/json\r\n" +
+            "Content-Length: \(answer.utf8.count)\r\nConnection: close\r\n\r\n\(answer)").utf8)
+          _ = reply.withUnsafeBytes { write(conn, $0.baseAddress, $0.count) }
+          close(conn)
+          if target == "/stop" { return }
+        }
+      }
+    }
+    defer {
+      for base in [apibase, otherbase] {
+        _ = try? defaultHttpFetch(base + "/stop", vm(("method", .string("GET")), ("headers", .map(VMap()))))
+      }
+      close(apifd)
+      close(otherfd)
+    }
+
+    let opts = VMap(options.entries)
+    opts.entries["base"] = .string(apibase)
+    opts.entries["apikey"] = .string(PrimaryUtilityTest.redirectSecret)
+    let liveClient = VoxgigSolardemoSDK(opts)
+    let liveUtility = liveClient.getUtility()
+    let ctx = liveUtility.makeContext(["opname": "load"], liveClient.getRootCtx())
+    let fetchdef = vm(("method", .string("GET")), ("headers", .map(redirectHeaders())))
+    if let body = body { fetchdef.entries["body"] = .string(body) }
+
+    var res: Value = .noval
+    var failed: Error? = nil
+    do {
+      res = try liveUtility.fetcher(ctx, apibase + path, fetchdef)
+    } catch {
+      failed = error
+    }
+    lock.lock(); let sent = arrived; lock.unlock()
+    return (res: res, failed: failed, arrived: sent)
+  }
+
+  private func assertRedirectToAnotherOrigin(_ options: VMap) {
+    let (res, failed, arrived) = redirectFetch(options, "/out", nil)
+    XCTAssertNil(failed)
+    XCTAssertEqual(gp(res, "status").asInt, 200)
+    XCTAssertEqual(arrived.map { $0.at }, ["api /out", "other /landed"])
+    guard 2 == arrived.count else { return }
+    for name in PrimaryUtilityTest.redirectCredentials {
+      XCTAssertNotNil(arrived[0].headers[name], "the API itself was not sent \(name)")
+      XCTAssertNil(arrived[1].headers[name], "another origin was sent \(name)")
+    }
+    XCTAssertEqual(arrived[1].headers["x-tenant"], "acme")
+    let leaked = arrived[1].headers.values.filter { $0.contains(PrimaryUtilityTest.redirectSecret) }
+    XCTAssertEqual(leaked, [], "another origin was sent the secret")
+  }
+
+  func testFetcherRedirectToAnotherOriginCarriesNoCredential() {
+    assertRedirectToAnotherOrigin(VMap())
+  }
+
+  func testFetcherRedirectToAnotherOriginWithCleanOff() {
+    assertRedirectToAnotherOrigin(vm(("clean", .map(vm(("active", .bool(false)))))))
+  }
+
+  func testFetcherRedirectOnTheSameOriginKeepsHeaders() {
+    let (res, failed, arrived) = redirectFetch(VMap(), "/in", nil)
+    XCTAssertNil(failed)
+    XCTAssertEqual(gp(res, "status").asInt, 200)
+    XCTAssertEqual(arrived.map { $0.at }, ["api /in", "api /landed"])
+    guard 2 == arrived.count else { return }
+    for name in PrimaryUtilityTest.redirectCredentials + ["x-tenant"] {
+      XCTAssertNotNil(arrived[1].headers[name], "the same origin lost \(name)")
+    }
+  }
+
+  // Only a GET or HEAD follows. A platform that sends the body a GET is
+  // given answers with the 307; one that refuses to send it reaches no origin.
+  func testFetcherRedirectKeepsABodyOnItsOrigin() {
+    let body = "BODY-" + PrimaryUtilityTest.redirectSecret
+    let (res, failed, arrived) = redirectFetch(VMap(), "/out307", body)
+    XCTAssertEqual(arrived.filter { $0.at.hasPrefix("other ") }.map { $0.at }, [])
+    if failed == nil {
+      XCTAssertEqual(gp(res, "status").asInt, 307)
+      XCTAssertEqual(arrived.map { $0.body }, [body])
+    }
+  }
+
+  // Nothing listens on port 9: a request the guard let through fails there.
+  func testFetcherGetOnlyGuard() {
+    let opts = VMap()
+    opts.entries["base"] = .string("http://127.0.0.1:9")
+    let liveClient = VoxgigSolardemoSDK(opts)
+    let liveUtility = liveClient.getUtility()
+    let ctx = liveUtility.makeContext(
+      ["opname": "create", "client": liveClient, "utility": liveUtility], nil)
+    let url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01"
+    func def(_ method: String) -> VMap {
+      let fetchdef = VMap()
+      fetchdef.entries["method"] = .string(method)
+      fetchdef.entries["headers"] = .map(VMap())
+      return fetchdef
+    }
+
+    let prior = ProcessInfo.processInfo.environment["VOXGIG_GETONLY_GUARD"]
+    setenv("VOXGIG_GETONLY_GUARD", "TRUE", 1)
+    defer {
+      if let prior = prior { setenv("VOXGIG_GETONLY_GUARD", prior, 1) }
+      else { unsetenv("VOXGIG_GETONLY_GUARD") }
+    }
+
+    XCTAssertThrowsError(try liveUtility.fetcher(ctx, url, def("POST"))) { error in
+      let refused = error as? VoxgigSolardemoError
+      XCTAssertEqual(refused?.code, "fetch_getonly_block")
+      XCTAssertTrue(errMessage(error).contains("[GET-ONLY GUARD] blocked POST /planet/p1"), errMessage(error))
+      XCTAssertFalse(errMessage(error).contains("GUARDKEY01"))
+    }
+    XCTAssertThrowsError(try liveUtility.fetcher(ctx, url, def("GET"))) { error in
+      XCTAssertNotEqual((error as? VoxgigSolardemoError)?.code, "fetch_getonly_block")
+    }
+  }
+
   func testMakeContextBasic() {
     runsection("makeContext") { args in
       guard let inMap = args.first?.asMap else { return .noval }
@@ -611,7 +939,13 @@ final class PrimaryUtilityTest: XCTestCase {
     }
   }
 
+  // Read from the config, never from a probe: a probe that finds no
+  // credential is the regression this section exists to catch.
   func testPrepareAuthBasic() throws {
+    guard nil != gp(SdkConfig.sharedConfig(), "options").asMap?.entries["auth"] else {
+      throw XCTSkip("this SDK's config declares no auth, so it places no credential")
+    }
+
     let setupOpts = try setupOptions("prepareAuth", "a")
     let authClient = VoxgigSolardemoSDK.testSDK(nil, setupOpts)
     let authUtility = authClient.getUtility()

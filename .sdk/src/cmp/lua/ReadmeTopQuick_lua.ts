@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName, luaKey, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, safeVarName, exampleVarName, luaKey, listMatchArg, matchExampleItems, litString, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -17,7 +17,7 @@ function luaLit(type: any, placeholder: string = 'example'): string {
   if ('INTEGER' === k || 'NUMBER' === k) return '1'
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k || 'OBJECT' === k) return '{}'
-  return `"${placeholder}"`
+  return litString('lua', placeholder)
 }
 
 
@@ -30,12 +30,19 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `sdk.new({\n  apikey = os.getenv("${envName(model)}_APIKEY"),\n})`
-    : `sdk.new()`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`apikey = os.getenv("${envName(model)}_APIKEY"),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`secret = os.getenv("${envName(model)}_SECRET"),`] : []),
+    ...(0 === svars.length ? [] : [`server = {` +
+      svars.map((v: any) => `\n    ["${v.name}"] = "<${v.name}>",`).join('') + `\n  },`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `sdk.new()`
+    : `sdk.new({${ctorFields.map((f: string) => '\n  ' + f).join('')}\n})`
 
   const shown = null != exampleEntity &&
-    ['list', 'load'].some((op: string) => Object.keys(exampleEntity.op || {}).includes(op))
+    ['list', 'load'].some((op: string) => entityOps(exampleEntity).includes(op))
 
   Content(`\`\`\`lua
 local sdk = require("${model.name}_sdk")
@@ -49,7 +56,7 @@ local client = ${ctor}
     // Sanitise the local variable name — an entity whose lowercased name is a
     // Lua keyword (e.g. `end`) would otherwise emit uncompilable code.
     const eVar = exampleVarName(eName.toLowerCase(), 'lua')
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     let hasCall = false
@@ -69,8 +76,7 @@ end
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length

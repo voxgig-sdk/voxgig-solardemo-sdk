@@ -1,5 +1,5 @@
 
-import { cmp, each, File, Content } from '@voxgig/sdkgen'
+import { cmp, each, File, Content, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -10,6 +10,13 @@ import {
 
 const ReadmeExamplesTest = cmp(function ReadmeExamplesTest(props: any) {
   const { target, ctx$: { model } } = props
+  // The root README where the run writes one beside this target, and the
+  // target's own documents where it writes them.
+  const link = fact(target, 'link').readme
+  const own = fact(target, 'phase').readme
+  if ('' === link && !own) {
+    return
+  }
 
   const Name = model.const.Name
   const sdkClass = Name + 'SDK'
@@ -19,6 +26,13 @@ const ReadmeExamplesTest = cmp(function ReadmeExamplesTest(props: any) {
     .filter((e: any) => e && e.active !== false)
   const entityLines = entities
     .map((e: any) => `  '${nom(e, 'Name')}' => '${e.name}',`)
+    .join('\n')
+
+  // The declared identity field of each entity that names one other than
+  // `id`, by fixture key: the mock keys a record by it, so the seed does too.
+  const idFieldLines = entities
+    .filter((e: any) => 'string' === typeof e.id?.field && '' !== e.id.field && 'id' !== e.id.field)
+    .map((e: any) => `  '${e.name}' => '${String(e.id.field).replace(/[\\']/g, '\\$&')}',`)
     .join('\n')
 
   // Perl test files use the `.t` extension (run by `prove`), not target.ext
@@ -63,16 +77,21 @@ my $LIB = File::Spec->catdir($PKG_ROOT, 'lib');
 
 # The three documentation sources this gate covers.
 my %DOCS = (
-  'root README'    => File::Spec->catfile($PKG_ROOT, '..', 'README.md'),
-  'perl README'    => File::Spec->catfile($PKG_ROOT, 'README.md'),
+${'' === link ? '' : `  'root README'    => File::Spec->catfile($PKG_ROOT, ${link.split('/').map((seg: string) => "'" + seg + "'").join(', ')}),
+`}${own ? `  'perl README'    => File::Spec->catfile($PKG_ROOT, 'README.md'),
   'perl REFERENCE' => File::Spec->catfile($PKG_ROOT, 'REFERENCE.md'),
-);
+` : ''});
 
 my $SDK_CLASS = '${sdkClass}';
 
 # Entity accessor (\$client->Name) => fixture storage key (lowercase name).
 my %ENTITIES = (
 ${entityLines}
+);
+
+# Fixture key => the entity's declared identity field, where it is not "id".
+my %ID_FIELDS = (
+${idFieldLines}
 );
 
 # Documented SDK method names - used only to recognise the NARROW
@@ -199,24 +218,25 @@ sub fixtures_literal {
   %refs = %ENTITIES unless %refs;
   my @pairs;
   for my $name (sort keys %refs) {
-    push @pairs, "'" . $refs{$name} . "' => { 'test01' => { 'id' => 'test01' } }";
+    my $storage = $refs{$name};
+    my $extra = exists $ID_FIELDS{$storage} ? ", '" . $ID_FIELDS{$storage} . "' => 'test01'" : '';
+    push @pairs, "'" . $storage . "' => { 'test01' => { 'id' => 'test01'" . $extra . " } }";
   }
   return "{ 'entity' => { " . join(', ', @pairs) . " } }";
 }
 
 
 # Rewrite a runnable block into an executable offline test-mode program: the
-# SDK lib is put on \@INC by absolute path; any real ->new/->test constructor
-# becomes ${sdkClass}->test(<fixtures>); a block that only uses \$client gets
-# such a constructor prepended. The constructor arg match is deliberately
-# shallow (no nested parens) - runnable op blocks never build a client inline
-# with a paren-bearing argument.
+# SDK lib is put on \@INC by absolute path; any real ->new/->test constructor,
+# its argument list matched to the parenthesis that balances it, becomes
+# ${sdkClass}->test(<fixtures>); a block that only uses \$client gets such a
+# constructor prepended.
 sub to_runner {
   my ($block) = @_;
   my $fixtures = fixtures_literal($block);
   my $body;
   if ($block =~ /\\Q$SDK_CLASS\\E->(?:new|test)\\b/) {
-    ($body = $block) =~ s/\\Q$SDK_CLASS\\E->(?:new|test)(?:\\s*\\([^()]*\\))?/$SDK_CLASS->test($fixtures)/g;
+    ($body = $block) =~ s/\\Q$SDK_CLASS\\E->(?:new|test)(?:\\s*(?<args>\\((?:[^()]++|(?&args))*\\)))?/$SDK_CLASS->test($fixtures)/g;
   }
   else {
     $body = "my \\\$client = $SDK_CLASS->test($fixtures);\\n" . $block;

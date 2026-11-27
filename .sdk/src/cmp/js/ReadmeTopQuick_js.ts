@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, packageName, envName, entityIdField, entityOps, opRequestShape, safeVarName, exampleVarName, jsKey, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, packageName, envName, entityIdField, entityOps, opRequestShape, safeVarName, exampleVarName, jsKey, listMatchArg, matchExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -16,9 +16,17 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const entity = getModelPath(model, `main.${KIT}.entity`)
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
-  const ctor = isAuthActive(model)
-    ? `new ${model.const.Name}SDK({\n  apikey: process.env.${envName(model)}_APIKEY,\n})`
-    : `new ${model.const.Name}SDK()`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const serverField = 0 === svars.length ? '' :
+    `\n  // Required: this API's server URL is templated on these.\n  server: {` +
+    svars.map((v: any) => `\n    ${v.name}: '<${v.name}>',`).join('') + `\n  },`
+  const ctorFields = (isAuthActive(model)
+    ? `\n  apikey: process.env.${envName(model)}_APIKEY,${
+      fact(model.main[KIT], 'auth').secret ? `\n  secret: process.env.${envName(model)}_SECRET,` : ''}`
+    : '') + serverField
+  const ctor = '' === ctorFields
+    ? `new ${model.const.Name}SDK()`
+    : `new ${model.const.Name}SDK({${ctorFields}\n})`
 
   Content(`\`\`\`js
 const { ${model.const.Name}SDK } = require('${packageName(model, target.name)}')
@@ -65,8 +73,7 @@ for (const ${eVar} of ${eVar}s) {
       // entity's own id last) — the same shape the runtime resolves path
       // params from, so the example always works.
       const neIdF = entityIdField(nestedEntity)
-      const neMatchLines = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === neIdF)
+      const neMatchLines = matchExampleItems(nestedEntity, 'load', neIdF)
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
         .map((it: any) =>
@@ -86,8 +93,7 @@ console.log(${neVar}.data())
     if (!hasCall && opnames.includes('load')) {
       // The id and every required parameter: a load without them has no route.
       const idF = entityIdField(exampleEntity)
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 1 : 0) - (b.name === idF ? 1 : 0))
         .map((it: any) =>

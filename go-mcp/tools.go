@@ -14,19 +14,19 @@ import (
 // ListArgs is what an agent sends to voxgig-solardemo_list.
 type ListArgs struct {
 	Entity string         `json:"entity" jsonschema:"one of: moon | planet"`
-	Query  map[string]any `json:"query,omitempty" jsonschema:"optional filter map; omit it for the first page"`
+	Query  map[string]any `json:"query,omitempty" jsonschema:"filter map; moon needs one naming the parent, and for the others omit it for the first page"`
 }
 
 // LoadArgs is what an agent sends to voxgig-solardemo_load.
 type LoadArgs struct {
 	Entity string         `json:"entity" jsonschema:"one of: moon | planet"`
-	Query  map[string]any `json:"query" jsonschema:"match map naming the record, such as {\"id\":1}"`
+	Query  map[string]any `json:"query" jsonschema:"match map naming the record by its identifying fields"`
 }
 
 func registerTools(server *mcp.Server, client *sdk.VoxgigSolardemoSDK) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "voxgig-solardemo_list",
-		Description: "List records from VoxgigSolardemo. Args: entity, query (optional filter map; omit it for the first page). Returns the first page of records as JSON.",
+		Description: "List records from VoxgigSolardemo. Args: entity, query (filter map; moon needs one naming the parent, and for the others omit it for the first page). Returns the first page of records as JSON.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 		InputSchema: entitySchema[ListArgs]("moon", "planet"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args ListArgs) (*mcp.CallToolResult, any, error) {
@@ -34,7 +34,7 @@ func registerTools(server *mcp.Server, client *sdk.VoxgigSolardemoSDK) {
 	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "voxgig-solardemo_load",
-		Description: "Load one record from VoxgigSolardemo. Args: entity, query (match map naming the record, such as {\"id\":1}). Returns the record as JSON.",
+		Description: "Load one record from VoxgigSolardemo. Args: entity, query (match map naming the record by its identifying fields). Returns the record as JSON.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 		InputSchema: entitySchema[LoadArgs]("moon", "planet"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args LoadArgs) (*mcp.CallToolResult, any, error) {
@@ -101,7 +101,7 @@ func runOp(_ context.Context, client *sdk.VoxgigSolardemoSDK, op string, entity 
 
 // entityFor dispatches on the lowercase entity name. The generator
 // emits one `case "<name>":` per entity defined in the SDK model.
-func entityFor(client *sdk.VoxgigSolardemoSDK, name string) (sdk.VoxgigSolardemoEntity, error) {
+func entityFor(client *sdk.VoxgigSolardemoSDK, name string) (sdk.VoxgigSolardemoEntityBase, error) {
 	switch strings.ToLower(name) {
 	case "moon":
 		return client.Moon(nil), nil

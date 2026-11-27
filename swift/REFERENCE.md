@@ -8,6 +8,8 @@ Complete API reference for the VoxgigSolardemo Swift SDK.
 ### Constructor
 
 ```swift
+import VoxgigSolardemoSdk
+
 let client = VoxgigSolardemoSDK(options)
 ```
 
@@ -18,12 +20,13 @@ Create a new SDK client instance. `options` is a `VMap` of `Value`.
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `VMap` | SDK configuration options. |
-| `options["base"]` | `String` | Base URL for API requests. |
-| `options["prefix"]` | `String` | URL prefix appended after base. |
-| `options["suffix"]` | `String` | URL suffix appended after path. |
-| `options["headers"]` | `VMap` | Custom headers for all requests. |
-| `options["feature"]` | `VMap` | Feature configuration. |
-| `options["system"]` | `VMap` | System overrides (e.g. custom fetch). |
+| `options["base"]` | `String` | Base URL of the API server. |
+| `options["prefix"]` | `String` | URL path prefix prepended to all requests. |
+| `options["suffix"]` | `String` | URL path suffix appended to all requests. |
+| `options["headers"]` | `VMap` | Headers sent with every request. |
+| `options["feature"]` | `VMap` | Feature activation flags. |
+| `options["extend"]` | `VList` | Additional feature instances to load. |
+| `options["system"]` | `VMap` | System overrides, such as a custom fetch function. |
 
 
 ### Static Methods
@@ -101,23 +104,9 @@ let moon = client.Moon()
 
 ### Operations
 
-#### `create(reqdata, ctrl) throws -> Value`
-
-Create a new entity with the given data. Returns the created entity and throws on error.
-
-```swift
-let result = try client.Moon().create(VMap([
-    ("planet_id", .string("example_planet_id")),  // String
-    ("diameter", .double(1.0)),  // Double
-    ("id", .string("example_id")),  // String
-    ("kind", .string("example_kind")),  // String
-    ("name", .string("example_name"))  // String
-]), nil)
-```
-
 #### `list(reqmatch, ctrl) throws -> Value`
 
-List entities matching the given criteria. The match is optional — call `list(nil, nil)` to list all records. Returns a `Value` list of entities, one per record, and throws on error.
+List entities matching the given criteria. The match must include `planet_id`. Returns a `Value` list of entities, one per record, and throws on error.
 
 ```swift
 let results = try client.Moon().list(VMap([("planet_id", .string("example"))]), nil)
@@ -136,12 +125,18 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 let result = try client.Moon().load(VMap([("id", .string("moon_id")), ("planet_id", .string("planet_id"))]), nil)
 ```
 
-#### `remove(reqmatch, ctrl) throws -> Value`
+#### `create(reqdata, ctrl) throws -> Value`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```swift
-let result = try client.Moon().remove(VMap([("id", .string("moon_id")), ("planet_id", .string("planet_id"))]), nil)
+let result = try client.Moon().create(VMap([
+    ("planet_id", .string("example_planet_id")),  // String
+    ("diameter", .double(1.0)),  // Double
+    ("id", .string("example_id")),  // String
+    ("kind", .string("example_kind")),  // String
+    ("name", .string("example_name"))  // String
+]), nil)
 ```
 
 #### `update(reqdata, ctrl) throws -> Value`
@@ -153,6 +148,14 @@ let result = try client.Moon().update(VMap([
     ("id", .string("moon_id")),
     ("planet_id", .string("planet_id"))
 ]), nil)
+```
+
+#### `remove(reqmatch, ctrl) throws -> Value`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+
+```swift
+let result = try client.Moon().remove(VMap([("id", .string("moon_id")), ("planet_id", .string("planet_id"))]), nil)
 ```
 
 ### Common Methods
@@ -196,19 +199,6 @@ let planet = client.Planet()
 
 ### Operations
 
-#### `create(reqdata, ctrl) throws -> Value`
-
-Create a new entity with the given data. Returns the created entity and throws on error.
-
-```swift
-let result = try client.Planet().create(VMap([
-    ("diameter", .double(1.0)),  // Double
-    ("id", .string("example_id")),  // String
-    ("kind", .string("example_kind")),  // String
-    ("name", .string("example_name"))  // String
-]), nil)
-```
-
 #### `list(reqmatch, ctrl) throws -> Value`
 
 List entities matching the given criteria. The match is optional — call `list(nil, nil)` to list all records. Returns a `Value` list of entities, one per record, and throws on error.
@@ -230,12 +220,17 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 let result = try client.Planet().load(VMap([("id", .string("planet_id"))]), nil)
 ```
 
-#### `remove(reqmatch, ctrl) throws -> Value`
+#### `create(reqdata, ctrl) throws -> Value`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+Create a new entity with the given data. Returns the created entity and throws on error.
 
 ```swift
-let result = try client.Planet().remove(VMap([("id", .string("planet_id"))]), nil)
+let result = try client.Planet().create(VMap([
+    ("diameter", .double(1.0)),  // Double
+    ("id", .string("example_id")),  // String
+    ("kind", .string("example_kind")),  // String
+    ("name", .string("example_name"))  // String
+]), nil)
 ```
 
 #### `update(reqdata, ctrl) throws -> Value`
@@ -246,6 +241,14 @@ Update an existing entity. The data must include the entity `id`. Returns the up
 let result = try client.Planet().update(VMap([
     ("id", .string("planet_id"))
 ]), nil)
+```
+
+#### `remove(reqmatch, ctrl) throws -> Value`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and throws on error.
+
+```swift
+let result = try client.Planet().remove(VMap([("id", .string("planet_id"))]), nil)
 ```
 
 ### Common Methods
@@ -306,10 +309,10 @@ let client = VoxgigSolardemoSDK(options)
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -320,10 +323,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -526,7 +529,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -539,6 +542,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -566,10 +570,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

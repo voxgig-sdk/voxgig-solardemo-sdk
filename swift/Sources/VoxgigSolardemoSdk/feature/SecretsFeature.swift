@@ -20,9 +20,9 @@
 // (the ts design) would have one thread walking the map while another
 // mutated it. The credential is therefore held in FEATURE STATE behind a
 // lock, the options map stays frozen after construction, and the
-// authorization header is rewritten per request at the transport - built
-// the same way prepareAuth builds it, from the same options.auth.prefix, so
-// the two cannot drift. This is go's structural deviation, adopted for a
+// credential header is rewritten per request at the transport - built
+// the same way prepareAuth builds it, from the same options.auth name and
+// prefix, so the two cannot drift. This is go's structural deviation, adopted for a
 // sharper version of go's own reason.
 //
 // WHERE RESOLUTION HAPPENS. At the TRANSPORT SEAM, not in the PreSpec hook.
@@ -78,6 +78,11 @@ public final class SecretsFeature: BaseFeature {
   // the client holds). READ ONLY: this feature never writes to it.
   private var liveopts: VMap = VMap()
 
+  // What prepareAuth was generated from: the config declares auth only
+  // where it places a credential, and Basic only where it composes one.
+  private var declared = false
+  private var basic = false
+
   private var secretname = "apikey"
   private var cache = true
   private var sek: Sekreto?
@@ -114,7 +119,10 @@ public final class SecretsFeature: BaseFeature {
     let response: String
     let statuses: [Int]
     let retries: Int
+    let sameOrigin: Bool
   }
+
+  private static let redirectMax = 5
 
   // One shared in-flight resolution: late arrivals wait on `done` and read
   // `err`.
@@ -171,6 +179,10 @@ public final class SecretsFeature: BaseFeature {
     liveopts = ctx.options ?? VMap()
     active = foptBool(options, "active", false)
 
+    let authdecl = gp(gp(ctx.config, "options"), "auth").asMap
+    declared = nil != authdecl
+    basic = true == gp(authdecl, "basic").asBool
+
     if !active {
       return
     }
@@ -196,7 +208,8 @@ public final class SecretsFeature: BaseFeature {
         request: foptStr(xopts, "request", "refresh_token"),
         response: foptStr(xopts, "response", "access_token"),
         statuses: statuses,
-        retries: foptInt(xopts, "retries", 1))
+        retries: foptInt(xopts, "retries", 1),
+        sameOrigin: "same-origin" == foptStr(xopts, "redirect", "refuse"))
     }
 
     // WRAP FIRST, BUILD SECOND. The transport wrapper is the fail-closed
@@ -355,8 +368,14 @@ public final class SecretsFeature: BaseFeature {
     }
   }
 
+  // prepareAuth's decision: auth the config declares, not suppressed by
+  // `auth: null`.
+  private func authon() -> Bool {
+    return declared && !isNil(gp(liveopts, "auth"))
+  }
+
   private func resolveonce() throws {
-    guard let s = sek else {
+    guard let s = sek, authon() else {
       return
     }
 
@@ -434,17 +453,14 @@ public final class SecretsFeature: BaseFeature {
   // withrefresh buys a token and tries the request again when the API says
   // the current one is spent.
   //
-  // The retry rewrites the authorization header IN PLACE on the fetchdef,
+  // The retry rewrites the credential header IN PLACE on the fetchdef,
   // because the header was built by the synchronous prepareAuth before this
   // request left, and it carries the token that just failed.
   private func withrefresh(_ ctx: Context, _ url: String, _ fetchdef: VMap,
                            _ inner: FetcherFunc) throws -> Value {
-    // `auth: null` is the documented way to send NO credential, and
-    // prepareAuth honours it by removing the header. A refusal of a
-    // deliberately unauthenticated request is not an expired token and
-    // cannot be fixed by buying one - retrying would transmit exactly the
-    // credential the caller suppressed.
-    if isNil(gp(liveopts, "auth")) {
+    // A refusal of an unauthenticated request is not an expired token, and
+    // retrying would transmit the credential that auth off withholds.
+    if !authon() {
       return try inner(ctx, url, fetchdef)
     }
 
@@ -521,15 +537,29 @@ public final class SecretsFeature: BaseFeature {
     // where the rule has to hold. The options map is FROZEN after
     // construction (this feature never writes it), so the raw read is safe
     // on any thread.
-    guard let auth = gp(liveopts, "auth").asMap else {
+    guard authon(), let auth = gp(liveopts, "auth").asMap else {
       headers.entries.removeValue(forKey: "authorization")
       return
     }
 
+    // The header prepareAuth writes: auth.name, lower-cased.
+    let rawname = gp(auth, "name").asString ?? ""
+    let name = "" == rawname ? "authorization" : rawname.lowercased()
+
+    let value = basic && true == gp(auth, "basic").asBool ? pair(token) : token
+
     let prefix = gp(auth, "prefix").asString ?? ""
     // Empty prefix (raw apiKey credential) must not add a leading space -
     // prepareAuth's rule, repeated here because this is the other writer.
-    headers.entries["authorization"] = .string("" == prefix ? token : prefix + " " + token)
+    headers.entries[name] = .string("" == prefix ? value : prefix + " " + value)
+  }
+
+  // Under Basic the token is the key half, as apikey is: prepareAuth's pair.
+  private func pair(_ token: String) -> String {
+    let secret = gp(liveopts, "secret").asString ?? ""
+    let pair = Data((token + ":" + secret).utf8).base64EncodedString()
+    register(pair)
+    return pair
   }
 
   // buy an access token with the refresh token. Concurrent callers share the
@@ -620,6 +650,8 @@ public final class SecretsFeature: BaseFeature {
     fetchdef.entries["method"] = .string(x.method)
     fetchdef.entries["headers"] = .map(vm(("content-type", .string("application/json"))))
     fetchdef.entries["body"] = .string(body)
+    // Never followed by the client: a redirect would carry the refresh token on.
+    fetchdef.entries["redirect"] = .string("manual")
 
     // Deliberately NOT the SDK transport. The transport is what this feature
     // wraps, and sending the token request back through it would recurse on
@@ -630,11 +662,22 @@ public final class SecretsFeature: BaseFeature {
     // rawExchangeFetch twin, unlike go); a supplied system.fetch is honoured
     // so a test can intercept the purchase.
     let sysFetch = gpath(options, "system", "fetch")
-    let res: Value
-    if let fn = sysFetch.asNative as? SystemFetch {
-      res = fn(url, fetchdef)
-    } else {
-      res = try defaultHttpFetch(url, fetchdef)
+    func fetch(_ at: String) throws -> Value {
+      if let fn = sysFetch.asNative as? SystemFetch {
+        return fn(at, fetchdef)
+      }
+      return try defaultHttpFetch(at, fetchdef)
+    }
+
+    var res = try fetch(url)
+
+    // By option alone, and only while the exchange stays on its own origin.
+    var at = url
+    var hops = 0
+    while x.sameOrigin, hops < SecretsFeature.redirectMax, let next = SecretsFeature.moved(url, at, res) {
+      at = next
+      res = try fetch(at)
+      hops += 1
     }
 
     let (status, _) = fresStatus(res)
@@ -660,6 +703,29 @@ public final class SecretsFeature: BaseFeature {
     register(token)
 
     return token
+  }
+
+  // Where a redirect that keeps method and body points, when that is on the
+  // exchange's own origin. Any other would drop the body or leave the origin.
+  private static func moved(_ url: String, _ at: String, _ res: Value) -> String? {
+    let (status, _) = fresStatus(res)
+    let (location, has) = fresHeader(res, "location")
+    guard 307 == status || 308 == status, has, "" != location,
+      let next = resolveLocation(at, location),
+      let own = origin(url), own == origin(next)
+    else {
+      return nil
+    }
+    return next
+  }
+
+  private static func origin(_ url: String) -> String? {
+    guard let parts = URLComponents(string: url), let scheme = parts.scheme?.lowercased(),
+      let host = parts.host?.lowercased()
+    else {
+      return nil
+    }
+    return "\(scheme)://\(host):\(parts.port ?? (scheme == "https" ? 443 : 80))"
   }
 
   // An SDK Value (a plain map from the options) as the plugin host's own

@@ -64,8 +64,8 @@ sub new {
 
   # Add features in the resolved order (make_options records an explicit
   # array order, else defaults to test-first). Ordering matters: the `test`
-  # feature installs the base mock transport and the transport features
-  # (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
+  # feature installs the base mock transport and the features whose model
+  # declares `transport: 'wrap'` wrap whatever is current, so `test`
   # must be added before them to sit at the base of the wrapper chain.
   my $feature_opts = ProjectNameHelpers::to_map(
     ProjectNameHelpers::gp($self->{options}, 'feature')) || {};
@@ -181,6 +181,12 @@ sub prepare {
     $ctx->{spec}{headers}{$_} = $uh->{$_} for keys %$uh;
   }
 
+  # A raw request has no point to declare its response type, so it asks
+  # for the JSON it reads: an API that negotiates on Accept otherwise
+  # answers in its own default format. A caller's own accept wins.
+  $ctx->{spec}{headers}{'accept'} = 'application/json'
+    unless grep { 'accept' eq lc $_ } keys %{ $ctx->{spec}{headers} };
+
   my (undef, $err) = $utility->{prepare_auth}->($ctx);
   die $err if $err;
 
@@ -251,7 +257,12 @@ sub _raw_request {
   my $url = defined $fetchdef->{url} ? $fetchdef->{url} : '';
   my ($fetched, $fetch_err) = $utility->{fetcher}->($ctx, $url, $fetchdef);
 
-  return { 'ok' => 0, 'err' => $utility->{clean}->($ctx, $fetch_err) } if $fetch_err;
+  if ($fetch_err) {
+    # An error object of another class is the fetcher's own, and is handed
+    # back as it is: clean would hand back a copy of it.
+    my $own = Scalar::Util::blessed($fetch_err) && !$fetch_err->isa('ProjectNameError');
+    return { 'ok' => 0, 'err' => $own ? $fetch_err : $utility->{clean}->($ctx, $fetch_err) };
+  }
 
   if (!defined $fetched) {
     return {
@@ -315,8 +326,8 @@ sub _raw_request {
 # a top-level `errors` array, so status alone would report a failed query as
 # ok.
 #
-# NOTE: like direct, this bypasses the feature pipeline — no retry, ratelimit
-# or paging features apply.
+# NOTE: like direct, this bypasses the feature pipeline: no feature hook runs
+# on this path.
 sub graphql {
   my ($self, $query, $variables, $ctrl) = @_;
 

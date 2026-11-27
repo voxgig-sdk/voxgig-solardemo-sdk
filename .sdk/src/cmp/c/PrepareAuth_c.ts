@@ -4,28 +4,25 @@ import {
   File,
   Folder,
   cmp,
-  isHttpBasicAuth,
-  resolveAuthIn,
-  resolveAuthName,
-  resolveAuthPrefix,
+  fact,
 } from '@voxgig/sdkgen'
 
 
 import {
   KIT,
-  getModelPath,
 } from '@voxgig/apidef'
 
 
 const PrepareAuth = cmp(async function PrepareAuth(props: any) {
   const { target } = props
   const { model } = props.ctx$
+  const authFact = fact(model.main[KIT], 'auth')
 
-  const active = authSwitchedOn(model)
-  const where = resolveAuthIn(model)
-  const name = resolveAuthName(model)
-  const prefix = resolveAuthPrefix(model)
-  const basic = isHttpBasicAuth(model)
+  const active = !authFact.suppressed
+  const where = authFact.in
+  const name = authFact.name
+  const prefix = authFact.prefix
+  const basic = authFact.basic
 
   Folder({ name: 'utility' }, () => {
     File({ name: 'prepare_auth.c' }, () => {
@@ -33,13 +30,6 @@ const PrepareAuth = cmp(async function PrepareAuth(props: any) {
     })
   })
 })
-
-
-function authSwitchedOn(model: any): boolean {
-  const auth = getModelPath(model, `main.${KIT}.config.auth`,
-    { only_active: false, required: false })
-  return !(null != auth && false === auth.active)
-}
 
 
 type AuthSpec = {
@@ -58,8 +48,8 @@ function render(spec: AuthSpec): string {
 //
 // GENERATED, not templated - see PrepareAuth_c.
 //
-// This API declares no authentication, so there is no credential to place.
-// The function stays in the pipeline because make_spec calls it
+// This SDK is configured with authentication off, so there is no credential
+// to place. The function stays in the pipeline because make_spec calls it
 // unconditionally.
 
 #include "sdk.h"
@@ -89,7 +79,7 @@ Spec* prepare_auth_util(Context* ctx, PNError** err) {
 
   const bag = bagName(spec.where)
 
-  const head = `// prepare_auth utility (mirrors utility/prepare_auth.rs).
+  const preamble = (joins: boolean) => `// prepare_auth utility (mirrors utility/prepare_auth.rs).
 //
 // GENERATED, not templated: where the credential goes - header, query or
 // cookie, and under what name - is a fact about THIS API, and tm/ can only
@@ -97,7 +87,7 @@ Spec* prepare_auth_util(Context* ctx, PNError** err) {
 
 #include "sdk.h"
 
-${header ? `#include <stdio.h>
+${joins ? `#include <stdio.h>
 ` : ''}#include <stdlib.h>
 #include <string.h>
 
@@ -131,7 +121,9 @@ static const char* auth_name(voxgig_value* options) {
   const char* name = voxgig_is_string(v) ? voxgig_as_string(v) : NULL;
   return (NULL == name || '\\0' == name[0]) ? CRED_NAME : name;
 }`}
-${header ? JOIN_HELPER : ''}${cookie ? COOKIE_HELPER : ''}
+${joins ? JOIN_HELPER : ''}${cookie ? COOKIE_HELPER : ''}`
+
+  const head = `
 // Places or clears the credential under name, the one in effect.
 static Spec* prepare_auth_as(Context* ctx, Spec* spec, voxgig_value* ${bag},
                              voxgig_value* options,${withBasic ? ' voxgig_value* auth,' : ''} const char* name,
@@ -207,7 +199,7 @@ ${setHeader('b64', 6)}
   }
 `
 
-  return head + basicBlock + `
+  const body = head + basicBlock + `
   if (skip) {
 ${clear(spec.where, 'name', 4)}
   } else {
@@ -247,6 +239,10 @@ ${header ? `
   return prepare_auth_as(ctx, spec, ${bag}, options, auth_name(options), err);`}
 }
 `
+
+  // Any placement but query and cookie takes the header branch, which joins
+  // a prefix, so the helper goes with its callers rather than with `header`.
+  return preamble(/\bauth_join\(/.test(body)) + body
 }
 
 

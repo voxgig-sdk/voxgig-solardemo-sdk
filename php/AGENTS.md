@@ -1,6 +1,6 @@
 # VoxgigSolardemo PHP — Agent Guide
 
-The PHP client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The PHP client for the Solar System API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `php/` directory.
@@ -12,6 +12,10 @@ cd ../.sdk
 npm run build        # only if you changed a component
 npm run generate     # refreshes this php/ directory
 ```
+
+Each `npm run generate` rewrites every file it generates, so an edit
+made to generated output is lost, and deletes the files it generated before
+and no longer emits. A target or a phase switched off is left as it was.
 
 Then build and test the generated output:
 
@@ -34,24 +38,28 @@ make test
 Decision rule: *same for every API → template; depends on the API →
 component.* After editing a component run `npm run build` before
 `npm run generate`; template-only edits just need `npm run generate`.
+`target add` and `feature add` overwrite the templates and components
+in `.sdk/` (`main: kit: copies: 'overwrite'`): set `copies` to
+`'merge'` before customising them, so that an add merges toolchain updates
+into the edited copies.
 
 ## Features in this target
 
-Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aontu`; customise
-the runtime under `.sdk/tm/php/feature/` and regenerate.
+Each feature's hooks and default activation come from
+`.sdk/model/feature/<name>.aontu`. Its runtime is generated from the template
+listed here: customise that and regenerate.
 
-| Feature | Runtime file | Active hooks |
+| Feature | Template | Active hooks |
 | --- | --- | --- |
-| **debug** — Debug capture | `feature/DebugFeature.php` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
-| **idempotency** — Idempotency | `feature/IdempotencyFeature.php` | `PreRequest` |
-| **metrics** — Metrics | `feature/MetricsFeature.php` | `PreDone`, `PrePoint`, `PreUnexpected` |
-| **paging** — Paging | `feature/PagingFeature.php` | `PreRequest`, `PreResult` |
-| **ratelimit** — Rate limiting | `feature/RatelimitFeature.php` | — |
-| **retry** — Retry | `feature/RetryFeature.php` | — |
-| **secrets** — Secrets | `feature/SecretsFeature.php` | `PreSpec` |
-| **test** — Test transport | `feature/TestFeature.php` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
-| **timeout** — Timeout | `feature/TimeoutFeature.php` | — |
+| **debug** — Debug capture | `.sdk/tm/php/feature/DebugFeature.php` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `.sdk/tm/php/feature/IdempotencyFeature.php` | `PreRequest` |
+| **metrics** — Metrics | `.sdk/tm/php/feature/MetricsFeature.php` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `.sdk/tm/php/feature/PagingFeature.php` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `.sdk/tm/php/feature/RatelimitFeature.php` | — |
+| **retry** — Retry | `.sdk/tm/php/feature/RetryFeature.php` | — |
+| **secrets** — Secrets | `.sdk/tm/php/feature/SecretsFeature.php` | `PreSpec` |
+| **test** — Test transport | `.sdk/tm/php/feature/TestFeature.php` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `.sdk/tm/php/feature/TimeoutFeature.php` | — |
 
 ---
 

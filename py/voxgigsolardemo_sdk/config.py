@@ -37,7 +37,7 @@ def make_config():
         "main": {
             "name": "VoxgigSolardemo",
             "slug": "voxgig-solardemo",
-            "version": "0.1.0",
+            "version": "0.0.1",
             "target": "py",
         },
         "feature": {
@@ -156,6 +156,7 @@ def make_config():
             "active": False,
             "method": "POST",
             "path": "auth/token",
+            "redirect": "refuse",
             "refresh": "",
             "request": "refresh_token",
             "response": "access_token",

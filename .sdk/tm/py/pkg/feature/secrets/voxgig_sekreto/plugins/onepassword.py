@@ -1,5 +1,5 @@
 # VENDORED: @voxgig/sekreto 0.2.0 (python/voxgig_sekreto/plugins/onepassword.py)
-# Source: https://github.com/voxgig/sekreto @ 163f537960de6813cc393b89843949ca3afa8cfc  [tag: sdk-20260925-1316-0]
+# Source: https://github.com/voxgig/sekreto @ ee837130bf444ca46a5a46181bdd6743e118898c  [tag: sdk-20261125-1959-0]
 # License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 # The onepassword plugin: 1Password, through a Connect server. Needs
 # HTTPS. A port of typescript/plugins/onepassword.ts.

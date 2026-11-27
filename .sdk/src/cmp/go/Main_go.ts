@@ -5,9 +5,12 @@ import {
   cmp, each, names, cmap,
   List, File, Content, Copy, Folder, Fragment, Line, FeatureHook,
   inactiveFeatureExcludes,
-  entityClassName, entityCollection, goModule, goPackageIdent, pluginExcludes,
+  entityConstructorName, entityCollection, goModule, goPackageIdent, pluginExcludes,
   targetFeatures,
-  TEST_CONTROL_EXCLUDE
+  TEST_CONTROL_EXCLUDE,
+  TargetLicense,
+  TargetVersion,
+  pkgDescription,
 } from '@voxgig/sdkgen'
 
 
@@ -53,6 +56,8 @@ const Main = cmp(async function Main(props: any) {
   Package({ target })
 
   Gitignore({})
+  TargetLicense({ target })
+  TargetVersion({ target })
 
   Copy({
     from: 'tm/' + target.name,
@@ -82,14 +87,6 @@ const Main = cmp(async function Main(props: any) {
             ...props.ctx$.stdrep,
             'ProjectNameModule': gomodule,
             '"github.com/voxgig/struct"': `"${gomodule}/utility/struct"`,
-
-            '#BuildFeatures': ({ indent }: any) => {
-              each(feature, (feat: any) => {
-                const fname = goFeatureName(feat)
-                Content({ indent }, `u.FeatureAdd(s.rootctx, New${fname}FeatureFunc())
-`)
-              })
-            },
 
             '#Feature-Hook': ({ name, indent }: any) => Content({ indent }, `
 s.utility.FeatureHook(s.rootctx, "${name}")
@@ -129,7 +126,7 @@ var NewBaseFeatureFunc func() Feature
       })
 
       each(entity, (ent: any) => {
-        Content(`var New${ent.Name}EntityFunc func(client *${model.const.Name}SDK, entopts map[string]any) ${model.const.Name}Entity
+        Content(`var New${ent.Name}EntityFunc func(client *${model.const.Name}SDK, entopts map[string]any) ${model.const.Name}EntityBase
 
 `)
       })
@@ -139,7 +136,8 @@ var NewBaseFeatureFunc func() Feature
   const hasEntities = Object.keys(entity || {}).length > 0
   const entityImport = hasEntities ? `\n\t"${gomodule}/entity"` : ''
   File({ name: model.name + '.' + target.ext }, () => {
-    Content(`package ${gopackage}
+    Content(`// Package ${gopackage}: ${pkgDescription(model, target.name)}
+package ${gopackage}
 
 import (
 	"${gomodule}/core"${entityImport}
@@ -153,7 +151,11 @@ type Context = core.Context
 type Utility = core.Utility
 type Feature = core.Feature
 type Entity = core.Entity
-type ${model.const.Name}Entity = core.${model.const.Name}Entity
+type ${model.const.Name}EntityBase = core.${model.const.Name}EntityBase
+
+// Deprecated: use ${model.const.Name}EntityBase.
+type ${model.const.Name}Entity = core.${model.const.Name}EntityBase
+
 type StreamItem = core.StreamItem
 type FetcherFunc = core.FetcherFunc
 type Spec = core.Spec
@@ -185,8 +187,8 @@ func init() {
     })
 
     each(entity, (ent: any) => {
-      Content(`	core.New${ent.Name}EntityFunc = func(client *core.${model.const.Name}SDK, entopts map[string]any) core.${model.const.Name}Entity {
-		return entity.New${entityClassName(ent, entityCollection(model))}(client, entopts)
+      Content(`	core.New${ent.Name}EntityFunc = func(client *core.${model.const.Name}SDK, entopts map[string]any) core.${model.const.Name}EntityBase {
+		return entity.${entityConstructorName(ent, entityCollection(model))}(client, entopts)
 	}
 `)
     })
@@ -208,8 +210,8 @@ var SharedConfig = core.SharedConfig
 // so these aliases let callers write \`sdk.New()\` / \`sdk.Test()\`
 // instead of \`sdk.New${model.const.Name}SDK(nil)\` / \`sdk.TestSDK(nil, nil)\`
 // for the common no-options case.
-func New() *${model.const.Name}SDK  { return New${model.const.Name}SDK(nil) }
-func Test() *${model.const.Name}SDK { return TestSDK(nil, nil) }
+func New() (*${model.const.Name}SDK, error) { return New${model.const.Name}SDK(nil) }
+func Test() *${model.const.Name}SDK          { return TestSDK(nil, nil) }
 `)
 
     // Feature constructor re-exports - base is always present

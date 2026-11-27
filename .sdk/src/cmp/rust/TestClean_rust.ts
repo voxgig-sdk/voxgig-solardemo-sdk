@@ -10,11 +10,12 @@ import {
   Content,
   entityCollection,
   targetFeatures,
-  isAuthSuppressed,
-  isHttpBasicAuth,
-  resolveAuthIn,
-  resolveAuthName,
+  fact,
 } from '@voxgig/sdkgen'
+
+import {
+  KIT,
+} from '@voxgig/apidef'
 
 
 import { rustMethodName } from './utility_rust'
@@ -30,18 +31,20 @@ const DIAGNOSTIC = ['log', 'debug', 'audit', 'telemetry', 'cost', 'metrics', 'cl
 // operation candidates the ts sweep finds by reflection are enumerated here
 // at generation time, each with the path parameters its config points
 // declare; the sweep still DRIVES them to find the first that completes.
+// A second sweep does the same for a body of bytes.
 const TestClean = cmp(function TestClean(props: any) {
   const { model } = props.ctx$
+  const authFact = fact(model.main[KIT], 'auth')
   const { target, rustcrate } = props
 
   const Name = model.const.Name
 
   const auth = {
-    suppressed: isAuthSuppressed(model),
-    where: resolveAuthIn(model),
-    name: 'header' === resolveAuthIn(model)
-      ? resolveAuthName(model).toLowerCase() : resolveAuthName(model),
-    basic: isHttpBasicAuth(model),
+    suppressed: authFact.suppressed,
+    where: authFact.in,
+    name: 'header' === authFact.in
+      ? authFact.name.toLowerCase() : authFact.name,
+    basic: authFact.basic,
   }
 
   const features = Object.keys(targetFeatures(model, target))
@@ -122,8 +125,9 @@ function render(spec: {
   const table = candidates.map((c) => `    ("${c.name}", ${c.fn}, ${c.sfn}, &[${
     c.params.map((p) => '"' + ruststr(p) + '"').join(', ')}]),`).join('\n')
 
-  return `// Generated canary sweep (see TestClean_rust): no credential leaves the
-// SDK in any form, and the sweep can see one when clean is switched off.
+  return `// Generated canary sweep (see TestClean_rust): no credential and no body of
+// bytes leaves the SDK in any form, and the sweep can see either when clean
+// is switched off.
 
 #![allow(dead_code, unused_imports)]
 
@@ -131,11 +135,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use ${rustcrate}::core::helpers::{getp, getpath, jo, json_thunk, setp, vfn};
+use ${rustcrate}::core::response::Response;
 use ${rustcrate}::core::types::OutVal;
 use ${rustcrate}::utility::clean;
 use ${rustcrate}::utility::voxgigstruct as vs;
 use ${rustcrate}::{
-    Context, CtxSpec, Entity, Feature, FeatureRef, ${Name}Entity, ${Name}Error, ${Name}SDK, Value,
+    bytes_value, Context, CtxSpec, Entity, Feature, FeatureRef, ${Name}EntityBase, ${Name}Error,
+    ${Name}SDK, Value,
 };
 
 // Generated: the credential's wire placement is fixed when the SDK is built.
@@ -153,6 +159,24 @@ const CANARY_HEADER: &str = "CANARY-HEADER-z1x4c7v0b3";
 const CANARY_VALUE: &str = "CANARY-VALUE-n5m8b2v9c4";
 
 const MASK: &str = "[redacted]";
+
+// The marker a body of bytes carries.
+const CONTENT: &str = "CANARY-CONTENT-b7n3v9x1c5";
+
+// The marker a response of bytes carries, as the default transport hands
+// such a body on: read into text, and marked unreadable.
+const RESPONSE: &str = "CANARY-RESPONSE-k2m8q4w6z0";
+
+// Every value this SDK accepts as a raw body.
+const CARRIERS: [&str; 2] = ["bytes", "string"];
+
+fn carrier(name: &str) -> Value {
+    if "bytes" == name {
+        bytes_value(CONTENT.as_bytes())
+    } else {
+        Value::str(CONTENT)
+    }
+}
 
 // The sweep's own encoders: a leak of an encoded form must not hide behind
 // the SDK's encoder.
@@ -351,6 +375,18 @@ fn response(status: i64, data: Value, headers: &[(&str, &str)]) -> Value {
     ])
 }
 
+// A response of bytes under the type it declares.
+fn bytes_response(status: i64, ctype: &str) -> Value {
+    jo(vec![
+        ("status", Value::Num(status as f64)),
+        ("statusText", Value::str(if status < 400 { "OK" } else { "ERR" })),
+        ("headers", jo(vec![("content-type", Value::str(ctype))])),
+        ("body", Value::str(RESPONSE)),
+        ("json", json_thunk(Value::Noval)),
+        ("unreadable", Value::Bool(true)),
+    ])
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum Scenario {
     Ok,
@@ -358,6 +394,7 @@ enum Scenario {
     Server,
     Transport,
     NotJson,
+    Bytes(i64),
 }
 
 const SCENARIOS: [Scenario; 5] = [
@@ -376,6 +413,7 @@ impl Scenario {
             Scenario::Server => "server",
             Scenario::Transport => "transport",
             Scenario::NotJson => "notjson",
+            Scenario::Bytes(_) => "bytes",
         }
     }
 
@@ -399,17 +437,25 @@ impl Scenario {
                 ("body", Value::str("<html>")),
                 ("json", json_thunk(Value::Noval)),
             ]),
+            Scenario::Bytes(status) => bytes_response(*status, "audio/wav"),
         }
     }
 }
 
 // The transport seam: system.fetch is called with [url, fetchdef].
 fn transport(scenario: Scenario) -> Value {
+    transport_seen(scenario, Rc::new(RefCell::new(Value::Noval)))
+}
+
+// Keeps the body the transport is handed: where the bytes are meant to
+// arrive, whole.
+fn transport_seen(scenario: Scenario, seen: Rc<RefCell<Value>>) -> Value {
     Value::func(move |_inj, args, _r, _st| {
         let url = match vs::get_elem(args, &Value::Num(0.0), Value::Noval) {
             Value::Str(s) => s,
             _ => String::new(),
         };
+        *seen.borrow_mut() = getp(&vs::get_elem(args, &Value::Num(1.0), Value::Noval), "body");
         scenario.respond(&url)
     })
 }
@@ -426,7 +472,11 @@ fn offline(opts: Value) -> Value {
 fn construct(opts: Value) -> Rc<${Name}SDK> {
     let opts = offline(opts);
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| ${Name}SDK::new(opts))) {
-        Ok(sdk) => sdk,
+        Ok(Ok(sdk)) => sdk,
+        Ok(Err(err)) => panic!(
+            "clean harness: the client could not be constructed, so nothing was swept: {}",
+            err
+        ),
         Err(cause) => panic!(
             "clean harness: the client could not be constructed, so nothing was swept: {}",
             cause
@@ -449,6 +499,16 @@ fn make_sdk(
 
 fn make_sdk_with(
     scenario: Scenario,
+    sinks: &Sinks,
+    cleanopts: Option<Value>,
+    extra: Vec<FeatureRef>,
+    auth: Option<Value>,
+) -> Rc<${Name}SDK> {
+    make_sdk_fetch(transport(scenario), sinks, cleanopts, extra, auth)
+}
+
+fn make_sdk_fetch(
+    fetch: Value,
     sinks: &Sinks,
     cleanopts: Option<Value>,
     extra: Vec<FeatureRef>,
@@ -481,7 +541,7 @@ fn make_sdk_with(
         ("headers", jo(vec![("X-Custom-Token", Value::str(CANARY_HEADER))])),
         ("clean", clean),
         ("feature", feature),
-        ("system", jo(vec![("fetch", transport(scenario))])),
+        ("system", jo(vec![("fetch", fetch)])),
     ]);
     if let Some(auth) = auth {
         setp(&opts, "auth", auth);
@@ -539,6 +599,46 @@ fn usable_op() -> Option<Target> {
 const NOTHING_TO_SWEEP: &str =
     "SKIP: no operation of this SDK completes against a plain 200; nothing to sweep";
 
+const NO_BINARY_BODY: &str =
+    "SKIP: no operation of this SDK sends a binary body; nothing to sweep";
+
+// The first operation with a point that sends a raw body the model marks
+// binary, with every path parameter of that point filled in, and the media
+// type the point declares.
+fn binary_op() -> Option<(Target, Value)> {
+    let plain = construct(jo(vec![("apikey", Value::str(CANARY_APIKEY))]));
+    let entities = getp(&plain.get_root_ctx().config.borrow(), "entity");
+    for (name, drive, stream, _params) in CANDIDATES {
+        let Some((entity, op)) = name.split_once('.') else {
+            continue;
+        };
+        let opdef = getp(&getp(&getp(&entities, entity), "op"), op);
+        let Value::List(points) = getp(&opdef, "points") else {
+            continue;
+        };
+        for point in points.borrow().iter() {
+            let body = getp(point, "body");
+            if getp(&body, "kind") != Value::str("raw") || getp(&body, "binary") != Value::Bool(true) {
+                continue;
+            }
+            let mtch = Value::empty_map();
+            if let Value::List(params) = getp(&getp(point, "args"), "params") {
+                for p in params.borrow().iter() {
+                    if let Value::Str(pname) = getp(p, "name") {
+                        setp(&mtch, &pname, Value::str("p1"));
+                    }
+                }
+            }
+            let action = getp(&getp(point, "select"), "$action");
+            if !action.is_nullish() {
+                setp(&mtch, "$action", action);
+            }
+            return Some((Target { drive: *drive, stream: *stream, mtch }, getp(&body, "media")));
+        }
+    }
+    None
+}
+
 fn same_node(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Map(x), Value::Map(y)) => Rc::ptr_eq(x, y),
@@ -547,9 +647,24 @@ fn same_node(a: &Value, b: &Value) -> bool {
 }
 
 fn drive(sdk: &Rc<${Name}SDK>, target: &Target, ctrl: Value, sinks: &Sinks) -> Option<${Name}Error> {
+    drive_with(sdk, target, ctrl, sinks, Value::Noval)
+}
+
+// The same call with a raw body beside the match, when one is given.
+fn drive_with(
+    sdk: &Rc<${Name}SDK>,
+    target: &Target,
+    ctrl: Value,
+    sinks: &Sinks,
+    body: Value,
+) -> Option<${Name}Error> {
     // A caller may keep the record it passed rather than read ctrl.explain.
     let held = getp(&ctrl, "explain");
-    let (res, mtch) = (target.drive)(sdk, vs::clone(&target.mtch), ctrl.clone());
+    let args = vs::clone(&target.mtch);
+    if !body.is_noval() {
+        setp(&args, "$body", body);
+    }
+    let (res, mtch) = (target.drive)(sdk, args, ctrl.clone());
     let out = match res {
         Ok(out) => {
             push_value(sinks, "result", &out);
@@ -591,6 +706,48 @@ fn header(map: &Value, name: &str) -> Option<String> {
 
 fn leaks(text: &str) -> Vec<String> {
     forms().into_iter().filter(|f| text.contains(f.as_str())).collect()
+}
+
+// Every run of digits in the text, in order, each closed by a comma: a list
+// of byte values prints as its numbers, whatever stands between them.
+fn numbers(text: &str) -> String {
+    let mut out = String::from(",");
+    let mut run = false;
+    for c in text.chars() {
+        if c.is_ascii_digit() {
+            out.push(c);
+            run = true;
+        } else if run {
+            out.push(',');
+            run = false;
+        }
+    }
+    if run {
+        out.push(',');
+    }
+    out
+}
+
+// The forms bytes travel in once copied: text, a list of byte values (JSON,
+// or Debug's Num(67)), hex, base64.
+fn content_leaks(text: &str, marker: &str) -> Vec<&'static str> {
+    let flat: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    let values: String = marker.bytes().map(|b| format!("{},", b)).collect();
+    let hex: String = marker.bytes().map(|b| format!("{:02x}", b)).collect();
+    let mut found = Vec::new();
+    if text.contains(marker) {
+        found.push("text");
+    }
+    if numbers(text).contains(&format!(",{}", values)) {
+        found.push("byte values");
+    }
+    if flat.to_lowercase().contains(&hex) {
+        found.push("hex");
+    }
+    if flat.contains(&b64(marker)) {
+        found.push("base64");
+    }
+    found
 }
 
 #[test]
@@ -635,10 +792,10 @@ fn clean_no_credential_leaves_the_sdk_in_any_form() {
     // (make_options keeps its input when validation fails), so what the
     // constructor produced is swept instead: the client's prints, and a
     // string quoting the value, cleaned the way a validation message is.
-    let mistyped = ${Name}SDK::new(offline(jo(vec![
+    let mistyped = construct(jo(vec![
         ("apikey", jo(vec![("value", Value::str(CANARY_APIKEY))])),
         ("clean", jo(vec![("values", Value::str(CANARY_VALUE))])),
-    ])));
+    ]));
     push(&sinks, "mistyped:debug", format!("{:?}", mistyped));
     push(&sinks, "mistyped:display", format!("{}", mistyped));
     push(
@@ -911,7 +1068,7 @@ fn clean_honours_the_generated_config_clean_block() {
         },
         None,
     );
-    let opts = utility.make_options(&ctx);
+    let opts = utility.make_options(&ctx).unwrap();
     *ctx.options.borrow_mut() = opts;
     assert_eq!(
         clean::clean_str(&ctx, "a CONFIG-SEEDED-1 b CALLER-SEEDED-2"),
@@ -925,6 +1082,222 @@ fn clean_honours_the_generated_config_clean_block() {
     assert_eq!(getp(&out, "other"), Value::str("y"));
     assert_eq!(getpath(&["options", "clean", "keys"], &config), Value::str("zzsens"));
     assert_eq!(getpath(&["options", "clean", "values"], &config), Value::str("CONFIG-SEEDED-1"));
+}
+
+#[test]
+fn clean_no_body_of_bytes_leaves_the_sdk_in_any_form() {
+    let Some((target, media)) = binary_op() else {
+        println!("{}", NO_BINARY_BODY);
+        return;
+    };
+
+    let sinks: Sinks = Rc::new(RefCell::new(Vec::new()));
+    let mut sent: Vec<(String, Value)> = Vec::new();
+    let mut errors: Vec<(String, ${Name}Error)> = Vec::new();
+    let mut explains: Vec<(String, Value)> = Vec::new();
+
+    for name in CARRIERS {
+        for scenario in &SCENARIOS[..4] {
+            for variant in ["throw", "explain", "nothrow"] {
+                let key = format!("{}/{}/{}", name, scenario.name(), variant);
+                let seen = Rc::new(RefCell::new(Value::Noval));
+                let sdk = make_sdk_fetch(
+                    transport_seen(*scenario, seen.clone()),
+                    &sinks,
+                    None,
+                    Vec::new(),
+                    None,
+                );
+                let explain = Value::empty_map();
+                let ctrl = match variant {
+                    "explain" => jo(vec![("explain", explain.clone())]),
+                    "nothrow" => jo(vec![("throw", Value::Bool(false)), ("explain", explain.clone())]),
+                    _ => Value::Noval,
+                };
+                if let Some(err) = drive_with(&sdk, &target, ctrl, &sinks, carrier(name)) {
+                    errors.push((key.clone(), err));
+                }
+                if "throw" != variant {
+                    explains.push((key.clone(), explain));
+                }
+                sent.push((key, seen.borrow().clone()));
+                push(&sinks, "sdk:debug", format!("{:?}", sdk));
+                push(&sinks, "sdk:display", format!("{}", sdk));
+            }
+        }
+    }
+
+    let leaked: Vec<String> = sinks
+        .borrow()
+        .iter()
+        .filter_map(|s| {
+            let found = content_leaks(&s.text, CONTENT);
+            if found.is_empty() {
+                None
+            } else {
+                Some(format!("{} [{}]", s.name, found.join(", ")))
+            }
+        })
+        .collect();
+
+    println!(
+        "clean: content swept {} surface(s), {} leak(s)",
+        sinks.borrow().len(),
+        leaked.len()
+    );
+
+    assert!(leaked.is_empty(), "a body of bytes leaked through: {}", leaked.join("; "));
+
+    // The request itself is untouched: what the transport was handed is the body.
+    for name in CARRIERS {
+        let key = format!("{}/notfound/throw", name);
+        let body = sent
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, b)| b.clone())
+            .unwrap_or(Value::Noval);
+        assert_eq!(body, carrier(name), "{}: the transport was handed something else", name);
+    }
+
+    // The positive half: where the body was, what describes it now is.
+    let desc = jo(vec![
+        ("binary$", Value::str("bytes")),
+        ("size", Value::Num(CONTENT.len() as f64)),
+    ]);
+    if let Value::Str(_) = media {
+        setp(&desc, "type", media.clone());
+    }
+    for name in CARRIERS {
+        let key = format!("{}/notfound/throw", name);
+        let failed = errors
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, e)| e.clone())
+            .unwrap_or_else(|| panic!("{}: the 404 scenario must throw", name));
+        assert_eq!(getp(&failed.spec, "body"), desc, "{}: the thrown spec", name);
+
+        let key = format!("{}/ok/explain", name);
+        let explained = explains
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, e)| e.clone())
+            .unwrap_or(Value::Noval);
+        assert_eq!(
+            getp(&getp(&explained, "spec"), "body"),
+            desc,
+            "{}: the explain record",
+            name
+        );
+    }
+}
+
+#[test]
+fn clean_the_sweep_can_see_a_body() {
+    let Some((target, _media)) = binary_op() else {
+        println!("{}", NO_BINARY_BODY);
+        return;
+    };
+
+    for name in CARRIERS {
+        let sinks: Sinks = Rc::new(RefCell::new(Vec::new()));
+        let sdk = make_sdk(
+            Scenario::NotFound,
+            &sinks,
+            Some(jo(vec![("active", Value::Bool(false))])),
+            Vec::new(),
+        );
+        let err = drive_with(&sdk, &target, Value::Noval, &sinks, carrier(name));
+        assert!(err.is_some(), "{}: the 404 scenario must throw", name);
+        let leaked = sinks.borrow().iter().filter(|s| !content_leaks(&s.text, CONTENT).is_empty()).count();
+        assert!(0 < leaked, "{}: with clean off, nothing showed the bytes: the sweep is blind", name);
+    }
+}
+
+#[test]
+fn clean_no_response_of_bytes_leaves_the_sdk_in_any_form() {
+    let Some(target) = usable_op() else {
+        println!("{}", NOTHING_TO_SWEEP);
+        return;
+    };
+
+    let sinks: Sinks = Rc::new(RefCell::new(Vec::new()));
+    let mut errors: Vec<(String, ${Name}Error)> = Vec::new();
+
+    for status in [200, 404, 500] {
+        for variant in ["throw", "explain", "nothrow"] {
+            let sdk = make_sdk(Scenario::Bytes(status), &sinks, None, Vec::new());
+            let ctrl = match variant {
+                "explain" => jo(vec![("explain", Value::empty_map())]),
+                "nothrow" => jo(vec![("throw", Value::Bool(false)), ("explain", Value::empty_map())]),
+                _ => Value::Noval,
+            };
+            if let Some(err) = drive(&sdk, &target, ctrl, &sinks) {
+                errors.push((format!("{}/{}", status, variant), err));
+            }
+            push(&sinks, "sdk:debug", format!("{:?}", sdk));
+            push(&sinks, "sdk:display", format!("{}", sdk));
+        }
+    }
+
+    let leaked: Vec<String> = sinks
+        .borrow()
+        .iter()
+        .filter_map(|s| {
+            let found = content_leaks(&s.text, RESPONSE);
+            if found.is_empty() {
+                None
+            } else {
+                Some(format!("{} [{}]", s.name, found.join(", ")))
+            }
+        })
+        .collect();
+
+    println!(
+        "clean: response swept {} surface(s), {} leak(s)",
+        sinks.borrow().len(),
+        leaked.len()
+    );
+
+    assert!(leaked.is_empty(), "a response of bytes leaked through: {}", leaked.join("; "));
+
+    // The failure still names what it could not read.
+    let failed = errors
+        .iter()
+        .find(|(k, _)| k == "200/throw")
+        .map(|(_, e)| e.clone())
+        .expect("a response of bytes must fail the operation");
+    assert_eq!(failed.code, "response_content_type");
+    assert!(failed.msg.contains("audio/wav"), "the error does not name the type: {}", failed.msg);
+}
+
+// No sweep control: no surface of this SDK carries the response body, even
+// with clean off. The rule is held for a hook that cleans one itself.
+#[test]
+fn clean_describes_a_response_of_bytes_a_hook_carries() {
+    let carried = |ctype: &str, active: bool, body: Value| {
+        let sdk = construct(jo(vec![("clean", jo(vec![("active", Value::Bool(active))]))]));
+        let answer = bytes_response(200, ctype);
+        setp(&answer, "body", body.clone());
+        let ctx = sdk.get_utility().make_context(
+            CtxSpec {
+                response: Some(Rc::new(RefCell::new(Response::new(&answer)))),
+                ..Default::default()
+            },
+            Some(&sdk.get_root_ctx()),
+        );
+        getp(&clean::clean_util(&ctx, &jo(vec![("body", body)])), "body")
+    };
+    let desc = jo(vec![("binary$", Value::str("bytes")), ("type", Value::str("audio/wav"))]);
+    assert_eq!(carried("audio/wav", true, Value::str(RESPONSE)), desc);
+    assert_eq!(carried("", true, Value::str(RESPONSE)), Value::str(RESPONSE));
+    assert_eq!(carried("application/json", true, Value::str(RESPONSE)), Value::str(RESPONSE));
+    assert_eq!(carried("audio/wav", false, Value::str(RESPONSE)), Value::str(RESPONSE));
+    let sized = jo(vec![
+        ("binary$", Value::str("bytes")),
+        ("size", Value::Num(RESPONSE.len() as f64)),
+        ("type", Value::str("audio/wav")),
+    ]);
+    assert_eq!(carried("audio/wav", true, bytes_value(RESPONSE.as_bytes())), sized);
 }
 `
 }

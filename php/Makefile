@@ -10,8 +10,8 @@ clean:
 	@echo "No clean step for PHP"
 
 # --- Release: tag for Packagist -------------------------------------------
-# Packagist has no upload — it tracks the repo and indexes each git tag
-# php/vX.Y.Z (a configured GitHub webhook, or the Packagist "Update" API,
+# Packagist has no upload — it tracks the repo and indexes each release
+# tag (a configured GitHub webhook, or the Packagist "Update" API,
 # refreshes the package). So publishing a version means pushing the tag. Run
 # headless under the boru key vault, which injects the GitHub token:
 #   boru vault exec --for=github=<alias> -- make publish
@@ -29,6 +29,7 @@ publish: test
 	  echo "[dry-run] boru filler token detected: would tag $(TAG) for Packagist; nothing pushed."; \
 	  exit 0; \
 	fi; \
+	if [ -z "$(TAG)" ]; then echo "No release tag: the model cuts none for this package."; exit 0; fi; \
 	git tag -a "$(TAG)" -m "php v$(VERSION)"; \
 	url=$$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#'); \
 	if [ -n "$$token" ] && printf '%s' "$$url" | grep -q '^https://github.com/'; then \

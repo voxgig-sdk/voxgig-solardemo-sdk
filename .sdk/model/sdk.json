@@ -1,15 +1,6 @@
 {
-  "NAME": "VOXGIG-SOLARDEMO",
-  "Name": "VoxgigSolardemo",
   "def": "solardemo-1.0.0-openapi-3.0.0.yaml",
   "main": {
-    "api": {
-      "entity": {},
-      "guide": {}
-    },
-    "custom": {
-      "plurals": {}
-    },
     "def": {
       "desc": ""
     },
@@ -33,6 +24,7 @@
         "repr": "auto"
       },
       "contributor": {},
+      "copies": "overwrite",
       "doc": {
         "active": true,
         "assets": {
@@ -173,6 +165,7 @@
           "name": "moon",
           "op": {
             "create": {
+              "active": true,
               "input": "data",
               "name": "create",
               "points": [
@@ -237,6 +230,7 @@
               ]
             },
             "list": {
+              "active": true,
               "input": "data",
               "name": "list",
               "points": [
@@ -294,6 +288,7 @@
               ]
             },
             "load": {
+              "active": true,
               "input": "data",
               "name": "load",
               "points": [
@@ -367,6 +362,7 @@
               ]
             },
             "remove": {
+              "active": true,
               "input": "data",
               "name": "remove",
               "points": [
@@ -436,6 +432,7 @@
               ]
             },
             "update": {
+              "active": true,
               "input": "data",
               "name": "update",
               "points": [
@@ -594,6 +591,7 @@
           "name": "planet",
           "op": {
             "create": {
+              "active": true,
               "input": "data",
               "name": "create",
               "points": [
@@ -721,12 +719,9 @@
                   "a": true,
                   "bf": [
                     "diameter",
-                    "forbidReason",
-                    "forbidState",
                     "id",
                     "kind",
-                    "name",
-                    "terraformState"
+                    "name"
                   ],
                   "co": {
                     "id": "POST /api/planet",
@@ -759,6 +754,7 @@
               ]
             },
             "list": {
+              "active": true,
               "input": "data",
               "name": "list",
               "points": [
@@ -795,6 +791,7 @@
               ]
             },
             "load": {
+              "active": true,
               "input": "data",
               "name": "load",
               "points": [
@@ -853,6 +850,7 @@
               ]
             },
             "remove": {
+              "active": true,
               "input": "data",
               "name": "remove",
               "points": [
@@ -907,6 +905,7 @@
               ]
             },
             "update": {
+              "active": true,
               "input": "data",
               "name": "update",
               "points": [
@@ -914,12 +913,9 @@
                   "a": true,
                   "bf": [
                     "diameter",
-                    "forbidReason",
-                    "forbidState",
                     "id",
                     "kind",
-                    "name",
-                    "terraformState"
+                    "name"
                   ],
                   "co": {
                     "id": "PUT /api/planet/{planet_id}",
@@ -1029,6 +1025,10 @@
               "active": true,
               "await": false
             },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": true,
               "await": false
@@ -1054,6 +1054,10 @@
               "await": false
             },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -1197,6 +1201,14 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": true,
               "await": false
@@ -1217,7 +1229,15 @@
               "active": false,
               "await": false
             },
+            "PreUnexpected": {
+              "active": false,
+              "await": false
+            },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -1384,6 +1404,10 @@
             "SetData": {
               "active": false,
               "await": false
+            },
+            "SetMatch": {
+              "active": false,
+              "await": false
             }
           },
           "name": "metrics",
@@ -1520,6 +1544,14 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": true,
               "await": false
@@ -1540,7 +1572,15 @@
               "active": false,
               "await": false
             },
+            "PreUnexpected": {
+              "active": false,
+              "await": false
+            },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -1675,6 +1715,14 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": false,
               "await": false
@@ -1695,7 +1743,15 @@
               "active": false,
               "await": false
             },
+            "PreUnexpected": {
+              "active": false,
+              "await": false
+            },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -1841,6 +1897,14 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": false,
               "await": false
@@ -1861,7 +1925,15 @@
               "active": false,
               "await": false
             },
+            "PreUnexpected": {
+              "active": false,
+              "await": false
+            },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -1970,6 +2042,7 @@
                 "active": false,
                 "method": "POST",
                 "path": "auth/token",
+                "redirect": "refuse",
                 "refresh": "",
                 "request": "refresh_token",
                 "response": "access_token",
@@ -2026,6 +2099,14 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": false,
               "await": false
@@ -2046,7 +2127,15 @@
               "active": false,
               "await": false
             },
+            "PreUnexpected": {
+              "active": false,
+              "await": false
+            },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -3038,6 +3127,10 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
             "PrePoint": {
               "active": true,
               "await": false
@@ -3059,6 +3152,10 @@
               "await": false
             },
             "PreTarget": {
+              "active": false,
+              "await": false
+            },
+            "PreUnexpected": {
               "active": false,
               "await": false
             },
@@ -3201,6 +3298,14 @@
               "active": false,
               "await": false
             },
+            "PreDone": {
+              "active": false,
+              "await": false
+            },
+            "PrePoint": {
+              "active": false,
+              "await": false
+            },
             "PreRequest": {
               "active": false,
               "await": false
@@ -3221,7 +3326,15 @@
               "active": false,
               "await": false
             },
+            "PreUnexpected": {
+              "active": false,
+              "await": false
+            },
             "SetData": {
+              "active": false,
+              "await": false
+            },
+            "SetMatch": {
               "active": false,
               "await": false
             }
@@ -3556,6 +3669,9 @@
           ]
         }
       },
+      "http": {
+        "useragent": ""
+      },
       "info": {
         "auth": false,
         "description": "The Solar System API.",
@@ -3627,6 +3743,7 @@
       },
       "publisher": {
         "name": "",
+        "official": false,
         "security": "",
         "url": ""
       },
@@ -3645,6 +3762,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "c",
           "feature": {
@@ -3676,6 +3794,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "none",
@@ -3697,12 +3816,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "tests/runner.h"
           ],
+          "surface": "",
           "title": "C"
         },
         "clojure": {
@@ -3715,6 +3835,7 @@
           "comment": {
             "line": ";"
           },
+          "consumes": "",
           "deps": {},
           "ext": "clj",
           "feature": {
@@ -3743,6 +3864,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "clojars",
@@ -3764,10 +3886,11 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "",
           "title": "Clojure"
         },
         "cpp": {
@@ -3780,6 +3903,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "hpp",
           "feature": {
@@ -3810,6 +3934,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "none",
@@ -3831,12 +3956,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/struct_runner.hpp"
           ],
+          "surface": "",
           "title": "C++"
         },
         "csharp": {
@@ -3849,6 +3975,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "cs",
           "feature": {
@@ -3879,6 +4006,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "nuget",
@@ -3900,12 +4028,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/StructRunner.cs"
           ],
+          "surface": "",
           "title": "C#"
         },
         "dart": {
@@ -3918,6 +4047,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "dart",
           "feature": {
@@ -3945,6 +4075,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "pub.dev",
@@ -3966,13 +4097,14 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/runner.dart",
             "test/struct_corpus.dart"
           ],
+          "surface": "",
           "title": "Dart"
         },
         "elixir": {
@@ -3985,6 +4117,7 @@
           "comment": {
             "line": "#"
           },
+          "consumes": "",
           "deps": {},
           "ext": "ex",
           "feature": {
@@ -4013,6 +4146,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "hex",
@@ -4034,12 +4168,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/support/struct_corpus.ex"
           ],
+          "surface": "",
           "title": "Elixir"
         },
         "go": {
@@ -4052,6 +4187,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "go",
           "feature": {
@@ -4082,6 +4218,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "",
@@ -4103,14 +4240,15 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/runner_test.go",
             "test/struct_runner_test.go"
           ],
-          "title": "Golang"
+          "surface": "",
+          "title": "Go"
         },
         "go-cli": {
           "active": true,
@@ -4122,6 +4260,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "go",
           "deps": {},
           "ext": "go",
           "feature": {
@@ -4164,6 +4303,7 @@
           },
           "provides": {},
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "",
@@ -4185,9 +4325,10 @@
               },
               "via": "root"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "superseded": [],
+          "surface": "cli",
           "title": "Go CLI"
         },
         "go-mcp": {
@@ -4200,6 +4341,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "go",
           "deps": {},
           "ext": "go",
           "feature": {
@@ -4242,6 +4384,7 @@
           },
           "provides": {},
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "",
@@ -4263,9 +4406,10 @@
               },
               "via": "root"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "superseded": [],
+          "surface": "mcp",
           "title": "Go MCP server",
           "tool": {
             "write": false
@@ -4281,6 +4425,7 @@
           "comment": {
             "line": "--"
           },
+          "consumes": "",
           "deps": {},
           "ext": "hs",
           "feature": {
@@ -4308,9 +4453,6 @@
             "agentguide": {
               "active": true
             },
-            "entity": {
-              "active": false
-            },
             "feature": {
               "active": false
             },
@@ -4323,6 +4465,7 @@
           },
           "provides": {},
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "hackage",
@@ -4348,6 +4491,7 @@
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "",
           "title": "Haskell"
         },
         "java": {
@@ -4360,6 +4504,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "java",
           "feature": {
@@ -4390,6 +4535,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "maven-central",
@@ -4411,12 +4557,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/StructRunner.java"
           ],
+          "surface": "",
           "title": "Java"
         },
         "js": {
@@ -4429,6 +4576,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {
             "dotenv": {
               "active": true,
@@ -4463,6 +4611,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "npm",
@@ -4484,11 +4633,12 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "superseded": [
             "test/runner.js"
           ],
+          "surface": "",
           "title": "JavaScript"
         },
         "kotlin": {
@@ -4501,6 +4651,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "kt",
           "feature": {
@@ -4531,6 +4682,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "maven-central",
@@ -4552,12 +4704,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/StructRunner.kt"
           ],
+          "surface": "",
           "title": "Kotlin"
         },
         "lean": {
@@ -4570,6 +4723,7 @@
           "comment": {
             "line": "--"
           },
+          "consumes": "",
           "deps": {},
           "ext": "lean",
           "feature": {
@@ -4597,9 +4751,6 @@
             "agentguide": {
               "active": true
             },
-            "entity": {
-              "active": false
-            },
             "feature": {
               "active": false
             },
@@ -4614,6 +4765,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "reservoir",
@@ -4635,10 +4787,11 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "",
           "title": "Lean"
         },
         "lua": {
@@ -4651,6 +4804,7 @@
           "comment": {
             "line": "--"
           },
+          "consumes": "",
           "deps": {
             "dkjson": {
               "active": true,
@@ -4685,6 +4839,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "luarocks",
@@ -4706,12 +4861,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/struct_runner.lua"
           ],
+          "surface": "",
           "title": "Lua"
         },
         "ocaml": {
@@ -4724,6 +4880,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "ml",
           "feature": {
@@ -4752,6 +4909,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "opam",
@@ -4773,12 +4931,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/corpus_runner.ml"
           ],
+          "surface": "",
           "title": "OCaml"
         },
         "perl": {
@@ -4791,6 +4950,7 @@
           "comment": {
             "line": "#"
           },
+          "consumes": "",
           "deps": {},
           "ext": "pl",
           "feature": {
@@ -4819,6 +4979,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "cpan",
@@ -4840,12 +5001,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "t/struct_runner.pm"
           ],
+          "surface": "",
           "title": "Perl"
         },
         "php": {
@@ -4858,6 +5020,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "php",
           "feature": {
@@ -4886,6 +5049,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "packagist",
@@ -4907,12 +5071,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/StructRunner.php"
           ],
+          "surface": "",
           "title": "PHP"
         },
         "py": {
@@ -4925,6 +5090,7 @@
           "comment": {
             "line": "#"
           },
+          "consumes": "",
           "deps": {
             "requests": {
               "active": true,
@@ -4959,6 +5125,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "pypi",
@@ -4980,12 +5147,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/struct_runner.py"
           ],
+          "surface": "",
           "title": "Python"
         },
         "py-data": {
@@ -4998,6 +5166,7 @@
           "comment": {
             "line": "#"
           },
+          "consumes": "py",
           "deps": {
             "pandas": {
               "active": true,
@@ -5046,6 +5215,7 @@
           },
           "provides": {},
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "pypi",
@@ -5067,10 +5237,11 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "data",
           "title": "Python Data"
         },
         "rb": {
@@ -5083,6 +5254,7 @@
           "comment": {
             "line": "#"
           },
+          "consumes": "",
           "deps": {
             "json": {
               "active": true,
@@ -5117,6 +5289,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "rubygems",
@@ -5138,12 +5311,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/struct_runner.rb"
           ],
+          "surface": "",
           "title": "Ruby"
         },
         "rust": {
@@ -5156,7 +5330,13 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {
+            "flate2": {
+              "active": true,
+              "kind": "prod",
+              "version": "1"
+            },
             "ureq": {
               "active": true,
               "kind": "prod",
@@ -5192,6 +5372,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "crates.io",
@@ -5213,12 +5394,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "tests/struct_runner/mod.rs"
           ],
+          "surface": "",
           "title": "Rust"
         },
         "scala": {
@@ -5231,6 +5413,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "scala",
           "feature": {
@@ -5259,6 +5442,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "maven-central",
@@ -5280,10 +5464,11 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "",
           "title": "Scala"
         },
         "seneca-provider": {
@@ -5296,6 +5481,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {
             "@seneca/doc": {
               "active": true,
@@ -5389,6 +5575,7 @@
           },
           "provides": {},
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "npm",
@@ -5410,7 +5597,7 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "sdk": {
             "dep": {
@@ -5425,6 +5612,7 @@
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "",
           "title": "Seneca Provider"
         },
         "swift": {
@@ -5437,6 +5625,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "swift",
           "feature": {
@@ -5467,6 +5656,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "swiftpm",
@@ -5488,10 +5678,11 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [],
+          "surface": "",
           "title": "Swift"
         },
         "ts": {
@@ -5504,6 +5695,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {
             "@types/node": {
               "active": true,
@@ -5543,6 +5735,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": true,
             "registry": {
               "active": false,
               "name": "npm",
@@ -5564,7 +5757,7 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "superseded": [
             "test/runner.ts",
@@ -5574,6 +5767,7 @@
             "src/feature/secrets/sekreto/provider/Registry.ts",
             "src/feature/secrets/sekreto/provider/http.ts"
           ],
+          "surface": "",
           "title": "TypeScript"
         },
         "zig": {
@@ -5586,6 +5780,7 @@
           "comment": {
             "line": "//"
           },
+          "consumes": "",
           "deps": {},
           "ext": "zig",
           "feature": {
@@ -5614,6 +5809,7 @@
             "sekreto": true
           },
           "publish": {
+            "recipe": false,
             "registry": {
               "active": false,
               "name": "none",
@@ -5635,12 +5831,13 @@
               },
               "via": "port"
             },
-            "version": "0.1.0"
+            "version": "0.0.1"
           },
           "srcfeature": false,
           "superseded": [
             "test/struct_runner.zig"
           ],
+          "surface": "",
           "title": "Zig"
         }
       },
@@ -5665,8 +5862,5 @@
     }
   },
   "name": "voxgig-solardemo",
-  "name-": "voxgig-solardemo",
-  "name_": "voxgig_solardemo",
-  "name__orig": "voxgig-solardemo",
   "origin": "voxgig-sdk"
 }

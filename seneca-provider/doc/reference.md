@@ -1,7 +1,7 @@
 # Reference
 
 Complete description of the interface exposed by
-`@seneca/voxgig-solardemo-provider` version 0.1.0.
+`@seneca/voxgig-solardemo-provider` version 0.0.1.
 
 This document describes the machinery and assumes you know what you are
 looking for. To learn the plugin, start with the [tutorial](tutorial.md);
@@ -27,7 +27,7 @@ the [README](../README.md), and the document index is [here](README.md).
 | ---- | ----- |
 | Node.js | `>=24` |
 | Module format | CommonJS |
-| SDK | [`@voxgig-sdk/voxgig-solardemo-sdk`](https://www.npmjs.com/package/@voxgig-sdk/voxgig-solardemo-sdk) `^0.1.0` |
+| SDK | [`@voxgig-sdk/voxgig-solardemo-sdk`](https://www.npmjs.com/package/@voxgig-sdk/voxgig-solardemo-sdk) `^0.0.1` |
 
 The SDK is an ordinary published dependency, installed by `npm install`
 like any other.
@@ -278,10 +278,10 @@ await seneca.post('sys:provider,provider:voxgig-solardemo,get:info')
 {
   ok: true,
   name: 'voxgig-solardemo',
-  version: '0.1.0',
+  version: '0.0.1',
   sdk: {
     name: '@voxgig-sdk/voxgig-solardemo-sdk',
-    version: '0.1.0',
+    version: '0.0.1',
   },
 }
 ```

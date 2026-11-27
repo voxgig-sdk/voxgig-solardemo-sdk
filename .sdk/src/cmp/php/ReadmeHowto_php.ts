@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, phpEntityAccessor, seededList, litPair } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, canonScalarKey, entityIdField, pickExampleEntity, phpEntityAccessor, seededList, litPair, matchExampleItems, requestExampleItems, envLocalAt, cdTarget, fact, directRoute } from '@voxgig/sdkgen'
 
 import { KIT, getModelPath, nom } from '@voxgig/apidef'
 
@@ -16,6 +16,8 @@ function phpLit(type: any): string {
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op) — never fabricate a
@@ -44,14 +46,13 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   if (listed) {
     testCallArg = 0 < listed.call.length ? `[${listed.call.join(', ')}]` : ''
   } else if (exampleEntity && isMatchOp) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
-      .filter((it: any) => !it.optional || it.name === idF)
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
       .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
     testCallArg = 0 < items.length
       ? `[${items.map((it: any) => litPair('php', it.name, it.name === idF ? '"test01"' : phpLit(it.type))).join(', ')}]`
       : ''
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -69,8 +70,18 @@ print_r(${primaryOp === 'list' ? `array_map(fn($item) => $item->data_get(), $${e
 print_r($result);`
 
   const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
+    ? `\n${ENVVAR.apikey}=<your-key>${fact(model.main[KIT], 'auth').secret ? `\n${ENVVAR.secret}=<your-secret>` : ''}`
     : ''
+  const serverEnvLine = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+    .map((v: any) => `\n${ENVVAR.server[v.name]}=<${v.name}>`).join('')
+  const defaulted = fact(model.main[KIT], 'server').filter((v: any) => !v.required)
+  const liveEnvNote = (0 === defaulted.length ? '' :
+    defaulted.map((v: any) => '`' + ENVVAR.server[v.name] + '`').join(', ') +
+    (1 === defaulted.length ? ', when set, replaces its server variable\'s default.\n'
+      : ', when set, replace their server variables\' defaults.\n')) +
+    'Each entity\'s tests also read `' + ENVVAR.prefix + '_TEST_<ENTITY>_ENTID`, with the\n' +
+    'entity\'s name in capitals: a JSON object of the ids of existing records, for\n' +
+    'the tests that do not create their own.\n\n'
 
   Content(`### Make a direct HTTP request
 
@@ -80,9 +91,9 @@ For endpoints not covered by entity methods:
 // direct() is the raw-HTTP escape hatch: it returns a result array
 // (it does not throw). Branch on $result["ok"].
 $result = $client->direct([
-    "path" => "/api/resource/{id}",
-    "method" => "GET",
-    "params" => ["id" => "example"],
+    "path" => "${dx.path}",
+    "method" => "${dx.method}",
+    "params" => ["${dx.param}" => "example"],
 ]);
 
 if ($result["ok"]) {
@@ -101,9 +112,9 @@ if ($result["ok"]) {
 \`\`\`php
 // prepare() throws on error and returns the fetch definition.
 $fetchdef = $client->prepare([
-    "path" => "/api/resource/{id}",
-    "method" => "DELETE",
-    "params" => ["id" => "example"],
+    "path" => "${dx.path}",
+    "method" => "${dx.method}",
+    "params" => ["${dx.param}" => "example"],
 ]);
 
 echo $fetchdef["url"];
@@ -148,16 +159,16 @@ $client = new ${model.const.Name}SDK([
 
 ### Run live tests
 
-Create a \`.env.local\` file at the project root:
+Create a \`.env.local\` file ${envLocalAt(props.ctx$, target)}:
 
 \`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
+${ENVVAR.live}=TRUE${apikeyEnvLine}${serverEnvLine}
 \`\`\`
 
-Then run:
+${liveEnvNote}Then run:
 
 \`\`\`bash
-cd php && ./vendor/bin/phpunit test/
+${cdTarget(target)}./vendor/bin/phpunit test/
 \`\`\`
 
 `)

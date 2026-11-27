@@ -37,11 +37,16 @@ final class MakeUrl {
     joinParts.add(spec.suffix);
     String url = Struct.join(joinParts, "/", true);
 
-    // A route the definition ends with a slash keeps it: a server such as a
-    // Django REST one redirects or refuses the route without it.
+    // A route ending in a slash keeps it, as defined or as passed to direct(), for
+    // Django, and a host with no path takes /, or luasocket reads a query as the host.
     Object orig = ctx.point == null ? null : Struct.getprop(ctx.point, "orig", null);
-    if (orig instanceof String && ((String) orig).endsWith("/") &&
-        (spec.suffix == null || spec.suffix.isEmpty()) && !url.endsWith("/")) {
+    boolean slashed = (orig instanceof String && ((String) orig).endsWith("/")) ||
+        (spec.path != null && spec.path.endsWith("/"));
+    if (slashed && (spec.suffix == null || spec.suffix.isEmpty()) && !url.endsWith("/")) {
+      url = url + "/";
+    }
+    int authority = url.indexOf("://");
+    if (0 < authority && url.substring(authority + 3).chars().noneMatch(c -> 0 <= "/?#".indexOf(c))) {
       url = url + "/";
     }
 
@@ -55,9 +60,14 @@ final class MakeUrl {
       String key = item.get(0) instanceof String ? (String) item.get(0) : "";
       Object val = item.get(1);
       if (val != null) {
+        // A whole . or .. is a dot segment, which moves the request to another route.
+        String text = Struct.stringify(val);
+        if (".".equals(text) || "..".equals(text)) {
+          throw ctx.makeError("url_param_invalid",
+              "URL path parameter " + key + " cannot be \"" + text + "\".");
+        }
         url = url.replaceAll("\\{" + Struct.escre(key) + "\\}",
-            java.util.regex.Matcher.quoteReplacement(
-                Struct.escurl(Struct.stringify(val))));
+            java.util.regex.Matcher.quoteReplacement(Struct.escurl(text)));
         resmatch.put(key, val);
       }
     }

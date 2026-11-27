@@ -49,7 +49,8 @@ fn planet_direct_setup(mockres: Value) -> PlanetDirectSetup {
                 jo(vec![]),
             ]),
             None,
-        )));
+        )))
+        .unwrap();
         let idmap = match to_map(&getp(&env, "VOXGIG_SOLARDEMO_TEST_PLANET_ENTID")) {
             Value::Map(m) => Value::Map(m),
             _ => Value::empty_map(),
@@ -83,7 +84,8 @@ fn planet_direct_setup(mockres: Value) -> PlanetDirectSetup {
     let client = VoxgigSolardemoSDK::new(jo(vec![
         ("base", Value::str("http://localhost:8080")),
         ("system", jo(vec![("fetch", mock_fetch)])),
-    ]));
+    ]))
+    .unwrap();
 
     PlanetDirectSetup {
         client,
@@ -112,14 +114,19 @@ fn planet_direct_list() {
         );
         return;
     }
+    if setup.live {
+        live_pace();
+    }
     let client = setup.client.clone();
 
     let params = Value::empty_map();
+    let query = Value::empty_map();
 
     let result = match client.direct(jo(vec![
         ("path", Value::str("api/planet")),
         ("method", Value::str("GET")),
         ("params", params.clone()),
+        ("query", query.clone()),
     ])) {
         Ok(result) => result,
         Err(err) if setup.live => {
@@ -169,9 +176,13 @@ fn planet_direct_load() {
         );
         return;
     }
+    if setup.live {
+        live_pace();
+    }
     let client = setup.client.clone();
 
     let params = Value::empty_map();
+    let query = Value::empty_map();
     if setup.live {
         let list_result = match client.direct(jo(vec![
             ("path", Value::str("api/planet")),
@@ -200,10 +211,7 @@ fn planet_direct_load() {
             live_empty("The account has no planet record to load");
             return;
         }
-        let mut found = getp(&first, "id");
-        if found.is_noval() {
-            found = getp(&first, "id");
-        }
+        let found = getp(&first, "id");
         if found.is_noval() {
             live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
             return;
@@ -217,6 +225,7 @@ fn planet_direct_load() {
         ("path", Value::str("api/planet/{id}")),
         ("method", Value::str("GET")),
         ("params", params.clone()),
+        ("query", query.clone()),
     ])) {
         Ok(result) => result,
         Err(err) if setup.live => {

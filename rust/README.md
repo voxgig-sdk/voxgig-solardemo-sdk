@@ -4,7 +4,7 @@
 
 The Rust SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Rust conventions.
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `client.moon(Value::Noval)` — each
+The SDK exposes the API as semantic **Entities** — for example `client.moon(Value::Noval)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -14,31 +14,30 @@ keeps the cognitive load low.
 
 
 ## Install
-This crate is not yet published to crates.io. Depend on it from the GitHub
+This package is not yet published to crates.io. Depend on it from the GitHub
 release tag (`rust/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or
 from a source checkout by adding it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 # From a source checkout:
-voxgig-voxgig-solardemo-sdk = { path = "../rust" }
+voxgig-voxgig-solardemo-sdk = { path = "../voxgig-solardemo-sdk/rust" }
 
 # Or from the git release tag:
-# voxgig-voxgig-solardemo-sdk = { git = "<repo-url>", tag = "rust/vX.Y.Z" }
+# voxgig-voxgig-solardemo-sdk = { git = "https://github.com/voxgig-sdk/voxgig-solardemo-sdk", tag = "rust/vX.Y.Z" }
 ```
 
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
 ```rust
-use voxgig_solardemo_sdk::{getp, jo, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Entity, Value};
+use voxgig_solardemo_sdk::{getp, jo, VoxgigSolardemoEntityBase, VoxgigSolardemoSDK, Entity, Value};
 
-let client = VoxgigSolardemoSDK::new(Value::Noval);
+let client = VoxgigSolardemoSDK::new(Value::Noval).expect("valid client options");
 ```
 
 ### 2. List moon records
@@ -86,30 +85,35 @@ client.moon(Value::Noval).remove(jo(vec![("id", getp(&created.data(None), "id"))
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations return a `Result`, so match on `Ok` and `Err`:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
+```rust
+match client.planet(Value::Noval).list(Value::Noval, Value::Noval) {
+    Ok(planets) => {
+        for planet in &planets {
+            println!("{:?}", planet.data(None));
+        }
+    }
+    Err(err) => eprintln!("list failed: {}", err),
 }
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`direct()` does **not** return `Err` for an error response — it
+returns `Ok` with the result map. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
-
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
+```rust
+match client.direct(jo(vec![
+    ("path", Value::str("/api/planet/{planet_id}/moon")),
+    ("method", Value::str("GET")),
+    ("params", jo(vec![("planet_id", Value::str("example_id"))])),
+])) {
+    Ok(result) => {
+        if getp(&result, "ok") != Value::Bool(true) {
+            eprintln!("request failed: {:?} {:?}", getp(&result, "status"), getp(&result, "err"));
+        }
+    }
+    Err(err) => eprintln!("request failed: {}", err),
 }
 ```
 
@@ -122,9 +126,9 @@ For endpoints not covered by entity methods:
 
 ```rust
 let result = client.direct(jo(vec![
-    ("path", Value::str("/api/resource/{id}")),
+    ("path", Value::str("/api/planet/{planet_id}/moon")),
     ("method", Value::str("GET")),
-    ("params", jo(vec![("id", Value::str("example"))])),
+    ("params", jo(vec![("planet_id", Value::str("example"))])),
 ])).unwrap();
 
 if getp(&result, "ok") == Value::Bool(true) {
@@ -142,9 +146,9 @@ if getp(&result, "ok") == Value::Bool(true) {
 ```rust
 // prepare() returns the fetch definition on Ok and Err on failure.
 let fetchdef = client.prepare(jo(vec![
-    ("path", Value::str("/api/resource/{id}")),
-    ("method", Value::str("DELETE")),
-    ("params", jo(vec![("id", Value::str("example"))])),
+    ("path", Value::str("/api/planet/{planet_id}/moon")),
+    ("method", Value::str("GET")),
+    ("params", jo(vec![("planet_id", Value::str("example"))])),
 ])).unwrap();
 
 println!("{:?}", getp(&fetchdef, "url"));
@@ -157,7 +161,7 @@ println!("{:?}", getp(&fetchdef, "headers"));
 Create a mock client for unit testing — no server required:
 
 ```rust
-use voxgig_solardemo_sdk::{jo, test_sdk, VoxgigSolardemoEntity, Entity, Value};
+use voxgig_solardemo_sdk::{jo, test_sdk, VoxgigSolardemoEntityBase, Entity, Value};
 
 let client = test_sdk(Value::Noval, Value::Noval);
 
@@ -174,16 +178,21 @@ Override the base URL to reach a local or staging server:
 ```rust
 let client = VoxgigSolardemoSDK::new(jo(vec![
     ("base", Value::str("http://localhost:8080")),
-]));
+]))
+.expect("valid client options");
 ```
 
 ### Run live tests
 
-Create a `.env.local` file at the crate root:
+Create a `.env.local` file at the project root:
 
 ```
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
+
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
 
 Then run:
 
@@ -199,7 +208,7 @@ cd rust && cargo test
 ```rust
 use voxgig_solardemo_sdk::{VoxgigSolardemoSDK, Value};
 
-let client = VoxgigSolardemoSDK::new(options);
+let client = VoxgigSolardemoSDK::new(options).expect("valid client options");
 ```
 
 Creates a new SDK client. `options` is a `Value` map (`Value::Noval` for
@@ -210,8 +219,9 @@ none) carrying any of the following keys:
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
 | `feature` | `map` | Feature activation flags. |
-| `system` | `map` | System overrides (e.g. a custom fetcher). |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 ### test_sdk
 
@@ -256,7 +266,7 @@ All entities share the same interface.
 Entity operations return the entity on `Ok`, and `list` a `Vec` of
 entities, one per record; `data(None)` reads an entity's record. `Err` is
 the branded error. The operations are methods of the
-`VoxgigSolardemoEntity` trait and `data` of the `Entity` trait, so
+`VoxgigSolardemoEntityBase` trait and `data` of the `Entity` trait, so
 import both.
 
 The `direct()` escape hatch resolves to `Ok` even on a non-2xx response —
@@ -283,7 +293,7 @@ On error, `ok` is `false` and `err` carries the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -299,9 +309,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -316,11 +326,11 @@ Create an instance: `let moon = client.moon(Value::Noval);`
 
 | Method | Description |
 | --- | --- |
-| `create(reqdata, ctrl)` | Create a new entity with the given data. `Ok` is the entity. |
 | `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. `Ok` is a `Vec` of entities, one per record. |
 | `load(reqmatch, ctrl)` | Load a single entity by match criteria. `Ok` is the entity. |
-| `remove(reqmatch, ctrl)` | Remove the matching entity. `Ok` is the entity, marked as deleted. |
+| `create(reqdata, ctrl)` | Create a new entity with the given data. `Ok` is the entity. |
 | `update(reqdata, ctrl)` | Update an existing entity. `Ok` is the entity. |
+| `remove(reqmatch, ctrl)` | Remove the matching entity. `Ok` is the entity, marked as deleted. |
 
 #### Fields
 
@@ -369,11 +379,11 @@ Create an instance: `let planet = client.planet(Value::Noval);`
 
 | Method | Description |
 | --- | --- |
-| `create(reqdata, ctrl)` | Create a new entity with the given data. `Ok` is the entity. |
 | `list(reqmatch, ctrl)` | List entities, optionally matching the given criteria. `Ok` is a `Vec` of entities, one per record. |
 | `load(reqmatch, ctrl)` | Load a single entity by match criteria. `Ok` is the entity. |
-| `remove(reqmatch, ctrl)` | Remove the matching entity. `Ok` is the entity, marked as deleted. |
+| `create(reqdata, ctrl)` | Create a new entity with the given data. `Ok` is the entity. |
 | `update(reqdata, ctrl)` | Update an existing entity. `Ok` is the entity. |
+| `remove(reqmatch, ctrl)` | Remove the matching entity. `Ok` is the entity, marked as deleted. |
 
 #### Fields
 
@@ -416,12 +426,11 @@ let planet = client.planet(Value::Noval).create(jo(vec![
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -534,7 +543,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -585,16 +594,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -602,9 +607,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature implements the `Feature`
+trait, which has a method per pipeline stage (e.g. `pre_point`,
+`pre_spec`). Each method receives the context.
 
 The SDK ships with built-in features:
 
@@ -627,7 +632,9 @@ The Rust SDK uses a single dynamic `Value` type throughout rather than a
 typed struct per entity. `Value` is the vendored voxgig struct port (a
 JSON-shaped enum: `Str`, `Num`, `Bool`, `List`, `Map`, `Null`,
 `Noval`). This mirrors the dynamic nature of the API and keeps the SDK
-flexible — no code generation is needed when the API schema changes.
+flexible: code that works with `Value` needs no regeneration when the
+API schema changes. The typed models in `entity/types.rs` follow the
+schema only when the SDK is regenerated.
 
 Build request maps with the `jo` / `ja` helpers and read fields back with
 `getp`; use `to_map` to safely coerce a value to a map.
@@ -639,7 +646,7 @@ rust/
 ├── lib.rs                       -- Crate root (module decls + re-exports)
 ├── core/                        -- Pipeline types, config, client (sdk.rs)
 ├── entity/                      -- Per-entity clients (one module each)
-├── feature/                     -- Built-in features (base, test, log)
+├── feature/                     -- Feature implementations
 └── utility/                     -- Utilities + the vendored voxgig struct port
 ```
 
@@ -650,15 +657,14 @@ directly. Import entity or utility modules only when needed.
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```rust
+let planet = client.planet(Value::Noval);
+let _ = planet.list(Value::Noval, Value::Noval);
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+// planet.data(None) now returns the planet data from the last list
+// planet.matchv(None) returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration
@@ -667,12 +673,13 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`direct()` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `prepare()` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

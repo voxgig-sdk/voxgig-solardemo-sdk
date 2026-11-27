@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, opRequestShape, entityIdField, entityOps, goModule, serverVariables, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, entityIdField, entityOps, goModule, listMatchArg, matchExampleItems, litString, requestExampleItems, sendsId, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -24,14 +24,14 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   // - the SDK refuses rather than request a URL with a literal
   // {account_id} in it - so a quickstart that omits them is a quickstart
   // that fails on its first line.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
   const goServerField = 0 === svars.length ? '' :
-    `\n    "server": map[string]any{` +
-    svars.map((v: any) => `\n        "${v.name}": "<${v.name}>",`).join('') +
-    `\n    },`
+    `\n        "server": map[string]any{` +
+    svars.map((v: any) => `\n            "${v.name}": "<${v.name}>",`).join('') +
+    `\n        },`
 
   const ctor = authActive
-    ? `sdk.New${model.const.Name}SDK(map[string]any{\n        "apikey": os.Getenv("${envName(model)}_APIKEY"),${goServerField}\n    })`
+    ? `sdk.New${model.const.Name}SDK(map[string]any{\n        "apikey": os.Getenv("${envName(model)}_APIKEY"),${fact(model.main[KIT], 'auth').secret ? `\n        "secret": os.Getenv("${envName(model)}_SECRET"),` : ''}${goServerField}\n    })`
     : ('' === goServerField
       ? `sdk.New()`
       : `sdk.New${model.const.Name}SDK(map[string]any{${goServerField}\n    })`)
@@ -50,8 +50,8 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
     const idF = entityIdField(exampleEntity)
 
     const exampleFields = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
@@ -61,20 +61,19 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
       return chosen.map((it: any) =>
-        `"${it.name}": ${exampleValue(exampleEntity, exampleEntity.op[opname], it.name, 'example_' + it.name)}`)
+        `${litString('go', it.name)}: ${exampleValue(exampleEntity, exampleEntity.op[opname], it.name, 'example_' + it.name)}`)
     }
 
     // The full REQUIRED match for load/remove (id first, then parent path
     // params like page_id) — the same shape that generates the op's request
     // match, so the example always carries the keys the route needs.
     const matchArg = (opname: string): string => {
-      const matchItems = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const matchItems = matchExampleItems(exampleEntity, opname, idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       return 0 < matchItems.length
         ? `map[string]any{${matchItems.map((it: any) =>
-          `"${it.name}": ${exampleValue(exampleEntity, exampleEntity.op[opname], it.name,
+          `${litString('go', it.name)}: ${exampleValue(exampleEntity, exampleEntity.op[opname], it.name,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')}}`
         : 'nil'
     }
@@ -117,8 +116,8 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
     if (opnames.includes('update')) {
       // The id member (when the entity has an id-like key) plus example
       // patch fields — the same shape that generates the op's request data.
-      const updateMembers = (idF
-        ? [`"${idF}": ${exampleValue(exampleEntity, exampleEntity.op.update, idF, 'example_id')}`]
+      const updateMembers = (sendsId(exampleEntity, 'update', idF)
+        ? [`${litString('go', idF)}: ${exampleValue(exampleEntity, exampleEntity.op.update, idF, 'example_id')}`]
         : []).concat(exampleFields('update'))
       body.push(`    // Update a ${eLower}.`)
       body.push(`    updated, err := client.${eName}(nil).Update(map[string]any{${updateMembers.join(', ')}}, nil)`)
@@ -131,8 +130,8 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
     }
 
     if (opnames.includes('patch')) {
-      const patchMembers = (idF
-        ? [`"${idF}": ${exampleValue(exampleEntity, exampleEntity.op.patch, idF, 'example_id')}`]
+      const patchMembers = (sendsId(exampleEntity, 'patch', idF)
+        ? [`${litString('go', idF)}: ${exampleValue(exampleEntity, exampleEntity.op.patch, idF, 'example_id')}`]
         : []).concat(exampleFields('patch'))
       body.push(`    // Patch a ${eLower}: only the fields given are sent.`)
       body.push(`    patched, err := client.${eName}(nil).Patch(map[string]any{${patchMembers.join(', ')}}, nil)`)
@@ -172,7 +171,10 @@ ${imports.join('\n')}
 )
 
 func main() {
-    client := ${ctor}
+    client, err := ${ctor}
+    if err != nil {
+        panic(err)
+    }
 
 `
   if (body.length > 0) {
@@ -184,11 +186,12 @@ func main() {
 
   Content(`### Quickstart
 
-A complete program: create a client, then call the entity operations.
-Each operation returns \`(value, error)\` — the value is the entity, and for
-\`List\` a \`[]any\` of entities, one per record (there is no \`{ok, data}\`
+${0 === body.length ? 'A complete program that creates a client.' : `A complete program: create a client, then call the entity operations.
+Each operation returns \`(value, error)\` — the value is the entity${
+  null != exampleEntity && entityOps(exampleEntity).includes('list') ? `, and for
+\`List\` a \`[]any\` of entities, one per record` : ''} (there is no \`{ok, data}\`
 wrapper), so check \`err\` and read a record through the entity's
-\`Data()\`.
+\`Data()\`.`}
 
 \`\`\`go
 ${program}

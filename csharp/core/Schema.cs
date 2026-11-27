@@ -87,37 +87,61 @@ public static class SdkSchema
                 },
                 ["debug"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["max"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["redact"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$LIST`",
                             "`$NIL`",
                         },
                         ["now"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
                         ["onEntry"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
@@ -126,19 +150,31 @@ public static class SdkSchema
                 },
                 ["idempotency"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["header"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -149,19 +185,31 @@ public static class SdkSchema
                         },
                         ["methods"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$LIST`",
                             "`$NIL`",
                         },
                         ["ops"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$LIST`",
                             "`$NIL`",
                         },
                         ["keygen"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
@@ -170,19 +218,31 @@ public static class SdkSchema
                 },
                 ["metrics"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["now"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
@@ -191,19 +251,31 @@ public static class SdkSchema
                 },
                 ["paging"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["afterVar"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -214,7 +286,11 @@ public static class SdkSchema
                         },
                         ["cursorParam"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -225,7 +301,11 @@ public static class SdkSchema
                         },
                         ["firstVar"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -236,7 +316,11 @@ public static class SdkSchema
                         },
                         ["limitParam"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -247,7 +331,11 @@ public static class SdkSchema
                         },
                         ["pageParam"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -258,19 +346,31 @@ public static class SdkSchema
                         },
                         ["startPage"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["limit"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["ops"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$LIST`",
                             "`$NIL`",
                         },
@@ -279,37 +379,61 @@ public static class SdkSchema
                 },
                 ["ratelimit"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["burst"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["rate"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["now"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
                         ["sleep"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
@@ -318,55 +442,91 @@ public static class SdkSchema
                 },
                 ["retry"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["factor"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["maxDelay"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["minDelay"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["retries"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["statuses"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$LIST`",
                             "`$NIL`",
                         },
                         ["jitter"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["sleep"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
@@ -375,31 +535,51 @@ public static class SdkSchema
                 },
                 ["secrets"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["cache"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["exchange"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$MAP`",
                             "`$NIL`",
                         },
                         ["name"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$STRING`",
                             new List<object?>
                             {
@@ -410,7 +590,11 @@ public static class SdkSchema
                         },
                         ["providers"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$LIST`",
                             "`$NIL`",
                         },
@@ -419,25 +603,41 @@ public static class SdkSchema
                 },
                 ["test"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["entity"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$MAP`",
                             "`$NIL`",
                         },
                         ["net"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$MAP`",
                             "`$NIL`",
                         },
@@ -446,37 +646,61 @@ public static class SdkSchema
                 },
                 ["timeout"] = new List<object?>
                 {
-                    "`$ONE`",
+                    "`$NOF`",
+                    new Dictionary<string, object?>
+                    {
+                        ["min"] = 1,
+                    },
                     new Dictionary<string, object?>
                     {
                         ["`$OPEN`"] = true,
                         ["active"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$BOOLEAN`",
                             "`$NIL`",
                         },
                         ["ms"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$NUMBER`",
                             "`$NIL`",
                         },
                         ["clearTimer"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
                         ["now"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },
                         ["setTimer"] = new List<object?>
                         {
-                            "`$ONE`",
+                            "`$NOF`",
+                            new Dictionary<string, object?>
+                            {
+                                ["min"] = 1,
+                            },
                             "`$FUNCTION`",
                             "`$NIL`",
                         },

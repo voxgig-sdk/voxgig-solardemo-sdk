@@ -232,16 +232,34 @@ static VoxgigSolardemoSDK* client_for(omni_json* spec) {
   return SHARED;
 }
 
-/* Resolve `primary.<name>.basic` and run it. An ABSENT section, or one
- * with no entries, is a FAILURE: a section that runs no case proves
- * nothing. */
-static void runset(const char* name, ctxfn cf, argfn af) {
+/* The sections named on the command line, or every section when none is. */
+static char** ONLY = NULL;
+static int NONLY = 0;
+
+static int wanted(const char* name) {
+  int i;
+  if (0 == NONLY) return 1;
+  for (i = 0; i < NONLY; i++) {
+    if (0 == strcmp(ONLY[i], name)) return 1;
+  }
+  return 0;
+}
+
+typedef int (*prepfn)(omni_json* basic, const char** why);
+
+/* Resolve `primary.<name>.basic` and run it, after `prep` when there is
+ * one. An ABSENT section, or one with no entries, is a FAILURE: a section
+ * that runs no case proves nothing. */
+static void runset_with(const char* name, ctxfn cf, argfn af, prepfn prep) {
   omni_runpack* pack;
   omni_json* basic;
   size_t cases;
   char* err = NULL;
+  const char* why = NULL;
   int failed;
   psubj* p;
+
+  if (!wanted(name)) return;
 
   pack = omni_runner_run(RUNNER, name, NULL, &err);
   if (NULL == pack || !omni_ismap(omni_spec(pack))) {
@@ -261,6 +279,11 @@ static void runset(const char* name, ctxfn cf, argfn af) {
     return;
   }
 
+  if (NULL != prep && !prep(basic, &why)) {
+    row_add(name, cases, 1, why);
+    return;
+  }
+
   p = (psubj*)omni_pool_alloc(POOL, sizeof(psubj));
   p->cf = cf;
   p->af = af;
@@ -269,6 +292,10 @@ static void runset(const char* name, ctxfn cf, argfn af) {
   failed = omni_runsetflags(pack, basic, omnivx_flags(1, name),
                             omnivx_rawsubject(POOL, primary_call, p), &err);
   row_add(name, cases, failed, err);
+}
+
+static void runset(const char* name, ctxfn cf, argfn af) {
+  runset_with(name, cf, af, NULL);
 }
 
 /* ---- per-section subjects ----------------------------------------------- */
@@ -311,6 +338,112 @@ static voxgig_value* s_make_spec(Context* c, voxgig_value* a, char** e) {
   if (s) c->spec = s;
   return s ? spec_to_value(s) : v_undef();
 }
+/* Where this SDK's prepare_auth puts the credential, probed once over empty
+ * headers and query. `pair` is the `<scheme>=` lead-in of a cookie
+ * credential, which rides the header bag under "cookie". */
+typedef struct acred {
+  int found;
+  int query;
+  char name[128];
+  char pair[128];
+} acred;
+
+static acred auth_credential(void) {
+  acred cred;
+  int q;
+  PNError* pe = NULL;
+  VoxgigSolardemoSDK* cl = test_sdk(v_undef(), cmap(2, "apikey", v_str("PROBE"),
+    "auth", cmap(2, "prefix", v_str(""), "basic", v_bool(false))));
+  Context* ctx = corpus_ctx(cl, cmap(1, "spec", cmap(1, "step", v_str("s"))));
+
+  memset(&cred, 0, sizeof(cred));
+  prepare_auth_util(ctx, &pe);
+  if (NULL != pe || NULL == ctx->spec) return cred;
+  for (q = 0; q < 2; q++) {
+    voxgig_value* bag = q ? ctx->spec->query : ctx->spec->headers;
+    voxgig_map* m;
+    const char* text;
+    size_t n;
+    if (!voxgig_is_map(bag) || 0 == voxgig_as_map(bag)->len) continue;
+    m = voxgig_as_map(bag);
+    text = voxgig_is_string(m->entries[0].value) ? voxgig_as_string(m->entries[0].value) : "";
+    n = strlen(text);
+    cred.found = 1;
+    cred.query = q;
+    snprintf(cred.name, sizeof(cred.name), "%s", m->entries[0].key);
+    if (!q && 0 == strcmp(cred.name, "cookie") && 6 <= n && 0 == strcmp(text + n - 6, "=PROBE")) {
+      snprintf(cred.pair, sizeof(cred.pair), "%.*s", (int)(n - 5), text);
+    }
+    return cred;
+  }
+  return cred;
+}
+
+static void auth_retarget(omni_json* node, const acred* cred) {
+  size_t i;
+  size_t j;
+  omni_json* headers = NULL;
+  omni_json* placed;
+  omni_json* bag;
+  const char* text;
+  if (omni_islist(node)) {
+    for (i = 0; i < node->listlen; i++) auth_retarget(node->list[i], cred);
+    return;
+  }
+  if (!omni_ismap(node)) return;
+  for (i = 0; i < node->maplen; i++) {
+    if (0 == strcmp(node->keys[i], "headers") && omni_ismap(node->vals[i])) headers = node->vals[i];
+    else auth_retarget(node->vals[i], cred);
+  }
+  if (NULL == headers) return;
+  for (j = 0; j < headers->maplen; j++) {
+    if (0 == strcmp(headers->keys[j], "authorization")) break;
+  }
+  if (j == headers->maplen) return;
+
+  placed = headers->vals[j];
+  for (; j + 1 < headers->maplen; j++) {
+    headers->keys[j] = headers->keys[j + 1];
+    headers->vals[j] = headers->vals[j + 1];
+  }
+  headers->maplen--;
+
+  text = omni_strval(placed);
+  if (NULL != text && '\0' != cred->pair[0]) {
+    size_t n = strlen(cred->pair) + strlen(text) + 1;
+    char* joined = (char*)omni_pool_alloc(POOL, n);
+    snprintf(joined, n, "%s%s", cred->pair, text);
+    placed = omni_str(POOL, joined);
+  }
+
+  bag = cred->query ? omni_map_get(node, "query") : headers;
+  if (!omni_ismap(bag)) {
+    bag = omni_map(POOL);
+    omni_map_set(node, "query", bag);
+  }
+  omni_map_set(bag, cred->name, placed);
+}
+
+/* The corpus states the credential as `headers.authorization`, a placeholder
+ * for wherever this SDK puts it. Only that entry moves, under the real name
+ * and into the real container, and a cookie credential's value becomes its
+ * pair: every other header and query parameter stays where it was. */
+static int auth_prep(omni_json* basic, const char** why) {
+  acred cred = auth_credential();
+  if (!cred.found) {
+    *why = "prepare_auth placed no credential in headers or query";
+    return 0;
+  }
+  auth_retarget(basic, &cred);
+  return 1;
+}
+
+/* Read from the config, never from a probe: a probe that finds no credential
+ * is the regression this section exists to catch. */
+static int places_credential(void) {
+  return voxgig_is_map(mget(mget(shared_config(), "options"), "auth"));
+}
+
 static voxgig_value* s_prepare_auth(Context* c, voxgig_value* a, char** e) {
   (void)a;
   PNError* pe = NULL;
@@ -402,14 +535,16 @@ static voxgig_value* s_make_context(voxgig_value* a, char** e) {
   return cmap(1, "op", op);
 }
 static voxgig_value* s_make_options(voxgig_value* a, char** e) {
-  (void)e;
   voxgig_value* in = arg_at(a, 0);
   Context* c = corpus_ctx(SHARED, v_map());
   voxgig_value* cf = mget(in, "config");
   if (cf) c->config = voxgig_retain(cf);
   voxgig_value* op = mget(in, "options");
   if (op) c->options = voxgig_retain(op);
-  return make_options_util(c);
+  PNError* pe = NULL;
+  voxgig_value* r = make_options_util(c, &pe);
+  ERRSET(e, pe);
+  return r;
 }
 static voxgig_value* s_operator(voxgig_value* a, char** e) {
   (void)e;
@@ -426,12 +561,14 @@ static voxgig_value* s_operator(voxgig_value* a, char** e) {
 }
 /* ---- main --------------------------------------------------------------- */
 
-int main(void) {
+int main(int argc, char** argv) {
   char* err = NULL;
   size_t cases = 0;
   int failed = 0;
   size_t i;
 
+  ONLY = argv + 1;
+  NONLY = argc - 1;
   POOL = omni_pool_new();
 
   RUNNER = omni_make_runner(POOL, TEST_JSON_FILE, NULL, NULL, &err);
@@ -447,7 +584,12 @@ int main(void) {
   runset("makeRequest", s_make_request, NULL);
   runset("makeResponse", s_make_response, NULL);
   runset("makeSpec", s_make_spec, NULL);
-  runset("prepareAuth", s_prepare_auth, NULL);
+  if (places_credential()) {
+    runset_with("prepareAuth", s_prepare_auth, NULL, auth_prep);
+  }
+  else if (wanted("prepareAuth")) {
+    printf("PRIMARY-SKIP prepareAuth - this SDK's config declares no auth, so it places no credential\n");
+  }
   runset("prepareBody", s_prepare_body, NULL);
   runset("prepareHeaders", s_prepare_headers, NULL);
   runset("prepareMethod", s_prepare_method, NULL);

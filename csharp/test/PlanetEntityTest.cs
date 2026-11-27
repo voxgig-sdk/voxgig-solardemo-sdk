@@ -40,8 +40,22 @@ public class PlanetEntityTest
                 return; // skipped via sdk-test-control.json
             }
         }
+        if (setup.Live && Environment.GetEnvironmentVariable("VOXGIG_GETONLY_GUARD") == "TRUE")
+        {
+            Console.WriteLine("LIVE STEP {\"id\":\"planet.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/forbid\"}");
+            Console.WriteLine("LIVE STEP {\"id\":\"planet.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}\"}");
+            Console.WriteLine("LIVE STEP {\"id\":\"planet.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}\"}");
+            Console.WriteLine("LIVE STEP {\"id\":\"planet.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}");
+            BasicGetOnly(setup);
+            return;
+        }
+
         var client = setup.Client;
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // CREATE
         var planetRef01Ent = client.Planet();
         var planetRef01Data = Helpers.ToMapAny(StructUtils.GetProp(
@@ -49,10 +63,14 @@ public class PlanetEntityTest
             "planet_ref01"));
 
         var planetRef01DataResult = planetRef01Ent.Create(planetRef01Data, null);
-        planetRef01Data = Helpers.ToMapAny(planetRef01DataResult is IEntity ce ? ce.Data() : planetRef01DataResult);
+        planetRef01Data = Helpers.ToMapAny(planetRef01DataResult is IEntity planetRef01DataEntity ? planetRef01DataEntity.Data() : planetRef01DataResult);
         Assert.True(planetRef01Data != null, "expected create result to be a map");
         Assert.True(planetRef01Data!["id"] != null, "expected created entity to have an id");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // LIST
         var planetRef01Match = new Dictionary<string, object?>();
 
@@ -67,6 +85,10 @@ public class PlanetEntityTest
         Assert.False(StructUtils.IsEmpty(planetRef01ListFound),
             "expected to find created entity in list");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // UPDATE
         var planetRef01DataUp0Up = new Dictionary<string, object?>
         {
@@ -78,24 +100,30 @@ public class PlanetEntityTest
         planetRef01DataUp0Up[planetRef01MarkdefUp0Name] = planetRef01MarkdefUp0Value;
 
         var planetRef01ResdataUp0Result = planetRef01Ent.Update(planetRef01DataUp0Up, null);
-        var planetRef01ResdataUp0 = Helpers.ToMapAny(planetRef01ResdataUp0Result is IEntity ue ? ue.Data() : planetRef01ResdataUp0Result);
+        var planetRef01ResdataUp0 = Helpers.ToMapAny(planetRef01ResdataUp0Result is IEntity planetRef01ResdataUp0Entity ? planetRef01ResdataUp0Entity.Data() : planetRef01ResdataUp0Result);
         Assert.True(planetRef01ResdataUp0 != null, "expected update result to be a map");
-        Assert.True(StructRunner.DeepEqual(planetRef01ResdataUp0!["id"], planetRef01DataUp0Up["id"]),
-            "expected update result id to match");
+        Assert.True(TestRunner.LiveSameId(StructUtils.GetProp(planetRef01ResdataUp0, "id"), planetRef01DataUp0Up["id"]), "expected update result id to match");
         Assert.True(Equals(planetRef01ResdataUp0![planetRef01MarkdefUp0Name], planetRef01MarkdefUp0Value),
             $"expected {planetRef01MarkdefUp0Name} to be updated, got {planetRef01ResdataUp0[planetRef01MarkdefUp0Name]}");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // LOAD
         var planetRef01MatchDt0 = new Dictionary<string, object?>
         {
             ["id"] = planetRef01Data!["id"],
         };
         var planetRef01DataDt0Loaded = planetRef01Ent.Load(planetRef01MatchDt0, null);
-        var planetRef01DataDt0LoadResult = Helpers.ToMapAny(planetRef01DataDt0Loaded is IEntity le ? le.Data() : planetRef01DataDt0Loaded);
+        var planetRef01DataDt0LoadResult = Helpers.ToMapAny(planetRef01DataDt0Loaded is IEntity planetRef01DataDt0LoadedEntity ? planetRef01DataDt0LoadedEntity.Data() : planetRef01DataDt0Loaded);
         Assert.True(planetRef01DataDt0LoadResult != null, "expected load result to be a map");
-        Assert.True(StructRunner.DeepEqual(planetRef01DataDt0LoadResult!["id"], planetRef01Data["id"]),
-            "expected load result id to match");
+        Assert.True(TestRunner.LiveSameId(StructUtils.GetProp(planetRef01DataDt0LoadResult, "id"), StructUtils.GetProp(planetRef01Data, "id")), "expected load result id to match");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // REMOVE
         var planetRef01MatchRm0 = new Dictionary<string, object?>
         {
@@ -103,6 +131,10 @@ public class PlanetEntityTest
         };
         planetRef01Ent.Remove(planetRef01MatchRm0, null);
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // LIST
         var planetRef01MatchRt0 = new Dictionary<string, object?>();
 
@@ -116,6 +148,57 @@ public class PlanetEntityTest
             new Dictionary<string, object?> { ["id"] = planetRef01Data!["id"] });
         Assert.True(StructUtils.IsEmpty(planetRef01ListRt0NotFound),
             "expected removed entity to not be in list");
+
+    }
+
+    private static void BasicGetOnly(EntityTestSetup setup)
+    {
+        var client = setup.Client;
+        if (setup.Live)
+        {
+            var liveId = setup.SyntheticOnly ? null : StructUtils.GetProp(setup.Idmap, "planet01");
+            TestRunner.LivePace();
+            if (!TestRunner.LiveExisting(setup.Data, LIVE_STRICT, "planet",
+                "id", liveId,
+                () => client.Planet().List(new Dictionary<string, object?> { }, null)))
+            {
+                return;
+            }
+        }
+
+        // Bootstrap entity data from existing test data (no create step in flow).
+        var planetRef01DataRaw = StructUtils.Items(
+            Helpers.ToMapAny(StructUtils.GetPath(setup.Data, "existing.planet")));
+        var planetRef01Data = planetRef01DataRaw.Count > 0
+            ? Helpers.ToMapAny(planetRef01DataRaw[0][1])
+            : null;
+
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+        // LIST
+        var planetRef01Ent = client.Planet();
+        var planetRef01Match = new Dictionary<string, object?>();
+
+        var planetRef01ListResult = planetRef01Ent.List(planetRef01Match, null);
+        var planetRef01List = planetRef01ListResult as List<object?>;
+        Assert.True(planetRef01List != null,
+            $"expected list result to be a list, got {planetRef01ListResult?.GetType()}");
+
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+        // LOAD
+        var planetRef01MatchDt0 = new Dictionary<string, object?>
+        {
+            ["id"] = planetRef01Data!["id"],
+        };
+        var planetRef01DataDt0Loaded = planetRef01Ent.Load(planetRef01MatchDt0, null);
+        var planetRef01DataDt0LoadResult = Helpers.ToMapAny(planetRef01DataDt0Loaded is IEntity planetRef01DataDt0LoadedEntity ? planetRef01DataDt0LoadedEntity.Data() : planetRef01DataDt0Loaded);
+        Assert.True(planetRef01DataDt0LoadResult != null, "expected load result to be a map");
+        Assert.True(TestRunner.LiveSameId(StructUtils.GetProp(planetRef01DataDt0LoadResult, "id"), StructUtils.GetProp(planetRef01Data, "id")), "expected load result id to match");
 
     }
 

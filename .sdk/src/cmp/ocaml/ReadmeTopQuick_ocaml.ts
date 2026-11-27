@@ -1,12 +1,12 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { ocamlVarName, ocamlListMatch } from './utility_ocaml'
+import { ocamlVarName, ocamlListMatch, ocamlString } from './utility_ocaml'
 
 
 // A type-correct OCaml `value` literal for a param: numeric/boolean/array/
@@ -18,7 +18,7 @@ function ocamlLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return '(Bool true)'
   if ('ARRAY' === k) return '(empty_list ())'
   if ('OBJECT' === k) return '(empty_map ())'
-  return `(Str "${placeholder}")`
+  return `(Str "${ocamlString(placeholder)}")`
 }
 
 
@@ -30,9 +30,16 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `Sdk_client.make (jo [("apikey", Str (Sys.getenv "${envName(model)}_APIKEY"))])`
-    : `Sdk_client.make0 ()`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`("apikey", Str (Sys.getenv "${envName(model)}_APIKEY"))`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`("secret", Str (Sys.getenv "${envName(model)}_SECRET"))`] : []),
+    ...(0 === svars.length ? [] : [`("server", jo [` +
+      svars.map((v: any) => `("${v.name}", Str "<${v.name}>")`).join('; ') + `])`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `Sdk_client.make0 ()`
+    : `Sdk_client.make (jo [${ctorFields.join('; ')}])`
 
   Content(`\`\`\`ocaml
 open Voxgig_struct
@@ -45,7 +52,7 @@ let () =
 
   if (exampleEntity) {
     const fn = ocamlVarName(exampleEntity.name)
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
@@ -61,13 +68,12 @@ let () =
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `jo [${loadItems.map((it: any) =>
-          `("${it.name}", ${ocamlLit(it.type,
+          `("${ocamlString(it.name)}", ${ocamlLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)})`).join('; ')}]`
         : 'Noval'
       Content(`  (* Load a specific ${fn} (returns the ENTITY; raises on error) *)

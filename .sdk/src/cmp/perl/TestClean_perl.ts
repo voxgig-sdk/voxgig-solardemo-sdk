@@ -2,11 +2,12 @@ import {
   cmp,
   File,
   Content,
-  isAuthSuppressed,
-  isHttpBasicAuth,
-  resolveAuthIn,
-  resolveAuthName,
+  fact,
 } from '@voxgig/sdkgen'
+
+import {
+  KIT,
+} from '@voxgig/apidef'
 
 
 import { perlStringLiteral } from './utility_perl'
@@ -15,17 +16,18 @@ import { perlStringLiteral } from './utility_perl'
 // The canary sweep: every credential slot holds a distinctive value, every
 // diagnostic feature this SDK ships is switched on with a capturing sink, a
 // real operation runs through every outcome, and every string that leaves
-// the SDK is searched for the canaries and their encoded forms. It also
-// proves its own sensitivity: with clean switched off the canary MUST show.
+// is searched for the canaries and their encoded forms; a second sweep does
+// the same for a body of bytes. With clean off the canary MUST show.
 const TestClean = cmp(function TestClean(props: any) {
   const { model } = props.ctx$
+  const authFact = fact(model.main[KIT], 'auth')
 
   const auth = {
-    suppressed: isAuthSuppressed(model),
-    where: resolveAuthIn(model),
-    name: 'header' === resolveAuthIn(model)
-      ? resolveAuthName(model).toLowerCase() : resolveAuthName(model),
-    basic: isHttpBasicAuth(model),
+    suppressed: authFact.suppressed,
+    where: authFact.in,
+    name: 'header' === authFact.in
+      ? authFact.name.toLowerCase() : authFact.name,
+    basic: authFact.basic,
   }
 
   File({ name: 'clean.t' }, () => Content(render(model.const.Name, auth)))
@@ -41,8 +43,8 @@ function render(Name: string, auth: {
 # The canary sweep: every credential slot holds a distinctive value, every
 # diagnostic feature this SDK ships is switched on with a capturing sink, a
 # real operation runs through every outcome, and every string that leaves
-# the SDK is searched for the canaries and their encoded forms. It also
-# proves its own sensitivity: with clean switched off the canary MUST show.
+# is searched for the canaries and their encoded forms; a second sweep does
+# the same for a body of bytes. With clean off the canary MUST show.
 
 use strict;
 use warnings;
@@ -53,6 +55,8 @@ use Scalar::Util ();
 use MIME::Base64 ();
 use Data::Dumper ();
 use JSON::PP ();
+use File::Temp ();
+use IO::File ();
 
 use ${Name}SDK;
 
@@ -89,6 +93,28 @@ for my $v (sort values %CANARY) {
 }
 push @FORMS, MIME::Base64::encode_base64("$CANARY{apikey}:$CANARY{secret}", '');
 
+# The marker a body of bytes carries.
+my $CONTENT = 'CANARY-CONTENT-b7n3v9x1c5';
+
+# The marker a response of bytes carries.
+my $RESPONSE = 'CANARY-RESPONSE-k2m8q4w6z0';
+
+my $CONTENT_FILE = File::Temp->new;
+print {$CONTENT_FILE} $CONTENT;
+$CONTENT_FILE->flush;
+
+# Every value this SDK accepts as a raw body. A filehandle is read once, so
+# each run opens its own.
+my @CARRIERS = (
+  ['byte string', sub { my $bytes = $CONTENT; utf8::downgrade($bytes); return $bytes }],
+  ['character string', sub { my $chars = $CONTENT; utf8::upgrade($chars); return $chars }],
+  ['filehandle', sub {
+    open(my $fh, '<:raw', $CONTENT_FILE->filename) or die "clean harness: $!";
+    return $fh;
+  }],
+  ['IO::File', sub { return IO::File->new($CONTENT_FILE->filename, 'r') }],
+);
+
 # Blessed objects encode through TO_JSON; anything else that cannot be
 # encoded is null rather than a die.
 my $JSON = JSON::PP->new->canonical->convert_blessed->allow_blessed->allow_unknown;
@@ -106,6 +132,20 @@ sub header {
 sub leaks {
   my ($text) = @_;
   return grep { index($text, $_) >= 0 } @FORMS;
+}
+
+# The forms bytes travel in once copied: a string prints as its text, and a
+# dump of one shows its byte values, hex or base64.
+sub content_leaks {
+  my ($text, $marker) = @_;
+  $marker = $CONTENT unless defined $marker;
+  (my $flat = $text) =~ s/\\s+//g;
+  my @found;
+  push @found, 'text' if index($text, $marker) >= 0;
+  push @found, 'byte values' if index($flat, join(',', unpack('C*', $marker))) >= 0;
+  push @found, 'hex' if index(lc $flat, unpack('H*', $marker)) >= 0;
+  push @found, 'base64' if index($flat, MIME::Base64::encode_base64($marker, '')) >= 0;
+  return @found;
 }
 
 sub surface {
@@ -169,6 +209,20 @@ sub response {
   };
 }
 
+# The marker under the type the response declares, as the default transport
+# hands on a body it could not parse.
+sub unread_response {
+  my ($status, $type) = @_;
+  return {
+    'status' => $status,
+    'statusText' => ($status < 400 ? 'OK' : 'ERR'),
+    'headers' => { 'content-type' => $type },
+    'json' => sub { undef },
+    'body' => "$RESPONSE",
+    'unreadable' => 1,
+  };
+}
+
 # Captures the serialised context from inside the pipeline: what a hook
 # author would hand to a logger.
 {
@@ -198,6 +252,34 @@ sub response {
       if Scalar::Util::blessed($err) && $err->isa('${Name}Error');
     return;
   }
+}
+
+# Captures the request data as a hook would log it, before the spec exists
+# and after: the other place a raw body sits, and the only one a filehandle
+# does. It keeps the context, which the error holds only weakly.
+{
+  package ${Name}CleanRequestDataFeature;
+  our @ISA = ('${Name}BaseFeature');
+
+  sub new {
+    my ($class, $sinks) = @_;
+    my $self = ${Name}BaseFeature::new($class);
+    $self->{name} = 'reqdata';
+    $self->{version} = '0.0.1';
+    $self->{active} = 1;
+    $self->{sinks} = $sinks;
+    return $self;
+  }
+
+  sub take {
+    my ($s, $name, $ctx) = @_;
+    $s->{ctx} = $ctx;
+    push @{ $s->{sinks} }, main::forms($name, $ctx->{utility}{clean}->($ctx, $ctx->{reqdata}));
+    return;
+  }
+
+  sub PreSpec { my ($s, $ctx) = @_; return $s->take('reqdata@PreSpec', $ctx) }
+  sub PreRequest { my ($s, $ctx) = @_; return $s->take('reqdata@PreRequest', $ctx) }
 }
 
 # A feature that dies from inside the pipeline, quoting the request it saw:
@@ -271,6 +353,70 @@ sub response {
   sub PreDone {
     my ($s, $ctx) = @_;
     $ctx->{result}{stream} = sub { die "stream saw $CANARY{apikey}\\n" };
+    return;
+  }
+}
+
+# A hook that cleans the live spec itself, as one that logs the request
+# would, and keeps what came back.
+{
+  package ${Name}CleanSpecFeature;
+  our @ISA = ('${Name}BaseFeature');
+
+  sub new {
+    my ($class) = @_;
+    my $self = ${Name}BaseFeature::new($class);
+    $self->{name} = 'specclean';
+    $self->{version} = '0.0.1';
+    $self->{active} = 1;
+    return $self;
+  }
+
+  sub PreRequest {
+    my ($s, $ctx) = @_;
+    $s->{live} = Scalar::Util::refaddr($ctx->{spec});
+    $s->{cleaned} = $ctx->{utility}{clean}->($ctx, $ctx->{spec});
+    return;
+  }
+}
+
+# An exception class this SDK does not define, as a caller's own code has.
+{
+  package ${Name}CleanOwnError;
+  use overload '""' => sub { $_[0]->{message} }, fallback => 1;
+
+  sub new {
+    my ($class, $message) = @_;
+    return bless { 'message' => $message }, $class;
+  }
+}
+
+# A feature that dies with what it was given, in a hook or in its stream.
+{
+  package ${Name}CleanDieFeature;
+  our @ISA = ('${Name}BaseFeature');
+
+  sub new {
+    my ($class, $err, $instream) = @_;
+    my $self = ${Name}BaseFeature::new($class);
+    $self->{name} = 'diehook';
+    $self->{version} = '0.0.1';
+    $self->{active} = 1;
+    $self->{err} = $err;
+    $self->{instream} = $instream ? 1 : 0;
+    return $self;
+  }
+
+  sub PreResponse {
+    my ($s) = @_;
+    die $s->{err} unless $s->{instream};
+    return;
+  }
+
+  sub PreDone {
+    my ($s, $ctx) = @_;
+    my $err = $s->{err};
+    $ctx->{result}{stream} = sub { die $err } if $s->{instream};
     return;
   }
 }
@@ -363,16 +509,10 @@ sub make_sdk {
   return construct($opts);
 }
 
-# The first operation that completes against a plain 200: with no
-# arguments, else with every path parameter its points declare filled in.
 # An entity accessor is a capitalised client method whose result answers
 # get_name, as the feature corpus runner finds them.
-sub usable_op {
-  my $plain = construct({
-    'apikey' => $CANARY{apikey},
-    'utility' => { 'fetcher' => sub { return (response(200, { 'id' => 'i1' }), undef) } },
-  });
-
+sub accessors {
+  my ($plain) = @_;
   my %found;
   my $pkg = ref $plain;
   {
@@ -387,6 +527,18 @@ sub usable_op {
       $found{$entname} = $sym;
     }
   }
+  return %found;
+}
+
+# The first operation that completes against a plain 200: with no
+# arguments, else with every path parameter its points declare filled in.
+sub usable_op {
+  my $plain = construct({
+    'apikey' => $CANARY{apikey},
+    'utility' => { 'fetcher' => sub { return (response(200, { 'id' => 'i1' }), undef) } },
+  });
+
+  my %found = accessors($plain);
 
   my $entities = ${Name}Config::shared_config()->{entity} || {};
   for my $entname (sort keys %found) {
@@ -412,14 +564,44 @@ sub usable_op {
   return undef;
 }
 
+# The first operation with a point that sends a raw body the model marks
+# binary, with every path parameter of that point filled in.
+sub binary_op {
+  my $plain = construct({ 'apikey' => $CANARY{apikey} });
+  my %found = accessors($plain);
+  my $entities = ${Name}Config::shared_config()->{entity} || {};
+  for my $entname (sort keys %found) {
+    my $accessor = $found{$entname};
+    my $ops = eval { $entities->{$entname}{op} };
+    for my $op (ref $ops eq 'HASH' ? sort keys %$ops : ()) {
+      next unless $plain->$accessor()->can($op);
+      my $points = ref $ops->{$op} eq 'HASH' ? $ops->{$op}{points} : undef;
+      for my $point (ref $points eq 'ARRAY' ? @$points : ()) {
+        my $body = ref $point eq 'HASH' ? $point->{body} : undef;
+        next unless ref $body eq 'HASH' && defined $body->{kind} && 'raw' eq $body->{kind}
+          && ${Name}Helpers::is_true($body->{binary});
+        my %match;
+        my $params = ref $point->{args} eq 'HASH' ? $point->{args}{params} : undef;
+        for my $p (ref $params eq 'ARRAY' ? @$params : ()) {
+          $match{ $p->{name} } = 'p1' if ref $p eq 'HASH' && defined $p->{name} && !ref $p->{name};
+        }
+        my $action = ref $point->{select} eq 'HASH' ? $point->{select}{'$action'} : undef;
+        $match{'$action'} = $action if defined $action;
+        return { 'accessor' => $accessor, 'op' => $op, 'match' => \\%match, 'media' => $body->{media} };
+      }
+    }
+  }
+  return undef;
+}
+
 sub drive {
-  my ($sdk, $target, $ctrl, $sinks) = @_;
+  my ($sdk, $target, $ctrl, $sinks, $data) = @_;
   # A caller may keep the record it passed rather than read ctrl.explain.
   my $held = $ctrl->{explain};
   my ($acc, $op) = ($target->{accessor}, $target->{op});
   my $entity = $sdk->$acc();
   my $out;
-  my $ok = eval { $out = $entity->$op({ %{ $target->{match} } }, $ctrl); 1 };
+  my $ok = eval { $out = $entity->$op({ %{ $target->{match} }, %{ $data || {} } }, $ctrl); 1 };
   my $err = $ok ? undef : $@;
   push @$sinks, forms('error', $err) if defined $err;
   push @$sinks, forms('result', $out) if defined $out;
@@ -433,10 +615,14 @@ sub drive {
 
 
 my $target = usable_op();
+my $binary = binary_op();
 plan skip_all => 'no operation of this SDK completes against a plain 200; nothing to sweep'
-  unless defined $target;
+  unless defined $target || defined $binary;
 
-{
+SKIP: {
+  skip 'no operation of this SDK completes against a plain 200; nothing to sweep', 1
+    unless defined $target;
+
   my @sinks;
   my %errors;
   my %explains;
@@ -512,6 +698,48 @@ plan skip_all => 'no operation of this SDK completes against a plain 200; nothin
   is_deeply($named, { $MASK => 1, "$MASK#1" => 2, 'plain' => 3 },
     'a registered value used as a property name is masked, collisions kept');
   push @sinks, forms('named', $named);
+
+  # An exception object of another class, its message quoting the key,
+  # leaves an operation and a stream as the SDK's error with that message
+  # cleaned; the object is its cause. direct() hands back a fetcher's own.
+  my $own = ${Name}CleanOwnError->new("hook saw $CANARY{apikey}");
+  my $same = sub { return (ref $_[0] && Scalar::Util::refaddr($_[0]) == Scalar::Util::refaddr($own)) ? 1 : 0 };
+  my $wraps = sub {
+    my ($err) = @_;
+    return (Scalar::Util::blessed($err) && $err->isa('${Name}Error') && $same->($err->cause)) ? 1 : 0;
+  };
+  my %ownerr;
+  for my $variant (@VARIANTS) {
+    my ($vname, $make_ctrl) = @$variant;
+    $ownerr{$vname} = drive(make_sdk($SCENARIOS[0], \\@sinks, undef, [ ${Name}CleanDieFeature->new($own) ]),
+      $target, $make_ctrl->(), \\@sinks);
+  }
+  ok($wraps->($ownerr{throw}), "a hook's own exception object leaves the operation as the SDK's error, its cause");
+  ok($wraps->($ownerr{explain}), "explained, a hook's own exception object leaves as the SDK's error, its cause");
+  my $pullerr;
+  eval {
+    my ($acc, $op) = ($target->{accessor}, $target->{op});
+    my $next = make_sdk($SCENARIOS[0], \\@sinks, undef, [ ${Name}CleanDieFeature->new($own, 1) ])
+      ->$acc()->stream($op, { 'reqmatch' => { %{ $target->{match} } } }, {});
+    1 while defined $next->();
+    1;
+  } or $pullerr = $@;
+  push @sinks, forms('stream:own', $pullerr) if defined $pullerr;
+  ok($wraps->($pullerr), "a stream's own exception object leaves the stream as the SDK's error, its cause");
+  my $fetched = ${Name}CleanOwnError->new('refused');
+  my $raw = make_sdk([ 'own', sub { return (undef, $fetched) } ], \\@sinks)->direct({ 'path' => 'raw' });
+  ok(!$raw->{ok} && ref $raw->{err} && Scalar::Util::refaddr($raw->{err}) == Scalar::Util::refaddr($fetched),
+    "a fetcher's own error object comes back from direct() as it is");
+
+  # The live spec, cleaned on its own as it is when it sits in a record:
+  # what comes back is dumped whole, as a hook's logger would print it.
+  my $speclean = ${Name}CleanSpecFeature->new;
+  drive(make_sdk($SCENARIOS[0], \\@sinks, undef, [ $speclean ]), $target, {}, \\@sinks);
+  my $speccopy = $speclean->{cleaned};
+  push @sinks, { 'name' => 'spec:top', 'text' => do {
+    local $Data::Dumper::Sortkeys = 1;
+    Data::Dumper::Dumper($speccopy);
+  } };
 
   # The generated config's own clean block is read beside the caller's, and
   # is not changed by it.
@@ -604,6 +832,12 @@ plan skip_all => 'no operation of this SDK completes against a plain 200; nothin
   ok(Scalar::Util::blessed($coded) && $coded->isa('${Name}Error')
     && $coded->{code} eq "denied_$MASK", 'the coded error keeps its code, masked');
 
+  ok(ref $speccopy && !Scalar::Util::blessed($speccopy)
+    && Scalar::Util::refaddr($speccopy) != $speclean->{live},
+    'a spec cleaned on its own is a plain copy, not the live spec');
+  is(header($speccopy->{headers}, 'x-custom-token'), $MASK,
+    'x-custom-token is masked in a spec cleaned on its own');
+
   is($fplain, 'kind PLAINSETTING-q8w2e4r6', "a feature's name does not register its settings");
   is($ftoken, "token $MASK", 'a sensitive setting inside a feature registers');
   is($frecord, 'record PLAINRECORD-t5r3e1w9', 'the records a test entity block seeds do not register');
@@ -617,7 +851,10 @@ plan skip_all => 'no operation of this SDK completes against a plain 200; nothin
 }
 
 # The sweep can see a leak: clean switched off shows the credential.
-{
+SKIP: {
+  skip 'no operation of this SDK completes against a plain 200; nothing to sweep', 1
+    unless defined $target;
+
   my @sinks;
   my $sdk = make_sdk($SCENARIOS[1], \\@sinks, { 'active' => 0 });
   my $err = drive($sdk, $target, {}, \\@sinks);
@@ -638,6 +875,150 @@ plan skip_all => 'no operation of this SDK completes against a plain 200; nothin
     ok(index($text, $CANARY{apikey}) >= 0 || index($text, $pair) >= 0,
       'the raw spec carries the credential when clean is off');
   }
+}
+
+# No body of bytes leaves the SDK in any form.
+SKIP: {
+  skip 'no operation of this SDK sends a binary body; nothing to sweep', 1
+    unless defined $binary;
+
+  my @sinks;
+  my (%given, %sent, %errors, %explains, %watch);
+
+  for my $carrier (@CARRIERS) {
+    my ($cname, $make) = @$carrier;
+    for my $scenario (@SCENARIOS[0 .. 3]) {
+      for my $variant (@VARIANTS) {
+        my ($vname, $make_ctrl) = @$variant;
+        my $key = "$cname/$scenario->[0]/$vname";
+        # The transport is where the bytes are meant to arrive, whole.
+        my $seen = [ $scenario->[0], sub {
+          my ($url, $fetchdef) = @_;
+          $sent{$key} = $fetchdef->{body};
+          return $scenario->[1]->($url, $fetchdef);
+        } ];
+        $watch{$key} = ${Name}CleanRequestDataFeature->new(\\@sinks);
+        my $sdk = make_sdk($seen, \\@sinks, undef, [ $watch{$key} ]);
+        my $ctrl = $make_ctrl->();
+        $given{$key} = $make->();
+        my $err = drive($sdk, $binary, $ctrl, \\@sinks, { '$body' => $given{$key} });
+        $errors{$key} = $err if defined $err;
+        $explains{$key} = $ctrl->{explain} if defined $ctrl->{explain};
+        push @sinks, forms('sdk', $sdk);
+      }
+    }
+  }
+
+  my @leaked = grep { @{ $_->{found} } }
+    map { { 'name' => $_->{name}, 'found' => [ content_leaks($_->{text}) ] } } @sinks;
+
+  note(sprintf('clean: content swept %d surface(s), %d leak(s)', scalar(@sinks), scalar(@leaked)));
+
+  my %named;
+  is(scalar(@leaked), 0, 'no body of bytes leaves the SDK in any form')
+    or diag('a body of bytes leaked through: ' . join('; ', grep { !$named{$_}++ }
+      map { "$_->{name} [" . join(', ', @{ $_->{found} }) . ']' } @leaked));
+
+  # The positive half: where the body was, what describes it now is. A
+  # filehandle is read into the spec before the first attempt, so there it
+  # is bytes.
+  my $desc = { 'binary$' => 'bytes', 'size' => length($CONTENT), 'type' => $binary->{media} };
+  my $stream = { 'binary$' => 'stream', 'type' => $binary->{media} };
+  for my $carrier (@CARRIERS) {
+    my $cname = $carrier->[0];
+    my $key = "$cname/notfound/throw";
+
+    # The request itself is untouched: what the transport was handed is the
+    # body.
+    is($sent{$key}, $CONTENT, "$cname: the transport is handed the body");
+
+    my $failed = $errors{$key};
+    ok(Scalar::Util::blessed($failed) && $failed->isa('${Name}Error'),
+      "$cname: the 404 scenario dies with the SDK error");
+    is_deeply($failed->{spec}{body}, $desc, "$cname: the thrown spec describes the body");
+    my $explained = $explains{"$cname/ok/explain"} || {};
+    is_deeply($explained->{spec}{body}, $desc, "$cname: the explain record describes the body");
+    is_deeply($explained->{fetchdef}{body}, $desc,
+      "$cname: the explained fetch definition describes the body");
+
+    # The request data holds what the caller gave: a filehandle is a stream
+    # there, and an equal string is the body wherever it sits.
+    my $ctx = $watch{$key}{ctx};
+    my $body = $given{$key};
+    my $live = $ctx->{reqdata}{'$body'};
+    my $held = $ctx->{utility}{clean}->($ctx, { 'reqdata' => $ctx->{reqdata}, 'copy' => "$CONTENT" });
+    is_deeply($held->{reqdata}{'$body'}, (ref $body ? $stream : $desc),
+      "$cname: the request data describes the body");
+    is_deeply($held->{copy}, $desc, "$cname: an equal string is described");
+    ok((ref $body ? ref $live && Scalar::Util::refaddr($live) == Scalar::Util::refaddr($body)
+      : defined $live && !ref $live && $live eq $body), "$cname: the live request data is untouched");
+  }
+}
+
+# The sweep can see a body: clean switched off shows the bytes.
+SKIP: {
+  skip 'no operation of this SDK sends a binary body; nothing to sweep', 1
+    unless defined $binary;
+
+  for my $carrier (@CARRIERS) {
+    my ($cname, $make) = @$carrier;
+    my @sinks;
+    my $sdk = make_sdk($SCENARIOS[1], \\@sinks, { 'active' => 0 });
+    my $err = drive($sdk, $binary, {}, \\@sinks, { '$body' => $make->() });
+    ok(defined $err, "$cname: clean off: the 404 still dies");
+    my @leaked = grep { content_leaks($_->{text}) } @sinks;
+    ok(scalar(@leaked) > 0, "$cname: with clean off, the bytes show: the sweep is not blind");
+  }
+}
+
+# No response of bytes leaves the SDK in any form.
+SKIP: {
+  skip 'no operation of this SDK completes against a plain 200; nothing to sweep', 1
+    unless defined $target;
+
+  my @sinks;
+  my %errors;
+
+  for my $status (200, 404, 500) {
+    for my $variant (@VARIANTS) {
+      my ($vname, $make_ctrl) = @$variant;
+      my $scenario = [ 'bytes', sub { return (unread_response($status, 'audio/wav'), undef) } ];
+      my $sdk = make_sdk($scenario, \\@sinks);
+      my $err = drive($sdk, $target, $make_ctrl->(), \\@sinks);
+      $errors{"$status/$vname"} = $err if defined $err;
+      push @sinks, forms('sdk', $sdk);
+    }
+  }
+
+  my @leaked = grep { @{ $_->{found} } }
+    map { { 'name' => $_->{name}, 'found' => [ content_leaks($_->{text}, $RESPONSE) ] } } @sinks;
+
+  note(sprintf('clean: response swept %d surface(s), %d leak(s)', scalar(@sinks), scalar(@leaked)));
+
+  my %named;
+  is(scalar(@leaked), 0, 'no response of bytes leaves the SDK in any form')
+    or diag('a response of bytes leaked through: ' . join('; ', grep { !$named{$_}++ }
+      map { "$_->{name} [" . join(', ', @{ $_->{found} }) . ']' } @leaked));
+
+  # The failure still names what it could not read.
+  my $failed = $errors{'200/throw'};
+  ok(Scalar::Util::blessed($failed) && $failed->isa('${Name}Error'),
+    'a response of bytes fails the operation');
+  is(eval { $failed->{code} }, 'response_content_type', 'the failure is a wrong content type');
+  like(eval { $failed->{msg} } // '', qr{audio/wav}, 'the failure names the type');
+}
+
+# The sweep can see a response: clean switched off shows the bytes.
+SKIP: {
+  skip 'no operation of this SDK completes against a plain 200; nothing to sweep', 1
+    unless defined $target;
+
+  my @sinks;
+  my $scenario = [ 'bytes', sub { return (unread_response(200, 'audio/wav'), undef) } ];
+  my $err = drive(make_sdk($scenario, \\@sinks, { 'active' => 0 }), $target, {}, \\@sinks);
+  ok(defined $err, 'clean off: a response of bytes still fails the operation');
+  my @leaked = grep { content_leaks($_->{text}, $RESPONSE) } @sinks;
+  ok(scalar(@leaked) > 0, 'with clean off, the response shows: the sweep is not blind');
 }
 
 done_testing();

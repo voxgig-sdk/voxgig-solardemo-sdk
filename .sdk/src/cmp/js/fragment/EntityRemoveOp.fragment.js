@@ -96,8 +96,7 @@ class EntityOperation {
       // has just been absorbed into this instance and is reached through
       // data(). `done` still runs: it completes the pipeline and raises on
       // failure, and when throwing is disabled it hands back the error
-      // payload, which passes through unchanged. See AGENTS.md "Entity
-      // operations return ENTITIES".
+      // payload, which passes through unchanged.
       if (ctx.result && ctx.result.ok) {
         // A removed entity keeps its data but is no longer a live record.
         this.markDeleted()
@@ -109,7 +108,10 @@ class EntityOperation {
     catch (err) {
       // What a hook throws here must not escape the cleaning below.
       try {
-        // #PreUnexpected-Hook
+        // Once per operation: makeError fires it for its own error.
+        if (!ctx.unexpectedFired) {
+          // #PreUnexpected-Hook
+        }
       }
       catch (hookerr) {
         err = hookerr

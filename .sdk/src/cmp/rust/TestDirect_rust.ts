@@ -1,5 +1,6 @@
 
 import {
+  KIT,
   Model,
   ModelEntity,
   nom,
@@ -11,12 +12,20 @@ import {
   File,
   cmp,
   snakify,
-  isAuthActive, envName, envToken,
-  serverVarEnv,
-  serverVariables,
+  isAuthActive,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
   liveStrict,
   liveStrictNote,
+  pointIsGraphql,
+  graphqlDirectSkip,
+  liveExampleIds,
+  liveQueryExamples,
+  liveEntity,
+  liveDirectGetOnly, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveDirectDiscovery,
+  fact,
 } from '@voxgig/sdkgen'
 
 
@@ -24,6 +33,19 @@ import { rustVarName } from './utility_rust'
 
 
 // Blocked without the ids its request needs, rather than sent without them.
+// A GET-only live run excludes a test needing an id that only a write gives.
+function getOnlyKeysBlock(model: any, entity: any, test: string, keys: string[]): string {
+  return liveDirectGetOnly(model, entity, test, keys).map((miss) =>
+    `    if setup.live && std::env::var(${JSON.stringify(LIVE_GETONLY_ENV)}).map(|v| v == "TRUE").unwrap_or(false)
+        && getp(&setup.idmap, ${JSON.stringify(miss.key)}).is_noval() {
+        println!("{}", ${JSON.stringify(liveExcludedLines({ excluded: [miss] })[0])});
+        eprintln!("skip: {}", ${JSON.stringify(liveExcludedSummary({ excluded: [miss] }))});
+        return;
+    }
+`).join('')
+}
+
+
 function liveKeysBlock(keys: string[], entidEnvVar: string): string {
   return 0 === keys.length ? '' : `    if setup.live {
         for live_key in [${keys.map((k) => JSON.stringify(k)).join(', ')}] {
@@ -79,25 +101,26 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const rustcrate: string = props.rustcrate
 
-  const PROJECTNAME = envName(model)
+  const ENVVAR = fact(model.main[KIT], 'env')
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n        ("${PROJECTNAME}_APIKEY", Value::str("")),`
+    ? `\n        ("${ENVVAR.apikey}", Value::str("")),${authSecret ? `\n        ("${ENVVAR.secret}", Value::str("")),` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `("apikey", getp(&env, "${PROJECTNAME}_APIKEY"))`
+    ? `("apikey", getp(&env, "${ENVVAR.apikey}"))${authSecret ? `, ("secret", getp(&env, "${ENVVAR.secret}"))` : ''}`
     : ''
 
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n        ("${serverVarEnv(PROJECTNAME, v.name)}", Value::str(${JSON.stringify(v.dflt)})),`).join('')
+    .map((v: any) => `\n        ("${ENVVAR.server[v.name]}", Value::str(${JSON.stringify(v.dflt)})),`).join('')
   const serverLiveEntry = 0 === svars.length ? '' :
     `("server", jo(vec![${svars
-      .map((v: any) => `("${v.name}", getp(&env, "${serverVarEnv(PROJECTNAME, v.name)}"))`).join(', ')}]))`
+      .map((v: any) => `("${v.name}", getp(&env, "${ENVVAR.server[v.name]}"))`).join(', ')}]))`
   const serverLiveField = '' === serverLiveEntry ? '' :
     ('' === apikeyLiveField ? serverLiveEntry : ', ' + serverLiveEntry)
 
@@ -114,16 +137,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   // Load point info.
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
   // Only path params that actually appear in the URL template drive the
   // direct-test path-param setup and URL-substitution asserts.
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -137,10 +155,19 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
   // List point info.
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
-  const entidEnvVar = `${PROJECTNAME}_TEST_${envToken(entity.name)}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
+
+  const exampleIds = liveExampleIds(entity)
+  const rustJson = (ex: any) => `json_parse(r##"${JSON.stringify(ex)}"##).unwrap_or(Value::Noval)`
+  const liveQueryBlock = (point: any) => {
+    const lines = liveQueryExamples(point)
+      .map(([name, ex]) => `        setp(&query, "${name}", ${rustJson(ex)});\n`).join('')
+    return '    let query = Value::empty_map();\n' +
+      (lines ? '    if setup.live {\n' + lines + '    }\n' : '')
+  }
 
   // The *_ENTID key a live test reads a parameter's value from.
   const liveKey = (param: any): string =>
@@ -183,10 +210,10 @@ fn ${evar}_direct_setup(mockres: Value) -> ${entity.Name}DirectSetup {
 
     let env = env_override(jo(vec![
         ("${entidEnvVar}", Value::empty_map()),
-        ("${PROJECTNAME}_TEST_LIVE", Value::str("FALSE")),${apikeyEnvEntry}${serverEnvEntry}
+        ("${ENVVAR.live}", Value::str("FALSE")),${apikeyEnvEntry}${serverEnvEntry}
     ]));
 
-    let live = getp(&env, "${PROJECTNAME}_TEST_LIVE") == Value::str("TRUE");
+    let live = getp(&env, "${ENVVAR.live}") == Value::str("TRUE");
 
     if live {
         // live_client_options() FIRST, so the generated entries below win:
@@ -198,12 +225,17 @@ fn ${evar}_direct_setup(mockres: Value) -> ${entity.Name}DirectSetup {
                 jo(vec![${apikeyLiveField}${serverLiveField}]),
             ]),
             None,
-        )));
+        )))
+        .unwrap();
         let idmap = match to_map(&getp(&env, "${entidEnvVar}")) {
             Value::Map(m) => Value::Map(m),
             _ => Value::empty_map(),
         };
-        return ${entity.Name}DirectSetup {
+${0 === exampleIds.length ? '' : `        // A path parameter's example stands in for an id *_ENTID does not give.
+${exampleIds.map(([key, ex]) => `        if getp(&idmap, "${key}").is_noval() {
+            setp(&idmap, "${key}", ${rustJson(ex)});
+        }
+`).join('')}`}        return ${entity.Name}DirectSetup {
             client,
             calls,
             live: true,
@@ -232,7 +264,8 @@ fn ${evar}_direct_setup(mockres: Value) -> ${entity.Name}DirectSetup {
     let client = ${model.const.Name}SDK::new(jo(vec![
         ("base", Value::str("http://localhost:8080")),
         ("system", jo(vec![("fetch", mock_fetch)])),
-    ]));
+    ]))
+    .unwrap();
 
     ${entity.Name}DirectSetup {
         client,
@@ -244,7 +277,14 @@ fn ${evar}_direct_setup(mockres: Value) -> ${entity.Name}DirectSetup {
 `)
 
     // ---- list test ----
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`
+#[test]
+#[ignore = "${graphqlDirectSkip('list', entity.name)}"]
+fn ${evar}_direct_list() {}
+`)
+    }
+    else if (hasList && listPoint) {
       const listLiveParams = listParams.map((p: any) => ({ name: p.n, key: liveKey(p) }))
 
       Content(`
@@ -267,10 +307,13 @@ fn ${evar}_direct_list() {
         );
         return;
     }
-${liveKeysBlock(listLiveParams.map((lp: any) => lp.key), entidEnvVar)}    let client = setup.client.clone();
+${getOnlyKeysBlock(model, entity, 'direct-list-' + entity.name, listLiveParams.map((lp: any) => lp.key))}${liveKeysBlock(listLiveParams.map((lp: any) => lp.key), entidEnvVar)}    if setup.live {
+        live_pace();
+    }
+    let client = setup.client.clone();
 
     let params = Value::empty_map();
-`)
+${liveQueryBlock(listPoint)}`)
       listLiveParams.forEach((lp: any, i: number) => {
         Content(`    if setup.live {
         setp(&params, "${lp.name}", getp(&setup.idmap, "${lp.key}"));
@@ -285,6 +328,7 @@ ${liveKeysBlock(listLiveParams.map((lp: any) => lp.key), entidEnvVar)}    let cl
         ("path", Value::str("${listPath}")),
         ("method", Value::str("GET")),
         ("params", params.clone()),
+        ("query", query.clone()),
     ])) {
         Ok(result) => result,
         Err(err) if setup.live => {
@@ -346,11 +390,20 @@ ${liveKeysBlock(listLiveParams.map((lp: any) => lp.key), entidEnvVar)}    let cl
     }
 
     // ---- load test ----
-    if (hasLoad && loadPoint) {
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`
+#[test]
+#[ignore = "${graphqlDirectSkip('load', entity.name)}"]
+fn ${evar}_direct_load() {}
+`)
+    }
+    else if (hasLoad && loadPoint) {
       const examples = 0 < loadParams.length &&
         loadParams.every((p: any) => undefined !== p.ex && null !== p.ex)
-      const discover = !examples && hasList && 0 < loadParams.length
-      const idParam = loadParams.find((p: any) => 'id' === p.n)?.n ?? loadParams[0]?.n ?? 'id'
+      const discovery = liveDirectDiscovery(entity, loadParams, listPoint)
+      const discover = null != discovery
+      const idParam = discovery?.param
+      const idField = discovery?.field
       const loadLiveIdKeys: string[] = examples ? [] :
         discover ? listParams.map(liveKey).concat(loadParams.filter((p: any) => idParam !== p.n).map(liveKey)) :
           loadParams.map(liveKey)
@@ -372,10 +425,13 @@ fn ${evar}_direct_load() {
         );
         return;
     }
-${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}    let client = setup.client.clone();
+${getOnlyKeysBlock(model, entity, 'direct-load-' + entity.name, [...new Set(loadLiveIdKeys)])}${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}    if setup.live {
+        live_pace();
+    }
+    let client = setup.client.clone();
 
     let params = Value::empty_map();
-    if setup.live {
+${liveQueryBlock(loadPoint)}    if setup.live {
 `)
       if (examples) {
         for (const p of loadParams) {
@@ -384,10 +440,14 @@ ${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}    let client = setu
         }
       }
       else if (discover) {
+        // The list sends the query its route requires, as direct-list does.
+        const listQuery = liveQueryExamples(listPoint)
+          .map(([name, ex]) => `(${JSON.stringify(name)}, ${rustJson(ex)})`).join(', ')
         Content(`        let list_result = match client.direct(jo(vec![
             ("path", Value::str("${listPath}")),
             ("method", Value::str("GET")),
-            ("params", jo(vec![${listParams.map((p: any) => `("${p.n}", getp(&setup.idmap, "${liveKey(p)}"))`).join(', ')}])),
+            ("params", jo(vec![${listParams.map((p: any) => `("${p.n}", getp(&setup.idmap, "${liveKey(p)}"))`).join(', ')}])),${'' === listQuery ? '' : `
+            ("query", jo(vec![${listQuery}])),`}
         ])) {
             Ok(list_result) => list_result,
             Err(err) => {
@@ -411,10 +471,7 @@ ${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}    let client = setu
             live_empty("The account has no ${entity.name} record to load");
             return;
         }
-        let mut found = getp(&first, "${idParam}");
-        if found.is_noval() {
-            found = getp(&first, "id");
-        }
+        let found = getp(&first, "${idField}");
         if found.is_noval() {
             live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity");
             return;
@@ -444,6 +501,7 @@ ${liveKeysBlock([...new Set(loadLiveIdKeys)], entidEnvVar)}    let client = setu
         ("path", Value::str("${loadPath}")),
         ("method", Value::str("GET")),
         ("params", params.clone()),
+        ("query", query.clone()),
     ])) {
         Ok(result) => result,
         Err(err) if setup.live => {

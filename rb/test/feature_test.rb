@@ -412,7 +412,7 @@ class FeatureTest < Minitest::Test
     skip_unless_feature("retry")
     clock = H::Clock.new
     server, calls = H.recording_server { |n, _fd|
-      n < 3 ? [nil, VoxgigSolardemoError.new("boom", "boom")] : [H.make_response(200, { "ok" => true }), nil]
+      n < 3 ? [nil, VoxgigSolardemoError.new("boom", code: "boom")] : [H.make_response(200, { "ok" => true }), nil]
     }
     h = harness([fspec("retry",
       "retries" => 2, "minDelay" => 1, "jitter" => false, "sleep" => clock.sleeper)],
@@ -425,7 +425,7 @@ class FeatureTest < Minitest::Test
   def test_retry_exhausted_transport_error_surfaces
     skip_unless_feature("retry")
     clock = H::Clock.new
-    server, calls = H.recording_server { |_n, _fd| [nil, VoxgigSolardemoError.new("boom", "boom")] }
+    server, calls = H.recording_server { |_n, _fd| [nil, VoxgigSolardemoError.new("boom", code: "boom")] }
     h = harness([fspec("retry",
       "retries" => 2, "minDelay" => 1, "jitter" => false, "sleep" => clock.sleeper)],
       server: server)
@@ -566,6 +566,26 @@ class FeatureTest < Minitest::Test
     h.op(path: "/w")
     h.op(path: "/w")
     assert_equal 2, calls.length
+    assert_equal 2, h.track(:@_cache)["bypass"]
+  end
+
+  def test_cache_a_body_that_declares_another_type_than_json_passes_by_unread
+    skip_unless_feature("cache")
+    sent = []
+    server, calls = H.recording_server do |n, _fd|
+      res = H.make_response(200, nil, { "content-type" => "audio/wav" })
+      res["body"] = +"RIFF#{n}"
+      sent << res
+      [res, nil]
+    end
+    h = harness([fspec("cache")], server: server)
+    a = h.op(path: "/w/1/audio")["ctx"].response
+    b = h.op(path: "/w/1/audio")["ctx"].response
+    assert_equal 2, calls.length, "the body was stored"
+    assert_same sent[0]["body"], a.body, "the cache handed on a copy it had read"
+    assert_same sent[0]["json"], a.json_func
+    assert_same sent[1]["body"], b.body
+    assert_same sent[1]["json"], b.json_func
     assert_equal 2, h.track(:@_cache)["bypass"]
   end
 

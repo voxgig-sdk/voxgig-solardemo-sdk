@@ -271,9 +271,15 @@ let cache_feature () : feature =
     let cl = cc ctx in
     let bucket = track_bucket cl "cache" (fun () -> jo [("hit", Num 0.); ("miss", Num 0.); ("bypass", Num 0.)]) in
     bump_num bucket kind 1. in
+  (* A body the transport could not read as JSON passes through, for the operation to report. *)
   let cacheable res = match res with
+    | Map _ when getp res "unreadable" = Bool true -> false
     | Map _ -> (match getp res "status" with Num n -> n >= 200. && n < 300. | _ -> false)
     | _ -> false in
+  let json res =
+    match header_ci (getp res "headers") "content-type" with
+    | Str t -> "" = t || is_json_media t
+    | _ -> true in
   let snapshot res =
     let data = match getp res "json" with Func _ as fn -> (try call_json fn with _ -> Noval) | _ -> Noval in
     let headers = empty_map () in
@@ -299,7 +305,9 @@ let cache_feature () : feature =
         track ctx "hit"; (replay (getp hit "snapshot"), None)
       | _ ->
         let (res, err) = inner ctx url fetchdef in
-        if err = None && cacheable res then begin
+        (* A body that declares another type than JSON passes by, unread. *)
+        if err = None && cacheable res && not (json res) then (track ctx "bypass"; (res, err))
+        else if err = None && cacheable res then begin
           let snap = snapshot res in
           let ttl = opt_num !options "ttl" ~default:5000. in
           evict ();
@@ -404,11 +412,10 @@ let rbac_feature () : feature =
  *
  * The specs are NOT written here and not written in the model either: every
  * entity field already carries a canonical type sentinel (`$STRING`,
- * `$INTEGER`, the `$ONE` union for an OpenAPI multi-type), which is the same
- * vocabulary validate speaks. The generator maps them once
- * (helpers/canonSpec) and emits Sdk_schema.entity_spec_value, so a field
- * whose type changes in the API spec changes what this feature enforces with
- * no edit anywhere.
+ * `$INTEGER`, a union for an OpenAPI multi-type). The generator maps them
+ * once (helpers/canonSpec) into the vocabulary validate speaks and emits
+ * Sdk_schema.entity_spec_value, so a field whose type changes in the API
+ * spec changes what this feature enforces with no edit anywhere.
  *
  * WHAT IS CHECKED
  *   outbound (PreSpec)  the payload the caller asked to send, against
@@ -1537,6 +1544,12 @@ let test_feature () : feature =
   let reqd_names point kind =
     let reqd_args = select (getpath_s point ("args." ^ kind)) (jo [("reqd", Bool true)]) in
     transform reqd_args (ja [Str "`$EACH`"; Str ""; Str "`$KEY.name`"]) in
+  (* The entity's declared identity field (`entity.id.field`), where it names
+     one other than the `id` every record already carries. *)
+  let declared_id_field config entname =
+    match getpath_s config ("entity." ^ entname ^ ".id.field") with
+    | Str f when f <> "" && f <> "id" -> Some f
+    | _ -> None in
   let build_args ctx (op : operation) args =
     let opname = op.op_name in
     let entname = match ctx.c_entity with Some e -> e.e_name | None -> "_" in
@@ -1629,6 +1642,9 @@ let test_feature () : feature =
           | Map _ ->
             ignore (delprop ent (Str "$body"));
             setp ent "id" eid;
+            (match declared_id_field fctx.c_config op.op_entity with
+             | Some f when is_nullish (getp ent f) -> setp ent f eid
+             | _ -> ());
             (match eid with Str s -> setp entmap s ent | _ -> ());
             ignore (delprop ent (Str "$KEY"));
             respond fctx 200 (clone ent) None
@@ -1662,7 +1678,15 @@ let test_feature () : feature =
       let entity = match getp opts "entity" with Map _ as m -> m | _ -> empty_map () in
       (cc ctx).cl_mode <- "test";
       ignore (walk ~before:(fun key v _parent path ->
-          (if size path = 2 && ismap v && not (is_nullish key) then ignore (setprop v (Str "id") key));
+          (if size path = 2 && ismap v && not (is_nullish key) then begin
+             ignore (setprop v (Str "id") key);
+             match getelem path (Num 0.0) with
+             | Str entname ->
+               (match declared_id_field ctx.c_config entname with
+                | Some f -> ignore (setprop v (Str f) key)
+                | None -> ())
+             | _ -> ()
+           end);
           v) entity);
       let mock = make_mock entity in
       let u = cu ctx in
@@ -1692,9 +1716,9 @@ let make_client_base ~(config : value) ~(make_feature : string -> feature) (opti
   rootctx.c_options <- opts;
   (* Add features in the resolved order (make_options records an explicit
      array order, else defaults to test-first). Ordering matters: the `test`
-     feature installs the base mock transport and the transport features
-     (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
-     must be added before them to sit at the base of the wrapper chain. *)
+     feature installs the base mock transport and the features whose model
+     declares `transport: 'wrap'` wrap whatever is current, so `test` must be
+     added before them to sit at the base of the wrapper chain. *)
   let feature_opts = match to_map (getp opts "feature") with Map _ as m -> m | _ -> empty_map () in
   let feature_order = match getpath_s opts "__derived__.featureorder" with List r -> !r | _ -> [] in
   List.iter (fun fname_v ->
@@ -1735,6 +1759,14 @@ let prepare (client : sdk_client) (fetchargs : value) : value =
                          ("step", Str "start")]) in
   ctx.c_spec <- Some sp;
   (match getp fetchargs "headers" with Map _ as uh -> List.iter (fun k -> setp sp.sp_headers k (getp uh k)) (keysof uh) | _ -> ());
+  (* A raw request has no point to declare its response type, so it asks for
+   * the JSON it reads: an API that negotiates on Accept otherwise answers in
+   * its own default format. A caller's own accept wins. *)
+  (match sp.sp_headers with
+   | Map _ as hm ->
+     if not (List.exists (fun k -> String.lowercase_ascii k = "accept") (keysof hm)) then
+       setp hm "accept" (Str "application/json")
+   | _ -> ());
   (match u.u_prepare_auth ctx with (_, Some err) -> raise (Sdk_error_exc err) | _ -> ());
   (match u.u_make_fetch_def ctx with (_, Some err) -> raise (Sdk_error_exc err) | (fd, None) -> fd)
 
@@ -1808,8 +1840,8 @@ let direct (client : sdk_client) (fetchargs : value) : value =
  * a top-level `errors` array, so status alone would report a failed query as
  * ok.
  *
- * NOTE: like direct, this bypasses the feature pipeline — no retry, ratelimit
- * or paging features apply. *)
+ * NOTE: like direct, this bypasses the feature pipeline: no feature hook runs
+ * on this path. *)
 let graphql (client : sdk_client) (query : string) (variables : value)
     (ctrl : value) : value =
   if not (op_allowed client "graphql") then op_denied client "graphql"

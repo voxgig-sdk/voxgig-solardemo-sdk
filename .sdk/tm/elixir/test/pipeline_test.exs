@@ -3,7 +3,7 @@
 # Direct unit tests for the operation-pipeline utilities. The generated entity
 # tests exercise the happy path; these drive the error and edge branches
 # (missing spec/response/result, 4xx handling, transport failures, feature
-# ordering, auth header shaping) that a normal success-path op never reaches.
+# ordering, auth placement) that a normal success-path op never reaches.
 # All utilities are reached through the client's utility view, so this suite is
 # API-agnostic.
 
@@ -65,7 +65,7 @@ defmodule VoxgigSolardemo.PipelineTest do
     c
   end
 
-  # === feature order (PR review #2) ===
+  # === feature order ===
 
   # make_options resolves the feature add-order into __derived__.featureorder:
   # a map defaults test-first (so the test mock is the base transport), an
@@ -296,6 +296,256 @@ defmodule VoxgigSolardemo.PipelineTest do
     assert err.code == "request_no_spec"
   end
 
+  # A Django route answers its slashless form with a relative Location. The
+  # transport follows each hop, and answers a "manual" fetch with the 3xx.
+  test "fetcher follows a relative redirect" do
+    {:ok, listen} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, port} = :inet.port(listen)
+    parent = self()
+    moved = %{"/redirect/r1" => {301, "/redirect/r1/"}, "/redirect/r1/" => {308, "done"}}
+
+    read_head = fn read_head, sock, acc ->
+      if String.contains?(acc, "\r\n\r\n") do
+        acc
+      else
+        case :gen_tcp.recv(sock, 0, 5000) do
+          {:ok, data} -> read_head.(read_head, sock, acc <> data)
+          _ -> acc
+        end
+      end
+    end
+
+    serve = fn serve, n ->
+      with true <- n > 0, {:ok, sock} <- :gen_tcp.accept(listen) do
+        path = Enum.at(String.split(read_head.(read_head, sock, ""), " "), 1, "")
+        send(parent, {:seen, path})
+        body = if path == "/redirect/r1/done", do: ~s({"id":"r1"}), else: ""
+
+        {status, location} =
+          case Map.get(moved, path) do
+            {code, to} -> {code, "Location: #{to}\r\n"}
+            nil -> {if(body == "", do: 404, else: 200), ""}
+          end
+
+        :gen_tcp.send(sock, "HTTP/1.1 #{status} X\r\n#{location}Content-Type: application/json\r\n" <>
+          "Content-Length: #{byte_size(body)}\r\nConnection: close\r\n\r\n#{body}")
+        :gen_tcp.close(sock)
+        serve.(serve, n - 1)
+      end
+    end
+
+    spawn(fn -> serve.(serve, 4) end)
+    base = "http://127.0.0.1:#{port}"
+    ctx = make_ctx(VoxgigSolardemo.new(S.jm(["base", base])), "load")
+    fetchdef = fn extra -> S.jm(["method", "GET", "headers", S.jm([])] ++ extra) end
+
+    try do
+      {res, err} = Utility.fetcher(ctx, base <> "/redirect/r1", fetchdef.([]))
+      assert err == nil
+      assert S.getprop(res, "status") == 200
+      assert S.getprop(res, "body") == ~s({"id":"r1"})
+      seen = for _ <- 1..3, do: (receive do {:seen, p} -> p after 5000 -> nil end)
+      assert seen == ["/redirect/r1", "/redirect/r1/", "/redirect/r1/done"]
+
+      {manual, merr} = Utility.fetcher(ctx, base <> "/redirect/r1", fetchdef.(["redirect", "manual"]))
+      assert merr == nil
+      assert S.getprop(manual, "status") == 301
+    after
+      :gen_tcp.close(listen)
+    end
+  end
+
+  # A listener standing for one origin, closed with the test process. It
+  # answers by `route` and tells the test what each request carried.
+  defp origin(tag, route) do
+    {:ok, listen} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, port} = :inet.port(listen)
+    parent = self()
+    spawn(fn -> origin_loop(listen, tag, route, parent) end)
+    port
+  end
+
+  defp origin_loop(listen, tag, route, parent) do
+    with {:ok, sock} <- :gen_tcp.accept(listen) do
+      [head | rest] = String.split(origin_read(sock, ""), "\r\n\r\n", parts: 2)
+      [request | lines] = String.split(head, "\r\n")
+      [method, path | _] = String.split(request, " ") ++ ["", ""]
+
+      headers =
+        for line <- lines, String.contains?(line, ":"), into: %{} do
+          [name, value] = String.split(line, ":", parts: 2)
+          {String.downcase(name), String.trim(value)}
+        end
+
+      # The body is read whole: closing on unread bytes resets the connection.
+      length = String.to_integer(Map.get(headers, "content-length", "0"))
+      body = origin_body(Enum.join(rest), sock, length)
+      send(parent, {:req, tag, method, path, headers, body})
+
+      {status, location, answer} =
+        case route.(path) do
+          {status, location} -> {status, location, if(status == 200, do: ~s({"id":"r1"}), else: "")}
+          answered -> answered
+        end
+
+      moved = if location == nil, do: "", else: "Location: #{location}\r\n"
+
+      :gen_tcp.send(sock, "HTTP/1.1 #{status} X\r\n#{moved}Content-Type: application/json\r\n" <>
+        "Content-Length: #{byte_size(answer)}\r\nConnection: close\r\n\r\n#{answer}")
+      :gen_tcp.close(sock)
+      origin_loop(listen, tag, route, parent)
+    end
+  end
+
+  defp origin_read(sock, acc) do
+    if String.contains?(acc, "\r\n\r\n") do
+      acc
+    else
+      case :gen_tcp.recv(sock, 0, 5000) do
+        {:ok, data} -> origin_read(sock, acc <> data)
+        _ -> acc
+      end
+    end
+  end
+
+  defp origin_body(got, sock, length) do
+    if byte_size(got) >= length do
+      got
+    else
+      case :gen_tcp.recv(sock, 0, 5000) do
+        {:ok, data} -> origin_body(got <> data, sock, length)
+        _ -> got
+      end
+    end
+  end
+
+  # The API origin answers /cross and /upload with a redirect to another
+  # origin, and /same with one to itself.
+  defp origins do
+    away = "http://127.0.0.1:#{origin(:other, fn _path -> {200, nil} end)}/landed"
+
+    api =
+      origin(:api, fn
+        "/cross" -> {302, away}
+        "/same" -> {302, "/landed"}
+        "/upload" -> {307, away}
+        _ -> {200, nil}
+      end)
+
+    "http://127.0.0.1:#{api}"
+  end
+
+  # The next request an origin was sent, as {method, path, headers, body}.
+  defp sent_to(tag) do
+    receive do
+      {:req, ^tag, method, path, headers, body} -> {method, path, headers, body}
+    after
+      5000 -> nil
+    end
+  end
+
+  @redirect_secret "REDIRECT-SECRET-q1w2e3r4"
+  @redirect_credentials ~w(authorization cookie x-api-key private-token x-acme-auth)
+
+  # Credentials by the fixed names, by a sensitive name, and by a registered
+  # value under a plain name; x-tenant is none of these.
+  defp redirect_fetchdef(method, extra \\ []) do
+    headers =
+      S.jm([
+        "authorization", "Bearer " <> @redirect_secret,
+        "cookie", "sid=1",
+        "x-api-key", "K1",
+        "private-token", "T1",
+        "x-acme-auth", @redirect_secret,
+        "x-tenant", "acme"
+      ])
+
+    S.jm(["method", method, "headers", headers] ++ extra)
+  end
+
+  defp redirect_ctx(base, clean) do
+    options = S.jm(["base", base, "apikey", @redirect_secret, "clean", S.jm(["active", clean])])
+    make_ctx(VoxgigSolardemo.new(options), "load")
+  end
+
+  for clean <- [true, false] do
+    test "fetcher sends no credential to another origin on a redirect, clean.active #{clean}" do
+      base = origins()
+      {res, err} = Utility.fetcher(redirect_ctx(base, unquote(clean)), base <> "/cross", redirect_fetchdef("GET"))
+      assert err == nil
+      assert S.getprop(res, "status") == 200
+
+      {"GET", "/cross", first, _} = sent_to(:api)
+      assert Enum.reject(@redirect_credentials ++ ["x-tenant"], &Map.has_key?(first, &1)) == []
+
+      {"GET", "/landed", second, _} = sent_to(:other)
+      assert Enum.filter(@redirect_credentials, &Map.has_key?(second, &1)) == []
+      assert second["x-tenant"] == "acme"
+    end
+  end
+
+  test "fetcher keeps every header on a redirect to the same origin" do
+    base = origins()
+    {res, err} = Utility.fetcher(redirect_ctx(base, true), base <> "/same", redirect_fetchdef("GET"))
+    assert err == nil
+    assert S.getprop(res, "status") == 200
+
+    {"GET", "/same", _, _} = sent_to(:api)
+    {"GET", "/landed", kept, _} = sent_to(:api)
+    assert Enum.reject(@redirect_credentials ++ ["x-tenant"], &Map.has_key?(kept, &1)) == []
+  end
+
+  for method <- ["PUT", "POST"] do
+    test "fetcher does not send a #{method} body on to another origin" do
+      base = origins()
+      fetchdef = redirect_fetchdef(unquote(method), ["body", "payload"])
+      {res, err} = Utility.fetcher(redirect_ctx(base, true), base <> "/upload", fetchdef)
+      assert err == nil
+      assert {unquote(method), "/upload", "payload"} == (sent_to(:api) |> Tuple.delete_at(2))
+      refute_receive {:req, :other, _, _, _, _}, 300
+      assert S.getprop(res, "status") == 307
+    end
+  end
+
+  # A binary that is not valid UTF-8 raises in whatever serialises it, so
+  # the transport hands on text, as every other target's does.
+  test "fetcher keeps a response that is not valid UTF-8 as text" do
+    bytes = <<"RIFF", 0, 255, 254, "wav", 195>>
+    base = "http://127.0.0.1:#{origin(:api, fn _path -> {200, nil, bytes} end)}"
+    ctx = make_ctx(VoxgigSolardemo.new(S.jm(["base", base])), "load")
+    {res, err} = Utility.fetcher(ctx, base <> "/file", S.jm(["method", "GET", "headers", S.jm([])]))
+    assert err == nil
+    assert S.getprop(res, "unreadable") == true
+    assert S.getprop(res, "body") == "RIFF\0\uFFFD\uFFFDwav\uFFFD"
+  end
+
+  # Nothing listens on port 9: a request the guard let through fails there.
+  test "fetcher refuses a non-GET under the GET-only guard" do
+    c = VoxgigSolardemo.new(S.jm(["base", "http://127.0.0.1:9"]))
+    ctx = make_ctx(c, "create")
+    url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01"
+    fetchdef = fn method -> S.jm(["method", method, "headers", S.jm([])]) end
+    prior = System.get_env("VOXGIG_GETONLY_GUARD")
+    System.put_env("VOXGIG_GETONLY_GUARD", "TRUE")
+
+    try do
+      {_, refused} = Utility.fetcher(ctx, url, fetchdef.("POST"))
+      assert refused.code == "fetch_getonly_block"
+      assert refused.msg =~ "[GET-ONLY GUARD] blocked POST /planet/p1"
+      refute refused.msg =~ "GUARDKEY01"
+
+      {_, sent} = Utility.fetcher(ctx, url, fetchdef.("GET"))
+      assert sent != nil
+      refute match?(%VoxgigSolardemo.Error{code: "fetch_getonly_block"}, sent)
+    after
+      if prior, do: System.put_env("VOXGIG_GETONLY_GUARD", prior), else: System.delete_env("VOXGIG_GETONLY_GUARD")
+    end
+  end
+
   test "make_request a transport error tuple lands on the response" do
     boom = VoxgigSolardemo.Error.new("boom", "boom")
     c = util_override(client(), "fetcher", fn _c, _u, _f -> {nil, boom} end)
@@ -483,7 +733,12 @@ defmodule VoxgigSolardemo.PipelineTest do
 
   # === prepare_auth ===
 
-  defp auth_ctx(c, options, headers) do
+  # Where this SDK's prepare_auth puts the credential. The API's own scheme
+  # decides the container and the name, so the cases read them from a probe
+  # run instead of assuming the authorization header. `pair` is the
+  # `<scheme>=` lead-in of a cookie credential, which rides the header bag
+  # under "cookie". `basic` is false so an HTTP Basic SDK places the key as is.
+  defp auth_ctx(c, options, spec) do
     fakeclient = S.jm(["options", H.deep(options)])
 
     ctx =
@@ -492,12 +747,57 @@ defmodule VoxgigSolardemo.PipelineTest do
         nil
       )
 
-    spec = if headers == nil, do: nil, else: Spec.new(H.deep(%{"headers" => headers, "step" => "s"}))
     S.setprop(ctx, "spec", spec)
     ctx
   end
 
-  defp auth_header(ctx), do: S.getprop(S.getprop(S.getprop(ctx, "spec"), "headers"), "authorization")
+  defp auth_opts(prefix), do: %{"prefix" => prefix, "basic" => false}
+
+  defp auth_bags, do: Spec.new(H.deep(%{"headers" => %{}, "query" => %{}, "step" => "s"}))
+
+  defp cookie_pair?(v), do: is_binary(v) and Regex.match?(~r/\A[^=;]+=K\z/, v)
+
+  # Nil is a public API, a legitimate shape.
+  defp auth_probe(options) do
+    spec = auth_bags()
+    Utility.prepare_auth(auth_ctx(client(), options, spec))
+
+    Enum.find_value(["headers", "query"], fn where ->
+      bag = S.getprop(spec, where)
+
+      case S.keysof(bag) do
+        [name | _] ->
+          value = S.getprop(bag, name)
+
+          pair =
+            if where == "headers" and name == "cookie" and cookie_pair?(value),
+              do: binary_part(value, 0, byte_size(value) - 1),
+              else: ""
+
+          %{where: where, name: name, value: value, pair: pair}
+
+        _ ->
+          nil
+      end
+    end)
+  end
+
+  defp auth_cred, do: auth_probe(%{"apikey" => "K", "auth" => auth_opts("Bearer")})
+
+  # Runs prepare_auth over fresh bags, seeding the credential's slot first
+  # when there is a seed, and returns what is left there.
+  defp auth_placed(options, seed) do
+    case auth_cred() do
+      nil ->
+        nil
+
+      cred ->
+        spec = auth_bags()
+        if seed != nil, do: S.setprop(S.getprop(spec, cred.where), cred.name, cred.pair <> seed)
+        Utility.prepare_auth(auth_ctx(client(), options, spec))
+        S.getprop(S.getprop(spec, cred.where), cred.name)
+    end
+  end
 
   test "prepare_auth guards a missing spec" do
     ctx = auth_ctx(client(), %{"auth" => %{"prefix" => ""}, "apikey" => "K"}, nil)
@@ -505,35 +805,45 @@ defmodule VoxgigSolardemo.PipelineTest do
     assert err.code == "auth_no_spec"
   end
 
-  test "prepare_auth an apikey with a prefix is space joined" do
-    ctx = auth_ctx(client(), %{"apikey" => "K", "auth" => %{"prefix" => "Bearer"}}, %{})
-    {_o, err} = Utility.prepare_auth(ctx)
-    assert err == nil
-    assert auth_header(ctx) == "Bearer K"
+  # Without this every case below could pass on the public-API path.
+  test "prepare_auth the probe finds the credential this sdk places" do
+    any = auth_probe(%{"apikey" => "K", "secret" => "S", "auth" => %{"prefix" => "Bearer", "basic" => true}})
+    assert (auth_cred() == nil) == (any == nil), "the probe missed a credential this SDK places"
+  end
+
+  test "prepare_auth places the apikey where this api puts it" do
+    case auth_cred() do
+      nil ->
+        assert auth_placed(%{"apikey" => "K", "auth" => auth_opts("Bearer")}, nil) == nil
+
+      %{pair: pair, value: value} when pair != "" ->
+        assert cookie_pair?(value), "expected a cookie pair, got #{inspect(value)}"
+
+      # A query parameter has nowhere to put a scheme name.
+      %{where: where, value: value} ->
+        assert value == if(where == "query", do: "K", else: "Bearer K")
+    end
   end
 
   test "prepare_auth a raw apikey goes in as is" do
-    ctx = auth_ctx(client(), %{"apikey" => "K", "auth" => %{"prefix" => ""}}, %{})
-    Utility.prepare_auth(ctx)
-    assert auth_header(ctx) == "K"
+    placed = auth_placed(%{"apikey" => "K", "auth" => auth_opts("")}, nil)
+
+    case auth_cred() do
+      nil -> assert placed == nil
+      cred -> assert placed == cred.pair <> "K"
+    end
   end
 
-  test "prepare_auth an empty apikey drops the header" do
-    ctx = auth_ctx(client(), %{"apikey" => "", "auth" => %{"prefix" => "Bearer"}}, %{"authorization" => "stale"})
-    Utility.prepare_auth(ctx)
-    assert auth_header(ctx) == nil
+  test "prepare_auth an empty apikey drops the credential" do
+    assert auth_placed(%{"apikey" => "", "auth" => auth_opts("Bearer")}, "stale") == nil
   end
 
-  test "prepare_auth a public api drops the header" do
-    ctx = auth_ctx(client(), %{"apikey" => "K"}, %{"authorization" => "stale"})
-    Utility.prepare_auth(ctx)
-    assert auth_header(ctx) == nil
+  test "prepare_auth a public api drops the credential" do
+    assert auth_placed(%{"apikey" => "K"}, "stale") == nil
   end
 
-  test "prepare_auth a missing apikey option drops the header" do
-    ctx = auth_ctx(client(), %{"auth" => %{"prefix" => "Bearer"}}, %{"authorization" => "stale"})
-    Utility.prepare_auth(ctx)
-    assert auth_header(ctx) == nil
+  test "prepare_auth a missing apikey option drops the credential" do
+    assert auth_placed(%{"auth" => auth_opts("Bearer")}, "stale") == nil
   end
 
   # === result helpers ===

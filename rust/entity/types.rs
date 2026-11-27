@@ -95,12 +95,9 @@ pub struct PlanetListMatch {
 #[derive(Debug, Clone)]
 pub struct PlanetCreateData {
     pub diameter: f64,
-    pub forbidreason: Option<String>,
-    pub forbidstate: Option<String>,
     pub id: String,
     pub kind: String,
     pub name: String,
-    pub terraformstate: Option<String>,
 }
 
 /// PlanetUpdateData is the typed request payload for Planet.update.
@@ -108,11 +105,8 @@ pub struct PlanetCreateData {
 pub struct PlanetUpdateData {
     pub id: String,
     pub diameter: Option<f64>,
-    pub forbidreason: Option<String>,
-    pub forbidstate: Option<String>,
     pub kind: Option<String>,
     pub name: Option<String>,
-    pub terraformstate: Option<String>,
 }
 
 /// PlanetRemoveMatch is the typed request payload for Planet.remove.

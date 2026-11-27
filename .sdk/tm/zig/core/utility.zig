@@ -2,14 +2,15 @@
 // core/utility_type.go + tm/go/utility, and rust core/utility_type.rs +
 // utility/*.rs). Go carries the utilities as swappable function pointers;
 // here they are free functions, and the two members that genuinely vary per
-// client stay swappable: the transport (`fetcher`, wrapped by
-// retry/cache/netsim/proxy) and the `custom` map of caller-supplied
+// client stay swappable: the transport (`fetcher`, which transport-wrapping
+// features wrap) and the `custom` map of caller-supplied
 // callables.
 
 const std = @import("std");
 const vs = @import("voxgig-struct");
 const h = @import("helpers.zig");
 const err = @import("error.zig");
+const mem = @import("mem.zig");
 const types = @import("types.zig");
 const ctxmod = @import("context.zig");
 const control_mod = @import("control.zig");
@@ -130,7 +131,7 @@ pub const Utility = struct {
         _ = self;
         return Context.new(ctxspec, basectx);
     }
-    pub fn make_options(self: *Utility, ctx: *Context) Value {
+    pub fn make_options(self: *Utility, ctx: *Context) E!Value {
         _ = self;
         return make_options_util(ctx);
     }
@@ -184,6 +185,8 @@ pub const Utility = struct {
 
 const CLEAN_MAXDEPTH: usize = 32;
 const CLEAN_CIRCULAR = "[circular]";
+// The key of what stands in for a body of bytes; its value is the kind.
+const CLEAN_BINARY_KEY = "binary$";
 // The schema's own default, for a context that reaches clean before any
 // options exist.
 const CLEAN_DEFAULT_KEYS = "key,secret,token,password,passwd,authorization,cookie,credential,signature";
@@ -195,6 +198,14 @@ const CleanCfg = struct {
     mask: []const u8,
     hint: i64,
     min: i64,
+};
+
+// The live bodies of this call that are bytes, each with its type. A
+// response read as text does not say how many bytes it was, so is unsized.
+const CleanBinary = struct {
+    live: [3]Value,
+    media: [3]?[]const u8,
+    sized: [3]bool,
 };
 
 fn clean_normkey(key: []const u8) []const u8 {
@@ -382,12 +393,57 @@ fn clean_name(c: CleanCfg, out: Value, key: []const u8) []const u8 {
     return fmt("{s}#{d}", .{ name, i });
 }
 
+// The request body of a point the model marks binary, and a response body
+// that is bytes. A string shorter than the registry accepts is not told
+// from ordinary text.
+fn clean_binary_body(ctx: *Context) ?CleanBinary {
+    var bin = CleanBinary{ .live = .{ h.vnull(), h.vnull(), h.vnull() }, .media = .{ null, null, null }, .sized = .{ true, true, false } };
+    const body = h.getp(ctx.point, "body");
+    if (is_raw_request(ctx.point) and is_true(h.getp(body, "binary"))) {
+        bin.live[0] = if (ctx.spec) |s| s.body else h.vnull();
+        bin.live[1] = raw_body(ctx.reqdata);
+        bin.media[0] = h.get_str(body, "media");
+        bin.media[1] = bin.media[0];
+    }
+    if (ctx.response) |resp| {
+        const ctype = body_header(resp.headers, "content-type");
+        if (is_binary_response(ctx.point, ctype)) {
+            bin.live[2] = resp.body;
+            bin.media[2] = if (ctype.len == 0) null else ctype;
+        }
+    }
+    const min = clean_view(clean_config(ctx)).min;
+    var any = false;
+    for (&bin.live) |*at| {
+        if (at.* != .string or @as(i64, @intCast(at.string.len)) < min) at.* = h.vnull() else any = true;
+    }
+    return if (any) bin else null;
+}
+
+// Bytes are described, never copied (ADR-006). The value union has no
+// variant for bytes: a string is bytes only as a live body, by equal
+// content.
+fn clean_describe_binary(bin: ?CleanBinary, s: []const u8) ?Value {
+    const b = bin orelse return null;
+    for (b.live, b.media, b.sized) |live, media, sized| {
+        if (live != .string or !std.mem.eql(u8, live.string, s)) continue;
+        const desc = h.jo(&.{.{ CLEAN_BINARY_KEY, h.vstr("bytes") }});
+        if (sized) h.setp(desc, "size", h.vnum(@intCast(s.len)));
+        if (media) |m| h.setp(desc, "type", h.vstr(m));
+        return desc;
+    }
+    return null;
+}
+
 // A masked plain-data copy: functions dropped, cycles cut, and nothing
 // shared with the live value, whose spec must stay raw.
-fn clean_snapshot(c: CleanCfg, val: Value, key: ?[]const u8, depth: usize, seen: *std.ArrayList(usize)) Value {
+fn clean_snapshot(c: CleanCfg, bin: ?CleanBinary, val: Value, key: ?[]const u8, depth: usize, seen: *std.ArrayList(usize)) Value {
     switch (val) {
         .null => return val,
-        .string => |s| return h.vstr(if (clean_sensitive_key(c, key)) clean_mask_value(c, s) else clean_string(c, s)),
+        .string => |s| {
+            if (clean_sensitive_key(c, key)) return h.vstr(clean_mask_value(c, s));
+            return clean_describe_binary(bin, s) orelse h.vstr(clean_string(c, s));
+        },
         .function => return h.vnull(),
         .bool, .integer, .float, .number_string => return if (clean_sensitive_key(c, key)) h.vstr(c.mask) else val,
         .object => |m| {
@@ -400,7 +456,7 @@ fn clean_snapshot(c: CleanCfg, val: Value, key: ?[]const u8, depth: usize, seen:
             var it = m.iterator();
             while (it.next()) |kv| {
                 if (kv.value_ptr.* == .function) continue;
-                const v = clean_snapshot(c, kv.value_ptr.*, kv.key_ptr.*, depth + 1, seen);
+                const v = clean_snapshot(c, bin, kv.value_ptr.*, kv.key_ptr.*, depth + 1, seen);
                 h.setp(out, clean_name(c, out, kv.key_ptr.*), v);
             }
             return out;
@@ -413,7 +469,7 @@ fn clean_snapshot(c: CleanCfg, val: Value, key: ?[]const u8, depth: usize, seen:
             defer _ = seen.pop();
             const out = h.olist();
             for (l.data.items) |item| {
-                out.array.append(clean_snapshot(c, item, null, depth + 1, seen)) catch {};
+                out.array.append(clean_snapshot(c, bin, item, null, depth + 1, seen)) catch {};
             }
             return out;
         },
@@ -423,8 +479,10 @@ fn clean_snapshot(c: CleanCfg, val: Value, key: ?[]const u8, depth: usize, seen:
 pub fn clean_util(ctx: *Context, val: Value) Value {
     const c = clean_view(clean_config(ctx));
     if (!c.active) return val;
+    // A string on its own stays a string, whatever a point sends.
+    if (val == .string) return h.vstr(clean_string(c, val.string));
     var seen: std.ArrayList(usize) = .empty;
-    return clean_snapshot(c, val, null, 0, &seen);
+    return clean_snapshot(c, clean_binary_body(ctx), val, null, 0, &seen);
 }
 
 pub fn clean_str_util(ctx: *Context, val: []const u8) []const u8 {
@@ -540,13 +598,14 @@ pub fn make_error_util(ctx: *Context) E!Value {
     sdk_err.code = clean_str_util(ctx, the_err.code);
     sdk_err.result = clean_util(ctx, result.to_value());
     sdk_err.spec = clean_util(ctx, spec_val);
+    sdk_err.status = result.status;
 
     c.err = sdk_err;
 
-    // Fire PreUnexpected so observability features (metrics, telemetry, audit,
-    // debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-    // rbac short-circuit). Fires after ctrl.err is set so hooks can read the
-    // error; features guard against double-recording when PreDone already fired.
+    // Fire PreUnexpected so features hooked on it close/record error paths that
+    // never reach PreDone (e.g. a PrePoint short-circuit). Fires after ctrl.err
+    // is set so hooks can read the error; features guard against
+    // double-recording when PreDone already fired.
     feature_hook_util(ctx, "PreUnexpected");
 
     if (c.throw != null and c.throw.? == false) {
@@ -670,14 +729,14 @@ fn mo_without(opts: Value, keys: []const []const u8) Value {
     return out;
 }
 
-pub fn make_options_util(ctx: *Context) Value {
+pub fn make_options_util(ctx: *Context) E!Value {
     const options: Value = switch (ctx.options) {
         .object => ctx.options,
         else => h.omap(),
     };
 
     // Merge custom utility overrides onto the utility object (function values
-    // are shared by reference — gotcha #8).
+    // are shared by reference).
     const custom_utils = h.to_map(h.getp(options, "utility"));
     if (custom_utils == .object) {
         if (ctx.utility) |utility| {
@@ -786,8 +845,7 @@ pub fn make_options_util(ctx: *Context) Value {
     // (user), else the Config default. A placeholder that resolves to "" is a
     // construction ERROR in live mode - the URL cannot work - but in test mode
     // substitutes the deterministic value "test-<name>" so offline tests need
-    // no configuration. The SDK constructor has no error return, so a missing
-    // required variable PANICS: construction-time misconfiguration.
+    // no configuration.
     //
     // Scanned by hand: a placeholder is `{` followed by [A-Za-z0-9_]+ and `}`;
     // anything else is literal text, so a stray brace in a URL is left alone.
@@ -830,12 +888,12 @@ pub fn make_options_util(ctx: *Context) Value {
                             out.appendSlice(h.A(), "test-") catch {};
                             out.appendSlice(h.A(), name) catch {};
                         } else {
-                            std.debug.panic(
+                            return ctx.fail("server_var_required", fmt(
                                 "{s}: the server variable '{s}' is required: the API " ++
                                     "base URL is '{s}' - pass .server = .{{ .{s} = \"...\" }} " ++
                                     "in the SDK options",
                                 .{ sdkname, name, base, name },
-                            );
+                            ));
                         }
                     } else {
                         out.appendSlice(h.A(), val) catch {};
@@ -891,7 +949,7 @@ pub fn make_options_util(ctx: *Context) Value {
 }
 
 // ============================================================================
-// make_point (gotcha #2: rbac PrePoint short-circuit)
+// make_point (and the rbac PrePoint short-circuit)
 // ============================================================================
 
 // How many path segments a point has.
@@ -981,12 +1039,15 @@ pub fn make_point_util(ctx: *Context) E!Value {
         return ctx.fail("point_no_points", fmt("Operation \"{s}\" has no endpoint definitions.", .{op.name}));
     }
 
-    if (plen == 1) {
-        ctx.point = h.get_elem(points, h.vnum(0), h.vnull());
-    } else {
-        const reqselector: Value = if (std.mem.eql(u8, op.input, "data")) ctx.reqdata else ctx.reqmatch;
-        const selector: Value = if (std.mem.eql(u8, op.input, "data")) ctx.data else ctx.mtch;
+    const reqselector: Value = if (std.mem.eql(u8, op.input, "data")) ctx.reqdata else ctx.reqmatch;
+    const selector: Value = if (std.mem.eql(u8, op.input, "data")) ctx.data else ctx.mtch;
 
+    // A lone point still needs the call's action to agree with its own; the
+    // selection below refuses a mismatch either way.
+    const lone = h.get_elem(points, h.vnum(0), h.vnull());
+    if (plen == 1 and h.veq(h.getp(reqselector, "$action"), h.getp(h.to_map(h.getp(lone, "select")), "$action"))) {
+        ctx.point = lone;
+    } else {
         var point: Value = h.vnull();
         var matched = false;
         var i: i64 = 0;
@@ -1136,7 +1197,7 @@ pub fn make_spec_util(ctx: *Context) E!*Spec {
     if (std.mem.eql(u8, kind, "graphql")) {
         // GraphQL addresses one endpoint: no path parts, no query string,
         // and the body carries the operation. prepare_body is skipped
-        // deliberately — it only emits a body for data-input ops, whereas
+        // deliberately — it builds only a REST body, whereas
         // every GraphQL op posts one, including load/list/remove.
         spec.body = graphql_body_util(ctx);
         spec.path = "";
@@ -1187,13 +1248,18 @@ pub fn make_url_util(ctx: *Context) E![]const u8 {
         h.vstr(spec.suffix),
     }), "/", true) catch "";
 
-    // A route the definition ends with a slash keeps it: a server such as a
-    // Django REST one redirects or refuses the route without it.
+    // A route ending in a slash keeps it, as defined or as passed to direct(), for
+    // Django, and a host with no path takes /, or luasocket reads a query as the host.
     const orig = h.getp(ctx.point, "orig");
-    if (orig == .string and std.mem.endsWith(u8, orig.string, "/") and spec.suffix.len == 0 and
-        !std.mem.endsWith(u8, url, "/"))
-    {
+    const slashed = (orig == .string and std.mem.endsWith(u8, orig.string, "/")) or
+        std.mem.endsWith(u8, spec.path, "/");
+    if (slashed and spec.suffix.len == 0 and !std.mem.endsWith(u8, url, "/")) {
         url = std.mem.concat(h.A(), u8, &.{ url, "/" }) catch url;
+    }
+    if (std.mem.indexOf(u8, url, "://")) |authority| {
+        if (0 < authority and std.mem.indexOfAny(u8, url[authority + 3 ..], "/?#") == null) {
+            url = std.mem.concat(h.A(), u8, &.{ url, "/" }) catch url;
+        }
     }
 
     const resmatch = h.omap();
@@ -1204,8 +1270,13 @@ pub fn make_url_util(ctx: *Context) E![]const u8 {
             const key = kv.key_ptr.*;
             const val = kv.value_ptr.*;
             if (!h.is_noval(val)) {
+                // A whole . or .. is a dot segment, which moves the request to another route.
+                const text = h.scalar_str(val);
+                if (std.mem.eql(u8, text, ".") or std.mem.eql(u8, text, "..")) {
+                    return ctx.fail("url_param_invalid", fmt("URL path parameter {s} cannot be \"{s}\".", .{ key, text }));
+                }
                 const needle = fmt("{{{s}}}", .{key});
-                const sub = h.esc_url(h.scalar_str(val));
+                const sub = h.esc_url(text);
                 url = std.mem.replaceOwned(u8, h.A(), url, needle, sub) catch url;
                 h.setp(resmatch, key, val);
             }
@@ -1391,7 +1462,7 @@ pub fn make_result_util(ctx: *Context) E!*SdkResult {
                 const entities = h.olist();
                 for (resdata.array.data.items) |entry| {
                     const e = ent.makeEnt();
-                    const out = if (entry == .object) e.data(entry) else e.data(null);
+                    const out = e.data(entry);
                     entities.array.append(out) catch {};
                 }
                 result.resdata = entities;
@@ -1708,7 +1779,36 @@ pub fn prepare_body_util(ctx: *Context) Value {
         if (is_raw_request(ctx.point)) return raw_body(ctx.reqdata);
         return transform_request_util(ctx);
     }
+    const fields = h.getp(ctx.point, "fields");
+    if (fields == .array and fields.array.data.items.len != 0) return match_body(ctx, fields);
     return h.vnull();
+}
+
+// A list, load or remove routed to a method with a body sends the match
+// fields that body declares, never a path parameter, and never a header,
+// cookie or query argument the body does not also declare as a field.
+fn match_body(ctx: *Context, fields: Value) Value {
+    const body = h.omap();
+    for (fields.array.data.items) |f| {
+        if (f != .string or std.mem.eql(u8, f.string, "$action") or body_routed(ctx.point, f.string)) continue;
+        const val = h.getp(ctx.reqmatch, f.string);
+        if (!h.is_noval(val)) h.setp(body, f.string, val);
+    }
+    return body;
+}
+
+fn body_routed(point: Value, key: []const u8) bool {
+    if (listed(h.getp(point, "params"), key) or names_key(h.getpath(&.{ "args", "params" }, point), key)) return true;
+    for ([_][]const u8{ "header", "cookie", "query" }) |kind| {
+        const defs: Value = h.getpath(&.{ "args", kind }, point);
+        if (defs != .array) continue;
+        for (defs.array.data.items) |ad| {
+            const n = h.getp(ad, "name");
+            const f = h.getp(ad, "field");
+            if (n == .string and std.mem.eql(u8, n.string, key) and !(f == .bool and f.bool)) return true;
+        }
+    }
+    return false;
 }
 
 pub fn prepare_params_util(ctx: *Context) Value {
@@ -1757,6 +1857,15 @@ fn names_key(defs: Value, key: []const u8) bool {
     return false;
 }
 
+// Whether a list of names holds this key.
+fn listed(names: Value, key: []const u8) bool {
+    if (names != .array) return false;
+    for (names.array.data.items) |v| {
+        if (v == .string and std.mem.eql(u8, v.string, key)) return true;
+    }
+    return false;
+}
+
 pub fn prepare_query_util(ctx: *Context) Value {
     const point = ctx.point;
     const reqmatch: Value = switch (ctx.reqmatch) {
@@ -1771,9 +1880,12 @@ pub fn prepare_query_util(ctx: *Context) Value {
     // as args.params, which prepare_params reads; params is the older list.
     const aparams: Value = h.getpath(&.{ "args", "params" }, point);
     // A header or cookie parameter travels in the headers, which prepare_headers
-    // fills, unless a query parameter shares its name: then both are sent.
+    // fills, and a field the point's body declares travels in the body, which
+    // prepare_body fills, unless a query parameter shares its name: then both
+    // are sent.
     const aheader: Value = h.getpath(&.{ "args", "header" }, point);
     const acookie: Value = h.getpath(&.{ "args", "cookie" }, point);
+    const fields: Value = h.getp(point, "fields");
     // A query parameter travels under the name the definition gives it, its
     // orig, which the model may have renamed for the caller.
     const aquery: Value = h.getpath(&.{ "args", "query" }, point);
@@ -1794,7 +1906,8 @@ pub fn prepare_query_util(ctx: *Context) Value {
                 }
             }
             if (!contained) contained = names_key(aparams, key) or
-                ((names_key(aheader, key) or names_key(acookie, key)) and !names_key(aquery, key));
+                ((names_key(aheader, key) or names_key(acookie, key) or listed(fields, key)) and
+                    !names_key(aquery, key));
             var wire: []const u8 = key;
             if (aquery == .array) {
                 for (aquery.array.data.items) |qd| {
@@ -1815,7 +1928,8 @@ pub fn prepare_query_util(ctx: *Context) Value {
     // A create or update passes its query arguments in its data.
     for (call_args(ctx, "query")) |arg| {
         var contained = h.is_noval(arg.val) or names_key(aparams, arg.name) or
-            ((names_key(aheader, arg.name) or names_key(acookie, arg.name)) and !names_key(aquery, arg.name));
+            ((names_key(aheader, arg.name) or names_key(acookie, arg.name) or listed(fields, arg.name)) and
+                !names_key(aquery, arg.name));
         if (params == .array) {
             for (params.array.data.items) |v| {
                 if (v == .string and std.mem.eql(u8, v.string, arg.name)) contained = true;
@@ -2013,14 +2127,6 @@ pub fn graphql_errors_util(ctx: *Context) bool {
 // the generated function is the whole of the binding change.
 pub const prepare_auth_util = @import("prepare_auth.zig").prepare_auth_util;
 
-// The two comptime FACTS the generated file decided: where this SDK puts its
-// credential ("header" | "query" | "cookie" | "none"), and whether the scheme
-// is genuine HTTP Basic. Re-exported on the same path as the function, so
-// test/pipeline_test.zig can reach both as `sdk.utilmod.<name>` and skip the
-// header-shape cases on an SDK that has no header credential to assert on.
-pub const prepare_auth_placement = @import("prepare_auth.zig").PLACEMENT;
-pub const prepare_auth_basic = @import("prepare_auth.zig").BASIC;
-
 pub fn result_basic_util(ctx: *Context) ?*SdkResult {
     const response = ctx.response;
     const result = ctx.result;
@@ -2098,7 +2204,10 @@ pub fn unreadable_body(
         status,
         if (ctype.len == 0) "none" else ctype,
         if (agent.len == 0) "transport default" else agent,
-        if (h.is_noval(text) or text == .null) "" else fmt(", body: {s}", .{body_preview(ctx, text)}),
+        if (h.is_noval(text) or text == .null or is_binary_response(ctx.point, ctype))
+            ""
+        else
+            fmt(", body: {s}", .{body_preview(ctx, text)}),
     });
 
     if (failed) |f| {
@@ -2124,6 +2233,23 @@ fn body_header(headers: Value, name: []const u8) []const u8 {
         }
     }
     return "";
+}
+
+const TEXT_MEDIA = [_][]const u8{
+    "json", "xml", "html", "javascript", "ecmascript", "yaml", "urlencoded", "graphql",
+};
+
+// A response whose body is bytes: by the model, or by the type it declares.
+// Text is no declared type, text/*, or a structured text format.
+pub fn is_binary_response(point: Value, ctype: []const u8) bool {
+    if (is_true(h.getp(h.getp(point, "response"), "binary"))) return true;
+    const end = std.mem.indexOfScalar(u8, ctype, ';') orelse ctype.len;
+    const media = std.mem.trim(u8, ctype[0..end], &std.ascii.whitespace);
+    if (media.len == 0 or std.ascii.startsWithIgnoreCase(media, "text/")) return false;
+    for (TEXT_MEDIA) |part| {
+        if (std.ascii.indexOfIgnoreCase(media, part) != null) return false;
+    }
+    return true;
 }
 
 // Cleaned whole: a secret the bound would split could leave its prefix.
@@ -2302,8 +2428,29 @@ pub fn fetcher_util(ctx: *Context, fullurl: []const u8, fetchdef: Value) E!Value
     return ctx.fail("fetch_invalid", "system.fetch is not a valid function");
 }
 
+// A GET-only live run refuses any other method before it is sent. The error
+// names the path alone: the query can carry a credential.
+fn getonly_refusal(fullurl: []const u8, fetchdef: Value) ?[]const u8 {
+    const environ = mem.threaded().environ.process_environ;
+    const flag = environ.getAlloc(h.A(), "VOXGIG_GETONLY_GUARD") catch return null;
+    if (!std.mem.eql(u8, flag, "TRUE")) return null;
+    const raw = h.get_str(fetchdef, "method") orelse "";
+    var buf: [16]u8 = undefined;
+    const method = if (raw.len == 0) "GET" else std.ascii.upperString(buf[0..@min(raw.len, buf.len)], raw[0..@min(raw.len, buf.len)]);
+    if (std.mem.eql(u8, method, "GET")) return null;
+    var rest = fullurl;
+    if (std.mem.indexOf(u8, rest, "://")) |i| {
+        rest = rest[i + 3 ..];
+        rest = rest[(std.mem.indexOfAny(u8, rest, "/?#") orelse rest.len)..];
+    }
+    const path = rest[0..(std.mem.indexOfAny(u8, rest, "?#") orelse rest.len)];
+    return fmt("[GET-ONLY GUARD] blocked {s} {s}", .{ method, if (path.len == 0) "/" else path });
+}
+
 fn default_http_fetch(ctx: *Context, fullurl: []const u8, fetchdef: Value) E!Value {
-    _ = fetchdef;
+    if (getonly_refusal(fullurl, fetchdef)) |msg| {
+        return ctx.fail("fetch_getonly_block", msg);
+    }
     // Live HTTP transport. The generated test suite runs entirely against the
     // offline mock (the `test` feature), so this path is not exercised by
     // tests; a real deployment injects `system.fetch`. A std.http.Client

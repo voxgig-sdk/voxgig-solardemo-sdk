@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityOps } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityOps, matchExampleItems, requiredItems, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,11 +7,12 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { csVarName, csListMatch } from './utility_csharp'
+import { csVarName, csListMatch, csStringLiteral } from './utility_csharp'
 
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
@@ -29,11 +30,20 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   ) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `new ${model.const.Name}SDK(new Dictionary<string, object?>\n{\n    ["apikey"] = Environment.GetEnvironmentVariable("${envName(model)}_APIKEY"),\n})`
-    : `new ${model.const.Name}SDK()`
+  // The constructor refuses a templated URL it has no value for, so the quick
+  // start passes each variable the URL uses with no default.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`["apikey"] = Environment.GetEnvironmentVariable("${envName(model)}_APIKEY"),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`["secret"] = Environment.GetEnvironmentVariable("${envName(model)}_SECRET"),`] : []),
+    ...(0 === svars.length ? [] : [`["server"] = new Dictionary<string, object?>\n    {` +
+      svars.map((v: any) => `\n        ["${v.name}"] = "<${v.name}>",`).join('') + `\n    },`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `new ${model.const.Name}SDK()`
+    : `new ${model.const.Name}SDK(new Dictionary<string, object?>\n{${ctorFields.map((f: string) => '\n    ' + f).join('')}\n})`
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`csharp
 using ${model.const.Name}Sdk;
@@ -64,11 +74,11 @@ var client = ${ctor};
       if ('BOOLEAN' === k) return 'true'
       if ('ARRAY' === k) return 'new List<object?>()'
       if ('OBJECT' === k) return 'new Dictionary<string, object?>()'
-      return `"${placeholder}"`
+      return csStringLiteral(placeholder)
     }
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${eName.toLowerCase()} records
+      Content(`### ${++step}. List ${eName.toLowerCase()} records
 
 \`List(null)\` returns a list of entities, one per record (as \`object?\`), and
 raises on error; an entity's \`Data()\` reads its record.
@@ -99,18 +109,17 @@ catch (Exception err)
       // Model-driven match: every REQUIRED load-match key. Parent keys (e.g.
       // page_id) first, the entity's own id last.
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
       const parentParam = parentItem && parentItem.name
       const parentName = parentParam ? parentParam.replace(/_id$/, '') : 'its parent'
       const neMatch = neRequired.map((it: any) =>
-        `["${it.name}"] = ${csLit(it.type,
+        `[${csStringLiteral(it.name)}] = ${csLit(it.type,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)}`)
 
-      Content(`### 3. Load ${neArticle} ${neName.toLowerCase()}
+      Content(`### ${++step}. Load ${neArticle} ${neName.toLowerCase()}
 
 ${neName} is nested under ${parentName}, so provide the \`${parentParam}\`.
 \`Load()\` returns the entity (as \`object?\`) and raises on error; an entity's
@@ -132,17 +141,16 @@ catch (Exception err)
     }
     else if (opnames.includes('load')) {
       // Every REQUIRED load-match key (id first, then parent path params).
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
         ? `new Dictionary<string, object?> {${loadRequired.map((it: any) =>
-          ` ["${it.name}"] = ${csLit(it.type,
+          ` [${csStringLiteral(it.name)}] = ${csLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(',')} }`
         : 'null'
 
-      Content(`### 3. Load ${article} ${eName.toLowerCase()}
+      Content(`### ${++step}. Load ${article} ${eName.toLowerCase()}
 
 \`Load()\` returns the entity (as \`object?\`) and raises on error; an entity's
 \`Data()\` reads its record.
@@ -165,15 +173,15 @@ catch (Exception err)
     // Model-driven example fields: derive the create/update body from the op
     // shape (opRequestShape) so the docs reference REAL writable fields.
     const examplePairs = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
-      return chosen.map((it: any) => `["${it.name}"] = ${csLit(it.type, 'example_' + it.name)}`)
+      return chosen.map((it: any) => `[${csStringLiteral(it.name)}] = ${csLit(it.type, 'example_' + it.name)}`)
     }
 
     const idParamType = (opname: string): any => {
@@ -183,7 +191,8 @@ catch (Exception err)
 
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`csharp
 `)
@@ -194,15 +203,15 @@ var created = client.${eName}().Create(new Dictionary<string, object?> { ${examp
 `)
       }
       if (opnames.includes('update')) {
-        const updatePairs = (idF ? [`["${idF}"] = ${csLit(idParamType('update'), 'example_id')}`] : [])
+        const updatePairs = (sendsId(exampleEntity, 'update', idF) ? [`[${csStringLiteral(idF)}] = ${csLit(idParamType('update'), 'example_id')}`] : [])
           .concat(examplePairs('update'))
-        Content(`// Update — supply the id in the match/data
+        Content(`// Update${sendsId(exampleEntity, 'update', idF) ? ' — supply the id in the match/data' : ''}
 client.${eName}().Update(new Dictionary<string, object?> { ${updatePairs.join(', ')} });
 
 `)
       }
       if (opnames.includes('patch')) {
-        const patchPairs = (idF ? [`["${idF}"] = ${csLit(idParamType('patch'), 'example_id')}`] : [])
+        const patchPairs = (sendsId(exampleEntity, 'patch', idF) ? [`[${csStringLiteral(idF)}] = ${csLit(idParamType('patch'), 'example_id')}`] : [])
           .concat(examplePairs('patch'))
         Content(`// Patch — sends only the fields given
 client.${eName}().Patch(new Dictionary<string, object?> { ${patchPairs.join(', ')} });
@@ -211,13 +220,12 @@ client.${eName}().Patch(new Dictionary<string, object?> { ${patchPairs.join(', '
       }
       if (opnames.includes('remove')) {
         // Every REQUIRED remove-match key: the id plus parent keys like page_id.
-        const removePairs = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removePairs = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF
-            ? `["${it.name}"] = ${csLit(idParamType('remove'), 'example_id')}`
-            : `["${it.name}"] = ${csLit(it.type, 'example_' + it.name)}`)
+            ? `[${csStringLiteral(it.name)}] = ${csLit(idParamType('remove'), 'example_id')}`
+            : `[${csStringLiteral(it.name)}] = ${csLit(it.type, 'example_' + it.name)}`)
         Content(`// Remove
 client.${eName}().Remove(${removePairs.length ? `new Dictionary<string, object?> { ${removePairs.join(', ')} }` : 'null'});
 `)

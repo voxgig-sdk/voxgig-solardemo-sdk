@@ -46,9 +46,13 @@ class MoonDirectTest {
         }
       }
     }
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     val client = setup.client
 
     val params = linkedMapOf<String, Any?>()
+    val query = linkedMapOf<String, Any?>()
     if (setup.live) {
       params["planet_id"] = setup.idmap["planet01"]
     } else {
@@ -58,7 +62,8 @@ class MoonDirectTest {
     val result = client.direct(jm(
         "path", "api/planet/{planet_id}/moon",
         "method", "GET",
-        "params", params))
+        "params", params,
+        "query", query))
     if (setup.live) {
       if (!liveOk(result)) {
         RunnerSupport.liveMiss(LIVE_STRICT, "Live list failed: " + RunnerSupport.liveDescribe(result))
@@ -103,6 +108,9 @@ class MoonDirectTest {
           RunnerSupport.liveMiss(LIVE_STRICT, "Live test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
         }
       }
+    }
+    if (setup.live) {
+      RunnerSupport.livePace()
     }
     val client = setup.client
 
@@ -208,7 +216,9 @@ class MoonDirectTest {
       setup.calls = calls
 
       if (live) {
-        val mergedOpts = linkedMapOf<String, Any?>()
+        // sdk-test-control.json's test.client.options seeds the live
+        // client; the generated fields below overwrite anything they name.
+        val mergedOpts = RunnerSupport.liveClientOptions()
         setup.client = VoxgigSolardemoSDK(mergedOpts)
         setup.live = true
 

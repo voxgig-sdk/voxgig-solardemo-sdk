@@ -53,23 +53,17 @@ export interface PlanetListMatch {
 }
 export interface PlanetCreateData {
     diameter: number;
-    forbidReason?: string;
-    forbidState?: string;
     id: string;
     kind: string;
     name: string;
-    terraformState?: string;
     $action?: string;
     [action: string]: any;
 }
 export interface PlanetUpdateData {
     id: string;
     diameter?: number;
-    forbidReason?: string;
-    forbidState?: string;
     kind?: string;
     name?: string;
-    terraformState?: string;
 }
 export interface PlanetRemoveMatch {
     id: string;

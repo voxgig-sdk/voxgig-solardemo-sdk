@@ -33,7 +33,10 @@ type Entity interface {
 	Deleted() bool
 }
 
-type VoxgigSolardemoEntity interface {
+// VoxgigSolardemoEntityBase is the full CRUD contract every generated entity
+// implements. Named `...Base`, as in the other targets, because an entity
+// struct is `<Entity>Entity`.
+type VoxgigSolardemoEntityBase interface {
 	Entity
 	Load(reqmatch map[string]any, ctrl map[string]any) (any, error)
 	List(reqmatch map[string]any, ctrl map[string]any) (any, error)
@@ -52,3 +55,8 @@ type StreamItem struct {
 }
 
 type FetcherFunc func(ctx *Context, fullurl string, fetchdef map[string]any) (any, error)
+
+// VoxgigSolardemoEntity is the former name of VoxgigSolardemoEntityBase.
+//
+// Deprecated: use VoxgigSolardemoEntityBase.
+type VoxgigSolardemoEntity = VoxgigSolardemoEntityBase

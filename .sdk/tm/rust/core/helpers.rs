@@ -9,11 +9,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::core::error::VoxgigSolardemoError;
 use crate::utility::voxgigstruct as vs;
-use crate::utility::voxgigstruct::major::Injection;
+use crate::utility::voxgigstruct::Injection;
 use vs::Value;
 
 // UnsupportedOp is returned by entity stub methods for operations the
-// underlying API spec doesn't define. The static VoxgigSolardemoEntity trait
+// underlying API spec doesn't define. The static VoxgigSolardemoEntityBase trait
 // requires every CRUD method on every entity, so absent ops must still be
 // callable — they error at runtime instead of failing to compile.
 pub fn unsupported_op(opname: &str, entityname: &str) -> VoxgigSolardemoError {

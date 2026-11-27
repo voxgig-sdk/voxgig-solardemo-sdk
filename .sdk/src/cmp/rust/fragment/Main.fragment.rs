@@ -22,7 +22,7 @@ pub struct ProjectNameSDK {
 }
 
 impl ProjectNameSDK {
-    pub fn new(options: Value) -> Rc<ProjectNameSDK> {
+    pub fn new(options: Value) -> Result<Rc<ProjectNameSDK>, ProjectNameError> {
         let sdk = Rc::new(ProjectNameSDK {
             mode: RefCell::new("live".to_string()),
             options: RefCell::new(Value::Noval),
@@ -47,7 +47,7 @@ impl ProjectNameSDK {
             None,
         );
 
-        let opts = sdk.utility.make_options(&rootctx);
+        let opts = sdk.utility.make_options(&rootctx)?;
         *sdk.options.borrow_mut() = opts.clone();
 
         if getpath(&["feature", "test", "active"], &opts) == Value::Bool(true) {
@@ -89,7 +89,7 @@ impl ProjectNameSDK {
 
         sdk.utility.feature_hook(&rootctx, "PostConstruct");
 
-        sdk
+        Ok(sdk)
     }
 
     pub fn options_map(&self) -> Value {
@@ -183,6 +183,21 @@ impl ProjectNameSDK {
             let spec_headers = spec.borrow().headers.clone();
             for (k, v) in uh.borrow().iter() {
                 setp(&spec_headers, k, v.clone());
+            }
+        }
+
+        // A raw request has no point to declare its response type, so it
+        // asks for the JSON it reads: an API that negotiates on Accept
+        // otherwise answers in its own default format. A caller's own
+        // accept wins.
+        {
+            let spec_headers = spec.borrow().headers.clone();
+            let has_accept = match &spec_headers {
+                Value::Map(m) => m.borrow().keys().any(|k| k.eq_ignore_ascii_case("accept")),
+                _ => false,
+            };
+            if !has_accept {
+                setp(&spec_headers, "accept", Value::str("application/json"));
             }
         }
 
@@ -412,7 +427,8 @@ pub fn test_sdk(testopts: Value, sdkopts: Value) -> Rc<ProjectNameSDK> {
         None,
     );
 
-    let sdk = ProjectNameSDK::new(sdkopts);
+    // Test mode fills every server variable, so construction cannot refuse.
+    let sdk = ProjectNameSDK::new(sdkopts).expect("a test-mode client");
     *sdk.mode.borrow_mut() = "test".to_string();
 
     sdk

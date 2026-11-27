@@ -5,7 +5,7 @@
 The Elixir SDK for the VoxgigSolardemo API — an entity-oriented client
 following idiomatic, functional Elixir conventions.
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `VoxgigSolardemo.moon(sdk)` — each
+The SDK exposes the API as semantic **Entities** — for example `VoxgigSolardemo.moon(sdk)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -15,7 +15,7 @@ keeps the cognitive load low.
 
 
 ## Install
-This package is not yet published to [Hex](https://hex.pm). Install it from
+This package is not yet published to Hex. Install it from
 the GitHub release tag (`elixir/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags))
 by adding a git dependency to your `mix.exs`:
 
@@ -42,8 +42,7 @@ Then run `mix deps.get`.
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -105,31 +104,35 @@ VoxgigSolardemo.Entity.Moon.remove(moon, H.deep(%{"id" => Voxgig.Struct.getprop(
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations raise on failure, so wrap them in `try` / `rescue`:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
-}
+```elixir
+try do
+  planet = VoxgigSolardemo.planet(sdk)
+  planets = VoxgigSolardemo.Entity.Planet.list(planet)
+  for i <- 0..(Voxgig.Struct.size(planets) - 1)//1 do
+    IO.puts(Voxgig.Struct.jsonify(VoxgigSolardemo.Entity.Planet.data_get(Voxgig.Struct.getelem(planets, i))))
+  end
+rescue
+  err -> IO.puts("list failed: " <> inspect(err))
+end
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`direct/2` does **not** raise — it
+returns a result node. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```elixir
+result = VoxgigSolardemo.direct(sdk, VoxgigSolardemo.Helpers.deep(%{
+  "path" => "/api/planet/{planet_id}/moon",
+  "method" => "GET",
+  "params" => %{"planet_id" => "example_id"}
+}))
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
-}
+unless Voxgig.Struct.getprop(result, "ok") do
+  IO.puts("request failed: " <> inspect(Voxgig.Struct.getprop(result, "status")) <>
+    " " <> inspect(Voxgig.Struct.getprop(result, "err")))
+end
 ```
 
 
@@ -145,9 +148,9 @@ alias Voxgig.Struct, as: S
 alias VoxgigSolardemo.Helpers, as: H
 
 result = VoxgigSolardemo.direct(sdk, H.deep(%{
-  "path" => "/api/resource/{id}",
+  "path" => "/api/planet/{planet_id}/moon",
   "method" => "GET",
-  "params" => %{"id" => "example"}
+  "params" => %{"planet_id" => "example"}
 }))
 
 if S.getprop(result, "ok") do
@@ -167,9 +170,9 @@ alias VoxgigSolardemo.Helpers, as: H
 
 # prepare/2 returns the fetch definition and raises on error.
 fetchdef = VoxgigSolardemo.prepare(sdk, H.deep(%{
-  "path" => "/api/resource/{id}",
-  "method" => "DELETE",
-  "params" => %{"id" => "example"}
+  "path" => "/api/planet/{planet_id}/moon",
+  "method" => "GET",
+  "params" => %{"planet_id" => "example"}
 }))
 
 IO.inspect(Voxgig.Struct.getprop(fetchdef, "url"))
@@ -218,15 +221,10 @@ sdk = VoxgigSolardemo.new(H.deep(%{
 }))
 ```
 
-### Run live tests
+### Run the test suite
 
-Create a `.env.local` file at the project root:
-
-```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
-```
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 ```bash
 cd elixir && mix test
@@ -249,9 +247,10 @@ native map with `VoxgigSolardemo.Helpers.deep/1`.
 | `base` | `String.t()` | Base URL of the API server. |
 | `prefix` | `String.t()` | URL path prefix prepended to all requests. |
 | `suffix` | `String.t()` | URL path suffix appended to all requests. |
+| `headers` | `map()` | Headers sent with every request. |
 | `feature` | `map()` | Feature activation flags. |
 | `extend` | `list()` | Additional feature instances to load. |
-| `system` | `map()` | System overrides (e.g. custom `fetch` function). |
+| `system` | `map()` | System overrides, such as a custom fetch function. |
 
 ### test
 
@@ -321,7 +320,7 @@ On error, `ok` is `false` and `err` carries the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -337,9 +336,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -357,11 +356,11 @@ Create a handle: `moon = VoxgigSolardemo.moon(sdk)`
 
 | Method | Description |
 | --- | --- |
-| `create(entity, data)` | Create a new entity with the given data. |
 | `list(entity)` | List entities, optionally matching the given criteria. |
 | `load(entity, match)` | Load a single entity by match criteria. |
-| `remove(entity, match)` | Remove the matching entity. |
+| `create(entity, data)` | Create a new entity with the given data. |
 | `update(entity, data)` | Update an existing entity. |
+| `remove(entity, match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -409,11 +408,11 @@ Create a handle: `planet = VoxgigSolardemo.planet(sdk)`
 
 | Method | Description |
 | --- | --- |
-| `create(entity, data)` | Create a new entity with the given data. |
 | `list(entity)` | List entities, optionally matching the given criteria. |
 | `load(entity, match)` | Load a single entity by match criteria. |
-| `remove(entity, match)` | Remove the matching entity. |
+| `create(entity, data)` | Create a new entity with the given data. |
 | `update(entity, data)` | Update an existing entity. |
+| `remove(entity, match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -455,12 +454,11 @@ planet = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.de
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -573,7 +571,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -624,16 +622,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -641,9 +635,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a struct value node
+carrying a closure for each hook it implements, keyed by pipeline stage
+name (e.g. `PrePoint`). Each closure receives the context.
 
 The SDK ships with built-in features:
 
@@ -678,16 +672,16 @@ and read fields off a record, which an entity's `data_get/1` returns, with
 ```
 elixir/
 ├── lib/
-│   ├── voxgig-solardemo.ex                 -- Main SDK module (entity factories)
+│   ├── voxgig_solardemo.ex                 -- Main SDK module (entity factories)
 │   ├── config.ex                 -- Resolved configuration
 │   ├── schema.ex                 -- Generated option + entity specs
 │   ├── features.ex               -- Feature factory
 │   ├── pipeline.ex               -- Operation pipeline
-│   └── voxgig-solardemo/
+│   └── voxgig_solardemo/
 │       ├── context.ex            -- Operation context
 │       ├── entity_base.ex        -- Shared entity behaviour
 │       ├── error.ex              -- SDK error type
-│       ├── feature.ex            -- Built-in features
+│       ├── feature.ex            -- Feature implementations
 │       ├── helpers.ex            -- Value helpers (deep/1, ...)
 │       ├── json.ex               -- JSON encode/decode
 │       └── utility.ex            -- Utility functions
@@ -703,29 +697,29 @@ factory function per entity. Call an operation on the matching
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```elixir
+planet = VoxgigSolardemo.planet(sdk)
+VoxgigSolardemo.Entity.Planet.list(planet)
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+# VoxgigSolardemo.Entity.Planet.data_get(planet) now returns the planet data from the last list
+# VoxgigSolardemo.Entity.Planet.match_get(planet) returns the last match criteria
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `make/1` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`direct/2` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `prepare/2` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

@@ -47,6 +47,7 @@ struct SecretsExchange {
     response: String,
     statuses: Vec<i64>,
     retries: i64,
+    redirect: String,
 }
 
 /// Everything the transport closure needs, behind one RefCell.
@@ -65,6 +66,11 @@ pub struct SecretsState {
     /// see the header note.
     options: Value,
     mode: String,
+
+    /// What prepare_auth was generated from: the config declares auth only
+    /// where it places a credential, and Basic only where it composes one.
+    declared: bool,
+    basic: bool,
 
     cred: String,
     refresh: String,
@@ -90,6 +96,8 @@ impl SecretsState {
             exchange: None,
             options: Value::Noval,
             mode: "live".to_string(),
+            declared: false,
+            basic: false,
             cred: String::new(),
             refresh: String::new(),
             resolved: false,
@@ -217,6 +225,12 @@ impl Feature for SecretsFeature {
             .map(|c| c.mode.borrow().clone())
             .unwrap_or_else(|| "live".to_string());
         state.options = ctx.options.borrow().clone();
+
+        let config = ctx.config.borrow().clone();
+        let declared = getpath(&["options", "auth"], &config);
+        state.declared = matches!(declared, Value::Map(_));
+        state.basic = matches!(getp(&declared, "basic"), Value::Bool(true));
+
         state.secretname = fopt_str(options, "name", "apikey");
         state.cache = fopt_bool(options, "cache", true);
 
@@ -238,6 +252,11 @@ impl Feature for SecretsFeature {
                 response: fopt_str(&xopts, "response", "access_token"),
                 statuses,
                 retries: fopt_int(&xopts, "retries", 1),
+                redirect: if "same-origin" == fopt_str(&xopts, "redirect", "refuse") {
+                    "same-origin".to_string()
+                } else {
+                    "refuse".to_string()
+                },
             });
         }
 
@@ -426,7 +445,7 @@ fn resolve(state: &Rc<RefCell<SecretsState>>) -> Result<(), VoxgigSolardemoError
 fn resolve_once(state: &Rc<RefCell<SecretsState>>) -> Result<bool, VoxgigSolardemoError> {
     let name = {
         let s = state.borrow();
-        if s.sek.is_none() {
+        if s.sek.is_none() || !authon(&s) {
             return Ok(false);
         }
         s.secretname.clone()
@@ -477,10 +496,6 @@ fn resolve_once(state: &Rc<RefCell<SecretsState>>) -> Result<bool, VoxgigSolarde
             // buys another, which is the same path expiry takes anyway.
             return Ok(true);
         }
-
-        if !authactive(&s.options) {
-            return Ok(false);
-        }
     }
 
     buy(state).map(|_| true)
@@ -522,7 +537,7 @@ fn with_refresh(
     let (suppressed, max) = {
         let s = state.borrow();
         (
-            !authactive(&s.options),
+            !authon(&s),
             s.exchange.as_ref().map(|x| x.retries).unwrap_or(0),
         )
     };
@@ -599,22 +614,39 @@ fn authactive(options: &Value) -> bool {
     }
 }
 
+// prepare_auth's decision: auth the config declares, not suppressed by
+// `auth: null`.
+fn authon(s: &SecretsState) -> bool {
+    s.declared && authactive(&s.options)
+}
+
 fn reauth(state: &Rc<RefCell<SecretsState>>, fetchdef: &Value, token: &str) {
     let headers = getp(fetchdef, "headers");
     if !matches!(headers, Value::Map(_)) {
         return;
     }
 
-    let options = state.borrow().options.clone();
+    let (options, on, basic) = {
+        let s = state.borrow();
+        (s.options.clone(), authon(&s), s.basic)
+    };
+
+    let name = match getpath(&["auth", "name"], &options) {
+        Value::Str(s) if !s.is_empty() => s.to_ascii_lowercase(),
+        _ => "authorization".to_string(),
+    };
 
     // Suppressed auth means NO header, the same answer prepare_auth gives.
-    // Reached defensively - with_refresh does not retry at all when auth
-    // is suppressed - but this is the function that writes the credential,
-    // so it is where the rule has to hold.
-    if !authactive(&options) {
-        vs::del_prop(headers, &Value::str("authorization"));
+    if !on {
+        vs::del_prop(headers, &Value::str(name.as_str()));
         return;
     }
+
+    let value = if basic && matches!(getpath(&["auth", "basic"], &options), Value::Bool(true)) {
+        pair(&options, token)
+    } else {
+        token.to_string()
+    };
 
     let prefix = match getpath(&["auth", "prefix"], &options) {
         Value::Str(s) => s,
@@ -623,14 +655,21 @@ fn reauth(state: &Rc<RefCell<SecretsState>>, fetchdef: &Value, token: &str) {
 
     // Empty prefix (a raw apiKey credential) must not add a leading space.
     if prefix.is_empty() {
-        setp(&headers, "authorization", Value::str(token));
+        setp(&headers, &name, Value::str(value));
     } else {
-        setp(
-            &headers,
-            "authorization",
-            Value::str(format!("{} {}", prefix, token)),
-        );
+        setp(&headers, &name, Value::str(format!("{} {}", prefix, value)));
     }
+}
+
+// Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+fn pair(options: &Value, token: &str) -> String {
+    let secret = match getp(options, "secret") {
+        Value::Str(s) => s,
+        _ => String::new(),
+    };
+    let pair = crate::utility::clean::base64_encode(format!("{}:{}", token, secret).as_bytes());
+    register(options, &pair);
+    pair
 }
 
 
@@ -714,22 +753,36 @@ fn buy_once(state: &Rc<RefCell<SecretsState>>) -> Result<String, VoxgigSolardemo
             jo(vec![("content-type", Value::str("application/json"))]),
         ),
         ("body", Value::str(body)),
+        ("redirect", Value::str("manual")),
     ]);
 
     let sys_fetch = getpath(&["system", "fetch"], &options);
 
-    let res = if let Value::Func(_) = sys_fetch {
-        let out = call_vfn(
-            &sys_fetch,
-            &ja(vec![Value::str(url.clone()), fetchdef.clone()]),
-        );
-        if let Some(msg) = get_str(&out, "__err__") {
-            return Err(fail(&msg));
+    let fetch = |at: &str| -> Result<Value, VoxgigSolardemoError> {
+        if let Value::Func(_) = sys_fetch {
+            let out = call_vfn(&sys_fetch, &ja(vec![Value::str(at), fetchdef.clone()]));
+            if let Some(msg) = get_str(&out, "__err__") {
+                return Err(fail(&msg));
+            }
+            Ok(out)
+        } else {
+            raw_exchange_fetch(at, &fetchdef)
         }
-        out
-    } else {
-        raw_exchange_fetch(&url, &fetchdef)?
     };
+
+    let mut res = fetch(&url)?;
+
+    // By option alone, and only while the exchange stays on its own origin.
+    let mut at = url.clone();
+    let mut hops = 0;
+    while "same-origin" == x.redirect && hops < REDIRECT_MAX {
+        match moved(&url, &at, &res) {
+            Some(next) => at = next,
+            None => break,
+        }
+        res = fetch(&at)?;
+        hops += 1;
+    }
 
     let status = to_int(&getp(&res, "status"));
     if !(200..300).contains(&status) {
@@ -761,12 +814,41 @@ fn buy_once(state: &Rc<RefCell<SecretsState>>) -> Result<String, VoxgigSolardemo
     Ok(token)
 }
 
+const REDIRECT_MAX: usize = 5;
+
+// The URL a body-keeping redirect names, while it stays on the exchange's own
+// origin. Any other redirect would drop the body or leave the origin.
+fn moved(url: &str, at: &str, res: &Value) -> Option<String> {
+    let status = to_int(&getp(res, "status"));
+    if 307 != status && 308 != status {
+        return None;
+    }
+    let location = get_str(&getp(res, "headers"), "location").filter(|l| !l.is_empty())?;
+    let agent = exchange_agent();
+    let from = agent.request("GET", at).request_url().ok()?;
+    let next = from.as_url().join(&location).ok()?;
+    let own = agent.request("GET", url).request_url().ok()?;
+    if next.origin() == own.as_url().origin() {
+        Some(next.to_string())
+    } else {
+        None
+    }
+}
+
+// One pooled agent for every exchange; a followed redirect would carry the token.
+fn exchange_agent() -> ureq::Agent {
+    static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    AGENT
+        .get_or_init(|| ureq::AgentBuilder::new().redirects(0).build())
+        .clone()
+}
+
 fn raw_exchange_fetch(fullurl: &str, fetchdef: &Value) -> Result<Value, VoxgigSolardemoError> {
     let method = get_str(fetchdef, "method")
         .filter(|m| !m.is_empty())
         .unwrap_or_else(|| "POST".to_string());
 
-    let agent = crate::utility::fetcher::default_agent();
+    let agent = exchange_agent();
     let mut req = agent.request(&method, fullurl);
 
     if let Value::Map(m) = getp(fetchdef, "headers") {
@@ -793,6 +875,13 @@ fn raw_exchange_fetch(fullurl: &str, fetchdef: &Value) -> Result<Value, VoxgigSo
 
     let status = resp.status() as i64;
 
+    let headers = Value::empty_map();
+    for name in resp.headers_names() {
+        if let Some(val) = resp.header(&name) {
+            setp(&headers, &name.to_lowercase(), Value::str(val));
+        }
+    }
+
     let text = resp
         .into_string()
         .map_err(|err| fail(&format!("secrets: token exchange body: {}", err)))?;
@@ -805,6 +894,7 @@ fn raw_exchange_fetch(fullurl: &str, fetchdef: &Value) -> Result<Value, VoxgigSo
 
     Ok(jo(vec![
         ("status", Value::Num(status as f64)),
+        ("headers", headers),
         ("json", json_thunk(parsed)),
     ]))
 }

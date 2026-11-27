@@ -12,8 +12,8 @@
     e))
 
 (defn- ent-data-set [ent args]
-  (when args
-    (reset! (:_data ent) (let [m (core/to-map (vs/clone args))] (if m m (vs/jm))))
+  (when (some? args)
+    (reset! (:_data ent) (vs/clone args))
     (core/feature-hook (:_entctx ent) "SetData")))
 
 (defn- ent-data-get [ent]
@@ -34,7 +34,7 @@
         utility (core/get-utility client)
         data (atom (vs/jm))
         match (atom (vs/jm))
-        ;; Set once a successful `remove` resolves on this instance.
+        ;; Set when a remove marks this instance deleted.
         deleted (atom false)
         entctx (core/make-context (vs/jm "entopts" entopts) (core/client-root-ctx client))
         ent {:_name "entityname" :_client client :_utility utility :_entopts entopts
@@ -61,14 +61,14 @@
 ;; Every operation resolves to the ENTITY, not the raw data — the record is
 ;; reached through data-get. run-op returns the terminal result value, so the
 ;; op hands that back only when the pipeline FAILED; on success it hands back
-;; the entity. See AGENTS.md "Entity operations return ENTITIES".
+;; the entity.
 (defn- op-return [ent ctx out]
   (let [result (core/oget ctx :result)]
     (if (and result (true? (core/oget result :ok))) ent out)))
 
-;; `remove` resolves to the entity, marked. The instance KEEPS the data it
-;; held — a caller can still read what was deleted — but it is no longer a
-;; live record.
+;; A remove resolves to the entity, marked deleted. The instance KEEPS the
+;; data it held — a caller can still read what was deleted — but it is no
+;; longer a live record.
 (defn mark-deleted [ent] (reset! (:_deleted ent) true) ent)
 
 (defn deleted [ent] (true? (deref (:_deleted ent))))
@@ -80,7 +80,10 @@
   [ctx operr]
   ;; What a hook throws here must not escape the cleaning below.
   (let [err (try
-              ; #PreUnexpected-Hook
+              ;; Once per operation: make-error fires it for its own error.
+              (when-not (core/oget ctx :unexpected-fired)
+                ; #PreUnexpected-Hook
+                nil)
               operr
               (catch Throwable hookerr hookerr))]
     (core/clean-explain! ctx)
@@ -127,17 +130,14 @@
       (unexpected ctx operr))))
 
 ;; Streaming operation. Runs `action` (an op name, e.g. "list") through the
-;; full pipeline and returns a LAZY SEQUENCE of result items, so the
-;; `streaming` feature's incremental output is reachable (a normal op call
-;; materialises the whole result). When the streaming feature is active the
-;; result carries a `stream` thunk and this yields from it (honouring
-;; chunkSize); otherwise it falls back to the materialised items, so stream
-;; always yields. An entity is yielded as its record, the struct map its
-;; data-get returns.
+;; full pipeline and returns a LAZY SEQUENCE of result items, so incremental
+;; output is reachable (a normal op call materialises the whole result). When
+;; the streaming feature is active the result carries a `stream` thunk and
+;; this yields from it (honouring chunkSize); otherwise it falls back to the
+;; materialised items, so stream always yields. An entity is yielded as its
+;; record, the struct map its data-get returns.
 ;; `callopts` parameterises the call:
 ;;   - ctrl:   per-call pipeline control (threaded onto the op ctx);
-;;   - body:   an async-iterable/list payload for outbound (upload) streaming,
-;;             attached to the request (reqdata.body$ + a stream-out marker);
 ;;   - signal: an optional 0-arg fn; when it returns true iteration stops.
 (defn stream [ent action args callopts]
   (let [callopts (let [m (core/to-map callopts)] (if m m (vs/jm)))
@@ -151,13 +151,6 @@
             (doseq [item (or (vs/items am) [])]
               (.put ^java.util.Map ctxmap (vs/getprop item 0) (vs/getprop item 1))))
         ctx (core/make-context ctxmap (:_entctx ent))]
-    ;; Outbound: expose an async-iterable/list payload so the request builder /
-    ;; transport can stream it as the request body.
-    (when-let [body (vs/getprop callopts "body")]
-      (let [reqdata (let [r (core/to-map (core/oget ctx :reqdata))] (if r r (vs/jm)))]
-        (.put ^java.util.Map reqdata "body$" body)
-        (core/oset! ctx :reqdata reqdata)
-        (core/oset! ctx :stream-out body)))
     (run-op ctx (fn []))
     (let [result (core/oget ctx :result)
           signal (vs/getprop callopts "signal")

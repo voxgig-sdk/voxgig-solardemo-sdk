@@ -8,9 +8,9 @@ Complete API reference for the VoxgigSolardemo Rust SDK.
 ### Constructor
 
 ```rust
-use voxgig_solardemo_sdk::{jo, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Entity, Value};
+use voxgig_solardemo_sdk::{jo, VoxgigSolardemoEntityBase, VoxgigSolardemoSDK, Entity, Value};
 
-let client = VoxgigSolardemoSDK::new(options);
+let client = VoxgigSolardemoSDK::new(options).expect("valid client options");
 ```
 
 Create a new SDK client instance. `options` is a `Value` map
@@ -20,12 +20,12 @@ Create a new SDK client instance. `options` is a `Value` map
 
 | Key | Value type | Description |
 | --- | --- | --- |
-| `base` | `string` | Base URL for API requests. |
-| `prefix` | `string` | URL prefix appended after base. |
-| `suffix` | `string` | URL suffix appended after path. |
-| `headers` | `map` | Custom headers for all requests. |
-| `feature` | `map` | Feature configuration. |
-| `system` | `map` | System overrides. |
+| `base` | `string` | Base URL of the API server. |
+| `prefix` | `string` | URL path prefix prepended to all requests. |
+| `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
+| `feature` | `map` | Feature activation flags. |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 
 ### Static Functions
@@ -105,23 +105,9 @@ let moon = client.moon(Value::Noval);
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
-
-Create a new entity with the given data. `Ok` is the created entity, and `Err` a failure.
-
-```rust
-let result = client.moon(Value::Noval).create(jo(vec![
-    ("planet_id", Value::str("example_planet_id")),  // String
-    ("diameter", Value::Num(1.0)),  // f64
-    ("id", Value::str("example_id")),  // String
-    ("kind", Value::str("example_kind")),  // String
-    ("name", Value::str("example_name")),  // String
-]), Value::Noval).unwrap();
-```
-
 #### `list(reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError>`
 
-List entities matching the given criteria. The match is optional — pass `Value::Noval` to list all records. `Ok` is a `Vec` of entities, one per record.
+List entities matching the given criteria. The match must include `planet_id`. `Ok` is a `Vec` of entities, one per record.
 
 ```rust
 let results = client.moon(Value::Noval).list(jo(vec![("planet_id", Value::str("example"))]), Value::Noval).unwrap();
@@ -139,18 +125,23 @@ let result = client.moon(Value::Noval).load(jo(vec![("id", Value::str("moon_id")
 println!("{:?}", result.data(None));
 ```
 
-#### `remove(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
+#### `create(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Remove the entity matching the given criteria. `Ok` is the entity, marked as deleted, and `Err` a failure.
+Create a new entity with the given data. `Ok` is the created entity, and `Err` a failure.
 
 ```rust
-let result = client.moon(Value::Noval).remove(jo(vec![("id", Value::str("moon_id")), ("planet_id", Value::str("planet_id"))]), Value::Noval).unwrap();
-println!("{:?}", result.data(None));
+let result = client.moon(Value::Noval).create(jo(vec![
+    ("planet_id", Value::str("example_planet_id")),  // String
+    ("diameter", Value::Num(1.0)),  // f64
+    ("id", Value::str("example_id")),  // String
+    ("kind", Value::str("example_kind")),  // String
+    ("name", Value::str("example_name")),  // String
+]), Value::Noval).unwrap();
 ```
 
 #### `update(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
-Update an existing entity. The data must include the entity id. `Ok` is the updated entity.
+Update an existing entity. The data must include the entity `id`. `Ok` is the updated entity.
 
 ```rust
 let result = client.moon(Value::Noval).update(jo(vec![
@@ -158,6 +149,15 @@ let result = client.moon(Value::Noval).update(jo(vec![
     ("planet_id", Value::str("planet_id")),
     // Fields to update
 ]), Value::Noval).unwrap();
+```
+
+#### `remove(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
+
+Remove the entity matching the given criteria. `Ok` is the entity, marked as deleted, and `Err` a failure.
+
+```rust
+let result = client.moon(Value::Noval).remove(jo(vec![("id", Value::str("moon_id")), ("planet_id", Value::str("planet_id"))]), Value::Noval).unwrap();
+println!("{:?}", result.data(None));
 ```
 
 ### Common Methods
@@ -201,19 +201,6 @@ let planet = client.planet(Value::Noval);
 
 ### Operations
 
-#### `create(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
-
-Create a new entity with the given data. `Ok` is the created entity, and `Err` a failure.
-
-```rust
-let result = client.planet(Value::Noval).create(jo(vec![
-    ("diameter", Value::Num(1.0)),  // f64
-    ("id", Value::str("example_id")),  // String
-    ("kind", Value::str("example_kind")),  // String
-    ("name", Value::str("example_name")),  // String
-]), Value::Noval).unwrap();
-```
-
 #### `list(reqmatch: Value, ctrl: Value) -> Result<Vec<Rc<Self>>, VoxgigSolardemoError>`
 
 List entities matching the given criteria. The match is optional — pass `Value::Noval` to list all records. `Ok` is a `Vec` of entities, one per record.
@@ -234,6 +221,30 @@ let result = client.planet(Value::Noval).load(jo(vec![("id", Value::str("planet_
 println!("{:?}", result.data(None));
 ```
 
+#### `create(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
+
+Create a new entity with the given data. `Ok` is the created entity, and `Err` a failure.
+
+```rust
+let result = client.planet(Value::Noval).create(jo(vec![
+    ("diameter", Value::Num(1.0)),  // f64
+    ("id", Value::str("example_id")),  // String
+    ("kind", Value::str("example_kind")),  // String
+    ("name", Value::str("example_name")),  // String
+]), Value::Noval).unwrap();
+```
+
+#### `update(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
+
+Update an existing entity. The data must include the entity `id`. `Ok` is the updated entity.
+
+```rust
+let result = client.planet(Value::Noval).update(jo(vec![
+    ("id", Value::str("planet_id")),
+    // Fields to update
+]), Value::Noval).unwrap();
+```
+
 #### `remove(reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
 
 Remove the entity matching the given criteria. `Ok` is the entity, marked as deleted, and `Err` a failure.
@@ -241,17 +252,6 @@ Remove the entity matching the given criteria. `Ok` is the entity, marked as del
 ```rust
 let result = client.planet(Value::Noval).remove(jo(vec![("id", Value::str("planet_id"))]), Value::Noval).unwrap();
 println!("{:?}", result.data(None));
-```
-
-#### `update(reqdata: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError>`
-
-Update an existing entity. The data must include the entity id. `Ok` is the updated entity.
-
-```rust
-let result = client.planet(Value::Noval).update(jo(vec![
-    ("id", Value::str("planet_id")),
-    // Fields to update
-]), Value::Noval).unwrap();
 ```
 
 ### Common Methods
@@ -305,17 +305,18 @@ let client = VoxgigSolardemoSDK::new(jo(vec![
         ("test", jo(vec![("active", Value::Bool(true))])),
         ("timeout", jo(vec![("active", Value::Bool(true))])),
     ])),
-]));
+]))
+.expect("valid client options");
 ```
 
 
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -326,10 +327,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -532,7 +533,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -545,6 +546,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -572,10 +574,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

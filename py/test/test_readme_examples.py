@@ -80,6 +80,9 @@ _ENTITIES = {
     "Planet": "planet",
 }
 
+# Fixture key -> the entity's declared identity field, where it is not "id".
+_ID_FIELDS = {}
+
 # The three documents held to the gate, tagged by human label.
 _DOCS = (
     ("root README", _README),
@@ -89,7 +92,7 @@ _DOCS = (
 
 
 def _read_doc(path, label):
-    if not os.path.exists(path):
+    if path is None or not os.path.exists(path):
         pytest.skip(label + " not found: " + path)
     with open(path, "r", encoding="utf-8") as fh:
         return fh.read()
@@ -351,7 +354,10 @@ def _seed_literal(block):
     seeded = {}
     for cap, key in _ENTITIES.items():
         if ("." + cap + "(") in block:
-            seeded[key] = {"test01": {"id": "test01"}}
+            record = {"id": "test01"}
+            if key in _ID_FIELDS:
+                record[_ID_FIELDS[key]] = "test01"
+            seeded[key] = {"test01": record}
     return {"entity": seeded}
 
 

@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,7 +7,7 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { swiftVarName, swiftListMatch } from './utility_swift'
+import { swiftVarName, swiftListMatch, swiftString } from './utility_swift'
 
 
 // A type-correct Swift `Value` literal for a param: numeric/boolean/array/
@@ -21,7 +21,7 @@ function swiftLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return '.bool(true)'
   if ('ARRAY' === k) return '.list([])'
   if ('OBJECT' === k) return '.map(VMap())'
-  return `.string("${placeholder}")`
+  return `.string(${swiftString(placeholder)})`
 }
 
 
@@ -37,30 +37,33 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
 
   const authActive = isAuthActive(model)
 
+  // ProcessInfo, which reads the credential, is Foundation's.
   Content(`\`\`\`swift
 import ${MODULE}
-
+${authActive ? 'import Foundation\n' : ''}
 `)
 
-  if (authActive) {
-    Content(`let options = VMap()
-options.entries["apikey"] = .string(
-    ProcessInfo.processInfo.environment["${envName(model)}_APIKEY"] ?? "")
-let client = ${SDK}(options)
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorLines = [
+    ...(authActive ? [`options.entries["apikey"] = .string(\n    ProcessInfo.processInfo.environment["${envName(model)}_APIKEY"] ?? "")`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`options.entries["secret"] = .string(\n    ProcessInfo.processInfo.environment["${envName(model)}_SECRET"] ?? "")`] : []),
+    ...(0 === svars.length ? [] : ['let server = VMap()',
+      ...svars.map((v: any) => `server.entries["${v.name}"] = .string("<${v.name}>")`),
+      'options.entries["server"] = .map(server)']),
+  ]
+  const ctor = 0 === ctorLines.length
+    ? `let client = ${SDK}()`
+    : ['let options = VMap()', ...ctorLines, `let client = ${SDK}(options)`].join('\n')
+
+  Content(`${ctor}
 
 `)
-  }
-  else {
-    Content(`let client = ${SDK}()
-
-`)
-  }
 
   if (exampleEntity) {
     const eName = nom(exampleEntity, 'Name')
     const eVar = swiftVarName(exampleEntity.name)
     const eNameLower = eName.toLowerCase()
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes an empty match.
     const idF = entityIdField(exampleEntity)
@@ -80,13 +83,12 @@ for ${eVar}Item in ${eVar}List.asList?.items ?? [] {
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `VMap([${loadItems.map((it: any) =>
-          `("${it.name}", ${swiftLit(it.type,
+          `(${swiftString(it.name)}, ${swiftLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)})`).join(', ')}])`
         : 'nil'
       Content(`

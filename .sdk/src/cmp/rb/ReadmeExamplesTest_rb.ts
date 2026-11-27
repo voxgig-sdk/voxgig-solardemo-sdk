@@ -1,5 +1,5 @@
 
-import { cmp, File, Content } from '@voxgig/sdkgen'
+import { cmp, File, Content, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -10,6 +10,13 @@ import {
 const ReadmeExamplesTest = cmp(function ReadmeExamplesTest(props: any) {
   const { target } = props
   const { model } = props.ctx$
+  // The root README where the run writes one beside this target, and the
+  // target's own documents where it writes them.
+  const link = fact(target, 'link').readme
+  const own = fact(target, 'phase').readme
+  if ('' === link && !own) {
+    return
+  }
 
   const sdkbase = model.const.Name + '_sdk'
   const sdkfile = sdkbase + '.rb'
@@ -20,6 +27,14 @@ const ReadmeExamplesTest = cmp(function ReadmeExamplesTest(props: any) {
   const entityLines = Object.values(entity)
     .filter((e: any) => e && e.active !== false)
     .map((e: any) => `    ${JSON.stringify(e.Name)} => ${JSON.stringify(e.name)},`)
+    .join('\n')
+
+  // The declared identity field of each entity that names one other than
+  // `id`, by fixture key: the mock keys a record by it, so the seed does too.
+  const idFieldLines = Object.values(entity)
+    .filter((e: any) => e && e.active !== false &&
+      'string' === typeof e.id?.field && '' !== e.id.field && 'id' !== e.id.field)
+    .map((e: any) => `    ${JSON.stringify(e.name)} => ${JSON.stringify(e.id.field)},`)
     .join('\n')
 
   File({ name: 'readme_examples_test.' + target.ext }, () => {
@@ -55,10 +70,10 @@ require "tmpdir"
 class ReadmeExamplesTest < Minitest::Test
   # The three documentation sources this gate covers.
   DOCS = {
-    "root README" => File.join(__dir__, "..", "..", "README.md"),
-    "rb README" => File.join(__dir__, "..", "README.md"),
+${'' === link ? '' : `    "root README" => File.join(__dir__, "..", ${link.split('/').map((seg: string) => JSON.stringify(seg)).join(', ')}),
+`}${own ? `    "rb README" => File.join(__dir__, "..", "README.md"),
     "rb REFERENCE" => File.join(__dir__, "..", "REFERENCE.md"),
-  }
+` : ''}  }
   SDK = File.join(__dir__, "..", "${sdkfile}")
   SDK_CLASS = "${model.const.Name}SDK"
 
@@ -69,6 +84,11 @@ class ReadmeExamplesTest < Minitest::Test
   # Entity accessor (client.<Name>) => fixture storage key (lowercase name).
   ENTITIES = {
 ${entityLines}
+  }
+
+  # Fixture key => the entity's declared identity field, where it is not "id".
+  ID_FIELDS = {
+${idFieldLines}
   }
 
   # Documented SDK method names — used only to recognise the NARROW
@@ -170,22 +190,24 @@ ${entityLines}
     refs = ENTITIES.select { |name, _| block =~ /#{CLIENT}\\.#{Regexp.escape(name)}\\b/ }
     refs = ENTITIES if refs.empty?
     entity = {}
-    refs.each_value { |storage| entity[storage] = { "test01" => { "id" => "test01" } } }
+    refs.each_value do |storage|
+      record = { "id" => "test01" }
+      record[ID_FIELDS[storage]] = "test01" if ID_FIELDS.key?(storage)
+      entity[storage] = { "test01" => record }
+    end
     { "entity" => entity }.inspect
   end
 
   # Rewrite a runnable block into an executable offline test-mode program: the
   # doc's own require of the SDK file is stripped (we require it by absolute
-  # path); any real client constructor (.new/.test) becomes <Sdk>SDK.test(<fixtures>);
-  # a block that only uses a client variable gets such a constructor prepended. (The
-  # constructor arg-list match is deliberately shallow — it does not span nested
-  # parens — because runnable op blocks never build a client inline with a
-  # lambda/closure argument.)
+  # path); any real client constructor (.new/.test), its argument list matched
+  # to the parenthesis that balances it, becomes <Sdk>SDK.test(<fixtures>); a
+  # block that only uses a client variable gets such a constructor prepended.
   def to_runner(block)
     fixtures = fixtures_literal(block)
     # Drop the doc's own require of the SDK file; we require it by absolute path.
     block = block.gsub(/^[ \\t]*require(?:_relative|_once)?[^\\n]*#{Regexp.escape(SDK_BASE)}[^\\n]*\\r?\\n?/i, "")
-    ctor_re = /#{Regexp.escape(SDK_CLASS)}\\.(?:new|test)(?:\\([^()]*\\))?/
+    ctor_re = /#{Regexp.escape(SDK_CLASS)}\\.(?:new|test)(?<args>\\((?:[^()]|\\g<args>)*\\))?/
     body =
       if block =~ /#{Regexp.escape(SDK_CLASS)}\\.(?:new|test)\\b/
         block.gsub(ctor_re) { "#{SDK_CLASS}.test(#{fixtures})" }

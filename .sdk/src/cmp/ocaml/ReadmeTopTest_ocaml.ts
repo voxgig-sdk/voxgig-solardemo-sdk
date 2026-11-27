@@ -1,12 +1,12 @@
 
-import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, matchExampleItems, requestExampleItems } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { ocamlListMatch, ocamlOpField, ocamlVarName } from './utility_ocaml'
+import { ocamlListMatch, ocamlOpField, ocamlVarName, ocamlString } from './utility_ocaml'
 
 
 // A type-correct OCaml `value` literal for a field's canonical type.
@@ -45,20 +45,19 @@ let () =
       arg = ocamlListMatch(exampleEntity)
     } else if (isMatchOp) {
       // Every REQUIRED match key (id first).
-      const items = opRequestShape(exampleEntity, primaryOp).items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const items = matchExampleItems(exampleEntity, primaryOp, idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       arg = 0 < items.length
         ? `(jo [${items.map((it: any) =>
-          `("${it.name}", ${it.name === idF ? '(Str "test01")' : ocamlLit(it.type)})`).join('; ')}])`
+          `("${ocamlString(it.name)}", ${it.name === idF ? '(Str "test01")' : ocamlLit(it.type)})`).join('; ')}])`
         : '(empty_map ())'
     } else if ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp) {
-      const items = opRequestShape(exampleEntity, primaryOp).items
+      const items = requestExampleItems(exampleEntity, primaryOp)
         .filter((it: any) => it.name !== idF && it.name !== 'id')
       const required = items.filter((it: any) => !it.optional)
       const chosen = required.length ? required : items.slice(0, 3)
-      arg = `(jo [${chosen.map((it: any) => `("${it.name}", ${ocamlLit(it.type)})`).join('; ')}])`
+      arg = `(jo [${chosen.map((it: any) => `("${ocamlString(it.name)}", ${ocamlLit(it.type)})`).join('; ')}])`
     }
     // The op resolves to the ENTITY (list: one per record); the record is
     // reached with e_data_get.

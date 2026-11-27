@@ -2,28 +2,30 @@ import {
   cmp,
   File,
   Content,
-  isAuthSuppressed,
-  isHttpBasicAuth,
-  resolveAuthIn,
-  resolveAuthName,
+  fact,
 } from '@voxgig/sdkgen'
+
+import {
+  KIT,
+} from '@voxgig/apidef'
 
 
 // The canary sweep: every credential slot holds a distinctive value, every
 // diagnostic feature this SDK ships is switched on with a capturing sink, a
 // real operation runs through every outcome, and every string that leaves
-// the SDK is searched for the canaries and their encoded forms. It also
-// proves its own sensitivity: with clean switched off the canary MUST show.
+// is searched for the canaries and their encoded forms; a second sweep does
+// the same for a body of bytes. With clean off the canary MUST show.
 const TestClean = cmp(function TestClean(props: any) {
   const { model } = props.ctx$
+  const authFact = fact(model.main[KIT], 'auth')
   const { target } = props
 
   const auth = {
-    suppressed: isAuthSuppressed(model),
-    where: resolveAuthIn(model),
-    name: 'header' === resolveAuthIn(model)
-      ? resolveAuthName(model).toLowerCase() : resolveAuthName(model),
-    basic: isHttpBasicAuth(model),
+    suppressed: authFact.suppressed,
+    where: authFact.in,
+    name: 'header' === authFact.in
+      ? authFact.name.toLowerCase() : authFact.name,
+    basic: authFact.basic,
   }
 
   File({ name: 'clean_test.' + target.ext }, () => Content(render(model.const.Name, auth)))
@@ -45,12 +47,14 @@ function render(Name: string, auth: {
 # The canary sweep: every credential slot holds a distinctive value, every
 # diagnostic feature this SDK ships is switched on with a capturing sink, a
 # real operation runs through every outcome, and every string that leaves
-# the SDK is searched for the canaries and their encoded forms. It also
-# proves its own sensitivity: with clean switched off the canary MUST show.
+# is searched for the canaries and their encoded forms; a second sweep does
+# the same for a body of bytes. With clean off the canary MUST show.
 
 require "minitest/autorun"
 require "json"
 require "pp"
+require "stringio"
+require "tempfile"
 require_relative "../${Name}_sdk"
 
 class ${Name}CleanTest < Minitest::Test
@@ -81,6 +85,12 @@ class ${Name}CleanTest < Minitest::Test
   FORMS = (CANARY.values.flat_map { |v| [v, [v].pack("m0"), pct(v)] } +
     [["#{CANARY['apikey']}:#{CANARY['secret']}"].pack("m0")]).freeze
 
+  # The marker a body of bytes carries.
+  CONTENT = "CANARY-CONTENT-b7n3v9x1c5"
+
+  # The marker a response of bytes carries.
+  RESPONSE = "CANARY-RESPONSE-k2m8q4w6z0"
+
   module Sweep
     module_function
 
@@ -93,6 +103,18 @@ class ${Name}CleanTest < Minitest::Test
 
     def leaks(text)
       FORMS.select { |f| text.include?(f) }
+    end
+
+    # The forms bytes travel in once copied: a String prints as its text, and
+    # a dump of one shows its byte values, hex or base64.
+    def content_leaks(text, marker = CONTENT)
+      flat = text.b.delete(" \\t\\r\\n")
+      found = []
+      found << "text" if text.b.include?(marker)
+      found << "byte values" if flat.include?(marker.bytes.join(","))
+      found << "hex" if flat.downcase.include?(marker.unpack1("H*"))
+      found << "base64" if flat.include?([marker].pack("m0"))
+      found
     end
 
     # Every printed form of a value that left the SDK.
@@ -128,6 +150,19 @@ class ${Name}CleanTest < Minitest::Test
         "body" => JSON.generate(data),
       }
     end
+
+    # A response of bytes under the type it declares, as the default
+    # transport hands on a body it could not parse.
+    def bytes_response(status, type)
+      {
+        "status" => status,
+        "statusText" => status < 400 ? "OK" : "ERR",
+        "headers" => { "content-type" => type },
+        "json" => -> { nil },
+        "body" => RESPONSE.b,
+        "unreadable" => true,
+      }
+    end
   end
 
   # Captures the serialised context from inside the pipeline: what a hook
@@ -150,6 +185,25 @@ class ${Name}CleanTest < Minitest::Test
       @sinks.concat(Sweep.forms("ctx@PreUnexpected", ctx))
       err = ctx.ctrl.err
       @sinks.concat(Sweep.forms("ctrl.err@PreUnexpected", err)) if err.is_a?(${Name}Error)
+    end
+  end
+
+  # Captures the request data as a hook would log it, before the spec exists
+  # and after: the other place a raw body sits, and the only one an IO does.
+  class RequestDataFeature < ${Name}BaseFeature
+    def initialize(sinks)
+      super()
+      @name = "reqdata"
+      @version = "0.0.1"
+      @active = true
+      @sinks = sinks
+    end
+
+    def PreSpec(ctx); take("reqdata@PreSpec", ctx); end
+    def PreRequest(ctx); take("reqdata@PreRequest", ctx); end
+
+    def take(name, ctx)
+      @sinks.concat(Sweep.forms(name, ctx.utility.clean.call(ctx, ctx.reqdata)))
     end
   end
 
@@ -227,7 +281,7 @@ class ${Name}CleanTest < Minitest::Test
       [nil, RuntimeError.new("socket hang up (URL was: \\"#{url}\\")")]
     }],
     # The SDK's own error, its code quoting a registered value.
-    ["coded", ->(_url, _fd) { [nil, ${Name}Error.new("denied_#{CANARY['apikey']}", "coded failure")] }],
+    ["coded", ->(_url, _fd) { [nil, ${Name}Error.new("coded failure", code: "denied_#{CANARY['apikey']}")] }],
     ["notjson", ->(_url, _fd) {
       [{
         "status" => 200, "statusText" => "OK", "headers" => {},
@@ -287,16 +341,9 @@ class ${Name}CleanTest < Minitest::Test
     construct(opts)
   end
 
-  # The first operation that completes against a plain 200: with no
-  # arguments, else with every path parameter its points declare filled in.
   # An entity accessor is a capitalised client method whose result answers
   # get_name, as the feature corpus runner finds them.
-  def usable_op
-    plain = construct({
-      "apikey" => CANARY["apikey"],
-      "utility" => { "fetcher" => ->(_ctx, _url, _fd) { [Sweep.response(200, { "id" => "i1" }), nil] } },
-    })
-
+  def accessors(plain)
     found = {}
     plain.public_methods(false).each do |m|
       name = m.to_s
@@ -309,6 +356,18 @@ class ${Name}CleanTest < Minitest::Test
       next unless ent.respond_to?(:get_name)
       found[ent.get_name.to_s] = name
     end
+    found
+  end
+
+  # The first operation that completes against a plain 200: with no
+  # arguments, else with every path parameter its points declare filled in.
+  def usable_op
+    plain = construct({
+      "apikey" => CANARY["apikey"],
+      "utility" => { "fetcher" => ->(_ctx, _url, _fd) { [Sweep.response(200, { "id" => "i1" }), nil] } },
+    })
+
+    found = accessors(plain)
 
     entities = ${Name}Config.shared_config["entity"] || {}
     found.keys.sort.each do |entname|
@@ -334,14 +393,63 @@ class ${Name}CleanTest < Minitest::Test
     nil
   end
 
-  def drive(sdk, target, ctrl, sinks)
+  # The first operation with a point that sends a raw body the model marks
+  # binary, with every path parameter of that point filled in.
+  def binary_op
+    plain = construct({ "apikey" => CANARY["apikey"] })
+    found = accessors(plain)
+    entities = ${Name}Config.shared_config["entity"] || {}
+    found.keys.sort.each do |entname|
+      ops = entities.dig(entname, "op")
+      (ops.is_a?(Hash) ? ops.keys.sort : []).each do |op|
+        next unless plain.public_send(found[entname]).respond_to?(op)
+        points = ops[op].is_a?(Hash) ? ops[op]["points"] : nil
+        (points.is_a?(Array) ? points : []).each do |point|
+          body = point.is_a?(Hash) ? point["body"] : nil
+          next unless body.is_a?(Hash) && body["kind"] == "raw" && body["binary"] == true
+          match = {}
+          params = point.dig("args", "params")
+          (params.is_a?(Array) ? params : []).each do |p|
+            match[p["name"]] = "p1" if p.is_a?(Hash) && p["name"].is_a?(String)
+          end
+          action = point.dig("select", "$action")
+          match["$action"] = action unless action.nil?
+          return { "accessor" => found[entname], "op" => op, "match" => match, "media" => body["media"] }
+        end
+      end
+    end
+    nil
+  end
+
+  # Every value this SDK accepts as a raw body. An IO is read once, so each
+  # run is handed its own.
+  def with_carriers
+    Tempfile.create("clean-content") do |file|
+      file.binmode
+      file.write(CONTENT)
+      file.flush
+      opened = []
+      begin
+        yield({
+          "String" => -> { CONTENT.dup },
+          "binary String" => -> { CONTENT.b },
+          "StringIO" => -> { StringIO.new(CONTENT.b) },
+          "File" => -> { opened << File.open(file.path, "rb"); opened.last },
+        })
+      ensure
+        opened.each(&:close)
+      end
+    end
+  end
+
+  def drive(sdk, target, ctrl, sinks, data = {})
     # A caller may keep the record it passed rather than read ctrl["explain"].
     held = ctrl["explain"]
     entity = sdk.public_send(target["accessor"])
     out = nil
     err = nil
     begin
-      out = entity.public_send(target["op"], target["match"].dup, ctrl)
+      out = entity.public_send(target["op"], target["match"].merge(data), ctrl)
     rescue StandardError => e
       err = e
     end
@@ -550,6 +658,145 @@ class ${Name}CleanTest < Minitest::Test
       assert text.include?(CANARY["apikey"]) || text.include?(pair),
         "the raw spec should carry the credential when clean is off"
     end
+  end
+
+  def test_no_body_of_bytes_leaves_the_sdk_in_any_form
+    target = binary_op
+    skip "no operation of this SDK sends a binary body; nothing to sweep" if target.nil?
+
+    sinks = []
+    names = []
+    given = {}
+    sent = {}
+    errors = {}
+    explains = {}
+
+    with_carriers do |carriers|
+      names = carriers.keys
+      carriers.each do |carrier, make|
+        SCENARIOS.first(4).each do |sname, respond|
+          VARIANTS.each do |vname, make_ctrl|
+            key = "#{carrier}/#{sname}/#{vname}"
+            # The transport is where the bytes are meant to arrive, whole.
+            seen = [sname, ->(url, fetchdef) {
+              sent[key] = fetchdef["body"]
+              respond.call(url, fetchdef)
+            }]
+            sdk = make_sdk(seen, sinks, nil, [RequestDataFeature.new(sinks)])
+            ctrl = make_ctrl.call
+            given[key] = make.call
+            err = drive(sdk, target, ctrl, sinks, { "$body" => given[key] })
+            errors[key] = err unless err.nil?
+            explains[key] = ctrl["explain"] unless ctrl["explain"].nil?
+            sinks.concat(Sweep.forms("sdk", sdk))
+          end
+        end
+      end
+    end
+
+    leaked = sinks
+      .map { |s| [s["name"], Sweep.content_leaks(s["text"])] }
+      .reject { |_, found| found.empty? }
+
+    puts "clean: content swept #{sinks.length} surface(s), #{leaked.length} leak(s)"
+
+    assert_equal 0, leaked.length, "a body of bytes leaked through: " +
+      leaked.map { |name, found| "#{name} [#{found.join(', ')}]" }.uniq.join("; ")
+
+    # The request itself is untouched: what the transport was handed is the body.
+    names.each do |carrier|
+      body = sent["#{carrier}/notfound/throw"]
+      refute_nil body, "#{carrier}: the transport was not handed a body"
+      assert_equal CONTENT.b, body.to_s.b, "#{carrier}: the transport was handed something else"
+    end
+
+    # The positive half: where the body was, what describes it now is. An IO
+    # is read into the spec before the first attempt, so there it is bytes.
+    desc = { "binary$" => "bytes", "size" => CONTENT.bytesize, "type" => target["media"] }
+    stream = { "binary$" => "stream", "type" => target["media"] }
+    names.each do |carrier|
+      failed = errors["#{carrier}/notfound/throw"]
+      refute_nil failed, "#{carrier}: the 404 scenario must raise"
+      assert_equal desc, failed.spec["body"], "#{carrier}: the thrown spec"
+      explained = explains["#{carrier}/ok/explain"] || {}
+      assert_equal desc, explained.dig("spec", "body"), "#{carrier}: the explain record"
+      assert_equal desc, explained.dig("fetchdef", "body"), "#{carrier}: the explained fetch definition"
+
+      # The request data holds what the caller gave: an IO is a stream
+      # there, and an equal copy of the bytes is the body wherever it sits.
+      ctx = failed.ctx
+      body = given["#{carrier}/notfound/throw"]
+      held = ctx.utility.clean.call(ctx, { "reqdata" => ctx.reqdata, "copy" => CONTENT.b })
+      assert_equal body.is_a?(String) ? desc : stream, held["reqdata"]["$body"],
+        "#{carrier}: the request data"
+      assert_equal desc, held["copy"], "#{carrier}: an equal copy"
+      assert_same body, ctx.reqdata["$body"], "#{carrier}: the live request data"
+    end
+  end
+
+  def test_the_sweep_can_see_a_body_clean_switched_off_shows_the_bytes
+    target = binary_op
+    skip "no operation of this SDK sends a binary body; nothing to sweep" if target.nil?
+
+    with_carriers do |carriers|
+      carriers.each do |carrier, make|
+        sinks = []
+        sdk = make_sdk(SCENARIOS[1], sinks, { "active" => false })
+        err = drive(sdk, target, {}, sinks, { "$body" => make.call })
+        refute_nil err, "#{carrier}: the 404 scenario must raise"
+        leaked = sinks.select { |s| !Sweep.content_leaks(s["text"]).empty? }
+        assert !leaked.empty?, "#{carrier}: with clean off, nothing showed the bytes: the sweep is blind"
+      end
+    end
+  end
+
+  def test_no_response_of_bytes_leaves_the_sdk_in_any_form
+    target = usable_op
+    skip "no operation of this SDK completes against a plain 200; nothing to sweep" if target.nil?
+
+    sinks = []
+    errors = {}
+
+    [200, 404, 500].each do |status|
+      VARIANTS.each do |vname, make_ctrl|
+        scenario = ["bytes", ->(_url, _fd) { [Sweep.bytes_response(status, "audio/wav"), nil] }]
+        sdk = make_sdk(scenario, sinks)
+        err = drive(sdk, target, make_ctrl.call, sinks)
+        errors["#{status}/#{vname}"] = err unless err.nil?
+        sinks.concat(Sweep.forms("sdk", sdk))
+      end
+    end
+
+    leaked = sinks
+      .map { |s| [s["name"], Sweep.content_leaks(s["text"], RESPONSE)] }
+      .reject { |_, found| found.empty? }
+
+    puts "clean: response swept #{sinks.length} surface(s), #{leaked.length} leak(s)"
+
+    assert_equal 0, leaked.length, "a response of bytes leaked through: " +
+      leaked.map { |name, found| "#{name} [#{found.join(', ')}]" }.uniq.join("; ")
+
+    # The failure still names what it could not read.
+    failed = errors["200/throw"]
+    refute_nil failed, "a response of bytes must fail the operation"
+    assert_equal "response_content_type", failed.code
+    assert failed.message.to_s.include?("audio/wav"), "the error does not name the type: #{failed.message}"
+  end
+
+  # With clean off the live response prints as an opaque object, so the
+  # control is the same body under a text type, which clean leaves alone.
+  def test_the_sweep_can_see_a_response_a_text_one_shows_its_body
+    target = usable_op
+    skip "no operation of this SDK completes against a plain 200; nothing to sweep" if target.nil?
+
+    sinks = []
+    scenario = ["text", ->(_url, _fd) { [Sweep.bytes_response(200, "text/plain"), nil] }]
+    err = drive(make_sdk(scenario, sinks), target, {}, sinks)
+    refute_nil err, "a body that is not JSON must fail the operation"
+    leaked = sinks.select do |s|
+      s["name"].start_with?("ctx@PreResponse") && !Sweep.content_leaks(s["text"], RESPONSE).empty?
+    end
+    assert !leaked.empty?, "nothing showed the body of a text response: the sweep is blind"
   end
 end
 `

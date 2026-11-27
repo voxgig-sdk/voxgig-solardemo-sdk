@@ -39,6 +39,9 @@ class PlanetDirectTest {
       reason == null,
       if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
     )
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     val client = setup.client
 
 
@@ -76,6 +79,9 @@ class PlanetDirectTest {
       reason == null,
       if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
     )
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     val client = setup.client
 
     val params = linkedMapOf<String, Any?>()
@@ -175,7 +181,9 @@ class PlanetDirectTest {
       setup.calls = calls
 
       if (live) {
-        val mergedOpts = linkedMapOf<String, Any?>()
+        // sdk-test-control.json's test.client.options seeds the live
+        // client; the generated fields below overwrite anything they name.
+        val mergedOpts = RunnerSupport.liveClientOptions()
         setup.client = VoxgigSolardemoSDK(mergedOpts)
         setup.live = true
 

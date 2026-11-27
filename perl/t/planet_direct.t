@@ -35,14 +35,17 @@ DIRECT_LIST: {
     pass('direct-list-planet: skipped via sdk-test-control.json');
     last DIRECT_LIST;
   }
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   my $client = $setup->{client};
 
   my $params = {};
+  my $query = {};
 
   my $result = $client->direct({
     'path' => 'api/planet',
     'method' => 'GET',
     'params' => $params,
+    'query' => $query,
   });
   if ($setup->{live}) {
     if (!live_ok($result)) {
@@ -74,6 +77,7 @@ DIRECT_LOAD: {
     pass('direct-load-planet: skipped via sdk-test-control.json');
     last DIRECT_LOAD;
   }
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   my $client = $setup->{client};
 
   my $params = {};
@@ -98,7 +102,7 @@ DIRECT_LOAD: {
       last DIRECT_LOAD;
     }
     my $first = ref $records->[0] eq 'HASH' ? $records->[0] : {};
-    my $found = $first->{'id'} // $first->{'id'};
+    my $found = $first->{'id'};
     if (!defined $found) {
       VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'direct-load-planet', 'Live load blocked: discovery returned no usable identity');
       last DIRECT_LOAD;

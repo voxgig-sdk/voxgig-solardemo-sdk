@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 // VoxgigSolardemo SDK utility: make_options
 
+require_once __DIR__ . '/../core/Helpers.php';
+
 class VoxgigSolardemoMakeOptions
 {
     private static function to_array_deep(mixed $val): mixed
@@ -42,6 +44,7 @@ class VoxgigSolardemoMakeOptions
         // dumped composer autoload.
         require_once __DIR__ . '/../schema.php';
         require_once __DIR__ . '/../core/Context.php';
+        require_once __DIR__ . '/Fetcher.php';
         $optspec = VoxgigSolardemoSchema::optspec();
 
         $config = $ctx->config ?? [];
@@ -107,7 +110,7 @@ class VoxgigSolardemoMakeOptions
         }
 
         // Preserve system.fetch before merge/validate.
-        $sys_fetch = \Voxgig\Struct\Struct::getpath($options, 'system.fetch');
+        $sys_fetch = VoxgigSolardemoFetcher::systemFetch($options);
 
         // Feature INSTANCES supplied at construction (the station adopt path)
         // are consumed by the constructor's feature-add loop straight from the
@@ -189,6 +192,8 @@ class VoxgigSolardemoMakeOptions
 
         // Empty [] would be treated as a list and clobber the map under merge;
         // substitute an empty stdClass to preserve map semantics.
+        $cfgopts = VoxgigSolardemoHelpers::empty_maps($cfgopts, $optspec);
+        $opts = VoxgigSolardemoHelpers::empty_maps($opts, $optspec);
         $cfgopts_merge = empty($cfgopts) ? new \stdClass() : $cfgopts;
         $opts_merge = empty($opts) ? new \stdClass() : $opts;
         $merged = \Voxgig\Struct\Struct::merge([(object)[], $cfgopts_merge, $opts_merge]);
@@ -291,11 +296,11 @@ class VoxgigSolardemoMakeOptions
                 $featureorder = $names;
             }
             // Station special case, mirroring test's: its transport wrap must
-            // sit immediately outside the base transport (inside retry/cache/
-            // netsim), so map-form activation hoists it to just after test -
-            // or first, when no test entry exists. Without this the sorted
-            // default would init station last and wrap OUTSIDE the recording
-            // features, turning its wire-truth events into fiction.
+            // sit immediately outside the base transport (inside every other
+            // transport wrap), so map-form activation hoists it to just after
+            // test - or first, when no test entry exists. Without this the
+            // sorted default would init station last and wrap OUTSIDE the
+            // recording features, turning its wire-truth events into fiction.
             $si = array_search('station', $featureorder, true);
             if (false !== $si) {
                 array_splice($featureorder, $si, 1);

@@ -1,6 +1,6 @@
 .{
     .name = .voxgig_solardemo_sdk,
-    .version = "0.1.0",
+    .version = "0.0.1",
     .fingerprint = 0x76ba7b1c61bed85e,
     .dependencies = .{},
     .paths = .{

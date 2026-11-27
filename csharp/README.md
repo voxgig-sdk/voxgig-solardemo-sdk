@@ -25,8 +25,7 @@ cd csharp && dotnet build VoxgigSolardemoSDK.csproj
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -91,30 +90,40 @@ client.Moon().Remove(new Dictionary<string, object?> { ["id"] = "example_id", ["
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations throw on failure, so wrap them in `try` / `catch`:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
+```csharp
+try
+{
+    var planetList = (List<object?>)client.Planet().List(null)!;
+    foreach (var planetItem in planetList)
+    {
+        Console.WriteLine(StructUtils.Jsonify(((IEntity)planetItem!).Data()));
+    }
+}
+catch (Exception err)
+{
+    Console.WriteLine($"list failed: {err.Message}");
 }
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`Direct()` does **not** throw — it
+returns the result dictionary. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```csharp
+var result = client.Direct(new Dictionary<string, object?>
+{
+    ["path"] = "/api/planet/{planet_id}/moon",
+    ["method"] = "GET",
+    ["params"] = new Dictionary<string, object?> { ["planet_id"] = "example_id" },
+});
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
+if (!Equals(result["ok"], true))
+{
+    result.TryGetValue("status", out var status);
+    result.TryGetValue("err", out var err);
+    Console.WriteLine($"request failed: {status} {err}");
 }
 ```
 
@@ -128,9 +137,9 @@ For endpoints not covered by entity methods:
 ```csharp
 var result = client.Direct(new Dictionary<string, object?>
 {
-    ["path"] = "/api/resource/{id}",
+    ["path"] = "/api/planet/{planet_id}/moon",
     ["method"] = "GET",
-    ["params"] = new Dictionary<string, object?> { ["id"] = "example" },
+    ["params"] = new Dictionary<string, object?> { ["planet_id"] = "example" },
 });
 
 if (Equals(result["ok"], true))
@@ -155,9 +164,9 @@ else
 // Prepare() returns the fetch definition and raises on error.
 var fetchdef = client.Prepare(new Dictionary<string, object?>
 {
-    ["path"] = "/api/resource/{id}",
-    ["method"] = "DELETE",
-    ["params"] = new Dictionary<string, object?> { ["id"] = "example" },
+    ["path"] = "/api/planet/{planet_id}/moon",
+    ["method"] = "GET",
+    ["params"] = new Dictionary<string, object?> { ["planet_id"] = "example" },
 });
 
 Console.WriteLine(fetchdef["url"]);
@@ -212,6 +221,10 @@ Create a `.env.local` file at the project root:
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
+
 Then run:
 
 ```bash
@@ -236,9 +249,10 @@ Creates a new SDK client. `options` is a `Dictionary<string, object?>`.
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `Dictionary` | Headers sent with every request. |
 | `feature` | `Dictionary` | Feature activation flags. |
-| `extend` | `List` | Additional Feature instances to load. |
-| `system` | `Dictionary` | System overrides (e.g. custom `fetch` delegate). |
+| `extend` | `List` | Additional feature instances to load. |
+| `system` | `Dictionary` | System overrides, such as a custom fetch function. |
 
 ### TestSDK
 
@@ -306,7 +320,7 @@ On error, `ok` is `false` and `err` contains the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: List, Load, Create, Update, Remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -322,9 +336,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: List, Load, Create, Update, Remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -339,11 +353,11 @@ Create an instance: `var moon = client.Moon();`
 
 | Method | Description |
 | --- | --- |
-| `Create(data)` | Create a new entity with the given data. |
 | `List(null)` | List entities, optionally matching the given criteria. |
 | `Load(match)` | Load a single entity by match criteria. |
-| `Remove(match)` | Remove the matching entity. |
+| `Create(data)` | Create a new entity with the given data. |
 | `Update(data)` | Update an existing entity. |
+| `Remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -389,11 +403,11 @@ Create an instance: `var planet = client.Planet();`
 
 | Method | Description |
 | --- | --- |
-| `Create(data)` | Create a new entity with the given data. |
 | `List(null)` | List entities, optionally matching the given criteria. |
 | `Load(match)` | Load a single entity by match criteria. |
-| `Remove(match)` | Remove the matching entity. |
+| `Create(data)` | Create a new entity with the given data. |
 | `Update(data)` | Update an existing entity. |
+| `Remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -433,12 +447,11 @@ var planet = client.Planet().Create(new Dictionary<string, object?>
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -551,7 +564,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -602,16 +615,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -619,9 +628,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a C# class extending `BaseFeature`
+with hook methods named after pipeline stages (e.g. `PrePoint`,
+`PreSpec`). Each method receives the context.
 
 The SDK ships with built-in features:
 
@@ -656,7 +665,7 @@ csharp/
 ├── VoxgigSolardemoSDK.csproj    -- Library project (compiles everything except test/)
 ├── core/                       -- Main SDK client, config, entity base, error type
 ├── entity/                     -- Entity implementations
-├── feature/                    -- Built-in features (Base, Test, Log, ...)
+├── feature/                    -- Feature implementations
 ├── utility/                    -- Utility functions and the vendored struct library
 └── test/                       -- xUnit test suites
 ```
@@ -668,29 +677,29 @@ utility types directly only when needed.
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```csharp
+var planet = client.Planet();
+planet.List(null);
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+// planet.Data() now returns the planet data from the last List
+// planet.Match() returns the last match criteria
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `Make()` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`Direct()` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `Prepare()` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

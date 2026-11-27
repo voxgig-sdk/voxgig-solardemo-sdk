@@ -15,16 +15,16 @@ keeps the cognitive load low.
 
 ## Install
 This package is not yet published to Hackage. Install it from the GitHub
-release tag (`haskell/vX.Y.Z`, see [Releases](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/releases)) or
-from a source checkout. The runtime has no third-party dependencies (only the
-GHC boot libraries: `base`, `containers`, `array`, `time`), so the
-bundled Makefile drives stock GHC with no cabal solve:
+release tag (`haskell/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags)) or from a source checkout. The
+runtime has no third-party dependencies (only the GHC boot libraries:
+`base`, `containers`, `array`, `time`), so the bundled Makefile drives
+stock GHC with no cabal solve:
 
 ```bash
 cd haskell && make test
 ```
 
-A `.cabal` file is also generated for use with `cabal`/`stack`:
+The generated `voxgig-voxgig-solardemo-sdk.cabal` builds it with `cabal` or `stack`:
 
 ```bash
 cd haskell && cabal build
@@ -33,8 +33,7 @@ cd haskell && cabal build
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -110,32 +109,9 @@ record.
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
-
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
-}
-```
-
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
-
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
-
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
-}
-```
+The low-level `direct` method does not fail on an error response — it
+returns the result envelope. Branch on `ok`; on failure `status` holds the
+HTTP status (for error responses) and `err` holds the error.
 
 
 ## How-to guides
@@ -154,8 +130,8 @@ import SdkHelpers (jo, getp)
 main :: IO ()
 main = do
   sdk <- Sdk.newSdk0
-  params <- jo [("id", VStr "example")]
-  args <- jo [("path", VStr "/api/resource/{id}"), ("method", VStr "GET"), ("params", params)]
+  params <- jo [("planet_id", VStr "example")]
+  args <- jo [("path", VStr "/api/planet/{planet_id}/moon"), ("method", VStr "GET"), ("params", params)]
   result <- F.direct sdk args
   ok <- getp result "ok"
   case ok of
@@ -184,8 +160,8 @@ import SdkHelpers (jo, getp)
 main :: IO ()
 main = do
   sdk <- Sdk.newSdk0
-  params <- jo [("id", VStr "example")]
-  args <- jo [("path", VStr "/api/resource/{id}"), ("method", VStr "DELETE"), ("params", params)]
+  params <- jo [("planet_id", VStr "example")]
+  args <- jo [("path", VStr "/api/planet/{planet_id}/moon"), ("method", VStr "GET"), ("params", params)]
   -- prepare returns the fetch definition and raises on error.
   fetchdef <- F.prepare sdk args
   url <- getp fetchdef "url"
@@ -206,7 +182,12 @@ import SdkHelpers (jo)
 
 main :: IO ()
 main = do
-  sdk <- Sdk.testSdk0
+  -- The offline mock starts empty: seed the record the call reads.
+  seedRecord <- jo [("id", VStr "test01")]
+  seedRecords <- jo [("test01", seedRecord)]
+  seedEntities <- jo [("planet", seedRecords)]
+  seed <- jo [("entity", seedEntities)]
+  sdk <- Sdk.testSdk seed VNoval
   ent <- Sdk.planet sdk VNoval
   arg <- emptyMap
   ctrl <- emptyMap
@@ -235,15 +216,10 @@ customClient = do
   Sdk.newSdk opts
 ```
 
-### Run live tests
+### Run the test suite
 
-Create a `.env.local` file at the project root:
-
-```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
-```
-
-Then run the suite (stock GHC, no third-party dependencies):
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 ```bash
 cd haskell && make test
@@ -273,9 +249,9 @@ makeClient = do
 | `base` | `String` | Base URL of the API server. |
 | `prefix` | `String` | URL path prefix prepended to all requests. |
 | `suffix` | `String` | URL path suffix appended to all requests. |
-| `headers` | `Value` | Custom headers for all requests. |
+| `headers` | `Value` | Headers sent with every request. |
 | `feature` | `Value` | Feature activation flags. |
-| `system` | `Value` | System overrides (e.g. custom `fetch` function). |
+| `system` | `Value` | System overrides, such as a custom fetch function. |
 
 ### Test client
 
@@ -348,7 +324,7 @@ On error, `ok` is `False` and `err` carries the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: eList, eLoad, eCreate, eUpdate, eRemove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -364,9 +340,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: eList, eLoad, eCreate, eUpdate, eRemove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -381,11 +357,11 @@ Create an instance: `moon <- Sdk.moon sdk VNoval`
 
 | Method | Description |
 | --- | --- |
-| `eCreate ent data ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `eList ent match ctrl` | List entities, optionally matching the given criteria. Resolves to one entity per record. |
 | `eLoad ent match ctrl` | Load a single entity by match criteria. Resolves to the entity. |
-| `eRemove ent match ctrl` | Remove the matching entity. Resolves to the entity, marked as deleted. |
+| `eCreate ent data ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `eUpdate ent data ctrl` | Update an existing entity. Resolves to the entity. |
+| `eRemove ent match ctrl` | Remove the matching entity. Resolves to the entity, marked as deleted. |
 
 #### Fields
 
@@ -444,11 +420,11 @@ Create an instance: `planet <- Sdk.planet sdk VNoval`
 
 | Method | Description |
 | --- | --- |
-| `eCreate ent data ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `eList ent match ctrl` | List entities, optionally matching the given criteria. Resolves to one entity per record. |
 | `eLoad ent match ctrl` | Load a single entity by match criteria. Resolves to the entity. |
-| `eRemove ent match ctrl` | Remove the matching entity. Resolves to the entity, marked as deleted. |
+| `eCreate ent data ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `eUpdate ent data ctrl` | Update an existing entity. Resolves to the entity. |
+| `eRemove ent match ctrl` | Remove the matching entity. Resolves to the entity, marked as deleted. |
 
 #### Fields
 
@@ -501,12 +477,11 @@ Create an instance: `planet <- Sdk.planet sdk VNoval`
 
 ## Features
 
-This SDK ships 8 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 8 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -651,16 +626,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -668,9 +639,8 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature implements hooks named
+after the pipeline stages, and each hook receives the context.
 
 The SDK ships with built-in features:
 
@@ -690,8 +660,8 @@ were added, so later features can override earlier ones.
 
 The Haskell SDK models every API record as the dynamic `Value` type (from
 the vendored `VoxgigStruct` module) rather than bespoke Haskell records.
-This mirrors the dynamic nature of the API and keeps the SDK flexible — no
-new datatypes or code generation are needed when the API schema changes.
+This mirrors the dynamic nature of the API and keeps the SDK flexible: code
+that works with `Value` needs no new datatypes when the API schema changes.
 
 Build request maps with `jo [(key, value)]` and read fields back with
 `getp value "field"`; scalars are the `VStr` / `VNum` / `VBool`
@@ -712,7 +682,7 @@ haskell/
 │   └── SdkClient.hs      -- generated public client (newSdk, entity accessors)
 ├── test/                 -- test suites
 ├── Makefile              -- stock-GHC build/test (no third-party deps)
-└── voxgigsolardemo-sdk.cabal      -- package manifest (for Hackage)
+└── voxgig-voxgig-solardemo-sdk.cabal      -- package manifest (for Hackage)
 ```
 
 The public module (`SdkClient`) exports the SDK constructors (`newSdk`,
@@ -721,25 +691,25 @@ The public module (`SdkClient`) exports the SDK constructors (`newSdk`,
 
 ### Entity state
 
-Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+Entity instances are stateful. After a successful `eList`, the entity
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
-
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+```haskell
+  ent <- Sdk.planet sdk VNoval
+  arg <- emptyMap
+  ctrl <- emptyMap
+  _ <- Sdk.eList ent arg ctrl
+  -- eDataGet ent now returns the planet data from the last eList
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `eMake` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
 The `direct` method gives full control over the HTTP request. Use it
 for non-standard endpoints, bulk operations, or any path not modelled

@@ -6,7 +6,7 @@ The OCaml SDK for the VoxgigSolardemo API — an entity-oriented client
 following idiomatic OCaml conventions (a dependency-free library that compiles
 with the stock `ocamlc`).
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `Sdk_client.moon client Noval` — each
+The SDK exposes the API as semantic **Entities** — for example `Sdk_client.moon client Noval` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -16,7 +16,7 @@ keeps the cognitive load low.
 
 
 ## Install
-This package is not yet published to the opam registry. Install it from the
+This package is not yet published to opam. Install it from the
 GitHub release tag (`ocaml/vX.Y.Z`, see [Tags](https://github.com/voxgig-sdk/voxgig-solardemo-sdk/tags))
 or from a source checkout. The SDK is dependency-free and compiles with the
 stock `ocamlc` — no opam packages, no dune:
@@ -28,8 +28,7 @@ cd ocaml && make build
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -84,31 +83,30 @@ Printf.printf "deleted: %b\n" removed.e_deleted
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations raise `Sdk_error.E` on failure, so wrap them in `try` ... `with`:
 
-```ts
-try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
-}
+```ocaml
+(try
+   let planets = (Sdk_client.planet client Noval).e_list (empty_map ()) Noval in
+   List.iter (fun e -> print_endline (stringify (e.e_data_get ()))) planets
+ with Sdk_error.E err -> Printf.eprintf "list failed: %s\n" (Sdk_error.message err))
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`Sdk_client.direct` does **not** raise — it
+returns the result map. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
-
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
-}
+```ocaml
+let result = Sdk_client.direct client (jo [
+    ("path", Str "/api/planet/{planet_id}/moon");
+    ("method", Str "GET");
+    ("params", jo [("planet_id", Str "example_id")]);
+]) in
+(match getp result "ok" with
+ | Bool true -> ()
+ | _ ->
+   Printf.eprintf "request failed: %s %s\n"
+     (stringify (getp result "status")) (stringify (getp result "err")))
 ```
 
 
@@ -120,9 +118,9 @@ For endpoints not covered by entity methods:
 
 ```ocaml
 let result = Sdk_client.direct client (jo [
-    ("path", Str "/api/resource/{id}");
+    ("path", Str "/api/planet/{planet_id}/moon");
     ("method", Str "GET");
-    ("params", jo [("id", Str "example")]);
+    ("params", jo [("planet_id", Str "example")]);
 ]) in
 (match getp result "ok" with
  | Bool true ->
@@ -140,9 +138,9 @@ let result = Sdk_client.direct client (jo [
 ```ocaml
 (* prepare returns the fetch definition and raises on error. *)
 let fetchdef = Sdk_client.prepare client (jo [
-    ("path", Str "/api/resource/{id}");
-    ("method", Str "DELETE");
-    ("params", jo [("id", Str "example")]);
+    ("path", Str "/api/planet/{planet_id}/moon");
+    ("method", Str "GET");
+    ("params", jo [("planet_id", Str "example")]);
 ]) in
 print_endline (stringify (getp fetchdef "url"));
 print_endline (stringify (getp fetchdef "method"));
@@ -176,15 +174,10 @@ let client = Sdk_client.make (jo [
 ignore client
 ```
 
-### Run live tests
+### Run the test suite
 
-Create a `.env.local` file at the project root:
-
-```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
-```
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 ```bash
 cd ocaml && make test
@@ -211,9 +204,9 @@ for defaults.
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `map` | Headers sent with every request. |
 | `feature` | `map` | Feature activation flags. |
-| `extend` | `list` | Additional feature instances to load. |
-| `system` | `map` | System overrides (e.g. custom `fetch` function). |
+| `system` | `map` | System overrides, such as a custom fetch function. |
 
 ### Sdk_client.test
 
@@ -285,7 +278,7 @@ On error, `ok` is `Bool false` and `err` carries the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: e_list, e_load, e_create, e_update, e_remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -301,9 +294,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: e_list, e_load, e_create, e_update, e_remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -318,11 +311,11 @@ Create an instance: `let moon = Sdk_client.moon client Noval`
 
 | Method | Description |
 | --- | --- |
-| `e_create reqdata ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `e_list reqmatch ctrl` | List entities, optionally matching the given criteria. Resolves to one entity per record. |
 | `e_load reqmatch ctrl` | Load a single entity by match criteria. Resolves to the entity. |
-| `e_remove reqmatch ctrl` | Remove the matching entity. Resolves to the entity, marked deleted. |
+| `e_create reqdata ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `e_update reqdata ctrl` | Update an existing entity. Resolves to the entity. |
+| `e_remove reqmatch ctrl` | Remove the matching entity. Resolves to the entity, marked deleted. |
 
 #### Fields
 
@@ -372,11 +365,11 @@ Create an instance: `let planet = Sdk_client.planet client Noval`
 
 | Method | Description |
 | --- | --- |
-| `e_create reqdata ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `e_list reqmatch ctrl` | List entities, optionally matching the given criteria. Resolves to one entity per record. |
 | `e_load reqmatch ctrl` | Load a single entity by match criteria. Resolves to the entity. |
-| `e_remove reqmatch ctrl` | Remove the matching entity. Resolves to the entity, marked deleted. |
+| `e_create reqdata ctrl` | Create a new entity with the given data. Resolves to the entity. |
 | `e_update reqdata ctrl` | Update an existing entity. Resolves to the entity. |
+| `e_remove reqmatch ctrl` | Remove the matching entity. Resolves to the entity, marked deleted. |
 
 #### Fields
 
@@ -420,12 +413,11 @@ let planet_data = planet.e_data_get ()
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -538,7 +530,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -589,16 +581,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -606,9 +594,8 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a `feature` record
+whose `f_hook` function receives each pipeline stage's name and the context.
 
 The SDK ships with built-in features:
 
@@ -648,7 +635,7 @@ ocaml/
 ├── sdk_types.ml                -- Core pipeline types
 ├── sdk_helpers.ml              -- jo / ja / getp and friends
 ├── sdk_runtime.ml              -- Operation pipeline runner
-├── sdk_features.ml             -- Built-in features (base, test, log)
+├── sdk_features.ml             -- Feature implementations
 ├── utility/                    -- Vendored voxgig struct port
 └── test/                       -- Test suites
 ```
@@ -660,29 +647,28 @@ helpers. Open the runtime modules directly only when needed.
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
-
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+```ocaml
+let planet = (Sdk_client.planet client Noval) in
+ignore (planet.e_list (empty_map ()) Noval)
+(* planet.e_data_get () now returns the planet data from the last e_list *)
+(* planet.e_match_get () returns the last match criteria *)
 ```
 
-Call `make()` to create a fresh instance with the same configuration
+Call `e_make` to create a fresh instance with the same configuration
 but no stored state.
 
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`Sdk_client.direct` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `Sdk_client.prepare` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

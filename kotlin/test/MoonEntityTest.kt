@@ -49,6 +49,61 @@ class MoonEntityTest {
         if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
       )
     }
+    if (setup.live && "TRUE" == System.getenv("VOXGIG_GETONLY_GUARD")) {
+      println("LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}")
+      println("LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}")
+      println("LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}")
+      println("LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+    if (setup.live) {
+      for (liveKey in arrayOf<String>("planet01")) {
+        if (setup.syntheticOnly || setup.idmap?.get(liveKey) == null) {
+          RunnerSupport.liveMiss(LIVE_STRICT, "Live entity test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
+        }
+      }
+    }
+    val client = setup.client
+    if (setup.live) {
+      val liveId: Any? = if (setup.syntheticOnly) null else setup.idmap?.get("moon01")
+      RunnerSupport.livePace()
+      RunnerSupport.liveExisting(setup.data!!, LIVE_STRICT, "moon",
+        "id", liveId) {
+        client.moon(null).list(linkedMapOf<String, Any?>("planet_id" to setup.idmap?.get("planet01")), null)
+      }
+    }
+
+    // Bootstrap entity data from existing test data (no create step in flow).
+    val moonRef01DataRaw = Struct.items(Helpers.toMapAny(
+        Struct.getpath(setup.data, "existing.moon")))
+    val moonRef01Data: MutableMap<String, Any?> = if (moonRef01DataRaw.isEmpty())
+        linkedMapOf() else (Helpers.toMapAny(moonRef01DataRaw[0][1]) ?: linkedMapOf())
+
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+    // LIST
+    val moonRef01Ent = client.moon(null)
+    val moonRef01Match = linkedMapOf<String, Any?>()
+    moonRef01Match["planet_id"] = setup.idmap!!["planet01"]
+
+    val moonRef01ListResult = moonRef01Ent.list(moonRef01Match, null)
+    assertTrue(moonRef01ListResult is List<*>,
+        "expected list result to be an array, got " + moonRef01ListResult)
+
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+    // LOAD
+    val moonRef01MatchDt0 = linkedMapOf<String, Any?>()
+    moonRef01MatchDt0["id"] = moonRef01Data["id"]
+    moonRef01MatchDt0["planet_id"] = moonRef01Data["planet_id"].let { if (it is String || it is Number || it is Boolean) it else setup.idmap?.get("planet_id") ?: setup.idmap?.get("planet01") }
+    val moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null)
+    val moonRef01DataDt0LoadResult = Helpers.toMapAny(if (moonRef01DataDt0Loaded is SdkEntity) moonRef01DataDt0Loaded.data() else moonRef01DataDt0Loaded) ?: linkedMapOf()
+    assertNotNull(moonRef01DataDt0LoadResult, "expected load result to be a map")
+    assertTrue(RunnerSupport.liveSameId(moonRef01DataDt0LoadResult["id"], moonRef01Data["id"]), "expected load result id to match")
+
+      return
+    }
+
     if (setup.live) {
       for (liveKey in arrayOf<String>("planet01")) {
         if (setup.syntheticOnly || setup.idmap?.get(liveKey) == null) {
@@ -58,6 +113,9 @@ class MoonEntityTest {
     }
     val client = setup.client
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // CREATE
     val moonRef01Ent = client.moon(null)
     var moonRef01Data: MutableMap<String, Any?> = (Helpers.toMapAny(Struct.getprop(
@@ -69,6 +127,9 @@ class MoonEntityTest {
     assertNotNull(moonRef01Data, "expected create result to be a map")
     assertNotNull(moonRef01Data["id"], "expected created entity to have an id")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // LIST
     val moonRef01Match = linkedMapOf<String, Any?>()
     moonRef01Match["planet_id"] = setup.idmap!!["planet01"]
@@ -83,6 +144,9 @@ class MoonEntityTest {
         Struct.jm("id", moonRef01Data["id"]))
     assertFalse(Struct.isempty(foundItem), "expected to find created entity in list")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // UPDATE
     val moonRef01DataUp0Up = linkedMapOf<String, Any?>()
     moonRef01DataUp0Up["id"] = moonRef01Data["id"]
@@ -95,27 +159,34 @@ class MoonEntityTest {
     val moonRef01ResdataUp0Result = moonRef01Ent.update(moonRef01DataUp0Up, null)
     val moonRef01ResdataUp0 = Helpers.toMapAny(if (moonRef01ResdataUp0Result is SdkEntity) moonRef01ResdataUp0Result.data() else moonRef01ResdataUp0Result) ?: linkedMapOf()
     assertNotNull(moonRef01ResdataUp0, "expected update result to be a map")
-    assertEquals(moonRef01DataUp0Up["id"], moonRef01ResdataUp0["id"],
-        "expected update result id to match")
+    assertTrue(RunnerSupport.liveSameId(moonRef01ResdataUp0["id"], moonRef01DataUp0Up["id"]), "expected update result id to match")
     assertEquals(moonRef01MarkdefUp0Value, moonRef01ResdataUp0[moonRef01MarkdefUp0Name],
         "expected " + moonRef01MarkdefUp0Name + " to be updated")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // LOAD
     val moonRef01MatchDt0 = linkedMapOf<String, Any?>()
     moonRef01MatchDt0["id"] = moonRef01Data["id"]
-    moonRef01MatchDt0["planet_id"] = setup.idmap?.get("planet_id") ?: setup.idmap?.get("planet01")
+    moonRef01MatchDt0["planet_id"] = moonRef01Data["planet_id"].let { if (it is String || it is Number || it is Boolean) it else setup.idmap?.get("planet_id") ?: setup.idmap?.get("planet01") }
     val moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null)
     val moonRef01DataDt0LoadResult = Helpers.toMapAny(if (moonRef01DataDt0Loaded is SdkEntity) moonRef01DataDt0Loaded.data() else moonRef01DataDt0Loaded) ?: linkedMapOf()
     assertNotNull(moonRef01DataDt0LoadResult, "expected load result to be a map")
-    assertEquals(moonRef01Data["id"], moonRef01DataDt0LoadResult["id"],
-        "expected load result id to match")
+    assertTrue(RunnerSupport.liveSameId(moonRef01DataDt0LoadResult["id"], moonRef01Data["id"]), "expected load result id to match")
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // REMOVE
     val moonRef01MatchRm0 = linkedMapOf<String, Any?>()
     moonRef01MatchRm0["id"] = moonRef01Data["id"]
     moonRef01MatchRm0["planet_id"] = setup.idmap?.get("planet_id") ?: setup.idmap?.get("planet01")
     moonRef01Ent.remove(moonRef01MatchRm0, null)
 
+    if (setup.live) {
+      RunnerSupport.livePace()
+    }
     // LIST
     val moonRef01MatchRt0 = linkedMapOf<String, Any?>()
     moonRef01MatchRt0["planet_id"] = setup.idmap!!["planet01"]
@@ -202,8 +273,11 @@ class MoonEntityTest {
 
       val live = "TRUE" == env["VOXGIG_SOLARDEMO_TEST_LIVE"]
       if (live) {
-        val liveOpts = linkedMapOf<String, Any?>()
-        val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra))
+        // sdk-test-control.json's test.client.options seeds the live
+        // client; the generated fields below overwrite anything they name.
+        val liveOpts = RunnerSupport.liveClientOptions()
+        // An empty map, not null: merge answers null when its last entry is null.
+        val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra ?: linkedMapOf<String, Any?>()))
         client = VoxgigSolardemoSDK(Helpers.toMapAny(mergedOpts))
       }
 

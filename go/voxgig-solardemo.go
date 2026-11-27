@@ -1,3 +1,4 @@
+// Package voxgigsolardemosdk: Unofficial generated Go SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.
 package voxgigsolardemosdk
 
 import (
@@ -13,7 +14,11 @@ type Context = core.Context
 type Utility = core.Utility
 type Feature = core.Feature
 type Entity = core.Entity
-type VoxgigSolardemoEntity = core.VoxgigSolardemoEntity
+type VoxgigSolardemoEntityBase = core.VoxgigSolardemoEntityBase
+
+// Deprecated: use VoxgigSolardemoEntityBase.
+type VoxgigSolardemoEntity = core.VoxgigSolardemoEntityBase
+
 type StreamItem = core.StreamItem
 type FetcherFunc = core.FetcherFunc
 type Spec = core.Spec
@@ -57,10 +62,10 @@ func init() {
 	core.NewTimeoutFeatureFunc = func() core.Feature {
 		return feature.NewTimeoutFeature()
 	}
-	core.NewMoonEntityFunc = func(client *core.VoxgigSolardemoSDK, entopts map[string]any) core.VoxgigSolardemoEntity {
+	core.NewMoonEntityFunc = func(client *core.VoxgigSolardemoSDK, entopts map[string]any) core.VoxgigSolardemoEntityBase {
 		return entity.NewMoonEntity(client, entopts)
 	}
-	core.NewPlanetEntityFunc = func(client *core.VoxgigSolardemoSDK, entopts map[string]any) core.VoxgigSolardemoEntity {
+	core.NewPlanetEntityFunc = func(client *core.VoxgigSolardemoSDK, entopts map[string]any) core.VoxgigSolardemoEntityBase {
 		return entity.NewPlanetEntity(client, entopts)
 	}
 }
@@ -80,8 +85,8 @@ var SharedConfig = core.SharedConfig
 // so these aliases let callers write `sdk.New()` / `sdk.Test()`
 // instead of `sdk.NewVoxgigSolardemoSDK(nil)` / `sdk.TestSDK(nil, nil)`
 // for the common no-options case.
-func New() *VoxgigSolardemoSDK  { return NewVoxgigSolardemoSDK(nil) }
-func Test() *VoxgigSolardemoSDK { return TestSDK(nil, nil) }
+func New() (*VoxgigSolardemoSDK, error) { return NewVoxgigSolardemoSDK(nil) }
+func Test() *VoxgigSolardemoSDK          { return TestSDK(nil, nil) }
 var NewBaseFeature = feature.NewBaseFeature
 var NewDebugFeature = feature.NewDebugFeature
 var NewIdempotencyFeature = feature.NewIdempotencyFeature

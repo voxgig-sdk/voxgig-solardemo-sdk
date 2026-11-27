@@ -406,6 +406,28 @@ object SdkTestMain {
     { val rec = new FhRecorder()
       val h = fhMake((c, u, fd) => rec.fetch(c, u, fd), fhF(new CacheFeature(), om("active" -> B(false))))
       h.op(fhOp("load").withPath("/x")); h.op(fhOp("load").withPath("/x")); eqI("cache.inactive", 2, rec.calls.size()) }
+    // A body that declares another type than JSON passes by, unread.
+    { val sent = new java.util.ArrayList[JMap[String, Object]]()
+      val rec = new FhRecorder()
+      rec.reply = (n, fd) => {
+        val res = fhResponse(200, null, om("content-type" -> "audio/wav"))
+        res.put("body", "RIFF".getBytes)
+        sent.add(res)
+        res
+      }
+      val f = new CacheFeature()
+      val h = fhMake((c, u, fd) => rec.fetch(c, u, fd), fhF(f, om("ttl" -> I(10000))))
+      val a = h.op(fhOp("load").withPath("/w/1/audio")); val b = h.op(fhOp("load").withPath("/w/1/audio"))
+      eqI("cache.notJson.calls", 2, rec.calls.size())
+      check("cache.notJson.first", a.ctx.response != null &&
+        (sent.get(0).get("body") eq a.ctx.response.body) &&
+        (sent.get(0).get("headers") eq a.ctx.response.headers),
+        "the cache handed on a copy it had read")
+      check("cache.notJson.second", b.ctx.response != null &&
+        (sent.get(1).get("body") eq b.ctx.response.body) &&
+        (sent.get(1).get("headers") eq b.ctx.response.headers),
+        "the cache handed on a copy it had read")
+      eqI("cache.notJson.bypass", 2, f.bypass) }
   }
 
   private def testIdempotency(): Unit = {
@@ -636,6 +658,24 @@ object SdkTestMain {
     eq("featureAdd.fallback", "a,z2,z3,b,z4", names())
   }
 
+  // ---- transformResponse ---------------------------------------------------
+
+  // A 204 has no body: struct's UNDEF is not null, so held as resdata an
+  // update would take it for data and replace the entity's.
+  private def testTransformResponseNoValue(): Unit = {
+    val client = VoxgigSolardemoSDK.testSDK()
+    val utility = client.getUtility()
+    val ctxmap = new LinkedHashMap[String, Object]()
+    ctxmap.put("opname", "update"); ctxmap.put("client", client); ctxmap.put("utility", utility)
+    val ctx = utility.makeContext(ctxmap, client.getRootCtx())
+    ctx.result = new Result(om("ok" -> java.lang.Boolean.TRUE, "status" -> Integer.valueOf(204)))
+    ctx.spec = new Spec(om("step" -> ""))
+    ctx.point = om("transform" -> om("res" -> "`body.data`"))
+    val out = utility.transformResponse(ctx)
+    check("transformResponse.noValue", out == null, "returned " + out)
+    check("transformResponse.noValue.resdata", ctx.result.resdata == null, "resdata " + ctx.result.resdata)
+  }
+
   // ---- end-to-end entity CRUD through the mock transport -------------------
 
   private def testEntityCrud(): Unit = {
@@ -646,7 +686,7 @@ object SdkTestMain {
     // target compiles. TODO: regenerate per real entity (make this a component).
   }
 
-  // ---- feature order (PR #2) -----------------------------------------------
+  // ---- feature order -------------------------------------------------------
 
   private def testFeatureOrder(): Unit = {
     val client = VoxgigSolardemoSDK.testSDK()
@@ -695,7 +735,7 @@ object SdkTestMain {
       order(resolve(om("retry" -> om("active" -> B(true)), "cache" -> om("active" -> B(true))))))
   }
 
-  // ---- entity stream() through the mock transport (PR #4) ------------------
+  // ---- entity stream() through the mock transport --------------------------
 
   private def testEntityStream(): Unit = {
     // PARITY GAP: hardcoded `planet` streaming demo — same non-model-driven
@@ -706,6 +746,303 @@ object SdkTestMain {
   // Small identity wrapper so IntConsumer/LongSupplier land in the map as-is.
   private def f0(o: Object): Object = o
 
+  // A Django route answers its slashless form with a relative Location. The
+  // transport follows each hop, and answers a "manual" fetch with the 3xx.
+  private def testRedirect(): Unit = {
+    val seen = java.util.Collections.synchronizedList(new ArrayList[String]())
+    val moved = Map("/redirect/r1" -> (301, "/redirect/r1/"), "/redirect/r1/" -> (308, "done"))
+    val server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext("/", (exchange: com.sun.net.httpserver.HttpExchange) => {
+      val path = exchange.getRequestURI.getRawPath
+      seen.add(path)
+      val hop = moved.get(path)
+      val body = if (path == "/redirect/r1/done") "{\"id\":\"r1\"}".getBytes("UTF-8") else Array[Byte]()
+      hop.foreach(h => exchange.getResponseHeaders.set("Location", h._2))
+      exchange.getResponseHeaders.set("Content-Type", "application/json")
+      exchange.sendResponseHeaders(hop.map(_._1).getOrElse(if (body.nonEmpty) 200 else 404),
+        if (body.nonEmpty) body.length.toLong else -1L)
+      exchange.getResponseBody.write(body)
+      exchange.close()
+    })
+    server.start()
+    val base = "http://127.0.0.1:" + server.getAddress.getPort
+    try {
+      val opts = new LinkedHashMap[String, Object]()
+      opts.put("base", base)
+      val client = new VoxgigSolardemoSDK(opts)
+      val utility = client.getUtility()
+      val cm = new LinkedHashMap[String, Object]()
+      cm.put("opname", "load")
+      val ctx = utility.makeContext(cm, client.getRootCtx())
+      def fetch(redirect: String): JMap[String, Object] = {
+        val fetchdef = new LinkedHashMap[String, Object]()
+        fetchdef.put("method", "GET")
+        fetchdef.put("headers", new LinkedHashMap[String, Object]())
+        if (redirect != null) fetchdef.put("redirect", redirect)
+        utility.fetcher(ctx, base + "/redirect/r1", fetchdef).asInstanceOf[JMap[String, Object]]
+      }
+
+      val res = fetch(null)
+      eq("redirect.status", Integer.valueOf(200), res.get("status"))
+      eq("redirect.body", "{\"id\":\"r1\"}", res.get("body"))
+      eq("redirect.hops", "[/redirect/r1, /redirect/r1/, /redirect/r1/done]", seen.toString)
+      eq("redirect.manual", Integer.valueOf(301), fetch("manual").get("status"))
+    }
+    finally server.stop(0)
+  }
+
+  // A Location of a query alone keeps the path that answered.
+  private def testRedirectToAQuery(): Unit = {
+    val seen = java.util.Collections.synchronizedList(new ArrayList[String]())
+    val server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext("/", (exchange: com.sun.net.httpserver.HttpExchange) => {
+      val query = exchange.getRequestURI.getRawQuery
+      seen.add(exchange.getRequestURI.getRawPath + (if (query == null) "" else "?" + query))
+      if (query == null) {
+        exchange.getResponseHeaders.set("Location", "?step=2")
+        exchange.sendResponseHeaders(302, -1L)
+      } else {
+        val body = "{\"id\":\"q1\"}".getBytes("UTF-8")
+        exchange.getResponseHeaders.set("Content-Type", "application/json")
+        exchange.sendResponseHeaders(200, body.length.toLong)
+        exchange.getResponseBody.write(body)
+      }
+      exchange.close()
+    })
+    server.start()
+    val base = "http://127.0.0.1:" + server.getAddress.getPort
+    try {
+      val opts = new LinkedHashMap[String, Object]()
+      opts.put("base", base)
+      val client = new VoxgigSolardemoSDK(opts)
+      val utility = client.getUtility()
+      val cm = new LinkedHashMap[String, Object]()
+      cm.put("opname", "load")
+      val ctx = utility.makeContext(cm, client.getRootCtx())
+      val fetchdef = new LinkedHashMap[String, Object]()
+      fetchdef.put("method", "GET")
+      fetchdef.put("headers", new LinkedHashMap[String, Object]())
+      val res = utility.fetcher(ctx, base + "/redirect/q1", fetchdef).asInstanceOf[JMap[String, Object]]
+      eq("redirect.query.status", Integer.valueOf(200), res.get("status"))
+      eq("redirect.query.hops", "[/redirect/q1, /redirect/q1?step=2]", seen.toString)
+    }
+    finally server.stop(0)
+  }
+
+  private val REDIRECT_SECRET = "REDIRECT-SECRET-q7w3e9r1"
+  private val REDIRECT_CREDENTIALS =
+    Seq("authorization", "cookie", "x-api-key", "private-token", "x-acme-auth")
+
+  // The API's origin, which redirects, and another origin, which records
+  // what reaches it: another port on the same host is another origin.
+  final class RedirectOrigins {
+    val arrived = java.util.Collections.synchronizedList(new ArrayList[JMap[String, Object]]())
+    val api = listen("api")
+    val other = listen("other")
+    val apibase = "http://127.0.0.1:" + api.getAddress.getPort
+    val otherbase = "http://127.0.0.1:" + other.getAddress.getPort
+
+    private def listen(where: String): com.sun.net.httpserver.HttpServer = {
+      val server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0)
+      server.createContext("/", (exchange: com.sun.net.httpserver.HttpExchange) => {
+        val path = exchange.getRequestURI.getRawPath
+        val headers = new LinkedHashMap[String, Object]()
+        val hit = exchange.getRequestHeaders.entrySet().iterator()
+        while (hit.hasNext) {
+          val h = hit.next()
+          headers.put(h.getKey.toLowerCase(java.util.Locale.ROOT), String.join(", ", h.getValue))
+        }
+        val body = new String(exchange.getRequestBody.readAllBytes(), "UTF-8")
+        arrived.add(om("where" -> where, "method" -> exchange.getRequestMethod,
+          "path" -> path, "headers" -> headers, "body" -> body))
+        val hop: Option[(Int, String)] = path match {
+          case "/out" => Some((302, otherbase + "/landed"))
+          case "/out307" => Some((307, otherbase + "/landed"))
+          case "/in" => Some((302, "/landed"))
+          case "/in307" => Some((307, "/landed"))
+          case "/in303" => Some((303, "/landed"))
+          case "/round" => Some((302, "/round"))
+          case _ => None
+        }
+        val out = if (hop.isEmpty) "{\"id\":\"r1\"}".getBytes("UTF-8") else Array[Byte]()
+        hop.foreach(h => exchange.getResponseHeaders.set("Location", h._2))
+        exchange.getResponseHeaders.set("Content-Type", "application/json")
+        exchange.sendResponseHeaders(hop.map(_._1).getOrElse(200),
+          if (out.nonEmpty) out.length.toLong else -1L)
+        exchange.getResponseBody.write(out)
+        exchange.close()
+      })
+      server.start()
+      server
+    }
+
+    // Sent by a live client that holds the secret as its apikey, which is
+    // how a caller's reaches the registry.
+    def send(cleanactive: Boolean, method: String, path: String, body: String): JMap[String, Object] = {
+      val client = new VoxgigSolardemoSDK(om("base" -> apibase, "apikey" -> REDIRECT_SECRET,
+        "clean" -> om("active" -> B(cleanactive))))
+      val utility = client.getUtility()
+      val ctx = utility.makeContext(om("opname" -> "load"), client.getRootCtx())
+      val headers = om(
+        "authorization" -> ("Bearer " + REDIRECT_SECRET),
+        "cookie" -> ("sid=" + REDIRECT_SECRET),
+        "x-api-key" -> REDIRECT_SECRET,
+        "private-token" -> "pt-12345",
+        // Not a sensitive name: a credential by the value it holds.
+        "x-acme-auth" -> ("v1 " + REDIRECT_SECRET),
+        "x-tenant" -> "acme")
+      val fetchdef = om("method" -> method, "headers" -> headers)
+      if (body != null) {
+        headers.put("content-type", "audio/wav")
+        fetchdef.put("body", body)
+      }
+      arrived.clear()
+      utility.fetcher(ctx, apibase + path, fetchdef).asInstanceOf[JMap[String, Object]]
+    }
+
+    def seen(): String = {
+      val out = new ArrayList[String]()
+      val it = new ArrayList[JMap[String, Object]](arrived).iterator()
+      while (it.hasNext) {
+        val a = it.next()
+        out.add(String.valueOf(a.get("where")) + " " + a.get("method") + " " + a.get("path") +
+          (if ("" == a.get("body")) "" else " " + a.get("body")))
+      }
+      out.toString
+    }
+
+    // The names of the given headers the nth request carried.
+    def carried(nth: Int, names: Seq[String]): String = {
+      val headers = arrived.get(nth).get("headers").asInstanceOf[JMap[String, Object]]
+      names.filter(name => headers.get(name) != null).mkString(",")
+    }
+
+    def close(): Unit = {
+      api.stop(0)
+      other.stop(0)
+    }
+  }
+
+  private def testRedirectToAnotherOrigin(): Unit = {
+    for (cleanactive <- Seq(true, false)) {
+      val origins = new RedirectOrigins()
+      try {
+        val name = "redirect.cross." + cleanactive
+        val res = origins.send(cleanactive, "GET", "/out", null)
+        eq(name + ".status", I(200), res.get("status"))
+        eq(name + ".seen", "[api GET /out, other GET /landed]", origins.seen())
+        eq(name + ".api", REDIRECT_CREDENTIALS.mkString(","), origins.carried(0, REDIRECT_CREDENTIALS))
+        eq(name + ".other", "", origins.carried(1, REDIRECT_CREDENTIALS))
+        eq(name + ".tenant", "x-tenant", origins.carried(1, Seq("x-tenant")))
+        check(name + ".secret",
+          !String.valueOf(origins.arrived.get(1).get("headers")).contains(REDIRECT_SECRET),
+          "another origin was sent the secret")
+      }
+      finally origins.close()
+    }
+  }
+
+  private def testRedirectOnTheSameOrigin(): Unit = {
+    val origins = new RedirectOrigins()
+    try {
+      val res = origins.send(true, "GET", "/in", null)
+      eq("redirect.same.status", I(200), res.get("status"))
+      eq("redirect.same.seen", "[api GET /in, api GET /landed]", origins.seen())
+      val all = REDIRECT_CREDENTIALS :+ "x-tenant"
+      eq("redirect.same.kept", all.mkString(","), origins.carried(1, all))
+    }
+    finally origins.close()
+  }
+
+  private def testRedirectBody(): Unit = {
+    val origins = new RedirectOrigins()
+    try {
+      val res = origins.send(true, "PUT", "/out307", "BODY-" + REDIRECT_SECRET)
+      eq("redirect.body.status", I(307), res.get("status"))
+      eq("redirect.body.seen", "[api PUT /out307 BODY-" + REDIRECT_SECRET + "]", origins.seen())
+    }
+    finally origins.close()
+  }
+
+  private def testRedirectMethods(): Unit = {
+    val origins = new RedirectOrigins()
+    try {
+      for (path <- Seq("/in307", "/in")) {
+        val name = "redirect.methods.kept" + path
+        val kept = origins.send(true, "PUT", path, "BODY-1")
+        eq(name, I(200), kept.get("status"))
+        eq(name + ".seen", "[api PUT " + path + " BODY-1, api PUT /landed BODY-1]", origins.seen())
+        eq(name + ".type", "content-type", origins.carried(1, Seq("content-type")))
+      }
+
+      for ((method, path) <- Seq(("PUT", "/in303"), ("POST", "/in"))) {
+        val name = "redirect.methods." + method
+        val res = origins.send(true, method, path, "{\"a\":1}")
+        eq(name, I(200), res.get("status"))
+        eq(name + ".seen", "[api " + method + " " + path + " {\"a\":1}, api GET /landed]", origins.seen())
+        eq(name + ".headers", "x-api-key", origins.carried(1, Seq("content-type", "x-api-key")))
+      }
+
+      origins.send(true, "HEAD", "/in303", null)
+      eq("redirect.methods.HEAD.seen", "[api HEAD /in303, api GET /landed]", origins.seen())
+    }
+    finally origins.close()
+  }
+
+  // The first request, then each hop the limit allows.
+  private def testRedirectLimit(): Unit = {
+    val origins = new RedirectOrigins()
+    try {
+      val round = origins.send(true, "GET", "/round", null)
+      eq("redirect.limit.status", I(302), round.get("status"))
+      eqI("redirect.limit.requests", 6, origins.arrived.size())
+    }
+    finally origins.close()
+  }
+
+  // The entry the secrets exchange calls has no context to ask.
+  private def testRedirectWithoutAContext(): Unit = {
+    val origins = new RedirectOrigins()
+    try {
+      def post(path: String): JMap[String, Object] = {
+        origins.arrived.clear()
+        voxgig.voxgigsolardemosdk.utility.Fetcher.defaultHttpFetch(origins.apibase + path, om(
+          "method" -> "POST", "body" -> "{\"refresh\":\"r1\"}",
+          "headers" -> om("content-type" -> "application/json", "x-api-key" -> "k1", "x-tenant" -> "acme")))
+      }
+
+      eq("redirect.bare.body.status", I(307), post("/out307").get("status"))
+      eq("redirect.bare.body.seen", "[api POST /out307 {\"refresh\":\"r1\"}]", origins.seen())
+
+      eq("redirect.bare.cross.status", I(200), post("/out").get("status"))
+      eq("redirect.bare.cross.seen", "[api POST /out {\"refresh\":\"r1\"}, other GET /landed]", origins.seen())
+      eq("redirect.bare.cross.headers", "x-tenant",
+        origins.carried(1, Seq("x-api-key", "content-type", "x-tenant")))
+    }
+    finally origins.close()
+  }
+
+  // Nothing listens on port 9: a request the guard let through fails there.
+  // A JVM cannot set its own environment, so the probe runs in a child JVM.
+  private def testGetOnlyGuard(): Unit = {
+    val out =
+      if ("TRUE" == System.getenv("VOXGIG_GETONLY_GUARD")) SdkGetOnlyProbe.probe()
+      else {
+        val pb = new ProcessBuilder(ProcessHandle.current().info().command().orElse("java"),
+          "-cp", System.getProperty("java.class.path"), "SdkGetOnlyProbe")
+        pb.environment().put("VOXGIG_GETONLY_GUARD", "TRUE")
+        pb.redirectErrorStream(true)
+        val proc = pb.start()
+        val text = new String(proc.getInputStream.readAllBytes(), "UTF-8")
+        eqI("getonly.exit", 0, proc.waitFor())
+        text
+      }
+    check("getonly.refused",
+      out.startsWith("fetch_getonly_block [GET-ONLY GUARD] blocked POST /planet/p1\n"), out)
+    check("getonly.get", out.trim.endsWith("\nsent"), out)
+    check("getonly.query", !out.contains("GUARDKEY01"), out)
+  }
+
   def main(args: Array[String]): Unit = {
     val suites: Seq[(String, () => Unit)] = Seq(
       "netsim" -> testNetsim, "retry" -> testRetry, "timeout" -> testTimeout,
@@ -715,7 +1052,13 @@ object SdkTestMain {
       "paging" -> testPaging, "streaming" -> testStreaming, "proxy" -> testProxy,
       "composition" -> testComposition, "featureAdd" -> testFeatureAdd,
       "featureOrder" -> testFeatureOrder, "entityCrud" -> testEntityCrud,
-      "entityStream" -> testEntityStream)
+      "entityStream" -> testEntityStream, "getOnlyGuard" -> testGetOnlyGuard,
+      "redirect" -> testRedirect, "redirectToAQuery" -> testRedirectToAQuery, "redirectToAnotherOrigin" -> testRedirectToAnotherOrigin,
+      "redirectOnTheSameOrigin" -> testRedirectOnTheSameOrigin,
+      "redirectBody" -> testRedirectBody, "redirectMethods" -> testRedirectMethods,
+      "redirectLimit" -> testRedirectLimit,
+      "redirectWithoutAContext" -> testRedirectWithoutAContext,
+      "transformResponseNoValue" -> testTransformResponseNoValue)
 
     suites.foreach { case (name, fn) =>
       try fn()
@@ -727,4 +1070,33 @@ object SdkTestMain {
     println("\nRUNTIME PASS " + npass + "  FAIL " + failures.size())
     if (failures.size() > 0) System.exit(1)
   }
+}
+
+
+// The GET-only guard test's child: a POST, then a GET, to a closed port.
+object SdkGetOnlyProbe {
+  def probe(): String = {
+    val opts = new LinkedHashMap[String, Object]()
+    opts.put("base", "http://127.0.0.1:9")
+    val client = new VoxgigSolardemoSDK(opts)
+    val utility = client.getUtility()
+    val cm = new LinkedHashMap[String, Object]()
+    cm.put("opname", "create")
+    val ctx = utility.makeContext(cm, client.getRootCtx())
+    val url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01"
+    val out = new StringBuilder()
+    for (method <- Seq("POST", "GET")) {
+      val fetchdef = new LinkedHashMap[String, Object]()
+      fetchdef.put("method", method)
+      fetchdef.put("headers", new LinkedHashMap[String, Object]())
+      try { utility.fetcher(ctx, url, fetchdef); out.append("answered\n") }
+      catch {
+        case e: SdkError => out.append(e.code).append(' ').append(e.msg).append('\n')
+        case _: RuntimeException => out.append("sent\n")
+      }
+    }
+    out.toString
+  }
+
+  def main(args: Array[String]): Unit = print(probe())
 }

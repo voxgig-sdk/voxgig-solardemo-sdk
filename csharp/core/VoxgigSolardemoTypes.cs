@@ -87,23 +87,17 @@ public record PlanetListMatch
 public record PlanetCreateData
 {
     public double diameter { get; init; }
-    public string? forbidReason { get; init; }
-    public string? forbidState { get; init; }
     public string id { get; init; }
     public string kind { get; init; }
     public string name { get; init; }
-    public string? terraformState { get; init; }
 }
 
 public record PlanetUpdateData
 {
     public string id { get; init; }
     public double? diameter { get; init; }
-    public string? forbidReason { get; init; }
-    public string? forbidState { get; init; }
     public string? kind { get; init; }
     public string? name { get; init; }
-    public string? terraformState { get; init; }
 }
 
 public record PlanetRemoveMatch

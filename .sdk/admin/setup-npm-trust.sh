@@ -11,6 +11,5 @@ fi
 exec node "$trust" \
   --repository 'voxgig-sdk/voxgig-solardemo-sdk' \
   --publish '@voxgig-sdk/voxgig-solardemo-sdk-js=publish-js.yml' \
-  --publish 'voxgig-sdk-voxgig-solardemo-sdk=publish-seneca-provider.yml' \
   --publish '@voxgig-sdk/voxgig-solardemo-sdk=publish-ts.yml' \
   "$@"

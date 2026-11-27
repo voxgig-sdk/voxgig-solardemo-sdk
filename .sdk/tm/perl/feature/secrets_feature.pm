@@ -53,6 +53,7 @@ use warnings;
 
 use File::Basename ();
 use Cwd ();
+use MIME::Base64 ();
 use Scalar::Util ();
 
 my $__dir;
@@ -83,6 +84,8 @@ package VoxgigSolardemoSecretsFeature;
 
 our @ISA = ('VoxgigSolardemoBaseFeature');
 
+my $REDIRECT_MAX = 5;
+
 sub new {
   my ($class) = @_;
   my $self = VoxgigSolardemoBaseFeature::new($class);
@@ -96,6 +99,8 @@ sub new {
   # The LIVE options map (root ctx options, which IS the client's options
   # hash). Read for `auth` and the explicit apikey; never written.
   $self->{liveopts} = {};
+  $self->{declared} = 0;
+  $self->{basic} = 0;
 
   $self->{secretname} = 'apikey';
   $self->{cache} = 1;
@@ -134,6 +139,12 @@ sub init {
   $self->{options} = Voxgig::Struct::ismap($options) ? $options : {};
   $self->{active} = VoxgigSolardemoHelpers::is_true($self->{options}{active});
   $self->{liveopts} = Voxgig::Struct::ismap($ctx->{options}) ? $ctx->{options} : {};
+
+  # What prepare_auth was generated from: the config declares auth only
+  # where it places a credential, and Basic only where it composes one.
+  my $declared = VoxgigSolardemoHelpers::gpath($ctx->{config}, 'options.auth');
+  $self->{declared} = Voxgig::Struct::ismap($declared) ? 1 : 0;
+  $self->{basic} = $self->{declared} && VoxgigSolardemoHelpers::is_true($declared->{basic}) ? 1 : 0;
 
   return unless $self->{active};
 
@@ -203,6 +214,7 @@ sub _build {
       'statuses' => \@statuses,
       'retries' => (defined $xopts->{retries}
         ? VoxgigSolardemoHelpers::to_int($xopts->{retries}) : 1),
+      'redirect' => ('same-origin' eq _str($xopts->{redirect}, '') ? 'same-origin' : 'refuse'),
     };
     $self->{exchange}{retries} = 1 if 0 > $self->{exchange}{retries};
   }
@@ -294,6 +306,14 @@ sub sekreto {
 }
 
 
+# prepare_auth's decision: auth the config declares, not suppressed by
+# `auth => undef`.
+sub _authon {
+  my ($self) = @_;
+  return $self->{declared} && defined VoxgigSolardemoHelpers::gp($self->{liveopts}, 'auth');
+}
+
+
 # The resolved credential (empty when none) - the state the transport
 # injects. Tests and callers read it here rather than from the options
 # map, which this feature never mutates.
@@ -363,7 +383,7 @@ sub resolve {
 sub _resolve_once {
   my ($self) = @_;
 
-  return (undef, 0) unless defined $self->{sek};
+  return (undef, 0) unless defined $self->{sek} && $self->_authon();
 
   # sekreto's miss-vs-error rule, inherited: `try` returns undef on a MISS
   # and dies on a provider ERROR.
@@ -400,16 +420,6 @@ sub _resolve_once {
   # the same path expiry takes anyway.
   return (undef, 1) if '' ne $self->{cred};
 
-  # `auth => undef` is the documented way to send NO credential, and a
-  # purchase is a credential-bearing call: the refresh token goes to the
-  # token endpoint in the request body. _with_refresh honours suppression
-  # for the RETRY, but it runs after this - by then the refresh token has
-  # already left the process, and no later check can call it back. The
-  # suppression has to be honoured here, before the first purchase, or it
-  # only ever half-held.
-  return (undef, 0)
-    if !defined VoxgigSolardemoHelpers::gp($self->{liveopts}, 'auth');
-
   my ($token, $err) = $self->_buy();
   return ($err, 0) if defined $err;
 
@@ -429,13 +439,9 @@ sub _resolve_once {
 sub _with_refresh {
   my ($self, $ctx, $url, $fetchdef, $inner) = @_;
 
-  # `auth => undef` is the documented way to send NO credential, and
-  # prepare_auth honours it by removing the header. A refusal of a
-  # deliberately unauthenticated request is not an expired token and
-  # cannot be fixed by buying one - retrying would transmit exactly the
-  # credential the caller suppressed.
-  return $inner->($ctx, $url, $fetchdef)
-    if !defined VoxgigSolardemoHelpers::gp($self->{liveopts}, 'auth');
+  # A refusal of an unauthenticated request is not an expired token, and
+  # retrying would transmit the credential that auth off withholds.
+  return $inner->($ctx, $url, $fetchdef) if !$self->_authon();
 
   my $max = $self->{exchange}{retries};
   my $attempt = 0;
@@ -498,23 +504,38 @@ sub _reauth {
   my $headers = $fetchdef->{headers};
   return unless Voxgig::Struct::ismap($headers);
 
-  # Suppressed auth means NO header, the same answer prepare_auth gives
-  # (utility/prepare_auth.pm). Reached defensively on the exchange path -
-  # _with_refresh does not retry at all when auth is suppressed - but this
-  # is the function that writes the credential, so it is where the rule
-  # has to hold.
-  if (!defined VoxgigSolardemoHelpers::gp($self->{liveopts}, 'auth')) {
+  # Suppressed auth means NO header, the same answer prepare_auth gives.
+  if (!$self->_authon()) {
     delete $headers->{'authorization'};
     return;
   }
+
+  # The header prepare_auth wrote: auth.name, lower-cased.
+  my $name = VoxgigSolardemoHelpers::gpath($self->{liveopts}, 'auth.name');
+  $name = (defined $name && !ref $name && '' ne $name) ? lc($name) : 'authorization';
+
+  my $value = ($self->{basic}
+    && VoxgigSolardemoHelpers::is_true(VoxgigSolardemoHelpers::gpath($self->{liveopts}, 'auth.basic')))
+    ? $self->_pair($token) : "$token";
 
   my $prefix = VoxgigSolardemoHelpers::gpath($self->{liveopts}, 'auth.prefix');
   $prefix = '' unless defined $prefix && !ref $prefix;
 
   # Empty prefix (raw apiKey credential) must not add a leading space.
-  $headers->{'authorization'} = ('' eq $prefix) ? "$token" : "$prefix $token";
+  $headers->{$name} = ('' eq $prefix) ? $value : "$prefix $value";
 
   return;
+}
+
+
+# Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+sub _pair {
+  my ($self, $token) = @_;
+  my $secret = VoxgigSolardemoHelpers::gp($self->{liveopts}, 'secret');
+  $secret = '' unless defined $secret && !ref $secret;
+  my $pair = MIME::Base64::encode_base64("$token:$secret", '');
+  $self->_register($pair);
+  return $pair;
 }
 
 
@@ -597,13 +618,27 @@ sub _buy_once {
   # must arrive as that literal value, not as malformed JSON.
   my $body = Voxgig::Struct::jsonify({ $x->{request} => $self->{refresh} });
 
+  my $fetchdef = {
+    'method' => $x->{method},
+    'headers' => { 'content-type' => 'application/json' },
+    'body' => $body,
+    # Never followed by the client: a redirect would carry the refresh token on.
+    'redirect' => 'manual',
+  };
+
   my ($res, $err);
   my $ok = eval {
-    ($res, $err) = $fetch->($url, {
-      'method' => $x->{method},
-      'headers' => { 'content-type' => 'application/json' },
-      'body' => $body,
-    });
+    ($res, $err) = $fetch->($url, $fetchdef);
+
+    # By option alone, and only while the exchange stays on its own origin.
+    my $at = $url;
+    for (my $hops = 0;
+      !defined $err && 'same-origin' eq $x->{redirect} && $hops < $REDIRECT_MAX; $hops++) {
+      my $next = _moved($url, $at, $res);
+      last unless defined $next;
+      $at = $next;
+      ($res, $err) = $fetch->($at, $fetchdef);
+    }
     1;
   };
 
@@ -675,6 +710,28 @@ sub _provider {
 
   return (undef, "secrets: provider $i: expected a map, got "
     . (ref($p) || (defined $p ? 'a scalar' : 'undef')));
+}
+
+
+# Where a method-keeping redirect points, when that is on the exchange's
+# own origin. Any other redirect would drop the body or leave the origin.
+sub _moved {
+  my ($url, $at, $res) = @_;
+  return undef unless Voxgig::Struct::ismap($res);
+  my $status = VoxgigSolardemoHelpers::to_int($res->{status});
+  return undef unless 307 == $status || 308 == $status;
+  my $location = Voxgig::Struct::ismap($res->{headers}) ? $res->{headers}{location} : undef;
+  return undef unless defined $location && !ref $location && '' ne $location;
+  my $next = VoxgigSolardemoUtilities::resolve_location($at, $location);
+  my $origin = sub {
+    my ($scheme, $host, $port) = lc($_[0] // '')
+      =~ m{\A([a-z][a-z0-9+.-]*)://(?:[^@/?#]*@)?(\[[^\]]*\]|[^:/?#]+)(?::(\d+))?};
+    return undef unless defined $host;
+    return join ':', $scheme, $host, $port // ('https' eq $scheme ? 443 : 80);
+  };
+  my $here = $origin->($url);
+  my $there = $origin->($next);
+  return defined $here && defined $there && $here eq $there ? $next : undef;
 }
 
 

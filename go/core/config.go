@@ -12,7 +12,7 @@ func MakeConfig() map[string]any {
 		"main": map[string]any{
 			"name": "VoxgigSolardemo",
 			"slug": "voxgig-solardemo",
-			"version": "0.1.0",
+			"version": "0.0.1",
 			"target": "go",
 		},
 		"feature": map[string]any{
@@ -131,6 +131,7 @@ func MakeConfig() map[string]any {
 						"active": false,
 						"method": "POST",
 						"path": "auth/token",
+						"redirect": "refuse",
 						"refresh": "",
 						"request": "refresh_token",
 						"response": "access_token",

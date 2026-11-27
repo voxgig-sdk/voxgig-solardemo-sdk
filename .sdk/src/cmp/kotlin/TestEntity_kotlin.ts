@@ -1,4 +1,4 @@
-import { flowSteps, opReachable, invalidRequest } from '@voxgig/sdkgen'
+import { flowSteps, opReachable, invalidRequest, flowLoadRoute, flowLoadReadsRecord, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -18,8 +18,11 @@ import {
   each,
   buildIdNames,
   getMatchEntries,
-  isAuthActive, envName, envToken,
+  isAuthActive, entityRecordIdField,
   liveFlowNeeds, liveStrict, liveStrictNote,
+  liveGates, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveRouteExamples, liveStepExamples,
+  liveEntity, liveIdentity, liveRepeatsId, liveLoadComparesId, liveUnrouted,
 } from '@voxgig/sdkgen'
 
 
@@ -47,9 +50,15 @@ type OpGen = (ctx: GenCtx, step: ModelEntityFlowStep, index: number) => void
 // The live prologue of a flow built from offline fixtures: blocked without
 // the ids it binds, a create-less load reading the first listed record, and
 // a lenient run observing its checks rather than failing on them.
-function liveFlowGate(entity: any, needs: any, entidEnv: string, accessor: string,
+function liveFlowGate(entity: any, needs: any, identity: any, entidEnv: string, accessor: string,
   strict: boolean, hasSteps: boolean): string {
   let out = ''
+  for (const [k, ex] of needs.examples || []) {
+    out += `    if (setup.live && (setup.syntheticOnly || setup.idmap?.get(${JSON.stringify(k)}) == null)) {
+      setup.idmap?.put(${JSON.stringify(k)}, ${kotlinIdLit(ex)})
+    }
+`
+  }
   if (0 < needs.keys.length) {
     out += `    if (setup.live) {
       for (liveKey in arrayOf<String>(${needs.keys.map((k: string) => JSON.stringify(k)).join(', ')})) {
@@ -70,12 +79,30 @@ function liveFlowGate(entity: any, needs: any, entidEnv: string, accessor: strin
     return out
   }
   out += '    val client = setup.client\n'
-  if (null != needs.discover) {
-    const match = Object.entries(needs.discover)
-      .map(([k, v]: any) => `${JSON.stringify(k)} to setup.idmap?.get(${JSON.stringify(v)})`).join(', ')
+  if (null != needs.record) {
+    const id = `setup.idmap?.get(${JSON.stringify(needs.record)})`
     out += `    if (setup.live) {
-      RunnerSupport.liveExisting(setup.data!!, LIVE_STRICT, ${JSON.stringify(entity.name)}) {
-        client.${accessor}(null).list(linkedMapOf<String, Any?>(${match}), null)
+      RunnerSupport.liveExisting(setup.data!!, LIVE_STRICT, ${JSON.stringify(entity.name)},
+        ${JSON.stringify(identity.field)}, ${id}) {
+        listOf(linkedMapOf<String, Any?>("id" to ${id}))
+      }
+    }
+`
+  }
+  if (null != needs.discover) {
+    const match = 'linkedMapOf<String, Any?>(' + Object.entries(needs.discover)
+      .map(([k, v]: any) => `${JSON.stringify(k)} to setup.idmap?.get(${JSON.stringify(v)})`)
+      .concat(liveRouteExamples(entity, 'list', Object.keys(needs.discover))
+        .map(([k, ex]) => `${JSON.stringify(k)} to ${kotlinLit(ex)}`)).join(', ') + ')'
+    const omit = needs.unrouted || []
+    const given = `if (setup.syntheticOnly) null else setup.idmap?.get(${JSON.stringify(identity.key)})`
+    out += `    if (setup.live) {
+      val liveId: Any? = ${undefined === identity.ex ? given : `(${given}) ?: ${kotlinIdLit(identity.ex)}`}
+${0 === omit.length ? '' : `      val liveMatch = ${match}
+${liveOmit(omit, 'liveMatch', '      ')}`}      RunnerSupport.livePace()
+      RunnerSupport.liveExisting(setup.data!!, LIVE_STRICT, ${JSON.stringify(entity.name)},
+        ${JSON.stringify(identity.field)}, liveId) {
+        client.${accessor}(null).list(${0 === omit.length ? match : 'liveMatch'}, null)
       }
     }
 `
@@ -92,7 +119,7 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
   const kotlinpackage: string = props.kotlinpackage
 
   const basicflow: ModelEntityFlow | undefined =
@@ -101,28 +128,33 @@ const TestEntity = cmp(function TestEntity(props: any) {
     return
   }
 
-  const PROJUPPER = envName(model)
-  const ENTUPPER = envToken(entity.name)
-  const entidEnvVar = `${PROJUPPER}_TEST_${ENTUPPER}_ENTID`
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJUPPER = ENVVAR.prefix
+  const entidEnvVar = ENVVAR.entid[entity.name]
 
   const SDK = model.const.Name + 'SDK'
   const accessor = kotlinVarName(entity.name)
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
+  const svars = fact(model.main[KIT], 'server')
+  const serverEnvEntry = svars.map((v: any) =>
+    `      envm[${kotlinLit(ENVVAR.server[v.name])}] = ${kotlinLit(v.dflt)}\n`).join('')
+  const serverLiveField = 0 === svars.length ? '' :
+    '        liveOpts["server"] = linkedMapOf<String, Any?>(' + svars.map((v: any) =>
+      kotlinLit(v.name) + ' to env[' + kotlinLit(ENVVAR.server[v.name]) + ']').join(', ') + ')\n'
 
   const idnames = buildIdNames(entity, basicflow)
 
   const allSteps = Object.values(flowSteps(basicflow)) as any[]
-  const updateStep = allSteps.find((s: any) => s.o === 'update')
-  const updateData = updateStep?.d
-    ? Object.entries(updateStep.d).filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
-    : []
+  const updateData = Object.entries(Object.assign({}, ...allSteps
+    .filter((s: any) => 'update' === s.o || 'patch' === s.o).map((s: any) => s.d || {})))
+    .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
   const aliases = updateData.map(([k, v]: any) => [k, v])
 
   const genCtx: GenCtx = { model, entity, kotlinpackage, flow: basicflow, PROJUPPER, accessor }
 
   const strict = liveStrict(model, target.name)
-  const needs = liveFlowNeeds(entity, basicflow)
 
   const stepOps = Array.from(new Set(
     (allSteps as any[]).map((s: any) => s.o).filter(Boolean)))
@@ -177,33 +209,63 @@ ${liveStrictNote(strict, '//', '  ')}
         if (reason == null || "" == reason) "skipped via sdk-test-control.json" else reason,
       )
     }
-${liveFlowGate(entity, needs, entidEnvVar, accessor, strict, allSteps.length > 0)}`)
+`)
 
-    const flowHasCreate = allSteps.some((s: any) => s.o === 'create')
-    if (!flowHasCreate) {
-      const preambleRef = entity.name + '_ref01'
-      const preambleVar = kvar(preambleRef)
-      Content(`    // Bootstrap entity data from existing test data (no create step in flow).
+    const flowBody = (flow: any) => {
+      const steps = flowSteps(flow) as any[]
+      Content(liveFlowGate(entity, liveFlowNeeds(entity, flow), liveIdentity(entity, flow), entidEnvVar,
+        accessor, strict, steps.length > 0))
+
+      const flowHasCreate = steps.some((s: any) => s.o === 'create')
+      if (!flowHasCreate) {
+        const preambleRef = entity.name + '_ref01'
+        const preambleVar = kvar(preambleRef)
+        Content(`    // Bootstrap entity data from existing test data (no create step in flow).
     val ${preambleVar}DataRaw = Struct.items(Helpers.toMapAny(
         Struct.getpath(setup.data, "existing.${entity.name}")))
     val ${preambleVar}Data: MutableMap<String, Any?> = if (${preambleVar}DataRaw.isEmpty())
         linkedMapOf() else (Helpers.toMapAny(${preambleVar}DataRaw[0][1]) ?: linkedMapOf())
 
 `)
-    }
-
-    each(flowSteps(basicflow), (step: any, index: any) => {
-      const opgen: OpGen = GENERATE_OP[step.o]
-      if (opgen) {
-        opgen(genCtx, step, index)
-        Content('\n')
       }
-    })
 
-    Content(`${strict || 0 === allSteps.length ? '' : `    } catch (err: Throwable) {
+      each(steps, (step: any, index: any) => {
+        const opgen: OpGen = GENERATE_OP[step.o]
+        if (opgen) {
+          Content(LIVE_PACE)
+          opgen({ ...genCtx, flow }, step, index)
+          Content('\n')
+        }
+      })
+
+      Content(strict || 0 === steps.length ? '' : `    } catch (err: Throwable) {
       RunnerSupport.liveObserve(err, setup.live, LIVE_STRICT)
     }
-`}  }
+`)
+    }
+
+    for (const { getOnly, plan, runs } of liveGates(entity, basicflow)) {
+      Content(`    if (setup.live${getOnly ? ` && "TRUE" == System.getenv(${kotlinLit(LIVE_GETONLY_ENV)})` : ''}) {
+${liveExcludedLines(plan).map((line) => '      println(' + kotlinLit(line) + ')\n').join('')}`)
+      if (!runs) {
+        Content(`      Assumptions.assumeTrue(false, ${kotlinLit(liveExcludedSummary(plan))})
+      return
+    }
+
+`)
+      }
+      else {
+        flowBody(plan.flow)
+        Content(`      return
+    }
+
+`)
+      }
+    }
+
+    flowBody(basicflow)
+
+    Content(`  }
 
 `)
 
@@ -257,12 +319,12 @@ ${liveFlowGate(entity, needs, entidEnvVar, accessor, strict, allSteps.length > 0
       val entityData: MutableMap<String, Any?>
       try {
         val entityDataSource = Files.readString(Paths.get(
-            "..", ".sdk", "test", "entity", "${entity.name}", "${entity.Name}TestData.json"))
+            "${ctx$.stdrep.SDKREL}", ".sdk", "test", "entity", "${entity.name}", "${entity.Name}TestData.json"))
         entityData = Helpers.toMapAny(Json.parse(entityDataSource)) ?: linkedMapOf()
       } catch (e: Exception) {
         throw AssertionError("failed to read ${entity.name} test data: " + e.message, e)
       }
-
+${fixtureIdentity(entity)}
       val options = linkedMapOf<String, Any?>()
       options["entity"] = entityData["existing"]
 
@@ -289,9 +351,9 @@ ${liveFlowGate(entity, needs, entidEnvVar, accessor, strict, allSteps.length > 0
 
       val envm = linkedMapOf<String, Any?>()
       envm["${entidEnvVar}"] = idmap
-      envm["${PROJUPPER}_TEST_LIVE"] = "FALSE"
+      envm["${ENVVAR.live}"] = "FALSE"
       envm["${PROJUPPER}_TEST_EXPLAIN"] = "FALSE"
-${authActive ? `      envm["${PROJUPPER}_APIKEY"] = "NONE"\n` : ''}      val env = RunnerSupport.envOverride(envm)
+${authActive ? `      envm["${ENVVAR.apikey}"] = ""\n` : ''}${authSecret ? `      envm["${ENVVAR.secret}"] = ""\n` : ''}${serverEnvEntry}      val env = RunnerSupport.envOverride(envm)
 
       var idmapResolved = Helpers.toMapAny(env["${entidEnvVar}"])
       if (idmapResolved == null) {
@@ -308,10 +370,13 @@ ${authActive ? `      envm["${PROJUPPER}_APIKEY"] = "NONE"\n` : ''}      val env
     }
 
     Content(`
-      val live = "TRUE" == env["${PROJUPPER}_TEST_LIVE"]
+      val live = "TRUE" == env["${ENVVAR.live}"]
       if (live) {
-        val liveOpts = linkedMapOf<String, Any?>()
-${authActive ? `        liveOpts["apikey"] = env["${PROJUPPER}_APIKEY"]\n` : ''}        val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra))
+        // sdk-test-control.json's test.client.options seeds the live
+        // client; the generated fields below overwrite anything they name.
+        val liveOpts = RunnerSupport.liveClientOptions()
+${authActive ? `        liveOpts["apikey"] = env["${ENVVAR.apikey}"]\n` : ''}${authSecret ? `        liveOpts["secret"] = env["${ENVVAR.secret}"]\n` : ''}${serverLiveField}        // An empty map, not null: merge answers null when its last entry is null.
+        val mergedOpts = Struct.merge(Struct.jt(liveOpts, extra ?: linkedMapOf<String, Any?>()))
         client = ${SDK}(Helpers.toMapAny(mergedOpts))
       }
 
@@ -341,7 +406,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasDatvar = priorSteps.some((s: any) => {
     if ('create' === s.o) {
@@ -376,7 +441,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
     assertNotNull(${datavar}, "expected create result to be a map")
 `)
   if (null != ctx.entity.id) {
-    Content(`    assertNotNull(${datavar}["id"], "expected created entity to have an id")
+    Content(`    assertNotNull(${datavar}[${rid(ctx.entity)}], "expected created entity to have an id")
 `)
   }
 }
@@ -391,7 +456,7 @@ const generateList: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`    // LIST
 `)
@@ -407,6 +472,7 @@ const generateList: OpGen = (ctx, step, index) => {
     Content(`    ${matchvar}["${key}"] = setup.idmap!!["${val}"]
 `)
   }
+  Content(liveFill(entity, step, matchvar, flow))
 
   const allSteps = Object.values(flowSteps(flow)) as any[]
   const listvarUsed = !!step.v?.some((v: any) => {
@@ -437,7 +503,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
     val foundItem = Struct.select(
         RunnerSupport.entityListToData(${listvar}),
-        Struct.jm("id", ${refDataVar}["id"]))
+        Struct.jm(${rid(entity)}, ${refDataVar}[${rid(entity)}]))
     assertFalse(Struct.isempty(foundItem), "expected to find created entity in list")
 `)
       } else if ('ItemNotExists' === validator.apply && hasRefData) {
@@ -445,7 +511,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
     val notFoundItem = Struct.select(
         RunnerSupport.entityListToData(${listvar}),
-        Struct.jm("id", ${refDataVar}["id"]))
+        Struct.jm(${rid(entity)}, ${refDataVar}[${rid(entity)}]))
     assertTrue(Struct.isempty(notFoundItem), "expected removed entity to not be in list")
 `)
       }
@@ -465,11 +531,11 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasEntIdU = null != entity.id
 
-  Content(`    // UPDATE
+  Content(`    // ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`    val ${entvar} = client.${accessor}(null)
@@ -478,7 +544,7 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   Content(`    val ${datavar}Up = linkedMapOf<String, Any?>()
 `)
   if (hasEntIdU) {
-    Content(`    ${datavar}Up["id"] = ${srcdatavar}["id"]
+    Content(`    ${datavar}Up["id"] = ${srcdatavar}[${rid(entity)}]
 `)
   }
 
@@ -505,14 +571,13 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   }
 
   Content(`
-    val ${resdatavar}Result = ${entvar}.update(${datavar}Up, null)
+    val ${resdatavar}Result = ${entvar}.${step.o}(${datavar}Up, null)
     val ${resdatavar} = Helpers.toMapAny(if (${resdatavar}Result is SdkEntity) ${resdatavar}Result.data() else ${resdatavar}Result) ?: linkedMapOf()
-    assertNotNull(${resdatavar}, "expected update result to be a map")
+    assertNotNull(${resdatavar}, "expected ${step.o} result to be a map")
 `)
   if (hasEntIdU) {
-    Content(`    assertEquals(${datavar}Up["id"], ${resdatavar}["id"],
-        "expected update result id to match")
-`)
+    Content(sameId(liveRepeatsId(entity), `${resdatavar}[${rid(entity)}]`, `${datavar}Up["id"]`,
+      'expected ' + step.o + ' result id to match'))
   }
 
   if (step.s) {
@@ -537,7 +602,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const hasEntVar = priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const flowHasCreate = Object.values(flowSteps(flow)).some((s: any) => (s as any).o === 'create')
   const preambleRef = entity.name + '_ref01'
@@ -559,7 +624,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
     Content(`    val ${entvar} = client.${accessor}(null)
 `)
   }
-  if (!hasSrcData && hasEntId) {
+  if (!hasSrcData && (hasEntId || flowLoadReadsRecord(entity, step))) {
     Content(`    val ${srcdatavar}Raw = Struct.items(Helpers.toMapAny(
         Struct.getpath(setup.data, "existing.${entity.name}")))
     val ${srcdatavar}: MutableMap<String, Any?> = if (${srcdatavar}Raw.isEmpty())
@@ -569,15 +634,14 @@ const generateLoad: OpGen = (ctx, step, index) => {
   Content(`    val ${matchvar} = linkedMapOf<String, Any?>()
 `)
   if (hasEntId) {
-    Content(`    ${matchvar}["id"] = ${srcdatavar}["id"]
-${parentMatch(step, matchvar)}    val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
+    Content(`    ${matchvar}["id"] = ${srcdatavar}[${rid(entity)}]
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}    val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
     val ${datavar}LoadResult = Helpers.toMapAny(if (${datavar}Loaded is SdkEntity) ${datavar}Loaded.data() else ${datavar}Loaded) ?: linkedMapOf()
     assertNotNull(${datavar}LoadResult, "expected load result to be a map")
-    assertEquals(${srcdatavar}["id"], ${datavar}LoadResult["id"],
-        "expected load result id to match")
-`)
+${sameId(liveLoadComparesId(entity, flow), `${datavar}LoadResult[${rid(entity)}]`, `${srcdatavar}[${rid(entity)}]`,
+  'expected load result id to match')}`)
   } else {
-    Content(`${parentMatch(step, matchvar)}    val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
+    Content(`${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}    val ${datavar}Loaded = ${entvar}.load(${matchvar}, null)
     assertNotNull(${datavar}Loaded, "expected load result to be non-null")
 `)
   }
@@ -593,7 +657,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`    // REMOVE
 `)
@@ -602,15 +666,86 @@ const generateRemove: OpGen = (ctx, step, index) => {
 `)
   }
   Content(`    val ${matchvar} = linkedMapOf<String, Any?>()
-    ${matchvar}["id"] = ${srcdatavar}["id"]
+    ${matchvar}["id"] = ${srcdatavar}[${rid(entity)}]
 ${parentMatch(step, matchvar)}    ${entvar}.remove(${matchvar}, null)
 `)
+}
+
+
+// The record field the entity's identity is read from, as a Kotlin string.
+function rid(entity: any): string {
+  return JSON.stringify(entityRecordIdField(entity))
+}
+
+
+const LIVE_PACE = `    if (setup.live) {
+      RunnerSupport.livePace()
+    }
+`
+
+
+// A result's identity matches the one asked for, live only as the live
+// entity harness compares it.
+function sameId(compares: boolean, result: string, expected: string, message: string): string {
+  const check = `assertTrue(RunnerSupport.liveSameId(${result}, ${expected}), ${JSON.stringify(message)})`
+  return !compares ? `    if (!setup.live) {
+      ${check}
+    }
+` : `    ${check}
+`
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  const field = entityRecordIdField(entity)
+  return 'id' === field ? '' : `
+      ((entityData["existing"] as? Map<*, *>)?.get(${JSON.stringify(entity.name)}) as? Map<*, *>)?.values?.forEach { fixtureRec ->
+        @Suppress("UNCHECKED_CAST")
+        val fixtureRecMap = fixtureRec as? MutableMap<String, Any?>
+        if (fixtureRecMap != null && fixtureRecMap["id"] != null) {
+          fixtureRecMap[${JSON.stringify(field)}] = fixtureRecMap["id"]
+        }
+      }
+`
 }
 
 
 // A child's route names its parents, and an entity no earlier step has
 // filled knows none of them, so the call itself gives each parent id. A live
 // ENTID may key a parent by its field name, the fixture by its own name.
+function kotlinLit(value: any): string {
+  if ('string' === typeof value) return JSON.stringify(value).replace(/\$/g, '\\$')
+  return Number.isInteger(value) && Math.abs(value) > 2147483647 ? value + 'L' : String(value)
+}
+
+
+// A whole number as Json.parse decodes one, so an example equals a record's id.
+function kotlinIdLit(value: any): string {
+  return Number.isSafeInteger(value) ? value + 'L' : kotlinLit(value)
+}
+
+
+// A live step sends each example its route requires and the step leaves unbound.
+function liveFill(entity: any, step: any, matchvar: string, flow: any): string {
+  const fills = liveStepExamples(entity, step, flow)
+  const omit = liveUnrouted(entity, step, flow)
+  return 0 === fills.length + omit.length ? '' : `    if (setup.live) {
+${fills.map(([k, ex]) => `      ${matchvar}[${JSON.stringify(k)}] = ${kotlinLit(ex)}\n`).join('')}${liveOmit(omit, matchvar, '      ')}    }
+`
+}
+
+
+// A binding the live route does not take is sent only as *_ENTID gives it.
+function liveOmit(omit: [string, string][], matchvar: string, indent: string): string {
+  return omit.map(([name, key]) => `${indent}if (setup.syntheticOnly || setup.idmap?.get(${JSON.stringify(key)}) == null) {
+${indent}  ${matchvar}.remove(${JSON.stringify(name)})
+${indent}}
+`).join('')
+}
+
+
 function parentMatch(step: any, matchvar: string): string {
   return Object.entries(step.m || {})
     .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
@@ -619,10 +754,38 @@ function parentMatch(step: any, matchvar: string): string {
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding offline.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string): string {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar)
+  }
+  if (route.offline) {
+    const own = route.args.filter((arg) => null != arg.field)
+    return parentMatch(step, matchvar) + (0 === own.length ? '' : `    if (!setup.live) {
+${own.map((arg, i) => `      val own${i} = ${srcdatavar}["${arg.field}"]
+      if (own${i} is String || own${i} is Number || own${i} is Boolean) {
+        ${matchvar}["${arg.name}"] = own${i}
+      }
+`).join('')}    }
+`)
+  }
+  return route.args.map((arg) => {
+    const bound = arg.idmap.map((key) => `setup.idmap?.get("${key}")`).join(' ?: ')
+    return `    ${matchvar}["${arg.name}"] = ${null == arg.field ? bound :
+      `${srcdatavar}["${arg.field}"].let { if (it is String || it is Number || it is Boolean) it else ${bound} }`}
+`
+  }).join('')
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }

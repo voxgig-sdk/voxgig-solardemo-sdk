@@ -69,12 +69,9 @@ export interface PlanetListMatch {
 
 export interface PlanetCreateData {
   diameter: number
-  forbidReason?: string
-  forbidState?: string
   id: string
   kind: string
   name: string
-  terraformState?: string
 
   // Selects a custom action instead of the plain create:
   //   'forbid' | 'terraform'
@@ -86,11 +83,8 @@ export interface PlanetCreateData {
 export interface PlanetUpdateData {
   id: string
   diameter?: number
-  forbidReason?: string
-  forbidState?: string
   kind?: string
   name?: string
-  terraformState?: string
 }
 
 export interface PlanetRemoveMatch {

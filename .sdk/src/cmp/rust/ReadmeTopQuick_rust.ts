@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, matchExampleItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -20,7 +20,7 @@ function rustLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'Value::Bool(true)'
   if ('ARRAY' === k) return 'Value::empty_list()'
   if ('OBJECT' === k) return 'Value::empty_map()'
-  return `Value::str("${placeholder}")`
+  return `Value::str(${JSON.stringify(placeholder)})`
 }
 
 
@@ -33,12 +33,20 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `${model.const.Name}SDK::new(jo(vec![\n    ("apikey", Value::str(std::env::var("${envName(model)}_APIKEY").unwrap_or_default())),\n]))`
-    : `${model.const.Name}SDK::new(Value::Noval)`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`("apikey", Value::str(std::env::var("${envName(model)}_APIKEY").unwrap_or_default())),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`("secret", Value::str(std::env::var("${envName(model)}_SECRET").unwrap_or_default())),`] : []),
+    ...(0 === svars.length ? [] : [`("server", jo(vec![` +
+      svars.map((v: any) => `("${v.name}", Value::str("<${v.name}>"))`).join(', ') + `])),`]),
+  ]
+  const ctor = (0 === ctorFields.length
+    ? `${model.const.Name}SDK::new(Value::Noval)`
+    : `${model.const.Name}SDK::new(jo(vec![${ctorFields.map((f: string) => '\n    ' + f).join('')}\n]))`) +
+    '.expect("valid client options")'
 
   Content(`\`\`\`rust
-use ${rustcrate}::{jo, ${model.const.Name}Entity, ${model.const.Name}SDK, Entity, Value};
+use ${rustcrate}::{jo, ${model.const.Name}EntityBase, ${model.const.Name}SDK, Entity, Value};
 
 let client = ${ctor};
 
@@ -48,7 +56,7 @@ let client = ${ctor};
     const eName = nom(exampleEntity, 'Name')
     const eVar = rustVarName(exampleEntity.name)
     const method = rustMethodName(exampleEntity.name)
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
@@ -66,13 +74,12 @@ for ${eVar} in &${eVar}s {
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `jo(vec![${loadItems.map((it: any) =>
-          `("${it.name}", ${rustLit(it.type,
+          `(${JSON.stringify(it.name)}, ${rustLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)})`).join(', ')}])`
         : 'Value::Noval'
       Content(`

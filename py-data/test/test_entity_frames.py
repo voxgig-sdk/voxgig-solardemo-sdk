@@ -74,3 +74,26 @@ class TestFramesAgainstTestMode:
         ad = self._client()
         df = getattr(ad, TEST_ACCESSOR)(limit=1, quiet=True)
         assert len(df) <= 1
+
+
+# data() switches the SDK's paging feature on when the SDK has one, so that an
+# accessor drains every page, and leaves one the caller sets alone.
+PAGING = True
+
+
+class TestPagingOption:
+
+    def _options(self, monkeypatch, **options):
+        import voxgigsolardemo_data
+        seen = []
+        monkeypatch.setattr(voxgigsolardemo_data, "VoxgigSolardemoSDK", lambda opts: seen.append(opts) or object())
+        voxgigsolardemo_data.data(**options)
+        return seen[0]
+
+    def test_paging_is_on_exactly_when_the_sdk_has_it(self, monkeypatch):
+        feature = self._options(monkeypatch).get("feature") or {}
+        assert feature.get("paging") == ({"active": True} if PAGING else None)
+
+    def test_a_paging_option_given_is_kept(self, monkeypatch):
+        opts = self._options(monkeypatch, feature={"paging": {"active": False}})
+        assert opts["feature"]["paging"] == {"active": False}

@@ -61,21 +61,15 @@
 
 ---@class PlanetCreateData
 ---@field diameter number
----@field forbidReason? string
----@field forbidState? string
 ---@field id string
 ---@field kind string
 ---@field name string
----@field terraformState? string
 
 ---@class PlanetUpdateData
 ---@field id string
 ---@field diameter? number
----@field forbidReason? string
----@field forbidState? string
 ---@field kind? string
 ---@field name? string
----@field terraformState? string
 
 ---@class PlanetRemoveMatch
 ---@field id string

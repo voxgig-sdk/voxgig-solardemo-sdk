@@ -4,9 +4,9 @@ defmodule VoxgigSolardemo.MixProject do
   def project do
     [
       app: :voxgig_solardemo,
-      version: "0.1.0",
+      version: "0.0.1",
       elixir: "~> 1.14",
-      description: "Unofficial generated elixir SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
+      description: "Unofficial generated Elixir SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),

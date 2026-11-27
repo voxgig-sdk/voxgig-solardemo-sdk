@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, entityIdField, opRequestShape , serverVariables, javaMapOf } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, entityIdField, opRequestShape , javaMapOf, matchExampleItems, javaMapItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -25,7 +25,7 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   // - the SDK throws rather than request a URL with a literal
   // {account_id} in it - so a quickstart that omits them is a quickstart
   // that fails on its first line.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
   const javaServerLines = 0 === svars.length ? '' :
     'Map<String, Object> server = new java.util.LinkedHashMap<>();\n' +
     svars.map((v: any) =>
@@ -34,7 +34,7 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
 
 
   const shown = null == exampleEntity ? [] :
-    ['list', 'load'].filter((op: string) => Object.keys(exampleEntity.op || {}).includes(op))
+    ['list', 'load'].filter((op: string) => entityOps(exampleEntity).includes(op))
   const imports = [
     ...(shown.includes('list') ? ['java.util.List'] : []),
     ...(authActive || '' !== javaServerLines || shown.includes('load') ? ['java.util.Map'] : []),
@@ -50,7 +50,7 @@ ${imports.map((i: string) => 'import ' + i + ';').join('\n')}
   if (authActive) {
     Content(`Map<String, Object> options = new java.util.LinkedHashMap<>();
 options.put("apikey", System.getenv("${envName(model)}_APIKEY"));
-${javaServerLines}${SDK} client = new ${SDK}(options);
+${fact(model.main[KIT], 'auth').secret ? `options.put("secret", System.getenv("${envName(model)}_SECRET"));\n` : ''}${javaServerLines}${SDK} client = new ${SDK}(options);
 
 `)
   }
@@ -66,7 +66,7 @@ ${javaServerLines}${SDK} client = new ${SDK}(options);
     const eVar = javaVarName(exampleEntity.name)
     const accessor = javaVarName(exampleEntity.name)
     const eNameLower = nom(exampleEntity, 'Name').toLowerCase()
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     if (opnames.includes('list')) {
@@ -79,13 +79,12 @@ for (Object ${eVar}Item : ${eVar}List) {
     }
 
     if (opnames.includes('load')) {
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = javaMapItems(matchExampleItems(exampleEntity, 'load', idF))
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? javaMapOf(loadItems.map((it: any) =>
-          `"${it.name}", ${javaLit(it.type,
+          `${JSON.stringify(it.name)}, ${javaLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`))
         : 'null'
       Content(`

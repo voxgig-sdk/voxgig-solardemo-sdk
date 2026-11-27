@@ -22,7 +22,7 @@ var NewTestFeatureFunc func() Feature
 
 var NewTimeoutFeatureFunc func() Feature
 
-var NewMoonEntityFunc func(client *VoxgigSolardemoSDK, entopts map[string]any) VoxgigSolardemoEntity
+var NewMoonEntityFunc func(client *VoxgigSolardemoSDK, entopts map[string]any) VoxgigSolardemoEntityBase
 
-var NewPlanetEntityFunc func(client *VoxgigSolardemoSDK, entopts map[string]any) VoxgigSolardemoEntity
+var NewPlanetEntityFunc func(client *VoxgigSolardemoSDK, entopts map[string]any) VoxgigSolardemoEntityBase
 

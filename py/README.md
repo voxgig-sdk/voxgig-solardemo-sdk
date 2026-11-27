@@ -25,8 +25,7 @@ pip install -e .
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -95,9 +94,9 @@ and `err` holds a transport error, so read both defensively:
 
 ```python
 result = client.direct({
-    "path": "/api/resource/{id}",
+    "path": "/api/planet/{planet_id}/moon",
     "method": "GET",
-    "params": {"id": "example_id"},
+    "params": {"planet_id": "example_id"},
 })
 
 if not result["ok"]:
@@ -113,9 +112,9 @@ For endpoints not covered by entity methods:
 
 ```python
 result = client.direct({
-    "path": "/api/resource/{id}",
+    "path": "/api/planet/{planet_id}/moon",
     "method": "GET",
-    "params": {"id": "example"},
+    "params": {"planet_id": "example"},
 })
 
 if result["ok"]:
@@ -133,9 +132,9 @@ else:
 ```python
 # prepare() returns the fetch definition and raises on error.
 fetchdef = client.prepare({
-    "path": "/api/resource/{id}",
-    "method": "DELETE",
-    "params": {"id": "example"},
+    "path": "/api/planet/{planet_id}/moon",
+    "method": "GET",
+    "params": {"planet_id": "example"},
 })
 
 print(fetchdef["url"])
@@ -184,6 +183,10 @@ Create a `.env.local` file at the project root:
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
+
 Then run:
 
 ```bash
@@ -208,9 +211,10 @@ Creates a new SDK client.
 | `base` | `str` | Base URL of the API server. |
 | `prefix` | `str` | URL path prefix prepended to all requests. |
 | `suffix` | `str` | URL path suffix appended to all requests. |
+| `headers` | `dict` | Headers sent with every request. |
 | `feature` | `dict` | Feature activation flags. |
-| `extend` | `list` | Additional Feature instances to load. |
-| `system` | `dict` | System overrides (e.g. custom `fetch` function). |
+| `extend` | `list` | Additional feature instances to load. |
+| `system` | `dict` | System overrides, such as a custom fetch function. |
 
 ### test
 
@@ -279,7 +283,7 @@ On error, `ok` is `False` and `err` contains the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -295,9 +299,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -312,11 +316,11 @@ Create an instance: `moon = client.Moon()`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list()` | List entities, optionally matching the given criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -361,11 +365,11 @@ Create an instance: `planet = client.Planet()`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list()` | List entities, optionally matching the given criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -404,12 +408,11 @@ planet = client.Planet().create({
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -522,7 +525,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -573,16 +576,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -613,8 +612,10 @@ were added, so later features can override earlier ones.
 
 The Python SDK uses plain dicts throughout rather than typed
 objects. This mirrors the dynamic nature of the API and keeps the
-SDK flexible — no code generation is needed when the API schema
-changes.
+SDK flexible: code that works with the dicts needs no regeneration
+when the API schema changes. The typed models in
+`voxgigsolardemo_sdk/voxgigsolardemo_types.py` follow the schema only when the
+SDK is regenerated.
 
 Use `helpers.to_map()` to safely validate that a value is a dict.
 
@@ -622,19 +623,21 @@ Use `helpers.to_map()` to safely validate that a value is a dict.
 
 ```
 py/
-├── voxgigsolardemo_sdk.py         -- Main SDK module
-├── config.py                    -- Configuration
-├── schema.py                    -- Generated option + entity specs
-├── features.py                  -- Feature factory
-├── core/                        -- Core types and context
-├── entity/                      -- Entity implementations
-├── feature/                     -- Built-in features (Base, Test, Log)
-├── utility/                     -- Utility functions and struct library
-└── test/                        -- Test suites
+├── voxgigsolardemo_sdk/          -- Main SDK package
+│   ├── __init__.py               -- The SDK class
+│   ├── config.py                 -- Configuration
+│   ├── schema.py                 -- Generated option + entity specs
+│   ├── features.py               -- Feature factory
+│   ├── voxgigsolardemo_types.py  -- Typed models (TypedDict)
+│   ├── core/                     -- Core types and context
+│   ├── entity/                   -- Entity implementations
+│   ├── feature/                  -- Feature implementations
+│   └── utility/                  -- Utility functions and struct library
+└── test/                         -- Test suites
 ```
 
-The main module (`voxgigsolardemo_sdk`) exports the SDK class.
-Import entity or utility modules directly only when needed.
+The main module is the package `voxgigsolardemo_sdk`: its `__init__.py` exports the
+SDK class. Import entity or utility modules directly only when needed.
 
 ### Entity state
 
@@ -655,7 +658,8 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
 `direct()` gives full control over the HTTP request. Use it for
 non-standard endpoints, bulk operations, or any path not modelled as

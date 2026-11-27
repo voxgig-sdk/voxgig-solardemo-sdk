@@ -411,9 +411,9 @@ public:
   virtual Value data(const Value& arg = Value::undef()) = 0;
   virtual Value match(const Value& arg = Value::undef()) = 0;
 
-  // `remove` resolves to the entity, marked. The instance KEEPS the data it
-  // held - a caller can still read what was deleted - but it is no longer a
-  // live record.
+  // A remove resolves to the entity, marked deleted. The instance KEEPS the
+  // data it held - a caller can still read what was deleted - but it is no
+  // longer a live record.
   virtual void markDeleted() = 0;
   virtual bool deleted() = 0;
 };
@@ -693,7 +693,6 @@ using SdkEntityPtr = std::shared_ptr<SdkEntity>;
 
 // Every operation resolves to the ENTITY, not the raw data - `list` to a
 // vector of them, one per record. The record is reached through `data()`.
-// See AGENTS.md "Entity operations return ENTITIES".
 //
 // `Value` cannot carry an entity: it is a closed data union, and adding a
 // variant to a general-purpose struct library to hold SDK objects would be
@@ -739,13 +738,12 @@ public:
   Value match(const Value& arg = Value::undef()) override;
 
   // stream runs `action` through the full pipeline and returns the result
-  // items, so the streaming feature's incremental output is reachable from a
-  // generated entity (a normal op call materialises the whole result). This
-  // runtime is synchronous, so the returned vector is a materialised cursor
-  // the caller iterates. `callopts` parameterises the call: inbound yields the
-  // streaming feature's items when active, else the materialised items;
-  // outbound attaches an iterable `body` to the request (reqdata `body$`);
-  // `ctrl` threads pipeline control.
+  // items, so the streaming feature's incremental output, when that feature is
+  // active, is reachable from a generated entity (a normal op call
+  // materialises the whole result). This runtime is synchronous, so the
+  // returned vector is a materialised cursor the caller iterates. `callopts`
+  // parameterises the call: inbound yields the streaming feature's items when
+  // active, else the materialised items; `ctrl` threads pipeline control.
   std::vector<Value> stream(const std::string& action,
                             const Value& args = Value::undef(),
                             const Value& callopts = Value::undef());
@@ -950,8 +948,8 @@ inline SdkClient::SdkClient(const Value& options_) {
 
   // Add features in the resolved order (makeOptions puts an explicit list
   // order first, else defaults to test-first). Ordering matters: the `test`
-  // feature installs the base mock transport and the transport features
-  // (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
+  // feature installs the base mock transport and the features whose model
+  // declares `transport: 'wrap'` wrap whatever is current, so `test`
   // must be added before them to sit at the base of the transport chain.
   Value featureOpts = Helpers::toMapAny(getp(options, "feature"));
   Value featureOrder = Struct::getpath(options, {"__derived__", "featureorder"});
@@ -1054,6 +1052,20 @@ inline Value SdkClient::prepare(const Value& fetchargs_) {
     }
   }
 
+  // A raw request has no point to declare its response type, so it asks for
+  // the JSON it reads: an API that negotiates on Accept otherwise answers in
+  // its own default format. A caller's own accept wins.
+  bool hasAccept = false;
+  for (const auto& item : Struct::items(ctx->spec->headers)) {
+    std::string key = pair_key(item).as_string();
+    for (auto& ch : key) ch = (char)std::tolower((unsigned char)ch);
+    if ("accept" == key) {
+      hasAccept = true;
+      break;
+    }
+  }
+  if (!hasAccept) map_put(ctx->spec->headers, "accept", Value("application/json"));
+
   u->prepareAuth(ctx);
 
   return u->makeFetchDef(ctx);
@@ -1092,8 +1104,8 @@ inline Value SdkClient::direct(const Value& fetchargs_) {
 // a top-level `errors` array, so status alone would report a failed query as
 // ok.
 //
-// NOTE: like direct, this bypasses the feature pipeline — no retry, ratelimit
-// or paging features apply.
+// NOTE: like direct, this bypasses the feature pipeline: no feature hook runs
+// on this path.
 inline Value SdkClient::graphql(const std::string& query, const Value& variables,
                                 const Value& ctrl) {
   if (!opAllowed("graphql")) return opDenied("graphql");
@@ -1127,24 +1139,43 @@ inline Value SdkClient::graphql(const std::string& query, const Value& variables
   return res;
 }
 
+inline std::string lowerOf(std::string s) {
+  for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return s;
+}
+
+// A header's value under its name in any case; empty when it has none.
+inline std::string headerValue(const Value& headers, const std::string& name) {
+  if (!headers.is_map()) return "";
+  for (const auto& kv : *headers.as_map()) {
+    if (lowerOf(kv.first) == name) {
+      return kv.second.is_string() ? kv.second.as_string() : Struct::stringify(kv.second);
+    }
+  }
+  return "";
+}
+
+// A response whose body is bytes: by the model, or by the type it declares.
+// Text is no declared type, text/*, or a structured text format.
+inline bool isBinaryResponse(const Value& point, const std::string& declared) {
+  Value binary = getp(getp(point, "response"), "binary");
+  if (binary.is_bool() && binary.as_bool()) return true;
+  std::string media = lowerOf(declared.substr(0, declared.find(';')));
+  media.erase(0, media.find_first_not_of(" \t"));
+  media.erase(media.find_last_not_of(" \t") + 1);
+  if (media.empty() || 0 == media.compare(0, 5, "text/")) return false;
+  for (const char* part : {"json", "xml", "html", "javascript", "ecmascript", "yaml",
+                           "urlencoded", "graphql"}) {
+    if (std::string::npos != media.find(part)) return false;
+  }
+  return true;
+}
+
 // A body that is not JSON. An HTTP failure keeps its own error, with the
 // response described; otherwise the code tells a wrong content type from
 // malformed JSON.
 inline SdkErrorPtr unreadableBody(CtxPtr ctx, int status, const Value& headers, const Value& text,
                                   const Value& sent, SdkErrorPtr failed) {
-  auto lower = [](std::string s) {
-    for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-  };
-  auto headerValue = [&lower](const Value& h, const std::string& name) -> std::string {
-    if (!h.is_map()) return "";
-    for (const auto& kv : *h.as_map()) {
-      if (lower(kv.first) == name) {
-        return kv.second.is_string() ? kv.second.as_string() : Struct::stringify(kv.second);
-      }
-    }
-    return "";
-  };
   auto clean = [&ctx](const std::string& s) -> std::string {
     if (!ctx->utility || !ctx->utility->clean) return s;
     Value v = ctx->utility->clean(ctx, Value(s));
@@ -1157,7 +1188,8 @@ inline SdkErrorPtr unreadableBody(CtxPtr ctx, int status, const Value& headers, 
     (type.empty() ? std::string("none") : type) + ", user-agent " +
     (agent.empty() ? std::string("transport default") : agent);
 
-  if (!is_nullish(text)) {
+  // Only text is quoted: bytes are a file's.
+  if (!is_nullish(text) && !isBinaryResponse(ctx->point, type)) {
     // Cleaned whole: a secret the bound would split could leave its prefix.
     std::string raw = text.is_string() ? text.as_string() : Struct::stringify(text);
     std::string flat;
@@ -1188,7 +1220,7 @@ inline SdkErrorPtr unreadableBody(CtxPtr ctx, int status, const Value& headers, 
     failed->msg += " (" + detail + ")";
     return failed;
   }
-  if (type.empty() || lower(type).find("json") != std::string::npos) {
+  if (type.empty() || lowerOf(type).find("json") != std::string::npos) {
     return ctx->makeError("response_json_invalid", "response: body is not valid JSON (" + detail + ")");
   }
   return ctx->makeError("response_content_type",
@@ -1313,8 +1345,7 @@ inline EntityBase::EntityBase(const std::string& name, SdkClient* client_, const
 
 inline Value EntityBase::data(const Value& arg) {
   if (!arg.is_undef()) {
-    Value d = Helpers::toMapAny(Struct::clone(arg));
-    data_ = d.is_map() ? d : vmap();
+    data_ = arg.is_null() ? vmap() : Struct::clone(arg);
     utility->featureHook(entctx, "SetData");
   }
   utility->featureHook(entctx, "GetData");
@@ -1398,15 +1429,6 @@ inline std::vector<Value> EntityBase::stream(const std::string& action,
   cs.data = data_;
   cs.reqmatch = args.is_map() ? args : vmap();
   CtxPtr ctx = u->makeContext(cs, entctx);
-
-  // Outbound: attach a caller iterable `body` so the transport can stream a
-  // request payload.
-  Value body = getp(streamOpts, "body");
-  if (!is_nullish(body)) {
-    Value reqdata = ctx->reqdata.is_map() ? ctx->reqdata : vmap();
-    map_put(reqdata, "body$", body);
-    ctx->reqdata = reqdata;
-  }
 
   try {
     u->featureHook(ctx, "PrePoint");

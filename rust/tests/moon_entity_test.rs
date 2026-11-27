@@ -11,7 +11,7 @@ use common::*;
 
 use voxgig_solardemo_sdk::core::helpers::{getp, getpath, ja, jo, now_ms, setp, to_map};
 use voxgig_solardemo_sdk::utility::voxgigstruct as vs;
-use voxgig_solardemo_sdk::{test_sdk, Entity, VoxgigSolardemoEntity, VoxgigSolardemoSDK, Value};
+use voxgig_solardemo_sdk::{test_sdk, Entity, VoxgigSolardemoEntityBase, VoxgigSolardemoSDK, Value};
 
 // main.kit.test.live.strict is true (the default is true): a live
 // request that fails, or a live test missing an input it needs,
@@ -61,6 +61,11 @@ fn moon_entity_basic() {
             return;
         }
     }
+    if setup.live && std::env::var("VOXGIG_GETONLY_GUARD").map(|v| v == "TRUE").unwrap_or(false) {
+        println!("{}", "LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}");
+        println!("{}", "LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}");
+        println!("{}", "LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}");
+        println!("{}", "LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}");
     if setup.live {
         for live_key in ["planet01"] {
             if setup.synthetic_only || getp(&setup.idmap, live_key).is_noval() {
@@ -70,6 +75,78 @@ fn moon_entity_basic() {
         }
     }
     let client = setup.client.clone();
+    if setup.live {
+        let live_id = if setup.synthetic_only { Value::Noval } else { getp(&setup.idmap, "moon01") };
+        live_pace();
+        if !live_existing(&setup.data, LIVE_STRICT, "moon", "id", live_id, || {
+            client
+                .moon(Value::Noval)
+                .list(jo(vec![("planet_id", getp(&setup.idmap, "planet01"))]), Value::Noval)
+                .map(|list| ja(list.iter().map(|e| e.data(None)).collect::<Vec<Value>>()))
+        }) {
+            return;
+        }
+    }
+
+    // Bootstrap entity data from existing test data (no create step in flow).
+    let moon_ref01_data_raw = vs::items(&to_map(&getpath(&["existing", "moon"], &setup.data)));
+    let moon_ref01_data = to_map(&vs::get_elem(
+        &vs::get_elem(&moon_ref01_data_raw, &Value::Num(0.0), Value::Noval),
+        &Value::Num(1.0),
+        Value::Noval,
+    ));
+    if setup.live {
+        live_pace();
+    }
+    // LIST
+    let moon_ref01_ent = client.moon(Value::Noval);
+    let moon_ref01_match = Value::empty_map();
+    setp(&moon_ref01_match, "planet_id", getp(&setup.idmap, "planet01"));
+
+    let moon_ref01_list = moon_ref01_ent
+        .list(moon_ref01_match.clone(), Value::Noval)
+        .expect("list failed");
+    // list resolves to one ENTITY per record; the flow asserts on the
+    // records, so map each through data().
+    let moon_ref01_list = ja(moon_ref01_list.iter().map(|e| e.data(None)).collect::<Vec<Value>>());
+
+    if setup.live {
+        live_pace();
+    }
+    // LOAD
+    let moon_ref01_match_dt0 = jo(vec![("id", getp(&moon_ref01_data, "id"))]);
+    setp(&moon_ref01_match_dt0, "planet_id", match getp(&moon_ref01_data, "planet_id") {
+        v @ (Value::Str(_) | Value::Num(_) | Value::Bool(_)) => v,
+        _ => match getp(&setup.idmap, "planet_id") {
+            v if v.is_nullish() => getp(&setup.idmap, "planet01"),
+            v => v,
+        },
+    });
+    let moon_ref01_data_dt0_loaded = moon_ref01_ent
+        .load(moon_ref01_match_dt0.clone(), Value::Noval)
+        .expect("load failed");
+    let moon_ref01_data_dt0_load_result = to_map(&moon_ref01_data_dt0_loaded.data(None));
+    assert!(
+        matches!(moon_ref01_data_dt0_load_result, Value::Map(_)),
+        "expected load result to be a map"
+    );
+    assert!(live_same_id(&getp(&moon_ref01_data_dt0_load_result, "id"), &getp(&moon_ref01_data, "id")), "expected load result id to match");
+
+        return;
+    }
+
+    if setup.live {
+        for live_key in ["planet01"] {
+            if setup.synthetic_only || getp(&setup.idmap, live_key).is_noval() {
+                live_miss(LIVE_STRICT, &format!("Live entity test blocked: needs {} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID", live_key));
+                return;
+            }
+        }
+    }
+    let client = setup.client.clone();
+    if setup.live {
+        live_pace();
+    }
     // CREATE
     let moon_ref01_ent = client.moon(Value::Noval);
     let moon_ref01_data = to_map(&getp(
@@ -91,6 +168,9 @@ fn moon_entity_basic() {
         "expected created entity to have an id"
     );
 
+    if setup.live {
+        live_pace();
+    }
     // LIST
     let moon_ref01_match = Value::empty_map();
     setp(&moon_ref01_match, "planet_id", getp(&setup.idmap, "planet01"));
@@ -111,6 +191,9 @@ fn moon_entity_basic() {
         "expected to find created entity in list"
     );
 
+    if setup.live {
+        live_pace();
+    }
     // UPDATE
     let moon_ref01_data_up0_up = Value::empty_map();
     setp(&moon_ref01_data_up0_up, "id", getp(&moon_ref01_data, "id"));
@@ -132,11 +215,7 @@ fn moon_entity_basic() {
         matches!(moon_ref01_resdata_up0, Value::Map(_)),
         "expected update result to be a map"
     );
-    assert_eq!(
-        getp(&moon_ref01_resdata_up0, "id"),
-        getp(&moon_ref01_data_up0_up, "id"),
-        "expected update result id to match"
-    );
+    assert!(live_same_id(&getp(&moon_ref01_resdata_up0, "id"), &getp(&moon_ref01_data_up0_up, "id")), "expected update result id to match");
     assert_eq!(
         getp(&moon_ref01_resdata_up0, moon_ref01_markdef_up0_name),
         Value::str(moon_ref01_markdef_up0_value.clone()),
@@ -144,11 +223,17 @@ fn moon_entity_basic() {
         moon_ref01_markdef_up0_name
     );
 
+    if setup.live {
+        live_pace();
+    }
     // LOAD
     let moon_ref01_match_dt0 = jo(vec![("id", getp(&moon_ref01_data, "id"))]);
-    setp(&moon_ref01_match_dt0, "planet_id", match getp(&setup.idmap, "planet_id") {
-        v if v.is_nullish() => getp(&setup.idmap, "planet01"),
-        v => v,
+    setp(&moon_ref01_match_dt0, "planet_id", match getp(&moon_ref01_data, "planet_id") {
+        v @ (Value::Str(_) | Value::Num(_) | Value::Bool(_)) => v,
+        _ => match getp(&setup.idmap, "planet_id") {
+            v if v.is_nullish() => getp(&setup.idmap, "planet01"),
+            v => v,
+        },
     });
     let moon_ref01_data_dt0_loaded = moon_ref01_ent
         .load(moon_ref01_match_dt0.clone(), Value::Noval)
@@ -158,12 +243,11 @@ fn moon_entity_basic() {
         matches!(moon_ref01_data_dt0_load_result, Value::Map(_)),
         "expected load result to be a map"
     );
-    assert_eq!(
-        getp(&moon_ref01_data_dt0_load_result, "id"),
-        getp(&moon_ref01_data, "id"),
-        "expected load result id to match"
-    );
+    assert!(live_same_id(&getp(&moon_ref01_data_dt0_load_result, "id"), &getp(&moon_ref01_data, "id")), "expected load result id to match");
 
+    if setup.live {
+        live_pace();
+    }
     // REMOVE
     let moon_ref01_match_rm0 = jo(vec![("id", getp(&moon_ref01_data, "id"))]);
     setp(&moon_ref01_match_rm0, "planet_id", match getp(&setup.idmap, "planet_id") {
@@ -174,6 +258,9 @@ fn moon_entity_basic() {
         .remove(moon_ref01_match_rm0.clone(), Value::Noval)
         .expect("remove failed");
 
+    if setup.live {
+        live_pace();
+    }
     // LIST
     let moon_ref01_match_rt0 = Value::empty_map();
     setp(&moon_ref01_match_rt0, "planet_id", getp(&setup.idmap, "planet01"));
@@ -282,7 +369,7 @@ fn moon_basic_setup(extra: Value) -> EntityTestSetup {
             ]),
             None,
         );
-        VoxgigSolardemoSDK::new(to_map(&merged))
+        VoxgigSolardemoSDK::new(to_map(&merged)).unwrap()
     } else {
         client
     };

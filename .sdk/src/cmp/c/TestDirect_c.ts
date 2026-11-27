@@ -12,6 +12,10 @@ import {
   cmp,
   snakify,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
+  pointIsGraphql,
+  graphqlDirectSkip,
 } from '@voxgig/sdkgen'
 
 
@@ -76,14 +80,9 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const listOp = (entity.op as any)?.list
 
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -96,8 +95,11 @@ const TestDirect = cmp(function TestDirect(props: any) {
     _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
+
+  const listRest = hasList && null != listPoint && !pointIsGraphql(listPoint)
+  const loadRest = hasLoad && null != loadPoint && !pointIsGraphql(loadPoint)
 
   File({ name: entity.name + '_direct_test.c' }, () => {
 
@@ -108,7 +110,10 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
 #include <stdlib.h>
 #include <string.h>
+`)
 
+    if (listRest || loadRest) {
+      Content(`
 static int CALLS = 0;
 static char LAST_URL[1024];
 
@@ -131,14 +136,22 @@ static ${Name}SDK* ${evar}_direct_setup(voxgig_value* mockres) {
   voxgig_value* opts = cmap(2,
     "base", v_str("http://localhost:8080"),
     "system", cmap(1, "fetch", vfn(${evar}_mock, mockres)));
-  return ${ident}_sdk_new(opts);
+  return ${ident}_sdk_new(opts, NULL);
 }
+`)
+    }
 
+    Content(`
 int main(void) {
 `)
 
     // ---- list test ----
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`
+  printf("skip: %s\\n", "${graphqlDirectSkip('list', entity.name)}");
+`)
+    }
+    else if (listRest) {
       Content(`
   // LIST
   {
@@ -177,7 +190,12 @@ int main(void) {
     }
 
     // ---- load test ----
-    if (hasLoad && loadPoint) {
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`
+  printf("skip: %s\\n", "${graphqlDirectSkip('load', entity.name)}");
+`)
+    }
+    else if (loadRest) {
       Content(`
   // LOAD
   {

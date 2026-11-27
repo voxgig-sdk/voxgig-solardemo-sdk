@@ -31,12 +31,12 @@ Construct a live SDK client.
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `base` | `String` | Base URL for API requests. |
-| `prefix` | `String` | URL prefix appended after base. |
-| `suffix` | `String` | URL suffix appended after path. |
-| `headers` | `Value` | Custom headers for all requests. |
-| `feature` | `Value` | Feature configuration. |
-| `system` | `Value` | System overrides (e.g. custom fetch). |
+| `base` | `String` | Base URL of the API server. |
+| `prefix` | `String` | URL path prefix prepended to all requests. |
+| `suffix` | `String` | URL path suffix appended to all requests. |
+| `headers` | `Value` | Headers sent with every request. |
+| `feature` | `Value` | Feature activation flags. |
+| `system` | `Value` | System overrides, such as a custom fetch function. |
 
 
 ### Test constructors
@@ -104,27 +104,9 @@ Prepare a fetch definition without sending. Returns the `fetchdef` and raises on
 
 ### Operations
 
-#### `eCreate ent data ctrl :: IO Entity`
-
-Create a new entity with the given data. Resolves to the created entity and raises on error.
-
-```haskell
-  ent <- Sdk.moon sdk VNoval
-  d <- jo
-    [ ("planet_id", VStr "example_planet_id")   -- String
-    , ("diameter", VNum 1)   -- Double
-    , ("id", VStr "example_id")   -- String
-    , ("kind", VStr "example_kind")   -- String
-    , ("name", VStr "example_name")   -- String
-    ]
-  ctrl <- emptyMap
-  result <- Sdk.eCreate ent d ctrl   -- the ENTITY
-  d2 <- Sdk.eDataGet result
-```
-
 #### `eList ent match ctrl :: IO [Entity]`
 
-List entities matching the given criteria. The match is optional — pass an empty map to list all records. Resolves to one entity per record and raises on error.
+List entities matching the given criteria. The match must include `planet_id`. Resolves to one entity per record and raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
@@ -145,15 +127,22 @@ Load a single entity matching the given criteria. Resolves to the entity, whose 
   result <- Sdk.eLoad ent match ctrl
 ```
 
-#### `eRemove ent match ctrl :: IO Entity`
+#### `eCreate ent data ctrl :: IO Entity`
 
-Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`eDeleted`); it keeps the data it held. Raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```haskell
   ent <- Sdk.moon sdk VNoval
-  match <- jo [("id", VStr "moon_id"), ("planet_id", VStr "planet_id")]
+  d <- jo
+    [ ("planet_id", VStr "example_planet_id")   -- String
+    , ("diameter", VNum 1)   -- Double
+    , ("id", VStr "example_id")   -- String
+    , ("kind", VStr "example_kind")   -- String
+    , ("name", VStr "example_name")   -- String
+    ]
   ctrl <- emptyMap
-  result <- Sdk.eRemove ent match ctrl
+  result <- Sdk.eCreate ent d ctrl   -- the ENTITY
+  d2 <- Sdk.eDataGet result
 ```
 
 #### `eUpdate ent data ctrl :: IO Entity`
@@ -169,6 +158,17 @@ Update an existing entity. The data must include the entity `id`. Resolves to th
   ctrl <- emptyMap
   result <- Sdk.eUpdate ent d ctrl   -- the ENTITY
   d2 <- Sdk.eDataGet result
+```
+
+#### `eRemove ent match ctrl :: IO Entity`
+
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`eDeleted`); it keeps the data it held. Raises on error.
+
+```haskell
+  ent <- Sdk.moon sdk VNoval
+  match <- jo [("id", VStr "moon_id"), ("planet_id", VStr "planet_id")]
+  ctrl <- emptyMap
+  result <- Sdk.eRemove ent match ctrl
 ```
 
 ### Common Fields
@@ -216,23 +216,6 @@ The entity name.
 
 ### Operations
 
-#### `eCreate ent data ctrl :: IO Entity`
-
-Create a new entity with the given data. Resolves to the created entity and raises on error.
-
-```haskell
-  ent <- Sdk.planet sdk VNoval
-  d <- jo
-    [ ("diameter", VNum 1)   -- Double
-    , ("id", VStr "example_id")   -- String
-    , ("kind", VStr "example_kind")   -- String
-    , ("name", VStr "example_name")   -- String
-    ]
-  ctrl <- emptyMap
-  result <- Sdk.eCreate ent d ctrl   -- the ENTITY
-  d2 <- Sdk.eDataGet result
-```
-
 #### `eList ent match ctrl :: IO [Entity]`
 
 List entities matching the given criteria. The match is optional — pass an empty map to list all records. Resolves to one entity per record and raises on error.
@@ -256,15 +239,21 @@ Load a single entity matching the given criteria. Resolves to the entity, whose 
   result <- Sdk.eLoad ent match ctrl
 ```
 
-#### `eRemove ent match ctrl :: IO Entity`
+#### `eCreate ent data ctrl :: IO Entity`
 
-Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`eDeleted`); it keeps the data it held. Raises on error.
+Create a new entity with the given data. Resolves to the created entity and raises on error.
 
 ```haskell
   ent <- Sdk.planet sdk VNoval
-  match <- jo [("id", VStr "planet_id")]
+  d <- jo
+    [ ("diameter", VNum 1)   -- Double
+    , ("id", VStr "example_id")   -- String
+    , ("kind", VStr "example_kind")   -- String
+    , ("name", VStr "example_name")   -- String
+    ]
   ctrl <- emptyMap
-  result <- Sdk.eRemove ent match ctrl
+  result <- Sdk.eCreate ent d ctrl   -- the ENTITY
+  d2 <- Sdk.eDataGet result
 ```
 
 #### `eUpdate ent data ctrl :: IO Entity`
@@ -279,6 +268,17 @@ Update an existing entity. The data must include the entity `id`. Resolves to th
   ctrl <- emptyMap
   result <- Sdk.eUpdate ent d ctrl   -- the ENTITY
   d2 <- Sdk.eDataGet result
+```
+
+#### `eRemove ent match ctrl :: IO Entity`
+
+Remove the entity matching the given criteria. Resolves to the entity, marked as deleted (`eDeleted`); it keeps the data it held. Raises on error.
+
+```haskell
+  ent <- Sdk.planet sdk VNoval
+  match <- jo [("id", VStr "planet_id")]
+  ctrl <- emptyMap
+  result <- Sdk.eRemove ent match ctrl
 ```
 
 ### Common Fields
@@ -316,7 +316,6 @@ The entity name.
 | `paging` | 0.0.1 | Paging |
 | `ratelimit` | 0.0.1 | Rate limiting |
 | `retry` | 0.0.1 | Retry |
-| `secrets` | 0.1.0 | Secrets |
 | `test` | 0.0.1 | Test transport |
 | `timeout` | 0.0.1 | Timeout |
 
@@ -332,7 +331,6 @@ Features are activated via the `feature` option:
     , ("paging", active)
     , ("ratelimit", active)
     , ("retry", active)
-    , ("secrets", active)
     , ("test", active)
     , ("timeout", active)
     ]

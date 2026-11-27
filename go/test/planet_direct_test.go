@@ -33,6 +33,9 @@ func TestPlanetDirect(t *testing.T) {
 			t.Skip(_reason)
 			return
 		}
+		if setup.live {
+			livePace()
+		}
 		client := setup.client
 
 
@@ -90,6 +93,9 @@ func TestPlanetDirect(t *testing.T) {
 			}
 			t.Skip(_reason)
 			return
+		}
+		if setup.live {
+			livePace()
 		}
 		client := setup.client
 
@@ -211,7 +217,7 @@ func planetDirectSetup(mockres any) *planetDirectSetupResult {
 		} {
 			mergedOpts[k] = v
 		}
-		client := sdk.NewVoxgigSolardemoSDK(mergedOpts)
+		client := newClient(mergedOpts)
 
 		idmap := map[string]any{}
 		if entidRaw, ok := env["VOXGIG_SOLARDEMO_TEST_PLANET_ENTID"]; ok {
@@ -240,7 +246,7 @@ func planetDirectSetup(mockres any) *planetDirectSetupResult {
 		}, nil
 	}
 
-	client := sdk.NewVoxgigSolardemoSDK(map[string]any{
+	client := newClient(map[string]any{
 		"base": "http://localhost:8080",
 		"system": map[string]any{
 			"fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),

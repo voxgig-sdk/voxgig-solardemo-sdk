@@ -37,6 +37,7 @@ use warnings;
 use Test::More;
 use FindBin;
 use lib "$FindBin::Bin/../../../lib";
+use MIME::Base64 ();
 use Scalar::Util ();
 
 use VoxgigSolardemoSDK;
@@ -80,6 +81,8 @@ sub counting_fetch {
       'method' => $fetchdef->{method},
       'body' => $fetchdef->{body},
       'auth' => $headers->{'authorization'},
+      'values' => join("\n", map { defined $_ ? "$_" : '' } values %$headers),
+      'redirect' => $fetchdef->{redirect},
     };
 
     if ($stub->{istoken}->($url)) {
@@ -137,18 +140,32 @@ sub wire {
 }
 
 
-# The Authorization header carries the SPEC's credential prefix, which a
-# TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives
-# `Bearer <token>`, an apiKey scheme the raw token. So assert on the
-# CREDENTIAL and let the prefix be whatever this SDK's API declares -
-# pinning the whole header value passes only for a prefix-less API, and
-# this file ships to every project that selects the feature.
+# The form prepare_auth writes, from the DEFAULT client's auth: under Basic
+# the token is the key half of the encoded pair, and a prefix is
+# space-joined.
+my $CREDFORM = do {
+  my $auth = VoxgigSolardemoSDK->test(undef, undef)->options_map->{auth};
+  $auth = {} unless 'HASH' eq ref $auth;
+  my $prefix = $auth->{prefix};
+  { 'prefix' => (defined $prefix && !ref $prefix ? "$prefix" : ''),
+    'basic' => VoxgigSolardemoHelpers::is_true($auth->{basic}) ? 1 : 0 };
+};
+
+
+# The header value prepare_auth writes for a token.
+sub credential {
+  my ($token, $secret) = @_;
+  $secret = '' unless defined $secret;
+  my $value = $CREDFORM->{basic}
+    ? MIME::Base64::encode_base64("$token:$secret", '') : $token;
+  return '' eq $CREDFORM->{prefix} ? $value : "$CREDFORM->{prefix} $value";
+}
+
+
 sub credential_is {
-  my ($header, $token, $label) = @_;
-  my $got = defined $header ? "$header" : '';
-  ok(($got eq $token || $got =~ /\s\Q$token\E\z/),
-    ($label || 'credential') . ": expected the Authorization header to carry"
-      . " $token, got: '$got'");
+  my ($header, $token, $label, $secret) = @_;
+  is($header, credential($token, $secret),
+    ($label || 'credential') . ": expected the Authorization header to carry $token");
 }
 
 
@@ -235,6 +252,66 @@ sub clear_env {
 }
 
 
+# --- Auth off ---------------------------------------------------------------
+
+# Off by the config where it declares no auth, else by `auth => undef`:
+# either way the feature places no credential, buys no token and retries
+# nothing.
+sub auth_off {
+  my ($by, %off) = @_;
+  my @secrets = ('OFFKEY01', 'OFFKEY02', 'OFFREFRESH01', 'ACCESS01');
+  my $carries = sub {
+    my ($call) = @_;
+    return 1 if defined $call->{auth};
+    return scalar grep { 0 <= index($call->{values}, $_) } @secrets;
+  };
+  my @sent;
+  my $bought = 0;
+
+  my @scenarios = (
+    ['a key the chain resolves', { 'APIKEY' => 'OFFKEY01' }, {}, envchain(), [200]],
+    ['an explicit apikey', {}, { 'apikey' => 'OFFKEY02' }, envchain(), [200]],
+    ['a refusal', { 'REFRESH_TOKEN' => 'OFFREFRESH01' }, {},
+      envchain('name' => 'refresh_token', 'exchange' => { 'active' => 1 }), [401]],
+  );
+
+  for my $scenario (@scenarios) {
+    my ($what, $env, $extra, $sopts, $apistatus) = @$scenario;
+    clear_env();
+    $ENV{$ENVPREFIX . $_} = $env->{$_} for keys %$env;
+
+    my $stub = counting_fetch('apistatus' => $apistatus);
+    my $sdk = secrets_sdk($stub, $sopts, { %$extra, %off, 'base' => $XBASE });
+    $sdk->direct({ 'path' => '/thing' });
+
+    my $api = api_calls($stub);
+    is(scalar @$api, 1, "auth off: $what: one request, not retried");
+    is(scalar @{ token_calls($stub) }, 0, "auth off: $what: no token bought");
+    ok(!$carries->($api->[0]), "auth off: $what: no credential sent");
+    is($sdk->{_secrets}->credential, '', "auth off: $what: nothing resolved");
+
+    push @sent, @$api;
+    $bought += scalar @{ token_calls($stub) };
+  }
+  clear_env();
+
+  print STDERR "secrets: auth off by $by: " . scalar(@sent) . ' request(s), '
+    . scalar(grep { $carries->($_) } @sent) . " credential(s), $bought token(s)\n";
+}
+
+
+# Read from the config, never from a probe: an SDK whose config declares no
+# auth places no credential, and the tests below assert on the one it places.
+if (!exists VoxgigSolardemoConfig::make_config()->{options}{auth}) {
+  auth_off('config');
+  SKIP: {
+    skip("this SDK's config declares no auth, so it places no credential", 1);
+  }
+  done_testing;
+  exit 0;
+}
+
+
 # --- Inactive: the feature costs nothing -----------------------------------
 
 {
@@ -299,6 +376,16 @@ sub clear_env {
   secrets_sdk($stub2, envchain(), { 'apikey' => '' })->direct({ 'path' => '/thing' });
   credential_is($stub2->{calls}[0]{auth}, 'ENVKEY01',
     'active: an explicitly EMPTY apikey also defers to the chain');
+}
+
+{
+  clear_env();
+  $ENV{$ENVPREFIX . 'APIKEY'} = 'ENVKEY03';
+
+  my $stub = counting_fetch();
+  secrets_sdk($stub, envchain(), { 'secret' => 'PASS01' })->direct({ 'path' => '/thing' });
+  credential_is($stub->{calls}[0]{auth}, 'ENVKEY03',
+    'active: a resolved key is placed as prepare_auth places it, the secret kept', 'PASS01');
 }
 
 # THE PERL SPELLING OF A CUSTOM PROVIDER IS A MAP OF CALLABLES.
@@ -753,6 +840,8 @@ sub exchange_sdk {
   is_deeply(Voxgig::Struct::parse_json(token_calls($stub)->[0]{body}),
     { 'refresh_token' => 'REFRESH01' },
     'exchange: the refresh token is sent in the request field');
+  is(token_calls($stub)->[0]{redirect}, 'manual',
+    'exchange: system.fetch is asked to follow no redirect');
   is(scalar @{ api_calls($stub) }, 1, 'exchange: one API call');
   credential_is(api_calls($stub)->[0]{auth}, 'ACCESS01',
     'exchange: the request carries the access token');
@@ -815,6 +904,20 @@ sub exchange_sdk {
   credential_is(api_calls($stub)->[1]{auth}, 'ACCESS02',
     'exchange: the retry carries the NEW token, not the spent one');
   is($res->{ok}, 1, 'exchange: the caller sees the successful retry');
+}
+
+{
+  clear_env();
+  $ENV{$ENVPREFIX . 'REFRESH_TOKEN'} = 'REFRESH01';
+
+  my $stub = counting_fetch('apistatus' => [401, 200]);
+  exchange_sdk($stub, {}, { 'secret' => 'PASS01' })->direct({ 'path' => '/thing' });
+
+  is(scalar @{ api_calls($stub) }, 2, 'exchange: the request was retried');
+  credential_is(api_calls($stub)->[0]{auth}, 'ACCESS01', 'exchange: first try, the secret kept',
+    'PASS01');
+  credential_is(api_calls($stub)->[1]{auth}, 'ACCESS02',
+    'exchange: a token bought on a refusal is placed as prepare_auth places it', 'PASS01');
 }
 
 {
@@ -1007,6 +1110,161 @@ sub exchange_sdk {
   clear_env();
 }
 
+# Real listeners and the SDK's raw HTTP fetch: a stub follows nothing. One
+# child per case serves both origins, printing each request it records,
+# until it is told to stop. The exchange itself is only counted.
+sub redirect_exchange {
+  my ($status, $location, $exchange) = @_;
+  require IO::Socket::INET;
+  require IO::Select;
+  require POSIX;
+  my @listen = (LocalAddr => '127.0.0.1', LocalPort => 0, Listen => 5, ReuseAddr => 1);
+  my $api = IO::Socket::INET->new(@listen);
+  my $other = IO::Socket::INET->new(@listen);
+  my $apiport = $api->sockport;
+  $location =~ s/OTHER/$other->sockport/e;
+  $location =~ s/ORIGIN/$apiport/;
+  pipe(my $seen_r, my $seen_w) or return;
+  my $pid = fork();
+  return unless defined $pid;
+  if (0 == $pid) {
+    close $seen_r;
+    $seen_w->autoflush(1);
+    my $select = IO::Select->new($api, $other);
+    SERVE: while (my @ready = $select->can_read(20)) {
+      for my $srv (@ready) {
+        my $sock = $srv->accept or next;
+        my ($method, $rpath) = split / /, (<$sock> // '');
+        last SERVE if '/stop' eq ($rpath // '');
+        my ($length, $sent) = (0, '');
+        while (defined(my $line = <$sock>)) {
+          my ($name, $value) = $line =~ /\A([^:]+):\s*(.*?)\r?\n\z/ or last;
+          $length = $value if 'content-length' eq lc $name;
+        }
+        read($sock, $sent, $length) if $length;
+        $sent =~ s/\r?\n/ /g;
+        my $hop = $srv == $api && '/api/auth/token' eq $rpath;
+        print {$seen_w} join("\t", $hop ? 'exchange' : $srv == $api ? 'origin' : 'other',
+          $method, $rpath, $sent), "\n";
+        my $body = $srv == $api ? '{"access_token":"MOVED01"}' : '{"access_token":"ELSEWHERE01"}';
+        $body = '' if $hop;
+        print {$sock} 'HTTP/1.1 ' . ($hop ? $status : 200) . " X\r\n"
+          . ($hop ? "Location: $location\r\n" : '') . "Content-Type: application/json\r\n"
+          . 'Content-Length: ' . length($body) . "\r\nConnection: close\r\n\r\n" . $body;
+        close $sock;
+      }
+    }
+    # Windows forks a thread, where _exit ends the whole test process.
+    $^O eq 'MSWin32' ? exit(0) : POSIX::_exit(0);
+  }
+  close $_ for $seen_w, $api, $other;
+
+  my $base = "http://127.0.0.1:$apiport/api";
+  my $sdk = VoxgigSolardemoSDK->new({
+    'base' => $base,
+    'allow' => { 'op' => 'direct,graphql,list,load,create,update,remove' },
+    'feature' => { 'secrets' => {
+      'active' => 1,
+      'name' => 'refresh_token',
+      'exchange' => { 'active' => 1, 'refresh' => 'REFRESH01', %{ $exchange // {} } },
+    } },
+  });
+  my $res = eval { $sdk->direct({ 'path' => '/thing' }) };
+  my $message = defined $res ? (defined $res->{err} ? "$res->{err}" : 'ok') : "$@";
+
+  my $stop = IO::Socket::INET->new(PeerAddr => '127.0.0.1', PeerPort => $apiport);
+  print {$stop} "GET /stop HTTP/1.0\r\n\r\n" if $stop;
+  my ($exchanged, @arrived) = (0);
+  while (defined(my $line = <$seen_r>)) {
+    chomp $line;
+    if (0 == index($line, "exchange\t")) { $exchanged++ }
+    else { push @arrived, $line }
+  }
+  waitpid($pid, 0);
+  return ($message, \@arrived, $base, $exchanged);
+}
+
+SKIP: {
+  clear_env();
+  my @answers = ([307, 'http://127.0.0.1:OTHER/api/auth/token'],
+    [308, 'http://127.0.0.1:OTHER/api/auth/token'],
+    [302, 'http://127.0.0.1:OTHER/api/auth/token'], [307, '/api/moved/token']);
+  my ($refused, @followed, @allowed) = (0);
+  for my $answer (@answers) {
+    my ($message, $arrived, $base) = redirect_exchange(@$answer);
+    skip('no fork', 3) unless $arrived;
+    push @followed, map { "$answer->[0] to $answer->[1]: $_" } @$arrived;
+    if (0 <= index($message, "token exchange failed: $answer->[0] from $base/auth/token")) {
+      $refused++;
+    }
+    else {
+      push @allowed, "$answer->[0] to $answer->[1]: $message";
+    }
+  }
+
+  print STDERR 'secrets: exchange refused ' . $refused . ' redirect(s), '
+    . scalar(@followed) . " followed\n";
+
+  is_deeply(\@followed, [], 'exchange redirect: nothing followed a refused exchange');
+  is_deeply(\@allowed, [], 'exchange redirect: each redirect is a failed exchange');
+  is($refused, scalar @answers, 'exchange redirect: every case refused');
+}
+
+SKIP: {
+  clear_env();
+  require JSON::PP;
+  my $moved = sub {
+    my ($line, $path) = @_;
+    my ($tag, $method, $rpath, $sent) = split /\t/, ($line // ''), 4;
+    my $body = eval { JSON::PP::decode_json($sent // '') };
+    return 'origin' eq $tag && 'POST' eq $method && $path eq ($rpath // '')
+      && 'HASH' eq ref $body && 1 == keys %$body && 'REFRESH01' eq ($body->{refresh_token} // '');
+  };
+  # Each case: the status, the Location, and the path the exchange is asked
+  # again at, or undef where the redirect is refused.
+  my @cases = ([307, '/api/moved/token', '/api/moved/token'],
+    [308, 'http://127.0.0.1:ORIGIN/api/moved/token', '/api/moved/token'],
+    # A Location of a query alone keeps the path that answered.
+    [307, '?step=2', '/api/auth/token?step=2'],
+    [307, 'http://127.0.0.1:OTHER/api/auth/token', undef],
+    [302, '/api/moved/token', undef], [307, '/api/auth/token', undef]);
+  my ($followed, $refused, $looped, $elsewhere, @wrong) = (0, 0, 0, 0);
+  for my $case (@cases) {
+    my ($status, $location, $path) = @$case;
+    my ($message, $arrived, $base, $exchanged) =
+      redirect_exchange($status, $location, { 'redirect' => 'same-origin' });
+    skip('no fork', 5) unless $arrived;
+    my @origin = grep { 0 == index($_, "origin\t") } @$arrived;
+    $elsewhere += grep { 0 == index($_, "other\t") } @$arrived;
+    my $seen = "$status to $location: $message [" . join(' | ', @$arrived) . ']';
+    if (defined $path) {
+      if ('ok' eq $message && 2 == @origin && $moved->($origin[0], $path)) { $followed++ }
+      else { push @wrong, $seen }
+    }
+    elsif (0 == @origin
+      && 0 <= index($message, "token exchange failed: $status from $base/auth/token")) {
+      $refused++;
+    }
+    else {
+      push @wrong, $seen;
+    }
+    $looped = $exchanged if '/api/auth/token' eq $location;
+  }
+
+  print STDERR 'secrets: exchange opt-in followed ' . $followed
+    . ' redirect(s) on its own origin, refused ' . $refused . ', ' . $elsewhere
+    . " elsewhere\n";
+
+  is($elsewhere, 0, 'exchange opt-in: nothing reached another origin');
+  is_deeply(\@wrong, [], 'exchange opt-in: each case as the rule says');
+  is($followed, 3, 'exchange opt-in: three redirects on its own origin followed');
+  is($refused, 3, 'exchange opt-in: three redirects refused');
+  # A redirect to itself is followed up to the hop limit and no more.
+  is($looped, 6, 'exchange opt-in: the loop asked the exchange six times');
+}
+
 clear_env();
+
+auth_off('option', 'auth' => undef);
 
 done_testing;

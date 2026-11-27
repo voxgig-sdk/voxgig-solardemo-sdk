@@ -23,7 +23,7 @@
 # the chain is broken. The transport is the ONE seam every wire path
 # crosses (utility/make_request.rb and Main's raw_request both call
 # `utility.fetcher`), so the wrapper installed in `init` resolves there,
-# rewrites the authorization header prepare_auth built, and refuses the
+# rewrites the credential header prepare_auth built, and refuses the
 # request outright when a provider errors.
 #
 # MISS vs ERROR (sekreto's invariant): a provider MISS falls through - the
@@ -55,6 +55,23 @@ require_relative '../utility/struct/voxgig_struct'
 require_relative 'secrets/voxgig_sekreto'
 
 class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
+  REDIRECT_MAX = 5
+
+  # Where a method-keeping redirect points, when that is on the exchange's
+  # own origin. Any other redirect would drop the body or leave the origin.
+  def self.moved(url, at, res)
+    return nil unless res.is_a?(Hash) && [307, 308].include?(res["status"].to_i)
+    headers = res["headers"]
+    location = headers.is_a?(Hash) ? headers["location"] : nil
+    return nil unless location.is_a?(String) && !location.empty?
+    nxt = URI.join(at, location)
+    here = URI.parse(url)
+    origin = ->(u) { [u.scheme.to_s.downcase, u.host.to_s.downcase, u.port] }
+    origin.call(nxt) == origin.call(here) ? nxt.to_s : nil
+  rescue URI::Error, ArgumentError
+    nil
+  end
+
   def initialize
     super
     @version = "0.1.0"
@@ -65,6 +82,8 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
     @client = nil
     @options = {}
     @liveopts = {}
+    @declared = false
+    @basic = false
 
     @secretname = "apikey"
     @cache = true
@@ -102,6 +121,12 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
     @liveopts = ctx.options.is_a?(Hash) ? ctx.options : {}
     @active = @options["active"] == true
 
+    # What prepare_auth was generated from: the config declares auth only
+    # where it places a credential, and Basic only where it composes one.
+    declared = VoxgigStruct.getpath(ctx.config, "options.auth")
+    @declared = declared.is_a?(Hash)
+    @basic = @declared && declared["basic"] == true
+
     return unless @active
 
     @secretname = _str(@options["name"], "apikey")
@@ -127,6 +152,7 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
         "response" => _str(xopts["response"], "access_token"),
         "statuses" => statuses,
         "retries" => xopts["retries"].is_a?(Numeric) ? xopts["retries"].to_i : 1,
+        "redirect" => "same-origin" == xopts["redirect"] ? "same-origin" : "refuse",
       }
     end
 
@@ -261,6 +287,12 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
 
   private
 
+  # prepare_auth's decision: auth the config declares, not suppressed by
+  # `auth: nil`.
+  def _authon
+    @declared && !@liveopts["auth"].nil?
+  end
+
   # Every value this feature resolves or buys is a secret the SDK handles,
   # and none arrives under an option key the intake registration saw.
   def _register(value)
@@ -274,7 +306,7 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
   # boolean is the whole of what resolve needs to tell a cacheable HIT from
   # a miss it must not keep.
   def _resolve_once
-    return false if @sekreto.nil?
+    return false if @sekreto.nil? || !_authon
 
     # Miss-vs-error: `try` answers nil for "no store has it" and RAISES for
     # "a store could not answer" - only the miss falls through.
@@ -311,15 +343,6 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
     # is the same path expiry takes anyway.
     return true unless apikey.nil? || apikey.empty?
 
-    # `auth: nil` is the documented way to send NO credential, and a
-    # purchase is a credential-bearing call: the refresh token goes to the
-    # token endpoint in the request body. _with_refresh honours suppression
-    # for the RETRY, but it runs after this - by then the refresh token has
-    # already left the process, and no later check can call it back. The
-    # suppression has to be honoured here, before the first purchase, or it
-    # only ever half-held.
-    return false if @liveopts["auth"].nil?
-
     _buy
 
     true
@@ -328,16 +351,13 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
   # Buy a token and try the request again when the API says the current one
   # is spent.
   #
-  # The retry rewrites the authorization header IN PLACE on the fetchdef,
+  # The retry rewrites the credential header IN PLACE on the fetchdef,
   # because the header was built by the synchronous prepare_auth before
   # this request left, and it carries the token that just failed.
   def _with_refresh(ctx, url, fetchdef, inner)
-    # `auth: nil` is the documented way to send NO credential, and
-    # prepare_auth honours it by removing the header. A refusal of a
-    # deliberately unauthenticated request is not an expired token and
-    # cannot be fixed by buying one - retrying would transmit exactly the
-    # credential the caller suppressed.
-    return inner.call(ctx, url, fetchdef) if @liveopts["auth"].nil?
+    # A refusal of an unauthenticated request is not an expired token, and
+    # retrying would transmit the credential that auth off withholds.
+    return inner.call(ctx, url, fetchdef) unless _authon
 
     max = @exchange["retries"]
     attempt = 0
@@ -449,11 +469,26 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
     # feature wraps, and sending the token request back through it would
     # recurse on the first expiry - and would route the exchange through
     # the test mock, which knows nothing about it.
-    res, err = fetch.call(url, {
+    fetchdef = {
       "method" => x["method"],
       "headers" => { "content-type" => "application/json" },
       "body" => JSON.generate({ x["request"] => @refresh }),
-    })
+      # Never followed by the client: a redirect would carry the refresh token on.
+      "redirect" => "manual",
+    }
+
+    res, err = fetch.call(url, fetchdef)
+
+    # By option alone, and only while the exchange stays on its own origin.
+    at = url
+    hops = 0
+    while err.nil? && "same-origin" == x["redirect"] && hops < REDIRECT_MAX
+      nxt = VoxgigSolardemoSecretsFeature.moved(url, at, res)
+      break if nxt.nil?
+      at = nxt
+      hops += 1
+      res, err = fetch.call(at, fetchdef)
+    end
 
     unless err.nil?
       raise VoxgigSekreto::SekretoError,
@@ -511,24 +546,38 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
     end
   end
 
-  # Rebuild the authorization header from the credential, exactly as
+  # Rebuild the credential header from the credential, exactly as
   # prepare_auth builds it.
   def _inject(fetchdef, token)
     return unless fetchdef.is_a?(Hash)
     headers = fetchdef["headers"]
     return unless headers.is_a?(Hash)
 
+    # The header prepare_auth writes: auth.name, lower-cased.
+    name = VoxgigStruct.getpath(@liveopts, "auth.name")
+    name = name.is_a?(String) && !name.empty? ? name.downcase : "authorization"
+
     # Suppressed auth means NO header, the same answer prepare_auth gives.
-    if @liveopts["auth"].nil? || token.nil? || token.empty?
-      headers.delete("authorization")
+    if !_authon || token.nil? || token.empty?
+      headers.delete(name)
       return
     end
+
+    value = @basic && VoxgigStruct.getpath(@liveopts, "auth.basic") == true ? _pair(token) : token
 
     prefix = VoxgigStruct.getpath(@liveopts, "auth.prefix")
     prefix = "" unless prefix.is_a?(String)
 
     # Empty prefix (raw apiKey credential) must not add a leading space.
-    headers["authorization"] = prefix.empty? ? token : "#{prefix} #{token}"
+    headers[name] = prefix.empty? ? value : "#{prefix} #{value}"
+  end
+
+  # Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+  def _pair(token)
+    secret = @liveopts["secret"]
+    pair = ["#{token}:#{secret.is_a?(String) ? secret : ""}"].pack("m0")
+    _register(pair)
+    pair
   end
 
   # The plugin DEFINITIONS the model selected for this feature, emitted by
@@ -578,14 +627,19 @@ class VoxgigSolardemoSecretsFeature < VoxgigSolardemoBaseFeature
     body = fetchdef["body"]
     request.body = body if body.is_a?(String)
 
+    # Net::HTTP#request follows no redirect: a 3xx is returned as its status.
     resp = http.request(request)
     raw = resp.body
 
     # A non-2xx answer IS a response: hand back its status so the caller
     # reports "token exchange failed: <status>" rather than a transport
     # error.
+    resp_headers = {}
+    resp.each_header { |k, v| resp_headers[k.downcase] = v }
+
     return {
       "status" => resp.code.to_i,
+      "headers" => resp_headers,
       "json" => -> {
         begin
           raw.nil? || raw.empty? ? nil : JSON.parse(raw)

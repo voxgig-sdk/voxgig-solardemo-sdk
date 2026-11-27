@@ -21,7 +21,7 @@
 -- `graphql()` run no hooks at all. The transport wrapper installed in init
 -- is the one seam every wire path crosses: entity ops (make_request), the
 -- raw paths (_raw_request) and the exchange retries all come through it. It
--- resolves there, rewrites the authorization header prepare_auth built from
+-- resolves there, rewrites the credential header prepare_auth built from
 -- the options apikey, and - this is the point - REFUSES TO SEND while the
 -- chain is broken.
 --
@@ -63,6 +63,8 @@ local json = require("dkjson")
 local helpers = require("core.helpers")
 local BaseFeature = require("feature.base_feature")
 local sekreto = require("feature.secrets.sekreto")
+local tls = require("utility.tls")
+local base64 = require("utility.clean").base64
 
 
 local SecretsFeature = {}
@@ -79,6 +81,34 @@ setmetatable(SecretsFeature, { __index = BaseFeature })
 -- transport gate refuses to send. A shortened chain is exactly the
 -- fail-open the gate exists to prevent.
 local NOTAPROVIDER = "sekreto: not a provider or a provider spec: "
+
+
+local REDIRECT_MAX = 5
+
+
+local function origin(u)
+  local parsed = require("socket.url").parse(u) or {}
+  local scheme = string.lower(parsed.scheme or "")
+  return scheme .. "://" .. string.lower(parsed.host or "") .. ":" ..
+    tostring(parsed.port or (scheme == "https" and 443 or 80))
+end
+
+
+-- Where a redirect keeping method and body (307 or 308) points, on the
+-- exchange's own origin. Any other would drop the body or leave the origin.
+local function moved(url, at, res)
+  local status = type(res) == "table" and helpers.to_int(vs.getprop(res, "status")) or -1
+  local headers = type(res) == "table" and vs.getprop(res, "headers") or nil
+  local location = type(headers) == "table" and headers["location"] or nil
+  if (status ~= 307 and status ~= 308) or type(location) ~= "string" or location == "" then
+    return nil
+  end
+  local ok, next = pcall(function()
+    local resolved = require("socket.url").absolute(at, (string.gsub(location, "%s", "")))
+    return origin(resolved) == origin(url) and resolved or nil
+  end)
+  return ok and next or nil
+end
 
 
 local function optstr(map, key, dflt)
@@ -138,6 +168,11 @@ function SecretsFeature.new()
   -- read for `apikey` and for the `auth` suppression, never written.
   self._liveopts = nil
 
+  -- What prepare_auth was generated from: the config declares auth only
+  -- where it places a credential, and Basic only where it composes one.
+  self._declared = false
+  self._basic = false
+
   self._secretname = "apikey"
   self._cache = true
   self._sek = nil
@@ -179,6 +214,10 @@ function SecretsFeature:init(ctx, options)
   self._rootctx = ctx
   self.active = (self.options["active"] == true)
 
+  local declared = vs.getpath(ctx.config, "options.auth")
+  self._declared = type(declared) == "table"
+  self._basic = self._declared and declared["basic"] == true
+
   if not self.active then
     return
   end
@@ -206,6 +245,7 @@ function SecretsFeature:init(ctx, options)
       response = optstr(xopts, "response", "access_token"),
       statuses = statuses,
       retries = optnum(xopts, "retries", 1),
+      redirect = xopts["redirect"] == "same-origin" and "same-origin" or "refuse",
     }
   end
 
@@ -362,8 +402,15 @@ function SecretsFeature:_resolve()
 end
 
 
+-- prepare_auth's decision: auth the config declares, not suppressed by
+-- clearing `options.auth`.
+function SecretsFeature:_authon()
+  return self._declared and type(self._liveopts["auth"]) == "table"
+end
+
+
 function SecretsFeature:_resolve_once()
-  if self._sek == nil then
+  if self._sek == nil or not self:_authon() then
     return nil
   end
 
@@ -445,16 +492,13 @@ end
 
 
 -- Buy a token and try the request again when the API says the current one
--- is spent. The retry rewrites the authorization header IN PLACE on the
+-- is spent. The retry rewrites the credential header IN PLACE on the
 -- fetchdef, because the header was built before this request left and it
 -- carries the token that just failed.
 function SecretsFeature:_with_refresh(ctx, fullurl, fetchdef, inner)
-  -- A suppressed `auth` is the documented way to send NO credential, and
-  -- prepare_auth honours it by removing the header. A refusal of a
-  -- deliberately unauthenticated request is not an expired token and
-  -- cannot be fixed by buying one - retrying would transmit exactly the
-  -- credential the caller suppressed.
-  if self._liveopts["auth"] == nil then
+  -- A refusal of an unauthenticated request is not an expired token, and
+  -- retrying would transmit the credential that auth off withholds.
+  if not self:_authon() then
     return inner(ctx, fullurl, fetchdef)
   end
 
@@ -526,10 +570,22 @@ function SecretsFeature:_reauth(fetchdef, token)
   -- stores no nil, and validate then fills the default), so the only
   -- expressible suppression is clearing `client.options.auth` after
   -- construction; this is the live table, so it is honoured here too.
-  local auth = self._liveopts["auth"]
-  if type(auth) ~= "table" then
+  if not self:_authon() then
     headers["authorization"] = nil
     return
+  end
+  local auth = self._liveopts["auth"]
+
+  -- The header prepare_auth writes: auth.name, lower-cased.
+  local name = auth["name"]
+  if type(name) ~= "string" or name == "" then
+    name = "authorization"
+  end
+  name = string.lower(name)
+
+  local value = token
+  if self._basic and auth["basic"] == true then
+    value = self:_pair(token)
   end
 
   local prefix = auth["prefix"]
@@ -538,10 +594,22 @@ function SecretsFeature:_reauth(fetchdef, token)
   end
 
   if prefix == "" then
-    headers["authorization"] = token
+    headers[name] = value
   else
-    headers["authorization"] = prefix .. " " .. token
+    headers[name] = prefix .. " " .. value
   end
+end
+
+
+-- Under Basic the token is the key half, as apikey is: prepare_auth's pair.
+function SecretsFeature:_pair(token)
+  local secret = self._liveopts["secret"]
+  if type(secret) ~= "string" then
+    secret = ""
+  end
+  local pair = base64(token .. ":" .. secret)
+  self:_register(pair)
+  return pair
 end
 
 
@@ -575,8 +643,8 @@ end
 -- transport for the COMMON case would reject every live token purchase
 -- before a request was made. Mirrors utility/fetcher.lua's own default
 -- (which is a local there, not exported); like it, this is HTTP through
--- socket.http, and an https token endpoint needs luasec's ssl.https on the
--- package path, which the rockspec does not require.
+-- socket.http, and an https token endpoint needs luasec on the package path,
+-- which the rockspec does not require, and is verified as utility/tls says.
 local function raw_exchange_fetch(fullurl, fetchdef)
   local http_ok, http = pcall(require, "socket.http")
   local ltn12_ok, ltn12 = pcall(require, "ltn12")
@@ -599,13 +667,20 @@ local function raw_exchange_fetch(fullurl, fetchdef)
     headers["content-length"] = tostring(#body)
   end
 
+  local create, refused = tls.create(fullurl)
+  if refused ~= nil then
+    return nil, refused
+  end
+
   local chunks = {}
-  local res, code = http.request({
+  local res, code, rawheaders = http.request({
     url = fullurl,
     method = fetchdef["method"] or "POST",
     headers = headers,
     source = body and ltn12.source.string(body) or nil,
     sink = ltn12.sink.table(chunks),
+    create = create,
+    redirect = false,
   })
 
   if not res then
@@ -613,9 +688,14 @@ local function raw_exchange_fetch(fullurl, fetchdef)
   end
 
   local raw = table.concat(chunks)
+  local resheaders = {}
+  for k, v in pairs(type(rawheaders) == "table" and rawheaders or {}) do
+    resheaders[string.lower(k)] = v
+  end
 
   return {
     status = code,
+    headers = resheaders,
     json = function()
       if #raw == 0 then
         return nil
@@ -661,11 +741,25 @@ function SecretsFeature:_buy_once()
   -- The body is ENCODED, never concatenated: a refresh token (or a
   -- configured request-field name) carrying a quote, backslash or newline
   -- must arrive as that literal value, not as malformed JSON.
-  local res, err = fetch(url, {
+  local fetchdef = {
     method = x.method,
     headers = { ["content-type"] = "application/json" },
     body = json.encode({ [x.request] = self._refresh }),
-  })
+    -- Never followed by the client: a redirect would carry the refresh token on.
+    redirect = "manual",
+  }
+  local res, err = fetch(url, fetchdef)
+
+  -- By option alone, and only while the exchange stays on its own origin.
+  local at = url
+  for _ = 1, x.redirect == "same-origin" and REDIRECT_MAX or 0 do
+    local next = err == nil and moved(url, at, res) or nil
+    if next == nil then
+      break
+    end
+    at = next
+    res, err = fetch(at, fetchdef)
+  end
 
   if err ~= nil then
     return nil, sekreto.SekretoError(

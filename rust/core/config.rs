@@ -11,7 +11,7 @@ pub fn make_config() -> Value {
         ("main".to_string(), Value::map_of([
             ("name".to_string(), Value::str("VoxgigSolardemo")),
             ("slug".to_string(), Value::str("voxgig-solardemo")),
-            ("version".to_string(), Value::str("0.1.0")),
+            ("version".to_string(), Value::str("0.0.1")),
             ("target".to_string(), Value::str("rust")),
         ])),
         ("feature".to_string(), Value::map_of([
@@ -130,6 +130,7 @@ pub fn make_config() -> Value {
                         ("active".to_string(), Value::Bool(false)),
                         ("method".to_string(), Value::str("POST")),
                         ("path".to_string(), Value::str("auth/token")),
+                        ("redirect".to_string(), Value::str("refuse")),
                         ("refresh".to_string(), Value::str("")),
                         ("request".to_string(), Value::str("refresh_token")),
                         ("response".to_string(), Value::str("access_token")),

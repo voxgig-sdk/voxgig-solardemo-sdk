@@ -20,15 +20,26 @@ function makeUrl(ctx) {
     let resmatch = {};
     // Sent with the request, never recorded as the entity's match.
     const authquery = spec.authquery || [];
-    // A route the definition ends with a slash keeps it: a server such as a
-    // Django REST one redirects or refuses the route without it.
+    // A route ending in a slash keeps it, as defined or as passed to direct(), for
+    // Django, and a host with no path takes /, or luasocket reads a query as the host.
     const orig = ctx.point?.orig;
-    if ('string' === typeof orig && orig.endsWith('/') && !spec.suffix && !url.endsWith('/')) {
+    const slashed = ('string' === typeof orig && orig.endsWith('/')) ||
+        ('string' === typeof spec.path && spec.path.endsWith('/'));
+    if (slashed && !spec.suffix && !url.endsWith('/')) {
+        url += '/';
+    }
+    const authority = url.indexOf('://');
+    if (0 < authority && !/[/?#]/.test(url.slice(authority + 3))) {
         url += '/';
     }
     const params = spec.params;
     for (let [key, val] of items(params)) {
         if (null != val) {
+            // A whole . or .. is a dot segment, which moves the request to another route.
+            const text = String(val);
+            if ('.' === text || '..' === text) {
+                return ctx.error('url_param_invalid', 'URL path parameter ' + key + ' cannot be "' + text + '".');
+            }
             url = url.replace(RegExp('{' + escre(key) + '}'), escurl(val));
             resmatch[key] = val;
         }
@@ -41,9 +52,8 @@ function makeUrl(ctx) {
     if (null != unfilled) {
         return ctx.error('url_param_missing', 'URL path has no value for ' + unfilled.join(', ') + '.');
     }
-    // Append query string from spec.query. Entity ops populate this via
-    // PrepareQueryUtility from the operation's arguments; direct() callers
-    // pass it as fetchargs.query.
+    // Entity ops fill spec.query from their arguments (PrepareQueryUtility);
+    // direct() callers pass it as fetchargs.query.
     let qsep = '?';
     for (let [key, val] of items(spec.query)) {
         if (null != val) {

@@ -24,6 +24,7 @@ main: kit: target: rust: {
 
   deps: {
     'ureq': { active: true, version: '2', kind: prod }
+    'flate2': { active: true, version: '1', kind: prod }
   }
 }
 
@@ -34,6 +35,7 @@ main: kit: feature: &: target: rust: deps: &: {
 
 
 main: kit: target: rust: publish: {
+  recipe: false
   registry: {
     name: 'crates.io'
     url: 'https://crates.io'

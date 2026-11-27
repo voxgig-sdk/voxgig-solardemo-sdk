@@ -46,9 +46,9 @@ class PlClient
 // records the data it was given.
 class PlEntityItem
 {
-    public array $data = [];
+    public mixed $data = [];
 
-    public function data_set(array $d): void
+    public function data_set(mixed $d): void
     {
         $this->data = $d;
     }
@@ -132,7 +132,7 @@ class PipelineTest extends TestCase
     }
 
 
-    // --- feature order (feature #2) -----------------------------------------
+    // --- feature order ------------------------------------------------------
     // options['feature'] accepts an ordered LIST (developer add-order) or a map
     // (defaults test-first); make_options records the resolved order in
     // __derived__.featureorder.
@@ -365,7 +365,7 @@ class PipelineTest extends TestCase
         $ctx = self::ctx([
             'entity' => $entity,
             'spec' => new VoxgigSolardemoSpec(['step' => 's']),
-            'result' => new VoxgigSolardemoResult(['ok' => true, 'resdata' => [['a' => 1], ['a' => 2]]]),
+            'result' => new VoxgigSolardemoResult(['ok' => true, 'resdata' => [['a' => 1], 'b.md']]),
         ]);
         $ctx->op = new VoxgigSolardemoOperation(['name' => 'list', 'entity' => 'x']);
         [$result, $err] = VoxgigSolardemoMakeResult::call($ctx);
@@ -373,6 +373,7 @@ class PipelineTest extends TestCase
         $this->assertCount(2, $result->resdata);
         $this->assertCount(2, $entity->made);
         $this->assertSame(['a' => 1], $result->resdata[0]->data);
+        $this->assertSame('b.md', $result->resdata[1]->data);
     }
 
     public function test_make_result_empty_list_yields_empty_resdata(): void
@@ -509,6 +510,253 @@ class PipelineTest extends TestCase
         return self::resp($status, $data, $headers);
     }
 
+
+    // A Django route answers its slashless form with a relative Location. The
+    // transport follows each hop, and answers a "manual" fetch with the 3xx.
+    // The server is a child process: PHP serves nothing while it waits.
+    public function test_fetcher_follows_a_relative_redirect(): void
+    {
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('the server runs in a child process');
+        }
+        $server = <<<'SERVER'
+            $srv = stream_socket_server('tcp://127.0.0.1:0');
+            fwrite(STDOUT, explode(':', stream_socket_get_name($srv, false))[1] . "\n");
+            fflush(STDOUT);
+            $moved = ['/redirect/r1' => [301, '/redirect/r1/'], '/redirect/r1/' => [308, 'done']];
+            for ($i = 0; $i < 4 && ($sock = @stream_socket_accept($srv, 20)); $i++) {
+                $path = explode(' ', (string)fgets($sock))[1] ?? '';
+                while (!in_array(fgets($sock), ["\r\n", "\n", false], true)) {
+                }
+                fwrite(STDOUT, $path . "\n");
+                $hop = $moved[$path] ?? null;
+                $body = '/redirect/r1/done' === $path ? '{"id":"r1"}' : '';
+                fwrite($sock, 'HTTP/1.1 ' . ($hop[0] ?? ('' === $body ? 404 : 200)) . " X\r\n"
+                    . (null === $hop ? '' : "Location: {$hop[1]}\r\n") . "Content-Type: application/json\r\n"
+                    . 'Content-Length: ' . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
+                fclose($sock);
+            }
+            SERVER;
+        $proc = proc_open([PHP_BINARY, '-r', $server], [1 => ['pipe', 'w']], $pipes);
+        try {
+            $base = 'http://127.0.0.1:' . trim((string)fgets($pipes[1]));
+            $client = new VoxgigSolardemoSDK(['base' => $base]);
+            $utility = $client->get_utility();
+            $ctx = ($utility->make_context)(['opname' => 'load', 'client' => $client,
+                'utility' => $utility], null);
+
+            [$res, $err] = ($utility->fetcher)($ctx, $base . '/redirect/r1', ['method' => 'GET', 'headers' => []]);
+            $this->assertNull($err);
+            $this->assertSame(200, $res['status']);
+            $this->assertSame(['id' => 'r1'], ($res['json'])());
+
+            [$manual, $merr] = ($utility->fetcher)($ctx, $base . '/redirect/r1',
+                ['method' => 'GET', 'headers' => [], 'redirect' => 'manual']);
+            $this->assertNull($merr);
+            $this->assertSame(301, $manual['status']);
+            $this->assertSame("/redirect/r1\n/redirect/r1/\n/redirect/r1/done\n/redirect/r1\n",
+                stream_get_contents($pipes[1]));
+        } finally {
+            proc_terminate($proc);
+            proc_close($proc);
+        }
+    }
+
+
+    private const REDIRECT_SECRET = 'REDIRECT-SECRET-q7w3e9r1';
+    private const REDIRECT_CREDENTIALS = ['authorization', 'cookie', 'x-api-key', 'private-token', 'x-acme-auth'];
+
+    // x-acme-auth is not a sensitive name: a credential by the value it holds.
+    private static function redirect_headers(): array
+    {
+        return [
+            'authorization' => 'Bearer ' . self::REDIRECT_SECRET,
+            'cookie' => 'sid=' . self::REDIRECT_SECRET,
+            'x-api-key' => self::REDIRECT_SECRET,
+            'private-token' => 'pt-12345',
+            'x-acme-auth' => 'v1 ' . self::REDIRECT_SECRET,
+            'x-tenant' => 'acme',
+        ];
+    }
+
+    // The API's origin redirects; the other origin, another port, records what
+    // reaches it. Both listen in one child process, which prints each request
+    // before it answers. The secret is registered as a caller's is: as the
+    // apikey. $run is handed a fetch answering [res, err, what arrived].
+    private function with_redirect_origins(array $options, callable $run): void
+    {
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('the servers run in a child process');
+        }
+        $server = <<<'SERVER'
+            $api = stream_socket_server('tcp://127.0.0.1:0');
+            $other = stream_socket_server('tcp://127.0.0.1:0');
+            $port = fn($srv) => explode(':', stream_socket_get_name($srv, false))[1];
+            $otherbase = 'http://127.0.0.1:' . $port($other);
+            fwrite(STDOUT, $port($api) . "\n");
+            fflush(STDOUT);
+            $routes = ['/out' => [302, $otherbase . '/landed'], '/out307' => [307, $otherbase . '/landed'],
+                '/in' => [302, '/landed']];
+            for (;;) {
+                $ready = [$api, $other];
+                $none = null;
+                if (!stream_select($ready, $none, $none, 20)) {
+                    break;
+                }
+                foreach ($ready as $srv) {
+                    $sock = stream_socket_accept($srv, 5);
+                    [$method, $path] = explode(' ', (string)fgets($sock)) + [1 => ''];
+                    $headers = [];
+                    while (!in_array($line = fgets($sock), ["\r\n", "\n", false], true)) {
+                        [$name, $value] = explode(':', $line, 2) + [1 => ''];
+                        $headers[strtolower($name)] = trim($value);
+                    }
+                    $length = (int)($headers['content-length'] ?? 0);
+                    $sent = 0 < $length ? (string)stream_get_contents($sock, $length) : '';
+                    fwrite(STDOUT, json_encode(['where' => $srv === $api ? 'api' : 'other', 'method' => $method,
+                        'path' => $path, 'headers' => $headers, 'body' => $sent]) . "\n");
+                    fflush(STDOUT);
+                    $hop = $srv === $api ? ($routes[$path] ?? null) : null;
+                    $body = null === $hop ? '{"id":"r1"}' : '';
+                    fwrite($sock, 'HTTP/1.1 ' . ($hop[0] ?? 200) . " X\r\n"
+                        . (null === $hop ? '' : "Location: {$hop[1]}\r\n") . "Content-Type: application/json\r\n"
+                        . 'Content-Length: ' . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
+                    fclose($sock);
+                }
+            }
+            SERVER;
+        $proc = proc_open([PHP_BINARY, '-r', $server], [1 => ['pipe', 'w']], $pipes);
+        try {
+            $base = 'http://127.0.0.1:' . trim((string)fgets($pipes[1]));
+            stream_set_blocking($pipes[1], false);
+            $client = new VoxgigSolardemoSDK(['base' => $base, 'apikey' => self::REDIRECT_SECRET] + $options);
+            $utility = $client->get_utility();
+            $ctx = ($utility->make_context)(['opname' => 'load'], $client->get_root_ctx());
+            $run(function (string $path, array $fetchdef) use ($utility, $ctx, $base, $pipes): array {
+                [$res, $err] = ($utility->fetcher)($ctx, $base . $path, $fetchdef);
+                $arrived = [];
+                while (false !== ($line = fgets($pipes[1]))) {
+                    $arrived[] = json_decode($line, true);
+                }
+                return [$res, $err, $arrived];
+            });
+        } finally {
+            proc_terminate($proc);
+            proc_close($proc);
+        }
+    }
+
+    private static function arrivals(array $arrived): array
+    {
+        return array_map(fn($a) => $a['where'] . ' ' . $a['path'], $arrived);
+    }
+
+    private function assert_redirect_to_another_origin(array $options): void
+    {
+        $this->with_redirect_origins($options, function (callable $fetch): void {
+            [$res, $err, $arrived] = $fetch('/out', ['method' => 'GET', 'headers' => self::redirect_headers()]);
+            $this->assertNull($err);
+            $this->assertSame(200, $res['status']);
+            $this->assertSame(['api /out', 'other /landed'], self::arrivals($arrived));
+            foreach (self::REDIRECT_CREDENTIALS as $name) {
+                $this->assertArrayHasKey($name, $arrived[0]['headers'], "the API itself was not sent {$name}");
+                $this->assertArrayNotHasKey($name, $arrived[1]['headers'], "another origin was sent {$name}");
+            }
+            $this->assertSame('acme', $arrived[1]['headers']['x-tenant'] ?? null);
+            $this->assertStringNotContainsString(self::REDIRECT_SECRET, json_encode($arrived[1]['headers']));
+        });
+    }
+
+    public function test_fetcher_redirect_to_another_origin_carries_no_credential(): void
+    {
+        $this->assert_redirect_to_another_origin([]);
+    }
+
+    public function test_fetcher_redirect_to_another_origin_with_clean_off(): void
+    {
+        $this->assert_redirect_to_another_origin(['clean' => ['active' => false]]);
+    }
+
+    public function test_fetcher_redirect_on_the_same_origin_keeps_headers(): void
+    {
+        $this->with_redirect_origins([], function (callable $fetch): void {
+            [$res, $err, $arrived] = $fetch('/in', ['method' => 'GET', 'headers' => self::redirect_headers()]);
+            $this->assertNull($err);
+            $this->assertSame(200, $res['status']);
+            $this->assertSame(['api /in', 'api /landed'], self::arrivals($arrived));
+            foreach ([...self::REDIRECT_CREDENTIALS, 'x-tenant'] as $name) {
+                $this->assertArrayHasKey($name, $arrived[1]['headers'], "the same origin lost {$name}");
+            }
+        });
+    }
+
+    // A PUT follows nothing. A GET follows, and the transport sends the body
+    // it is given.
+    public function test_fetcher_redirect_keeps_a_body_on_its_origin(): void
+    {
+        $this->with_redirect_origins([], function (callable $fetch): void {
+            $body = 'BODY-' . self::REDIRECT_SECRET;
+            foreach (['PUT', 'GET'] as $method) {
+                [$res, $err, $arrived] = $fetch('/out307',
+                    ['method' => $method, 'headers' => self::redirect_headers(), 'body' => $body]);
+                $this->assertNull($err);
+                $this->assertSame(307, $res['status'], $method);
+                $this->assertSame(['api /out307'], self::arrivals($arrived), $method);
+                $this->assertSame($body, $arrived[0]['body']);
+            }
+        });
+    }
+
+
+    // The guard writes to STDERR, so it is read from a child process. Nothing
+    // listens on port 9: a request the guard let through fails there.
+    public function test_get_only_guard_prints_no_query_credential(): void
+    {
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('the guard is read from a child process');
+        }
+        $sdk = realpath(__DIR__ . '/../projectname_sdk.php');
+        $code = 'require ' . var_export($sdk, true) . ';'
+            . ' $client = new VoxgigSolardemoSDK(["base" => "http://127.0.0.1:9"]);'
+            . ' $utility = $client->get_utility();'
+            . ' $ctx = ($utility->make_context)(["opname" => "create", "client" => $client,'
+            . ' "utility" => $utility], null);'
+            . ' $url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01&x=1";'
+            . ' [, $err] = ($utility->fetcher)($ctx, $url, ["method" => "POST"]);'
+            . ' echo $err->sdk_code, " ", $err->msg, "\n";'
+            . ' [, $geterr] = ($utility->fetcher)($ctx, $url, ["method" => "GET"]);'
+            . ' echo $geterr instanceof VoxgigSolardemoError ? $geterr->sdk_code : "sent";';
+        $env = array_merge(getenv(), ['VOXGIG_GETONLY_GUARD' => 'TRUE']);
+        $proc = proc_open([PHP_BINARY, '-r', $code],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
+        $out = stream_get_contents($pipes[1]);
+        $errout = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($proc);
+
+        $this->assertStringContainsString('[GET-ONLY GUARD] blocked POST /planet/p1', $errout);
+        $this->assertStringStartsWith('fetch_getonly_block [GET-ONLY GUARD] blocked POST /planet/p1', $out);
+        $this->assertStringEndsWith("\nsent", $out);
+        $this->assertStringNotContainsString('GUARDKEY01', $errout);
+        $this->assertStringNotContainsString('GUARDKEY01', $out);
+    }
+
+    // The struct port's UNDEF sentinel is one object per process, and the
+    // struct corpus writes into it: no client may take it for a fetcher.
+    public function test_fetcher_without_system_fetch_uses_the_default_transport(): void
+    {
+        $sentinel = \Voxgig\Struct\Struct::undef();
+        $sentinel->pipelinetest = true;
+        try {
+            $client = new VoxgigSolardemoSDK(['base' => 'http://localhost:8080']);
+            $this->assertArrayNotHasKey('fetch', $client->options['system'] ?? []);
+            $this->assertNull(VoxgigSolardemoFetcher::systemFetch($client->options_map()));
+            $this->assertTrue(VoxgigSolardemoFetcher::usesDefault(self::ctx(['client' => $client])));
+        } finally {
+            unset($sentinel->pipelinetest);
+        }
+    }
 
     // --- make_fetch_def ----------------------------------------------------------
 

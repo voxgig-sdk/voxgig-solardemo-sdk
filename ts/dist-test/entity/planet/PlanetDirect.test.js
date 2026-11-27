@@ -8,7 +8,7 @@ const node_assert_1 = __importDefault(require("node:assert"));
 const live_runner_1 = require("../../live-runner");
 const __1 = require("../../..");
 const utility_1 = require("../../utility");
-(0, utility_1.loadEnvLocal)(__dirname + '/../../../.env.local');
+(0, utility_1.loadEnvLocal)(__dirname + '/../../../../.env.local');
 (0, node_test_1.describe)('PlanetDirect', async () => {
     // Per-test live pacing. Delay is read from sdk-test-control.json's
     // `test.live.delayMs`; only sleeps when VOXGIG_SOLARDEMO_TEST_LIVE=TRUE.
@@ -48,7 +48,7 @@ const utility_1 = require("../../utility");
             if (0 === listArr.length) {
                 return void (0, utility_1.liveEmpty)(t, 'The account has no planet record to load');
             }
-            const candidateId = listArr[0]?.id ?? listArr[0]?.id;
+            const candidateId = listArr[0]?.id;
             if (null == candidateId) {
                 return void (0, utility_1.liveMiss)(t, LIVE_STRICT, 'Live load blocked: discovery returned no usable identity');
             }

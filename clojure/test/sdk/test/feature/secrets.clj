@@ -31,6 +31,7 @@
   (:require [clojure.string :as str]
             [sdk.core :as core]
             [sdk.client :as client]
+            [sdk.config :as config]
             [sdk.feature.secrets :as secrets]
             [sdk.testutil :as t]
             [voxgig.sekreto :as sekreto]
@@ -39,6 +40,15 @@
 
 
 (def ^:private BASE "http://secrets.test/api")
+
+;; The header the credential travels in: the DEFAULT client's auth.name,
+;; lower-cased as u-prepare-auth sends it, else the name the API declares.
+;; Read from a default client because a test's `auth: nil` leaves no name.
+(def ^:private CREDHEADER
+  (let [name (vs/getpath (core/client-options-map (client/test-sdk nil nil)) "auth.name")]
+    (if (and (string? name) (not= "" name))
+      (.toLowerCase ^String name java.util.Locale/ROOT)
+      core/HEADER-AUTH)))
 
 ;; Named explicitly: a project that narrows the default allow.op set would
 ;; otherwise turn these into a false RED (the control leg refused before it
@@ -58,7 +68,7 @@
 
 
 ;; `reply` is (fn [n url fetchdef] -> [res err]); nil means 200 {ok true}.
-;; The authorization header is snapshotted AS A STRING at call time: the
+;; The credential header is snapshotted AS A STRING at call time: the
 ;; fetchdef's header map is the live spec map the retry rewrites IN PLACE,
 ;; so holding the map would make every recorded call show the last token.
 (defn- counting-fetch
@@ -69,12 +79,16 @@
      (assoc stub :fetch
             (fn [url fetchdef]
               (let [headers (vs/getprop fetchdef "headers")
-                    auth (when (vs/ismap headers) (vs/getprop headers "authorization"))
+                    auth (when (vs/ismap headers) (vs/getprop headers CREDHEADER))
                     n (inc (count @calls))]
                 (swap! calls conj {:url url
                                    :auth (when (some? auth) (str auth))
+                                   :values (if (vs/ismap headers)
+                                             (str/join "\n" (map str (vals headers)))
+                                             "")
                                    :method (vs/getprop fetchdef "method")
-                                   :body (vs/getprop fetchdef "body")})
+                                   :body (vs/getprop fetchdef "body")
+                                   :redirect (vs/getprop fetchdef "redirect")})
                 (if reply
                   (reply n url fetchdef)
                   [(response 200 (vs/jm "ok" true "n" n)) nil])))))))
@@ -142,11 +156,12 @@
 ;; so core/u-fetcher really does call system.fetch.
 ;; ---------------------------------------------------------------------------
 
-(defn- live-sdk [stub & {:keys [apikey auth-nil secrets]}]
+(defn- live-sdk [stub & {:keys [apikey auth-nil secret secrets]}]
   (let [opts (vs/jm "base" BASE
                     "allow" (vs/jm "op" ALLOWOP)
                     "system" (vs/jm "fetch" (:fetch stub)))]
     (when apikey (.put ^java.util.Map opts "apikey" apikey))
+    (when secret (.put ^java.util.Map opts "secret" secret))
     (when auth-nil (.put ^java.util.Map opts "auth" nil))
     (when secrets (.put ^java.util.Map opts "feature" (vs/jm "secrets" secrets)))
     (client/make-sdk opts)))
@@ -161,15 +176,80 @@
                  (deref (core/client-features sdk)))))
 
 
-;; The Authorization header carries the SPEC's credential prefix, which a
-;; TEMPLATE cannot know: an OpenAPI `http`/`bearer` scheme gives
-;; `Bearer <token>`, an apiKey scheme the raw token. So assert on the
-;; CREDENTIAL and let the prefix be whatever this SDK's API declares.
-(defn- credential-is [got token msg]
-  (let [s (str (or got ""))]
-    (t/is-true (or (= s token) (str/ends-with? s (str " " token)))
-               (str msg ": expected the authorization header to carry " token
-                    ", got " (pr-str got)))))
+(defn- listener
+  "A server on 127.0.0.1 that records each request in `seen` and answers it
+  as `answer` says, [status location body]."
+  ^com.sun.net.httpserver.HttpServer [^java.util.List seen answer]
+  (let [server (com.sun.net.httpserver.HttpServer/create (java.net.InetSocketAddress. "127.0.0.1" 0) 0)]
+    (.createContext server "/"
+                    (reify com.sun.net.httpserver.HttpHandler
+                      (handle [_ ex]
+                        (let [uri (.getRequestURI ex)
+                              ;; The target with its query: a query alone is another request.
+                              path (str (.getRawPath uri) (when-let [q (.getRawQuery uri)] (str "?" q)))
+                              sent (String. (.readAllBytes (.getRequestBody ex)) "UTF-8")
+                              [code to text] (answer path)
+                              body (.getBytes ^String text "UTF-8")
+                              size (alength ^bytes body)]
+                          (.add seen {:method (.getRequestMethod ex) :path path :body sent})
+                          (when to (.set (.getResponseHeaders ex) "Location" to))
+                          (.set (.getResponseHeaders ex) "Content-Type" "application/json")
+                          (.sendResponseHeaders ex (int code) (long (if (pos? size) size -1)))
+                          (.write (.getResponseBody ex) body)
+                          (.close ex)))))
+    (.start server)
+    server))
+
+;; The header value u-prepare-auth writes for a token, in the form the
+;; DEFAULT client's auth gives: under Basic the token is the key half of the
+;; encoded pair, and a prefix is space-joined.
+(defn- credential [token secret]
+  (let [auth (vs/getprop (core/client-options-map (client/test-sdk nil nil)) "auth")
+        prefix (let [p (vs/getprop auth "prefix")] (if (string? p) p ""))
+        value (if (= true (vs/getprop auth "basic"))
+                (.encodeToString (java.util.Base64/getEncoder)
+                                 (.getBytes (str token ":" secret) "UTF-8"))
+                token)]
+    (if (= "" prefix) value (str prefix " " value))))
+
+(defn- credential-is
+  ([got token msg] (credential-is got token msg ""))
+  ([got token msg secret]
+   (t/is-eq (str (or got "")) (credential token secret)
+            (str msg ": the " CREDHEADER " header carries " token))))
+
+(defn- with-origins
+  "Runs `run` with two listeners: the origin answers the exchange as the atom
+  `:answer` says and records the rest in `:seen`; `:elsewhere` is the other's."
+  [run]
+  (let [elsewhere (java.util.Collections/synchronizedList (java.util.ArrayList.))
+        seen (java.util.Collections/synchronizedList (java.util.ArrayList.))
+        answer (atom [307 ""])
+        other (listener elsewhere (fn [_] [200 nil "{\"access_token\":\"ELSEWHERE01\"}"]))
+        origin (listener seen (fn [path]
+                                (if (= path "/api/auth/token")
+                                  (conj @answer "")
+                                  [200 nil "{\"access_token\":\"MOVED01\"}"])))
+        at (str "http://127.0.0.1:" (.getPort (.getAddress origin)))]
+    (try
+      (run {:elsewhere elsewhere :seen seen :answer answer :origin at :base (str at "/api")
+            :away (str "http://127.0.0.1:" (.getPort (.getAddress other)) "/api/auth/token")})
+      (finally
+        (.stop origin 0)
+        (.stop other 0)))))
+
+(defn- redirect-direct [o status location xextra]
+  (.clear ^java.util.List (:elsewhere o))
+  (.clear ^java.util.List (:seen o))
+  (reset! (:answer o) [status location])
+  (let [exchange (vs/jm "active" true "refresh" "REFRESH01")]
+    (doseq [[k v] xextra] (vs/setprop exchange k v))
+    (client/direct (client/make-sdk
+                    (vs/jm "base" (:base o)
+                           "allow" (vs/jm "op" ALLOWOP)
+                           "feature" (vs/jm "secrets" (sekopts "name" "refresh_token"
+                                                               "exchange" exchange))))
+                   (vs/jm "path" "/thing"))))
 
 
 ;; ---------------------------------------------------------------------------
@@ -210,7 +290,7 @@
 
 ;; ---------------------------------------------------------------------------
 
-(defn run [rec]
+(defn- run-checks [rec]
   (letfn [(chk [name thunk] (t/run-check rec name thunk))]
 
     ;; ---- INACTIVE COSTS NOTHING ----
@@ -232,7 +312,7 @@
                  sdk (live-sdk stub)]
              (client/direct sdk (vs/jm "path" "/thing"))
              (t/is-eq (sent stub) 1 "one request")
-             (t/is-nil (:auth (call-at stub 0)) "no authorization header"))))
+             (t/is-nil (:auth (call-at stub 0)) "no credential header"))))
 
     ;; ---- apikey KEEPS ITS MEANING ----
 
@@ -254,6 +334,16 @@
                (t/is-some f "secrets feature installed")
                (t/is-eq (sekreto/getfrom (secrets/sek f) "options" "apikey")
                         "OPTKEY01" "directed read of the options store")))))
+
+    (chk "secrets-a-resolved-key-is-placed-as-prepare-auth-places-it"
+         (fn []
+           (let [stub (counting-fetch)
+                 sdk (live-sdk stub :secret "PASS01"
+                               :secrets (sekopts "providers"
+                                                 (vs/jt (fixed-provider "apikey" "CHAINKEY05"))))
+                 res (client/direct sdk (vs/jm "path" "/thing"))]
+             (t/is-true (= true (vs/getprop res "ok")) (str "direct failed: " (brief res)))
+             (credential-is (:auth (call-at stub 0)) "CHAINKEY05" "the secret kept" "PASS01"))))
 
     (chk "secrets-omitted-apikey-defers-to-the-chain"
          (fn []
@@ -289,7 +379,7 @@
                  sdk (live-sdk stub :secrets (sekopts "providers" (vs/jt (miss-provider))))]
              (client/direct sdk (vs/jm "path" "/thing"))
              (t/is-eq (sent stub) 1 "the request still goes out")
-             (t/is-nil (:auth (call-at stub 0)) "no authorization header"))))
+             (t/is-nil (:auth (call-at stub 0)) "no credential header"))))
 
     ;; ---- FAIL CLOSED: a provider ERROR is not a miss ----
     ;;
@@ -539,11 +629,30 @@
                (let [buy (call-at stub 0)]
                  (t/is-eq (:url buy) tokenurl "token endpoint URL")
                  (t/is-eq (:method buy) "POST" "token endpoint method")
+                 (t/is-eq (:redirect buy) "manual" "the exchange must follow no redirect")
                  (t/is-eq (vs/getprop (core/json-parse (str (:body buy))) "refresh_token")
                           "REFRESH01" "marshalled refresh token"))
 
                (credential-is (:auth (call-at stub 1)) "ACCESS01" "attempt 1")
                (credential-is (:auth (call-at stub 3)) "ACCESS02" "the retry"))))
+
+      (chk "secrets-exchange-a-token-bought-on-a-refusal-is-placed-as-prepare-auth-places-it"
+           (fn []
+             (let [issued (atom 0)
+                   apicalls (atom 0)
+                   stub (counting-fetch
+                         (fn [_n url _fd]
+                           (if (str/ends-with? url tokenpath)
+                             [(response 200 (vs/jm "access_token"
+                                                   (str "ACCESS0" (swap! issued inc)))) nil]
+                             (if (= 1 (swap! apicalls inc))
+                               [(response 401 (vs/jm "err" "expired")) nil]
+                               [(response 200 (vs/jm "ok" true)) nil]))))
+                   sdk (live-sdk stub :secret "PASS01" :secrets (xsecrets))]
+               (client/direct sdk (vs/jm "path" "/thing"))
+               (t/is-eq (sent stub) 4 (str "token, 401, token, retry: " (wire stub)))
+               (credential-is (:auth (call-at stub 1)) "ACCESS01" "attempt 1, the secret kept" "PASS01")
+               (credential-is (:auth (call-at stub 3)) "ACCESS02" "the retry, the secret kept" "PASS01"))))
 
       (chk "secrets-exchange-with-auth-nil-never-buys-or-retries"
            (fn []
@@ -565,7 +674,81 @@
                ;; unsend it. The suppression is now honoured before the
                ;; first purchase.
                (t/is-eq (sent stub) 1 (str "one API call, no purchase: " (wire stub)))
-               (t/is-nil (:auth (call-at stub 0)) "no authorization header"))))
+               (t/is-nil (:auth (call-at stub 0)) "no credential header"))))
+
+      ;; Real listeners and core's own raw HTTP: a stub follows nothing.
+      (chk "secrets-exchange-a-redirect-is-a-failure-and-nothing-follows-it"
+           (fn []
+             (with-origins
+               (fn [{:keys [elsewhere seen base away] :as o}]
+                 (let [results
+                       (doall
+                        (for [[status location] [[307 away] [308 away] [302 away] [307 "/api/moved/token"]]]
+                          (let [res (redirect-direct o status location nil)
+                                err (vs/getprop res "err")
+                                message (if (some? err) (str (core/err-msg err)) (brief res))
+                                followed (concat (vec elsewhere)
+                                                 (remove #(= "/api/auth/token" (:path %)) (vec seen)))]
+                            {:label (str status " to " location)
+                             :refused (str/includes? message (str "token exchange failed: " status
+                                                                  " from " base "/auth/token"))
+                             :message message
+                             :followed (vec followed)})))
+                       refused (count (filter :refused results))
+                       followed (reduce + (map (comp count :followed) results))]
+                   (println (str "secrets: exchange refused " refused " redirect(s), " followed " followed"))
+                   (doseq [r results]
+                     (t/is-eq (:followed r) [] (str (:label r) ": followed"))
+                     (t/is-true (:refused r) (str (:label r) ": not a failed exchange: " (:message r))))
+                   (t/is-eq refused 4 "refused"))))))
+
+      (chk "secrets-exchange-with-the-option-a-redirect-on-its-own-origin-is-followed-and-no-other"
+           (fn []
+             (with-origins
+               (fn [{:keys [elsewhere seen base away origin] :as o}]
+                 (let [moved (fn [path] {:method "POST" :path path
+                                         :body "{\"refresh_token\":\"REFRESH01\"}"})
+                       ;; Each case: the status, the Location, and the target the exchange
+                       ;; is asked again at, or nil where the redirect is refused.
+                       results
+                       (doall
+                        (for [[status location path] [[307 "/api/moved/token" "/api/moved/token"]
+                                                      [308 (str origin "/api/moved/token") "/api/moved/token"]
+                                                      ;; A Location of a query alone keeps the path that answered.
+                                                      [307 "?step=2" "/api/auth/token?step=2"]
+                                                      [307 away nil]
+                                                      [302 "/api/moved/token" nil]
+                                                      [307 "/api/auth/token" nil]]]
+                          (let [res (redirect-direct o status location {"redirect" "same-origin"})
+                                err (vs/getprop res "err")
+                                message (if (some? err) (str (core/err-msg err)) (brief res))
+                                mine (remove #(= "/api/auth/token" (:path %)) (vec seen))
+                                verdict (cond
+                                          (and path (= true (vs/getprop res "ok"))
+                                               (= 2 (count mine)) (= (moved path) (first mine)))
+                                          :followed
+                                          (and (nil? path) (empty? mine)
+                                               (str/includes? message (str "token exchange failed: " status
+                                                                           " from " base "/auth/token")))
+                                          :refused
+                                          :else (str status " to " location ": " message " " (vec mine)))]
+                            {:verdict verdict
+                             :location location
+                             :exchanged (count (filter #(= "/api/auth/token" (:path %)) (vec seen)))
+                             :elsewhere (count elsewhere)})))
+                       followed (count (filter #(= :followed (:verdict %)) results))
+                       refused (count (filter #(= :refused (:verdict %)) results))
+                       elsewhere (reduce + (map :elsewhere results))
+                       looped (:exchanged (first (filter #(= "/api/auth/token" (:location %)) results)))]
+                   (println (str "secrets: exchange opt-in followed " followed
+                                 " redirect(s) on its own origin, refused " refused ", "
+                                 elsewhere " elsewhere"))
+                   (t/is-eq elsewhere 0 "the exchange reached another origin")
+                   (t/is-eq (vec (remove keyword? (map :verdict results))) [] "wrong")
+                   (t/is-eq followed 3 "followed")
+                   (t/is-eq refused 3 "refused")
+                   ;; A redirect to itself stops at the hop limit.
+                   (t/is-eq looped 6 "the loop's exchange count"))))))
 
       (chk "secrets-exchange-with-no-refresh-token-fails-closed"
            (fn []
@@ -579,3 +762,55 @@
                         (str "nothing may reach the wire without a credential: " (wire stub)))
                (t/is-true (str/includes? (core/err-msg (vs/getprop res "err")) "no refresh token")
                           "the missing-refresh-token message")))))))
+
+
+;; Off by the config where it declares no auth, else by `auth: nil`: either
+;; way the feature places no credential, buys no token and retries nothing.
+(defn- auth-off [rec declared]
+  (t/run-check
+   rec "secrets-auth-off-places-no-credential-and-buys-no-token"
+   (fn []
+     (let [secrets ["OFFKEY01" "OFFKEY02" "OFFREFRESH01" "ACCESS01"]
+           carries (fn [c] (or (some? (:auth c))
+                               (boolean (some (fn [s] (str/includes? (str (:values c)) s)) secrets))))
+           tokenpath "auth/token"
+           token? (fn [c] (str/ends-with? (str (:url c)) tokenpath))
+           scenarios [["a key the chain resolves" nil
+                       (sekopts "providers" (vs/jt (fixed-provider "apikey" "OFFKEY01"))) 200]
+                      ["an explicit apikey" "OFFKEY02" (sekopts) 200]
+                      ["a refusal" nil
+                       (sekopts "name" "refresh_token"
+                                "providers" (vs/jt (fixed-provider "refresh_token" "OFFREFRESH01"))
+                                "exchange" (vs/jm "active" true)) 401]]
+           totals (atom {:sent [] :bought 0})]
+       (doseq [[what apikey secrets-opts status] scenarios]
+         (let [stub (counting-fetch
+                     (fn [_n url _fd]
+                       (if (str/ends-with? url tokenpath)
+                         [(response 200 (vs/jm "access_token" "ACCESS01")) nil]
+                         [(response status (vs/jm "ok" (< status 400))) nil])))
+               sdk (live-sdk stub :apikey apikey :auth-nil declared :secrets secrets-opts)]
+           (client/direct sdk (vs/jm "path" "/thing"))
+           (let [calls (deref (:calls stub))
+                 api (remove token? calls)
+                 bought (count (filter token? calls))]
+             (t/is-eq (count api) 1 (str what ": one request, not retried"))
+             (t/is-eq bought 0 (str what ": no token bought"))
+             (t/is-true (not-any? carries api) (str what ": no credential sent: " (wire stub)))
+             (t/is-eq (secrets/credential (secrets/of sdk)) "" (str what ": nothing resolved"))
+             (swap! totals (fn [t] (-> t (update :sent into api) (update :bought + bought)))))))
+       (println (str "secrets: auth off by " (if declared "option" "config") ": "
+                     (count (:sent @totals)) " request(s), "
+                     (count (filter carries (:sent @totals))) " credential(s), "
+                     (:bought @totals) " token(s)"))))))
+
+
+;; Read from the config, never from a probe: an SDK whose config declares no
+;; auth places no credential, and these tests assert on the one it places.
+(defn run [rec]
+  (if (vs/ismap (vs/getprop (vs/getprop (config/make-config) "options") "auth"))
+    (do (run-checks rec)
+        (auth-off rec true))
+    (do (println "SKIP secrets: this SDK's config declares no auth, so it places no credential")
+        (auth-off rec false)
+        :skipped)))

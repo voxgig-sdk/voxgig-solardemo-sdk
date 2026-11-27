@@ -61,7 +61,7 @@ class Config {
   final Map<String, dynamic> main = <String, dynamic>{
     'name': 'VoxgigSolardemo',
         'slug': 'voxgig-solardemo',
-    'version': '0.1.0',
+    'version': '0.0.1',
     'target': 'dart',
 
   };
@@ -182,6 +182,7 @@ class Config {
           'active': false,
           'method': 'POST',
           'path': 'auth/token',
+          'redirect': 'refuse',
           'refresh': '',
           'request': 'refresh_token',
           'response': 'access_token',

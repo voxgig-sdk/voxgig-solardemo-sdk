@@ -49,10 +49,10 @@ object MakeError {
 
     ctx.ctrl.err = sdkErr
 
-    // Fire PreUnexpected so observability features (metrics, telemetry, audit,
-    // debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-    // rbac short-circuit). Fires after ctx.ctrl.err is set so hooks can read the
-    // error; features guard against double-recording when PreDone already fired.
+    // Fire PreUnexpected so features hooked on it close/record error paths that
+    // never reach PreDone (e.g. a PrePoint short-circuit). Fires after
+    // ctx.ctrl.err is set so hooks can read the error; features guard against
+    // double-recording when PreDone already fired.
     if (ctx.utility != null && ctx.utility.featureHook != null) {
       ctx.utility.featureHook(ctx, "PreUnexpected")
     }
@@ -148,12 +148,16 @@ object MakePoint {
       throw ctx.makeError("point_no_points", "Operation \"" + op.name + "\" has no endpoint definitions.")
     }
 
-    if (op.points.size() == 1) {
+    val reqselector: JMap[String, Object] = if ("data" == op.input) ctx.reqdata else ctx.reqmatch
+    val selector: JMap[String, Object] = if ("data" == op.input) ctx.data else ctx.matchData
+
+    // A lone point still needs the call's action to agree with its own; the
+    // selection below refuses a mismatch either way.
+    if (op.points.size() == 1 && Objects.equals(
+      Struct.getprop(reqselector, "$action", null),
+      Struct.getprop(Helpers.toMapAny(Struct.getprop(op.points.get(0), "select")), "$action", null))) {
       ctx.point = op.points.get(0)
     } else {
-      val reqselector: JMap[String, Object] = if ("data" == op.input) ctx.reqdata else ctx.reqmatch
-      val selector: JMap[String, Object] = if ("data" == op.input) ctx.data else ctx.matchData
-
       var point: JMap[String, Object] = null
       var matched = false
       var i = 0
@@ -649,7 +653,7 @@ object MakeResult {
           while (it.hasNext) {
             val entry = it.next()
             val ent = entity.make()
-            entry match { case m: JMap[_, _] => ent.data(m); case _ => }
+            ent.data(entry)
             entities.add(ent)
           }
           result.resdata = entities
@@ -678,13 +682,19 @@ object MakeUrl {
     joinParts.add(spec.suffix)
     var url = Struct.join(joinParts, "/", true)
 
-    // A route the definition ends with a slash keeps it: a server such as a
-    // Django REST one redirects or refuses the route without it.
+    // A route ending in a slash keeps it, as defined or as passed to direct(), for
+    // Django, and a host with no path takes /, or luasocket reads a query as the host.
     val orig = if (ctx.point == null) null else Struct.getprop(ctx.point, "orig", null)
-    orig match {
-      case o: String if o.endsWith("/") && (spec.suffix == null || spec.suffix.isEmpty) && !url.endsWith("/") =>
-        url = url + "/"
-      case _ =>
+    val slashed = (orig match {
+      case o: String => o.endsWith("/")
+      case _ => false
+    }) || (spec.path != null && spec.path.endsWith("/"))
+    if (slashed && (spec.suffix == null || spec.suffix.isEmpty) && !url.endsWith("/")) {
+      url = url + "/"
+    }
+    val authority = url.indexOf("://")
+    if (0 < authority && !url.substring(authority + 3).exists(c => 0 <= "/?#".indexOf(c))) {
+      url = url + "/"
     }
 
     val resmatch = new LinkedHashMap[String, Object]()
@@ -699,8 +709,13 @@ object MakeUrl {
       val key = item.get(0) match { case s: String => s; case _ => "" }
       val v = item.get(1)
       if (v != null) {
+        // A whole . or .. is a dot segment, which moves the request to another route.
+        val text = Struct.stringify(v)
+        if (text == "." || text == "..") {
+          throw ctx.makeError("url_param_invalid", "URL path parameter " + key + " cannot be \"" + text + "\".")
+        }
         url = url.replaceAll("\\{" + Struct.escre(key) + "\\}",
-          java.util.regex.Matcher.quoteReplacement(Struct.escurl(Struct.stringify(v))))
+          java.util.regex.Matcher.quoteReplacement(Struct.escurl(text)))
         resmatch.put(key, v)
       }
     }

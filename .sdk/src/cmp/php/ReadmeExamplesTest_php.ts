@@ -1,5 +1,5 @@
 
-import { cmp, File, Content } from '@voxgig/sdkgen'
+import { cmp, File, Content, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,9 +7,22 @@ import {
 } from '@voxgig/apidef'
 
 
+// A PHP single-quoted literal: no interpolation, whatever the name holds.
+function phpQuote(text: string): string {
+  return "'" + String(text).replace(/[\\']/g, '\\$&') + "'"
+}
+
+
 const ReadmeExamplesTest = cmp(function ReadmeExamplesTest(props: any) {
   const { target } = props
   const { model } = props.ctx$
+  // The root README where the run writes one beside this target, and the
+  // target's own documents where it writes them.
+  const link = fact(target, 'link').readme
+  const own = fact(target, 'phase').readme
+  if ('' === link && !own) {
+    return
+  }
 
   const sdkbase = model.const.Name.toLowerCase() + '_sdk'
   const sdkfile = sdkbase + '.php'
@@ -20,6 +33,14 @@ const ReadmeExamplesTest = cmp(function ReadmeExamplesTest(props: any) {
   const entityLines = Object.values(entity)
     .filter((e: any) => e && e.active !== false)
     .map((e: any) => `        ${JSON.stringify(e.Name)} => ${JSON.stringify(e.name)},`)
+    .join('\n')
+
+  // The declared identity field of each entity that names one other than
+  // `id`, by fixture key: the mock keys a record by it, so the seed does too.
+  const idFieldLines = Object.values(entity)
+    .filter((e: any) => e && e.active !== false &&
+      'string' === typeof e.id?.field && '' !== e.id.field && 'id' !== e.id.field)
+    .map((e: any) => `        ${phpQuote(e.name)} => ${phpQuote(e.id.field)},`)
     .join('\n')
 
   File({ name: 'ReadmeExamplesTest.' + target.ext }, () => {
@@ -68,6 +89,11 @@ class ReadmeExamplesTest extends TestCase
 ${entityLines}
     ];
 
+    // Fixture key => the entity's declared identity field, where it is not "id".
+    private const ID_FIELDS = [
+${idFieldLines}
+    ];
+
     // Documented SDK method names — used only to recognise the NARROW
     // signature/method-table "illustration" class.
     private const METHODS = [
@@ -92,10 +118,10 @@ ${entityLines}
     private function docs(): array
     {
         return [
-            'root README' => __DIR__ . '/../../README.md',
-            'php README' => __DIR__ . '/../README.md',
+${'' === link ? '' : `            'root README' => __DIR__ . '/../${link}',
+`}${own ? `            'php README' => __DIR__ . '/../README.md',
             'php REFERENCE' => __DIR__ . '/../REFERENCE.md',
-        ];
+` : ''}        ];
     }
 
     /**
@@ -238,6 +264,16 @@ ${entityLines}
         $this->assertSame([], $failures, "docs php blocks with syntax errors:\\n" . implode("\\n\\n", $failures));
     }
 
+    /** The one mock record seeded per entity, keyed as the mock keys it. */
+    private static function seedRecord(string $storage): array
+    {
+        $record = ["id" => "test01"];
+        if (isset(self::ID_FIELDS[$storage])) {
+            $record[self::ID_FIELDS[$storage]] = "test01";
+        }
+        return $record;
+    }
+
     /**
      * Build the SDK 'entity' fixture option for the entities a block references,
      * falling back to seeding all entities when none are named.
@@ -247,12 +283,12 @@ ${entityLines}
         $refs = [];
         foreach (self::ENTITIES as $name => $storage) {
             if (preg_match('/\\$client->' . preg_quote($name, '/') . '\\b/', $block)) {
-                $refs[$storage] = ["test01" => ["id" => "test01"]];
+                $refs[$storage] = ["test01" => self::seedRecord($storage)];
             }
         }
         if (empty($refs)) {
             foreach (self::ENTITIES as $storage) {
-                $refs[$storage] = ["test01" => ["id" => "test01"]];
+                $refs[$storage] = ["test01" => self::seedRecord($storage)];
             }
         }
         return ["entity" => $refs];
@@ -261,11 +297,10 @@ ${entityLines}
     /**
      * Rewrite a runnable block into an executable offline test-mode program: the
      * doc's own require of the SDK file is stripped (we require it by absolute
-     * path); any real client constructor (new <Sdk>SDK / <Sdk>SDK::test) becomes
+     * path); any real client constructor (new <Sdk>SDK / <Sdk>SDK::test), its
+     * argument list matched to the parenthesis that balances it, becomes
      * <Sdk>SDK::test(<fixtures>); a block that only uses \\$client gets such a
-     * constructor prepended. (The constructor arg-list match is deliberately
-     * shallow — it does not span nested parens — because runnable op blocks
-     * never build a client inline with a closure argument.)
+     * constructor prepended.
      */
     private function toRunner(string $block, string $sdk): string
     {
@@ -278,7 +313,7 @@ ${entityLines}
             '',
             $body
         );
-        $ctorRe = '/(?:new\\s+' . preg_quote($cls, '/') . '|' . preg_quote($cls, '/') . '::test)(?:\\([^()]*\\))?/';
+        $ctorRe = '/(?:new\\s+' . preg_quote($cls, '/') . '|' . preg_quote($cls, '/') . '::test)(?<args>\\((?:[^()]++|(?&args))*\\))?/';
         if (preg_match($ctorRe, $body)) {
             $body = preg_replace_callback($ctorRe, function () use ($cls, $fixtures) {
                 return $cls . '::test(' . $fixtures . ')';

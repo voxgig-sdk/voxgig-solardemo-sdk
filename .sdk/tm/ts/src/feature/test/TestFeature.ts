@@ -19,7 +19,27 @@ function mintId(): string {
 }
 
 
+// The entity's declared identity field (`entity.id.field`), where it names
+// one other than the `id` every record already carries.
+function declaredIdField(config: any, getpath: any, entityName: string): string | null {
+  const field = getpath(config, ['entity', entityName, 'id', 'field'])
+  return 'string' === typeof field && '' !== field && 'id' !== field ? field : null
+}
+
+
 function ownIdField(config: any, getpath: any, entityName: string): string {
+  return declaredIdField(config, getpath, entityName) ?? routeIdField(config, getpath, entityName)
+}
+
+
+// The keys besides `id` a record is found by: declared field, then route param.
+function ownIdFields(config: any, getpath: any, entityName: string): string[] {
+  const fields = [ownIdField(config, getpath, entityName), routeIdField(config, getpath, entityName)]
+  return fields.filter((f, i) => 'id' !== f && i === fields.indexOf(f))
+}
+
+
+function routeIdField(config: any, getpath: any, entityName: string): string {
   let fallback = ''
 
   for (const opname of ['load', 'remove', 'update', 'patch']) {
@@ -41,8 +61,9 @@ function ownIdField(config: any, getpath: any, entityName: string): string {
     // No path param at all (or the route ends in a literal, e.g.
     // /orgs/{org}/private-registries/public-key): a single required QUERY
     // param can still be the record's own key (e.g. GET /result?trace_id=).
+    // The config omits `reqd` where it is false, so only `true` is required.
     const query = (best && best.args && best.args.query) || []
-    const reqdQuery = query.filter((q: any) => false !== q.reqd)
+    const reqdQuery = query.filter((q: any) => true === q.reqd)
     if (1 === reqdQuery.length) return String(reqdQuery[0].name)
 
     // The last path parameter of a literal-terminal route is remembered as
@@ -116,8 +137,7 @@ class TestFeature extends BaseFeature {
     walk(entity, (k: any, v: any, _parent: any, path: any) => {
       if (2 === size(path)) {
         setprop(v, 'id', k)
-        const idField = ownIdField(ctx.config, getpath, String(path[0]))
-        if ('id' !== idField) {
+        for (const idField of ownIdFields(ctx.config, getpath, String(path[0]))) {
           setprop(v, idField, k)
         }
       }
@@ -254,9 +274,10 @@ class TestFeature extends BaseFeature {
         // the initial walk gives seed data (see ownIdField above) — without
         // it, only `id` is set, and a load by the entity's own key right
         // after create (recordKey !== 'id') finds nothing.
-        const idField = ownIdField(ctx.config, struct.getpath, getprop(op, 'entity'))
-        if ('id' !== idField && null == getprop(ent, idField)) {
-          setprop(ent, idField, id)
+        for (const idField of ownIdFields(ctx.config, struct.getpath, getprop(op, 'entity'))) {
+          if (null == getprop(ent, idField)) {
+            setprop(ent, idField, id)
+          }
         }
 
         setprop(entmap, id, ent)
@@ -443,6 +464,7 @@ class TestFeature extends BaseFeature {
 export {
   TestFeature,
   ownIdField,
+  ownIdFields,
   mintId,
 }
 

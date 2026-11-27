@@ -50,7 +50,6 @@ public:
   
       // The operation resolves to THIS entity: runOp has just absorbed the
       // result into it, and the caller reaches the record through data().
-      // See AGENTS.md "Entity operations return ENTITIES".
   
       return this->self();
     }
@@ -81,9 +80,7 @@ public:
       if (out.is_list()) {
         for (const auto& entry : *out.as_list()) {
           SdkEntityPtr ent = std::static_pointer_cast<SdkEntity>(this->make());
-          if (entry.is_map()) {
-            ent->data(entry);
-          }
+          ent->data(entry);
           items.push_back(ent);
         }
       }
@@ -113,7 +110,6 @@ public:
   
       // The operation resolves to THIS entity: runOp has just absorbed the
       // result into it, and the caller reaches the record through data().
-      // See AGENTS.md "Entity operations return ENTITIES".
   
       return this->self();
     }
@@ -140,7 +136,6 @@ public:
   
       // The operation resolves to THIS entity: runOp has just absorbed the
       // result into it, and the caller reaches the record through data().
-      // See AGENTS.md "Entity operations return ENTITIES".
   
       return this->self();
     }
@@ -171,7 +166,6 @@ public:
   
       // The operation resolves to THIS entity: runOp has just absorbed the
       // result into it, and the caller reaches the record through data().
-      // See AGENTS.md "Entity operations return ENTITIES".
   
       // A removed entity keeps its data but is no longer a live record.
       this->markDeleted();

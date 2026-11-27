@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, opRequestShape, entityIdField, entityDataIdField, entityOps, matchExampleItems, requiredItems, requestExampleItems, sendsId, fact, seriesList } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -7,11 +7,12 @@ import {
   nom,
 } from '@voxgig/apidef'
 
-import { ocamlVarName, ocamlListMatch } from './utility_ocaml'
+import { ocamlVarName, ocamlListMatch, ocamlString } from './utility_ocaml'
 
 
 const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   const { target, ctx$: { model } } = props
+  let step = 0
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
 
@@ -28,11 +29,20 @@ const ReadmeQuick = cmp(function ReadmeQuick(props: any) {
   ) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `Sdk_client.make (jo [("apikey", Str (Sys.getenv "${envName(model)}_APIKEY"))])`
-    : `Sdk_client.make0 ()`
+  // The constructor refuses a templated URL it has no value for, so the quick
+  // start passes each variable the URL uses with no default.
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`("apikey", Str (Sys.getenv "${envName(model)}_APIKEY"))`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`("secret", Str (Sys.getenv "${envName(model)}_SECRET"))`] : []),
+    ...(0 === svars.length ? [] : [`("server", jo [` +
+      svars.map((v: any) => `("${v.name}", Str "<${v.name}>")`).join('; ') + `])`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `Sdk_client.make0 ()`
+    : `Sdk_client.make (jo [${ctorFields.join('; ')}])`
 
-  Content(`### 1. Create a client
+  Content(`### ${++step}. Create a client
 
 \`\`\`ocaml
 open Voxgig_struct
@@ -62,11 +72,11 @@ let client = ${ctor}
       if ('BOOLEAN' === k) return '(Bool true)'
       if ('ARRAY' === k) return '(empty_list ())'
       if ('OBJECT' === k) return '(empty_map ())'
-      return `(Str "${placeholder}")`
+      return `(Str "${ocamlString(placeholder)}")`
     }
 
     if (opnames.includes('list')) {
-      Content(`### 2. List ${fn} records
+      Content(`### ${++step}. List ${fn} records
 
 \`e_list\` resolves to one ENTITY per record and raises on error. Read a
 record with \`e_data_get\`.
@@ -89,18 +99,17 @@ record with \`e_data_get\`.
       // Model-driven match: every REQUIRED load-match key. Parent keys first,
       // the entity's own id last.
       const neIdF = entityIdField(nestedEntity)
-      const neRequired = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neRequired = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
       const parentItem = neRequired.find((it: any) => it.name !== neIdF) as any
       const parentParam = parentItem && parentItem.name
       const parentName = parentParam ? parentParam.replace(/_id$/, '') : 'its parent'
       const neMatch = neRequired.map((it: any) =>
-        `("${it.name}", ${ocamlLit(it.type,
+        `("${ocamlString(it.name)}", ${ocamlLit(it.type,
           it.name === neIdF ? 'example_id' : 'example_' + it.name)})`)
 
-      Content(`### 3. Load ${neArticle} ${neFn}
+      Content(`### ${++step}. Load ${neArticle} ${neFn}
 
 ${neName} is nested under ${parentName}, so provide the \`${parentParam}\`.
 \`e_load\` resolves to the ENTITY and raises on error; \`e_data_get\` gives the
@@ -116,17 +125,16 @@ record.
 `)
     }
     else if (opnames.includes('load')) {
-      const loadRequired = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadRequired = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadRequired.length
         ? `jo [${loadRequired.map((it: any) =>
-          `("${it.name}", ${ocamlLit(it.type,
+          `("${ocamlString(it.name)}", ${ocamlLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)})`).join('; ')}]`
         : 'Noval'
 
-      Content(`### 3. Load ${article} ${fn}
+      Content(`### ${++step}. Load ${article} ${fn}
 
 \`e_load\` resolves to the ENTITY and raises on error; \`e_data_get\` gives the
 record.
@@ -144,15 +152,15 @@ record.
     // Model-driven example fields: derive the create/update body from the op
     // shape so the docs reference REAL writable fields.
     const examplePairs = (opname: string): string[] => {
-      const items = opRequestShape(exampleEntity, opname).items
-        .filter((it: any) => (it.name !== idF && it.name !== 'id') ||
+      const items = requestExampleItems(exampleEntity, opname)
+        .filter((it: any) => (it.name !== idF && (it.name !== 'id' || !it.optional)) ||
           ('create' === opname && !it.optional))
       const required = items.filter((it: any) => !it.optional)
       const optional = items.filter((it: any) => it.optional)
       const chosen = 'create' === opname
         ? (required.length ? required : items.slice(0, 2))
         : required.concat(optional).slice(0, Math.max(2, required.length))
-      return chosen.map((it: any) => `("${it.name}", ${ocamlLit(it.type, 'example_' + it.name)})`)
+      return chosen.map((it: any) => `("${ocamlString(it.name)}", ${ocamlLit(it.type, 'example_' + it.name)})`)
     }
 
     const idParamType = (opname: string): any => {
@@ -160,12 +168,13 @@ record.
       return it && it.type
     }
     const idValueFor = (opname: string): string => (null != dataIdF && opnames.includes('create'))
-      ? `(getp (created.e_data_get ()) "${dataIdF}")`
+      ? `(getp (created.e_data_get ()) "${ocamlString(dataIdF)}")`
       : ocamlLit(idParamType(opname), 'example_id')
 
     if (opnames.includes('create') || opnames.includes('update') || opnames.includes('patch') ||
       opnames.includes('remove')) {
-      Content(`### 4. Create, update, and remove
+      Content(`### ${++step}. ${seriesList(['create', 'update', 'patch', 'remove']
+        .filter((o: string) => opnames.includes(o))).replace(/^./, (c: string) => c.toUpperCase())}
 
 \`\`\`ocaml
 `)
@@ -177,27 +186,26 @@ print_endline (stringify (created.e_data_get ()));
 `)
       }
       if (opnames.includes('update')) {
-        const updatePairs = (idF ? [`("${idF}", ${idValueFor('update')})`] : []).concat(examplePairs('update'))
+        const updatePairs = (sendsId(exampleEntity, 'update', idF) ? [`("${ocamlString(idF)}", ${idValueFor('update')})`] : []).concat(examplePairs('update'))
         Content(`(* Update *)
 ignore ((Sdk_client.${fn} client Noval).e_update (jo [${updatePairs.join('; ')}]) Noval);
 
 `)
       }
       if (opnames.includes('patch')) {
-        const patchPairs = (idF ? [`("${idF}", ${idValueFor('patch')})`] : []).concat(examplePairs('patch'))
+        const patchPairs = (sendsId(exampleEntity, 'patch', idF) ? [`("${ocamlString(idF)}", ${idValueFor('patch')})`] : []).concat(examplePairs('patch'))
         Content(`(* Patch — sends only the fields given *)
 ignore ((Sdk_client.${fn} client Noval).e_patch (jo [${patchPairs.join('; ')}]) Noval);
 
 `)
       }
       if (opnames.includes('remove')) {
-        const removePairs = opRequestShape(exampleEntity, 'remove').items
-          .filter((it: any) => !it.optional || it.name === idF)
+        const removePairs = matchExampleItems(exampleEntity, 'remove', idF)
           .sort((a: any, b: any) =>
             (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
           .map((it: any) => it.name === idF
-            ? `("${it.name}", ${idValueFor('remove')})`
-            : `("${it.name}", ${ocamlLit(it.type, 'example_' + it.name)})`)
+            ? `("${ocamlString(it.name)}", ${idValueFor('remove')})`
+            : `("${ocamlString(it.name)}", ${ocamlLit(it.type, 'example_' + it.name)})`)
         Content(`(* Remove — resolves to the entity, marked deleted; it keeps its data *)
 let removed = (Sdk_client.${fn} client Noval).e_remove (${removePairs.length ? `jo [${removePairs.join('; ')}]` : 'Noval'}) Noval in
 Printf.printf "deleted: %b\\n" removed.e_deleted

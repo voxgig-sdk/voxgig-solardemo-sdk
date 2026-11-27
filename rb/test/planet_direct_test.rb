@@ -27,14 +27,17 @@ class PlanetDirectTest < Minitest::Test
       skip(_reason || "skipped via sdk-test-control.json")
       return
     end
+    Runner.live_pace if setup[:live]
     client = setup[:client]
 
     params = {}
+    query = {}
 
     result = client.direct({
       "path" => "api/planet",
       "method" => "GET",
       "params" => params,
+      "query" => query,
     })
     if setup[:live]
       unless live_ok(result)
@@ -61,6 +64,7 @@ class PlanetDirectTest < Minitest::Test
       skip(_reason || "skipped via sdk-test-control.json")
       return
     end
+    Runner.live_pace if setup[:live]
     client = setup[:client]
 
     params = {}
@@ -82,7 +86,7 @@ class PlanetDirectTest < Minitest::Test
         Runner.live_empty("The account has no planet record to load")
       end
       first = records[0].is_a?(Hash) ? records[0] : {}
-      found = first.fetch("id", first["id"])
+      found = first["id"]
       if found.nil?
         Runner.live_miss(LIVE_STRICT, "Live load blocked: discovery returned no usable identity")
       end

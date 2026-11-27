@@ -105,6 +105,22 @@ use constant LIVE_STRICT => 1;
 }
 
 SKIP: {
+  skip('feature not present in this SDK: validate', 2)
+    unless VoxgigSolardemoConfig::shared_config()->{feature}{validate};
+  my $opts = { feature => { validate => { active => 1, request => 0, response => 1 } } };
+  my $listed = eval {
+    VoxgigSolardemoSDK->test({ entity => { 'planet' => { v1 => { 'diameter' => 1, 'kind' => 'x', 'name' => 'x' } } } }, $opts)->Planet(undef)->list(undef, undef)
+  };
+  is_deeply([map { $_->data_get->{id} } @{ $listed // [] }], ['v1'],
+    'planet: validate checks each listed record') or diag("$@");
+  my $err = eval {
+    VoxgigSolardemoSDK->test({ entity => { 'planet' => { v1 => { 'diameter' => 'x', 'kind' => 'x', 'name' => 'x' } } } }, $opts)->Planet(undef)->list(undef, undef); undef
+  } // $@;
+  is(ref $err ? $err->{code} : undef, 'validate_failed',
+    'planet: a mistyped listed record fails with validate_failed');
+}
+
+SKIP: {
   skip('feature not present in this SDK: validate', 1)
     unless VoxgigSolardemoConfig::shared_config()->{feature}{validate};
   my $client = VoxgigSolardemoSDK->test(undef, { feature => { validate => { active => 1 } } });
@@ -126,9 +142,54 @@ BASIC_FLOW: {
       last BASIC_FLOW;
     }
   }
+  if ($setup->{live} && ($ENV{VOXGIG_GETONLY_GUARD} // '') eq 'TRUE') {
+    note('LIVE STEP {"id":"planet.create.0","state":"excluded","attempted":false,"reason":"GET-only live run: needs POST /api/planet/{planet_id}/forbid"}');
+    note('LIVE STEP {"id":"planet.update.2","state":"excluded","attempted":false,"reason":"GET-only live run: needs PUT /api/planet/{planet_id}"}');
+    note('LIVE STEP {"id":"planet.remove.4","state":"excluded","attempted":false,"reason":"GET-only live run: needs DELETE /api/planet/{planet_id}"}');
+    note('LIVE STEP {"id":"planet.list.5","state":"excluded","attempted":false,"reason":"GET-only live run: checks a removal this run does not make"}');
+  my $client = $setup->{client};
+  if ($setup->{live}) {
+    my $live_id = $setup->{synthetic_only} ? undef : $setup->{idmap}{'planet01'};
+    VoxgigSolardemoTestRunner::live_pace();
+    VoxgigSolardemoTestRunner::live_existing($setup, LIVE_STRICT, 'planet: basic flow', 'planet',
+      sub { $client->Planet(undef)->list({}, undef) }, 'id', $live_id)
+      or last BASIC_FLOW;
+  }
+  my %V;
+
+  # Bootstrap entity data from existing test data.
+  $V{planet_ref01_data_raw} = Voxgig::Struct::items(VoxgigSolardemoHelpers::to_map(
+    VoxgigSolardemoHelpers::gpath($setup->{data}, 'existing.planet')));
+  $V{planet_ref01_data} = undef;
+  if (@{ $V{planet_ref01_data_raw} || [] }) {
+    $V{planet_ref01_data} = VoxgigSolardemoHelpers::to_map($V{planet_ref01_data_raw}[0][1]);
+  }
+
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
+  # LIST
+  $V{planet_ref01_ent} = $client->Planet(undef);
+  $V{planet_ref01_match} = {};
+
+  $V{planet_ref01_list_result} = $V{planet_ref01_ent}->list($V{planet_ref01_match}, undef);
+  ok(Voxgig::Struct::islist($V{planet_ref01_list_result}), 'planet list: is array');
+
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
+  # LOAD
+  $V{planet_ref01_match_dt0} = {
+    'id' => $V{planet_ref01_data}{id},
+  };
+  $V{planet_ref01_data_dt0_loaded} = $V{planet_ref01_ent}->load($V{planet_ref01_match_dt0}, undef);
+  $V{planet_ref01_data_dt0_load_result} = VoxgigSolardemoHelpers::to_map(ref($V{planet_ref01_data_dt0_loaded}) && $V{planet_ref01_data_dt0_loaded}->can('data_get') ? $V{planet_ref01_data_dt0_loaded}->data_get : $V{planet_ref01_data_dt0_loaded});
+  ok(defined $V{planet_ref01_data_dt0_load_result}, 'planet load: data');
+  is($V{planet_ref01_data_dt0_load_result}{id}, $V{planet_ref01_data}{id}, 'planet load: id');
+
+    last BASIC_FLOW;
+  }
+
   my $client = $setup->{client};
   my %V;
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # CREATE
   $V{planet_ref01_ent} = $client->Planet(undef);
   $V{planet_ref01_data} = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::gp(
@@ -139,6 +200,7 @@ BASIC_FLOW: {
   ok(defined $V{planet_ref01_data}, 'planet create: data');
   ok(defined $V{planet_ref01_data}{id}, 'planet create: id');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # LIST
   $V{planet_ref01_match} = {};
 
@@ -150,6 +212,7 @@ BASIC_FLOW: {
     { 'id' => $V{planet_ref01_data}{id} });
   ok(!Voxgig::Struct::isempty($V{found_item}), 'planet list: item exists');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # UPDATE
   $V{planet_ref01_data_up0_up} = {
     'id' => $V{planet_ref01_data}{id},
@@ -165,6 +228,7 @@ BASIC_FLOW: {
   is($V{planet_ref01_resdata_up0}{id}, $V{planet_ref01_data_up0_up}{id}, 'planet update: id');
   is($V{planet_ref01_resdata_up0}{ $V{planet_ref01_markdef_up0_name} }, $V{planet_ref01_markdef_up0_value}, 'planet update: mark');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # LOAD
   $V{planet_ref01_match_dt0} = {
     'id' => $V{planet_ref01_data}{id},
@@ -174,6 +238,7 @@ BASIC_FLOW: {
   ok(defined $V{planet_ref01_data_dt0_load_result}, 'planet load: data');
   is($V{planet_ref01_data_dt0_load_result}{id}, $V{planet_ref01_data}{id}, 'planet load: id');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # REMOVE
   $V{planet_ref01_match_rm0} = {
     'id' => $V{planet_ref01_data}{id},
@@ -181,6 +246,7 @@ BASIC_FLOW: {
   $V{planet_ref01_ent}->remove($V{planet_ref01_match_rm0}, undef);
   pass('planet remove: completed');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # LIST
   $V{planet_ref01_match_rt0} = {};
 

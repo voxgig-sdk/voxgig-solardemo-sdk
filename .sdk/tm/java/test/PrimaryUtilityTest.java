@@ -1,7 +1,7 @@
 package JAVAPACKAGE.sdktest;
 
 // Drives the primary utility functions against the shared test.json spec
-// (../.sdk/test/test.json, section "primary") through the VENDORED omni
+// (SDKREL/.sdk/test/test.json, section "primary") through the VENDORED omni
 // runner (OmniResolver over test/vendor/omni). Mirrors
 // tm/go/test/primary_utility_test.go.
 //
@@ -26,8 +26,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import JAVAPACKAGE.core.Config;
 import JAVAPACKAGE.core.Context;
 import JAVAPACKAGE.core.Entity;
 import JAVAPACKAGE.core.Helpers;
@@ -42,7 +44,7 @@ import JAVAPACKAGE.feature.BaseFeature;
 @SuppressWarnings({"unchecked"})
 public class PrimaryUtilityTest {
 
-  static final String TEST_JSON_FILE = "../.sdk/test/test.json";
+  static final String TEST_JSON_FILE = "SDKREL/.sdk/test/test.json";
 
   // PENDING sections are the ones deliberately left empty in the shared
   // corpus (.sdk/test/primary/<name>.aontu). Everything else MUST contribute
@@ -414,6 +416,317 @@ public class PrimaryUtilityTest {
     }
   }
 
+  // A Django route answers its slashless form with a relative Location. The
+  // transport follows each hop, and answers a "manual" fetch with the 3xx.
+  @Test
+  @SuppressWarnings("unchecked")
+  public void fetcherRedirect() throws Exception {
+    List<String> seen = java.util.Collections.synchronizedList(new ArrayList<>());
+    Map<String, Object[]> moved = Map.of(
+        "/redirect/r1", new Object[] {301, "/redirect/r1/"}, "/redirect/r1/", new Object[] {308, "done"});
+    com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(
+        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext("/", (exchange) -> {
+      String path = exchange.getRequestURI().getRawPath();
+      seen.add(path);
+      Object[] hop = moved.get(path);
+      byte[] body = "/redirect/r1/done".equals(path) ? "{\"id\":\"r1\"}".getBytes() : new byte[0];
+      if (hop != null) {
+        exchange.getResponseHeaders().set("Location", (String) hop[1]);
+      }
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(hop != null ? (int) hop[0] : 0 < body.length ? 200 : 404,
+          0 < body.length ? body.length : -1);
+      exchange.getResponseBody().write(body);
+      exchange.close();
+    });
+    server.start();
+    String base = "http://127.0.0.1:" + server.getAddress().getPort();
+    try {
+      VoxgigSolardemoSDK liveClient = new VoxgigSolardemoSDK(fhMap("base", base));
+      Utility liveUtility = liveClient.getUtility();
+      Context ctx = liveUtility.makeContext.apply(fhMap(
+          "opname", "load", "client", liveClient, "utility", liveUtility), null);
+
+      Map<String, Object> res = (Map<String, Object>) liveUtility.fetcher.fetch(ctx, base + "/redirect/r1",
+          fhMap("method", "GET", "headers", new LinkedHashMap<>()));
+      assertEquals(200, res.get("status"));
+      assertEquals("{\"id\":\"r1\"}", res.get("body"));
+      assertEquals(List.of("/redirect/r1", "/redirect/r1/", "/redirect/r1/done"), seen);
+
+      Map<String, Object> manual = (Map<String, Object>) liveUtility.fetcher.fetch(ctx,
+          base + "/redirect/r1", fhMap("method", "GET", "headers", new LinkedHashMap<>(), "redirect", "manual"));
+      assertEquals(301, manual.get("status"));
+    }
+    finally {
+      server.stop(0);
+    }
+  }
+
+  // A Location of a query alone keeps the path that answered.
+  @Test
+  @SuppressWarnings("unchecked")
+  public void fetcherRedirectToAQueryKeepsThePath() throws Exception {
+    List<String> seen = java.util.Collections.synchronizedList(new ArrayList<>());
+    com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(
+        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext("/", (exchange) -> {
+      String query = exchange.getRequestURI().getRawQuery();
+      seen.add(exchange.getRequestURI().getRawPath() + (query == null ? "" : "?" + query));
+      if (query == null) {
+        exchange.getResponseHeaders().set("Location", "?step=2");
+        exchange.sendResponseHeaders(302, -1);
+      }
+      else {
+        byte[] body = "{\"id\":\"q1\"}".getBytes();
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
+      }
+      exchange.close();
+    });
+    server.start();
+    String base = "http://127.0.0.1:" + server.getAddress().getPort();
+    try {
+      VoxgigSolardemoSDK liveClient = new VoxgigSolardemoSDK(fhMap("base", base));
+      Utility liveUtility = liveClient.getUtility();
+      Context ctx = liveUtility.makeContext.apply(fhMap(
+          "opname", "load", "client", liveClient, "utility", liveUtility), null);
+      Map<String, Object> res = (Map<String, Object>) liveUtility.fetcher.fetch(ctx, base + "/redirect/q1",
+          fhMap("method", "GET", "headers", new LinkedHashMap<>()));
+      assertEquals(200, res.get("status"));
+      assertEquals(List.of("/redirect/q1", "/redirect/q1?step=2"), seen);
+    }
+    finally {
+      server.stop(0);
+    }
+  }
+
+  // The API's origin, which redirects, and another origin, which records
+  // what reaches it: another port on the same host is another origin.
+  static final class RedirectOrigins implements AutoCloseable {
+    static final String SECRET = "REDIRECT-SECRET-q7w3e9r1";
+    static final List<String> CREDENTIALS =
+        List.of("authorization", "cookie", "x-api-key", "private-token", "x-acme-auth");
+
+    final List<Map<String, Object>> arrived =
+        java.util.Collections.synchronizedList(new ArrayList<>());
+    final com.sun.net.httpserver.HttpServer api = listen("api");
+    final com.sun.net.httpserver.HttpServer other = listen("other");
+    final String apibase = "http://127.0.0.1:" + api.getAddress().getPort();
+    final String otherbase = "http://127.0.0.1:" + other.getAddress().getPort();
+
+    private com.sun.net.httpserver.HttpServer listen(String where) {
+      try {
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(
+            new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", (exchange) -> {
+          String path = exchange.getRequestURI().getRawPath();
+          Map<String, Object> headers = new LinkedHashMap<>();
+          exchange.getRequestHeaders().forEach((name, vals) ->
+              headers.put(name.toLowerCase(java.util.Locale.ROOT), String.join(", ", vals)));
+          String body = new String(exchange.getRequestBody().readAllBytes(),
+              java.nio.charset.StandardCharsets.UTF_8);
+          arrived.add(fhMap("where", where, "method", exchange.getRequestMethod(),
+              "path", path, "headers", headers, "body", body));
+          Object[] hop = switch (path) {
+            case "/out" -> new Object[] {302, otherbase + "/landed"};
+            case "/out307" -> new Object[] {307, otherbase + "/landed"};
+            case "/in" -> new Object[] {302, "/landed"};
+            case "/in307" -> new Object[] {307, "/landed"};
+            case "/in303" -> new Object[] {303, "/landed"};
+            case "/round" -> new Object[] {302, "/round"};
+            default -> null;
+          };
+          byte[] out = hop == null ? "{\"id\":\"r1\"}".getBytes() : new byte[0];
+          if (hop != null) {
+            exchange.getResponseHeaders().set("Location", (String) hop[1]);
+          }
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(hop != null ? (int) hop[0] : 200, 0 < out.length ? out.length : -1);
+          exchange.getResponseBody().write(out);
+          exchange.close();
+        });
+        server.start();
+        return server;
+      }
+      catch (java.io.IOException e) {
+        throw new java.io.UncheckedIOException(e);
+      }
+    }
+
+    // Sent by a live client that holds the secret as its apikey, which is
+    // how a caller's reaches the registry.
+    Map<String, Object> send(boolean cleanactive, String method, String path, String body) {
+      VoxgigSolardemoSDK liveClient = new VoxgigSolardemoSDK(fhMap(
+          "base", apibase, "apikey", SECRET, "clean", fhMap("active", cleanactive)));
+      Utility liveUtility = liveClient.getUtility();
+      Context ctx = liveUtility.makeContext.apply(fhMap("opname", "load"), liveClient.getRootCtx());
+      Map<String, Object> headers = fhMap(
+          "authorization", "Bearer " + SECRET,
+          "cookie", "sid=" + SECRET,
+          "x-api-key", SECRET,
+          "private-token", "pt-12345",
+          // Not a sensitive name: a credential by the value it holds.
+          "x-acme-auth", "v1 " + SECRET,
+          "x-tenant", "acme");
+      Map<String, Object> fetchdef = fhMap("method", method, "headers", headers);
+      if (body != null) {
+        headers.put("content-type", "audio/wav");
+        fetchdef.put("body", body);
+      }
+      arrived.clear();
+      return (Map<String, Object>) liveUtility.fetcher.fetch(ctx, apibase + path, fetchdef);
+    }
+
+    List<String> seen() {
+      List<String> out = new ArrayList<>();
+      for (Map<String, Object> a : new ArrayList<>(arrived)) {
+        out.add(a.get("where") + " " + a.get("method") + " " + a.get("path")
+            + ("".equals(a.get("body")) ? "" : " " + a.get("body")));
+      }
+      return out;
+    }
+
+    // The names of the given headers the nth request carried.
+    List<String> carried(int nth, List<String> names) {
+      Map<String, Object> headers = (Map<String, Object>) arrived.get(nth).get("headers");
+      List<String> out = new ArrayList<>();
+      for (String name : names) {
+        if (headers.get(name) != null) {
+          out.add(name);
+        }
+      }
+      return out;
+    }
+
+    @Override
+    public void close() {
+      api.stop(0);
+      other.stop(0);
+    }
+  }
+
+  @Test
+  public void fetcherRedirectToAnotherOriginCarriesNoCredential() {
+    for (boolean cleanactive : new boolean[] {true, false}) {
+      try (RedirectOrigins origins = new RedirectOrigins()) {
+        Map<String, Object> res = origins.send(cleanactive, "GET", "/out", null);
+        assertEquals(200, res.get("status"));
+        assertEquals(List.of("api GET /out", "other GET /landed"), origins.seen());
+        assertEquals(RedirectOrigins.CREDENTIALS, origins.carried(0, RedirectOrigins.CREDENTIALS),
+            "the API itself was not sent every credential");
+        assertEquals(List.of(), origins.carried(1, RedirectOrigins.CREDENTIALS),
+            "another origin was sent a credential, clean.active " + cleanactive);
+        assertEquals(List.of("x-tenant"), origins.carried(1, List.of("x-tenant")));
+        assertFalse(String.valueOf(origins.arrived.get(1).get("headers"))
+            .contains(RedirectOrigins.SECRET), "another origin was sent the secret");
+      }
+    }
+  }
+
+  @Test
+  public void fetcherRedirectOnTheSameOriginKeepsEveryHeader() {
+    try (RedirectOrigins origins = new RedirectOrigins()) {
+      Map<String, Object> res = origins.send(true, "GET", "/in", null);
+      assertEquals(200, res.get("status"));
+      assertEquals(List.of("api GET /in", "api GET /landed"), origins.seen());
+      List<String> all = new ArrayList<>(RedirectOrigins.CREDENTIALS);
+      all.add("x-tenant");
+      assertEquals(all, origins.carried(1, all), "the same origin lost a header");
+    }
+  }
+
+  @Test
+  public void fetcherRedirectNeverSendsABodyToAnotherOrigin() {
+    try (RedirectOrigins origins = new RedirectOrigins()) {
+      Map<String, Object> res = origins.send(true, "PUT", "/out307", "BODY-" + RedirectOrigins.SECRET);
+      assertEquals(307, res.get("status"));
+      assertEquals(List.of("api PUT /out307 BODY-" + RedirectOrigins.SECRET), origins.seen());
+    }
+  }
+
+  @Test
+  public void fetcherRedirectRewritesTheMethodByStatus() {
+    try (RedirectOrigins origins = new RedirectOrigins()) {
+      for (String path : new String[] {"/in307", "/in"}) {
+        Map<String, Object> kept = origins.send(true, "PUT", path, "BODY-1");
+        assertEquals(200, kept.get("status"));
+        assertEquals(List.of("api PUT " + path + " BODY-1", "api PUT /landed BODY-1"), origins.seen());
+        assertEquals(List.of("content-type"), origins.carried(1, List.of("content-type")));
+      }
+
+      for (String[] hop : new String[][] {{"PUT", "/in303"}, {"POST", "/in"}}) {
+        Map<String, Object> res = origins.send(true, hop[0], hop[1], "{\"a\":1}");
+        assertEquals(200, res.get("status"));
+        assertEquals(List.of("api " + hop[0] + " " + hop[1] + " {\"a\":1}", "api GET /landed"),
+            origins.seen());
+        assertEquals(List.of("x-api-key"), origins.carried(1, List.of("content-type", "x-api-key")));
+      }
+
+      origins.send(true, "HEAD", "/in303", null);
+      assertEquals(List.of("api HEAD /in303", "api GET /landed"), origins.seen());
+    }
+  }
+
+  @Test
+  public void fetcherRedirectStopsAtTheHopLimit() {
+    try (RedirectOrigins origins = new RedirectOrigins()) {
+      Map<String, Object> round = origins.send(true, "GET", "/round", null);
+      assertEquals(302, round.get("status"));
+      assertEquals(6, origins.arrived.size(), "the first request, then each hop the limit allows");
+    }
+  }
+
+  // Nothing listens on port 9: a request the guard let through fails there.
+  // A JVM cannot set its own environment, so the probe runs in a child JVM.
+  @Test
+  public void fetcherGetOnlyGuard() throws Exception {
+    String out;
+    if ("TRUE".equals(System.getenv("VOXGIG_GETONLY_GUARD"))) {
+      out = getOnlyProbe();
+    }
+    else {
+      ProcessBuilder pb = new ProcessBuilder(
+          ProcessHandle.current().info().command().orElse("java"),
+          "-cp", System.getProperty("java.class.path"), PrimaryUtilityTest.class.getName());
+      pb.environment().put("VOXGIG_GETONLY_GUARD", "TRUE");
+      pb.redirectErrorStream(true);
+      Process proc = pb.start();
+      out = new String(proc.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+      assertEquals(0, proc.waitFor(), out);
+    }
+    assertTrue(out.startsWith("fetch_getonly_block [GET-ONLY GUARD] blocked POST /planet/p1\n"), out);
+    assertTrue(out.trim().endsWith("\nsent"), out);
+    assertFalse(out.contains("GUARDKEY01"), out);
+  }
+
+  public static void main(String[] args) {
+    System.out.print(getOnlyProbe());
+  }
+
+  static String getOnlyProbe() {
+    VoxgigSolardemoSDK liveClient = new VoxgigSolardemoSDK(fhMap("base", "http://127.0.0.1:9"));
+    Utility liveUtility = liveClient.getUtility();
+    Context ctx = liveUtility.makeContext.apply(fhMap(
+        "opname", "create", "client", liveClient, "utility", liveUtility), null);
+    String url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01";
+    StringBuilder out = new StringBuilder();
+    for (String method : new String[] {"POST", "GET"}) {
+      try {
+        liveUtility.fetcher.fetch(ctx, url, fhMap("method", method, "headers", new LinkedHashMap<>()));
+        out.append("answered\n");
+      }
+      catch (SdkError e) {
+        out.append(e.code).append(' ').append(e.msg).append('\n');
+      }
+      catch (RuntimeException e) {
+        out.append("sent\n");
+      }
+    }
+    return out.toString();
+  }
+
   @Test
   public void makeContextBasic() {
     runsection("makeContext", (args) -> {
@@ -715,8 +1028,14 @@ public class PrimaryUtilityTest {
     });
   }
 
+  // Read from the config, never from a probe: a probe that finds no
+  // credential is the regression this section exists to catch.
   @Test
   public void prepareAuthBasic() {
+    Map<String, Object> options = Helpers.toMapAny(Config.sharedConfig().get("options"));
+    Assumptions.assumeTrue(null != options && options.containsKey("auth"),
+        "this SDK's config declares no auth, so it places no credential");
+
     Map<String, Object> setupOpts =
         RunnerSupport.getSpec(run().spec, "prepareAuth", "DEF", "setup", "a");
     VoxgigSolardemoSDK authClient = VoxgigSolardemoSDK.testSDK(null, setupOpts);
@@ -884,5 +1203,18 @@ public class PrimaryUtilityTest {
 
       return result;
     });
+  }
+
+  // A 204 has no body: struct's UNDEF is not null, so held as resdata an
+  // update would take it for data and replace the entity's.
+  @Test
+  public void transformResponseNoValue() {
+    Context ctx = OmniResolver.omniCtx(fhMap(
+        "result", fhMap("ok", true, "status", 204, "body", null),
+        "spec", fhMap("step", ""),
+        "point", fhMap("transform", fhMap("res", "`body.data`"))), client(), utility());
+
+    assertNull(utility().transformResponse.apply(ctx));
+    assertNull(ctx.result.resdata);
   }
 }

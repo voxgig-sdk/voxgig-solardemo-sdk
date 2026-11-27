@@ -10,7 +10,7 @@ use crate::core::context::{Context, CtxSpec};
 use crate::core::error::VoxgigSolardemoError;
 use crate::core::helpers::{get_bool, getp, setp, to_map};
 use crate::core::sdk::VoxgigSolardemoSDK;
-use crate::core::types::{Entity, VoxgigSolardemoEntity};
+use crate::core::types::{Entity, VoxgigSolardemoEntityBase};
 use crate::core::utility_type::Utility;
 use crate::utility::voxgigstruct as vs;
 use crate::utility::voxgigstruct::Value;
@@ -24,7 +24,7 @@ pub struct MoonEntity {
     data: RefCell<Value>,
     mtch: RefCell<Value>,
     entctx: RefCell<Option<Rc<Context>>>,
-    // Set once a successful `remove` resolves on this instance.
+    // Set when a remove marks this instance deleted.
     deleted: RefCell<bool>,
 }
 
@@ -76,7 +76,7 @@ impl MoonEntity {
 
     // Runs the pipeline and returns the terminal result VALUE. The entity
     // contract lives one level up, in the op methods below: they call this,
-    // then hand back the entity (see AGENTS.md). It is split that way because
+    // then hand back the entity. It is split that way because
     // `Value` is a closed data union that cannot carry an entity.
     fn run_op(
         &self,
@@ -164,18 +164,6 @@ impl MoonEntity {
             },
             Some(&self.ent_ctx()),
         );
-
-        // Outbound: attach a caller `body` so the transport can stream a
-        // request payload (reqdata `body$`).
-        let body = getp(&stream_opts, "body");
-        if !body.is_noval() && !body.is_null() {
-            let reqdata = match ctx.reqdata.borrow().clone() {
-                Value::Map(m) => Value::Map(m),
-                _ => Value::empty_map(),
-            };
-            setp(&reqdata, "body$", body);
-            *ctx.reqdata.borrow_mut() = reqdata;
-        }
 
         // Run the same pipeline as run_op. A failed step leaves through
         // make_error, as an operation's does.
@@ -270,11 +258,7 @@ impl Entity for MoonEntity {
     fn data(&self, args: Option<&Value>) -> Value {
         if let Some(arg) = args {
             if !arg.is_noval() && !arg.is_null() {
-                let cloned = to_map(&vs::clone(arg));
-                *self.data.borrow_mut() = match cloned {
-                    Value::Map(m) => Value::Map(m),
-                    _ => Value::empty_map(),
-                };
+                *self.data.borrow_mut() = vs::clone(arg);
                 self.utility.feature_hook(&self.ent_ctx(), "SetData");
             }
         }
@@ -300,7 +284,7 @@ impl Entity for MoonEntity {
     }
 }
 
-impl VoxgigSolardemoEntity for MoonEntity {
+impl VoxgigSolardemoEntityBase for MoonEntity {
 
     fn load(self: &Rc<Self>, reqmatch: Value, ctrl: Value) -> Result<Rc<Self>, VoxgigSolardemoError> {
         let ctx = self.utility.make_context(
@@ -335,7 +319,6 @@ impl VoxgigSolardemoEntity for MoonEntity {
     
         // The operation resolves to THIS entity: `run_op` has just absorbed the
         // result into it, and the caller reaches the record through `.data(None)`.
-        // See AGENTS.md "Entity operations return ENTITIES".
     
         Ok(self.clone())
     }
@@ -367,14 +350,12 @@ impl VoxgigSolardemoEntity for MoonEntity {
         // `list` resolves to one ENTITY per record. makeResult cannot build them
         // here — it works in `Value`, which is a closed data union with no slot
         // for an entity — so the op does, mirroring what the dynamic targets get
-        // from makeResult. See AGENTS.md "Entity operations return ENTITIES".
+        // from makeResult.
         let mut items: Vec<Rc<Self>> = Vec::new();
         if let Value::List(list) = &out {
             for entry in list.borrow().iter() {
                 let ent = MoonEntity::new(&self.client, vs::clone(&self.entopts));
-                if let Value::Map(_) = entry {
-                    ent.data(Some(entry));
-                }
+                ent.data(Some(entry));
                 items.push(ent);
             }
         }
@@ -411,7 +392,6 @@ impl VoxgigSolardemoEntity for MoonEntity {
     
         // The operation resolves to THIS entity: `run_op` has just absorbed the
         // result into it, and the caller reaches the record through `.data(None)`.
-        // See AGENTS.md "Entity operations return ENTITIES".
     
         Ok(self.clone())
     }
@@ -451,7 +431,6 @@ impl VoxgigSolardemoEntity for MoonEntity {
     
         // The operation resolves to THIS entity: `run_op` has just absorbed the
         // result into it, and the caller reaches the record through `.data(None)`.
-        // See AGENTS.md "Entity operations return ENTITIES".
     
         Ok(self.clone())
     }

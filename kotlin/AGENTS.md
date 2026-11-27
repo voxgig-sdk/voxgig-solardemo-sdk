@@ -1,6 +1,6 @@
 # VoxgigSolardemo Kotlin — Agent Guide
 
-The Kotlin client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Kotlin client for the Solar System API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `kotlin/` directory.
@@ -12,6 +12,10 @@ cd ../.sdk
 npm run build        # only if you changed a component
 npm run generate     # refreshes this kotlin/ directory
 ```
+
+Each `npm run generate` rewrites every file it generates, so an edit
+made to generated output is lost, and deletes the files it generated before
+and no longer emits. A target or a phase switched off is left as it was.
 
 Then build and test the generated output:
 
@@ -33,24 +37,28 @@ make test
 Decision rule: *same for every API → template; depends on the API →
 component.* After editing a component run `npm run build` before
 `npm run generate`; template-only edits just need `npm run generate`.
+`target add` and `feature add` overwrite the templates and components
+in `.sdk/` (`main: kit: copies: 'overwrite'`): set `copies` to
+`'merge'` before customising them, so that an add merges toolchain updates
+into the edited copies.
 
 ## Features in this target
 
-Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aontu`; customise
-the runtime under `.sdk/tm/kotlin/feature/` and regenerate.
+Each feature's hooks and default activation come from
+`.sdk/model/feature/<name>.aontu`. Its runtime is generated from the template
+listed here: customise that and regenerate.
 
-| Feature | Runtime file | Active hooks |
+| Feature | Template | Active hooks |
 | --- | --- | --- |
-| **debug** — Debug capture | `feature/debug_feature.kt` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
-| **idempotency** — Idempotency | `feature/idempotency_feature.kt` | `PreRequest` |
-| **metrics** — Metrics | `feature/metrics_feature.kt` | `PreDone`, `PrePoint`, `PreUnexpected` |
-| **paging** — Paging | `feature/paging_feature.kt` | `PreRequest`, `PreResult` |
-| **ratelimit** — Rate limiting | `feature/ratelimit_feature.kt` | — |
-| **retry** — Retry | `feature/retry_feature.kt` | — |
-| **secrets** — Secrets | `feature/secrets_feature.kt` | `PreSpec` |
-| **test** — Test transport | `feature/test_feature.kt` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
-| **timeout** — Timeout | `feature/timeout_feature.kt` | — |
+| **debug** — Debug capture | `.sdk/tm/kotlin/feature/DebugFeature.kt` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `.sdk/tm/kotlin/feature/IdempotencyFeature.kt` | `PreRequest` |
+| **metrics** — Metrics | `.sdk/tm/kotlin/feature/MetricsFeature.kt` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `.sdk/tm/kotlin/feature/PagingFeature.kt` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `.sdk/tm/kotlin/feature/RatelimitFeature.kt` | — |
+| **retry** — Retry | `.sdk/tm/kotlin/feature/RetryFeature.kt` | — |
+| **secrets** — Secrets | `.sdk/tm/kotlin/feature/SecretsFeature.kt` | `PreSpec` |
+| **test** — Test transport | `.sdk/tm/kotlin/feature/TestFeature.kt` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `.sdk/tm/kotlin/feature/TimeoutFeature.kt` | — |
 
 ---
 

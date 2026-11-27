@@ -4,7 +4,7 @@
 
 The Scala SDK for the VoxgigSolardemo API — an entity-oriented client following idiomatic Scala conventions.
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `client.moon(null)` — each
+The SDK exposes the API as semantic **Entities** — for example `client.moon(null)` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low.
@@ -27,8 +27,7 @@ cd scala && scala-cli compile .
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -85,30 +84,31 @@ client.moon(null).remove(java.util.Map.of("id", "example_id", "planet_id", "exam
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations throw a `RuntimeException` on failure, so wrap them in
+`try` / `catch`:
 
-```ts
+```scala
 try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
+    val planets = client.planet(null).list(null, null).asInstanceOf[java.util.List[SdkEntity]]
+    planets.forEach(item => println(item.data()))
+}
+catch {
+    case err: RuntimeException => println("list failed: " + err.getMessage)
 }
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`direct()` does **not** throw — it
+returns the result map. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```scala
+val result = client.direct(java.util.Map.of(
+    "path", "/api/planet/{planet_id}/moon",
+    "method", "GET",
+    "params", java.util.Map.of("planet_id", "example_id")))
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
+if (java.lang.Boolean.TRUE != result.get("ok")) {
+    println("request failed: " + result.get("status") + " " + result.get("err"))
 }
 ```
 
@@ -121,9 +121,9 @@ For endpoints not covered by entity methods:
 
 ```scala
 val result = client.direct(java.util.Map.of(
-    "path", "/api/resource/{id}",
+    "path", "/api/planet/{planet_id}/moon",
     "method", "GET",
-    "params", java.util.Map.of("id", "example")))
+    "params", java.util.Map.of("planet_id", "example")))
 
 if (java.lang.Boolean.TRUE == result.get("ok")) {
     println(result.get("status"))  // 200
@@ -142,9 +142,9 @@ else {
 ```scala
 // prepare() returns the fetch definition and raises on error.
 val fetchdef = client.prepare(java.util.Map.of(
-    "path", "/api/resource/{id}",
-    "method", "DELETE",
-    "params", java.util.Map.of("id", "example")))
+    "path", "/api/planet/{planet_id}/moon",
+    "method", "GET",
+    "params", java.util.Map.of("planet_id", "example")))
 
 println(fetchdef.get("url"))
 println(fetchdef.get("method"))
@@ -184,15 +184,10 @@ options.put("system", java.util.Map.of("fetch", mockFetch))
 val client = new VoxgigSolardemoSDK(options)
 ```
 
-### Run live tests
+### Run the test suite
 
-Create a `.env.local` file at the project root:
-
-```
-VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
-```
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 ```bash
 cd scala && make test
@@ -214,9 +209,10 @@ Creates a new SDK client. `options` is a `java.util.Map[String, Object]`.
 | `base` | `String` | Base URL of the API server. |
 | `prefix` | `String` | URL path prefix prepended to all requests. |
 | `suffix` | `String` | URL path suffix appended to all requests. |
+| `headers` | `Map` | Headers sent with every request. |
 | `feature` | `Map` | Feature activation flags. |
-| `extend` | `List` | Additional Feature instances to load. |
-| `system` | `Map` | System overrides (e.g. custom `fetch` function). |
+| `extend` | `List` | Additional feature instances to load. |
+| `system` | `Map` | System overrides, such as a custom fetch function. |
 
 ### testSDK
 
@@ -284,7 +280,7 @@ On error, `ok` is `false` and `err` contains the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: create, list, load, remove, update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -300,9 +296,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: create, list, load, remove, update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -317,11 +313,11 @@ Create an instance: `val moon = client.moon(null)`
 
 | Method | Description |
 | --- | --- |
-| `create(data, null)` | Create a new entity with the given data. |
 | `list(null, null)` | List entities, optionally matching the given criteria. |
 | `load(match, null)` | Load a single entity by match criteria. |
-| `remove(match, null)` | Remove the matching entity. |
+| `create(data, null)` | Create a new entity with the given data. |
 | `update(data, null)` | Update an existing entity. |
+| `remove(match, null)` | Remove the matching entity. |
 
 #### Fields
 
@@ -366,11 +362,11 @@ Create an instance: `val planet = client.planet(null)`
 
 | Method | Description |
 | --- | --- |
-| `create(data, null)` | Create a new entity with the given data. |
 | `list(null, null)` | List entities, optionally matching the given criteria. |
 | `load(match, null)` | Load a single entity by match criteria. |
-| `remove(match, null)` | Remove the matching entity. |
+| `create(data, null)` | Create a new entity with the given data. |
 | `update(data, null)` | Update an existing entity. |
+| `remove(match, null)` | Remove the matching entity. |
 
 #### Fields
 
@@ -409,12 +405,11 @@ val planet = client.planet(null).create(java.util.Map.of(
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -527,7 +522,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -578,16 +573,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -595,9 +586,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a Scala class extending `BaseFeature`
+with hook methods named after pipeline stages (e.g. `prePoint`,
+`preSpec`). Each method receives the context.
 
 The SDK ships with built-in features:
 
@@ -632,7 +623,7 @@ scala/
 ├── project.scala               -- scala-cli project config (Scala 3, no deps)
 ├── core/                        -- Main SDK client, config, entity base, error type
 ├── entity/                      -- Entity implementations
-├── feature/                     -- Built-in features (Base, Test, Log, ...)
+├── feature/                     -- Feature implementations
 ├── utility/                     -- Utility functions and the vendored struct library
 └── sdktest/                     -- Generated per-entity tests (scala-cli mains)
 ```
@@ -647,15 +638,14 @@ the vendored `utility/Json.java`, HTTP transport is the JDK
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```scala
+val planet = client.planet(null)
+planet.list(null, null)
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+// planet.data() now returns the planet data from the last list
+// planet.matchArgs() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration
@@ -664,12 +654,13 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`direct()` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `prepare()` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

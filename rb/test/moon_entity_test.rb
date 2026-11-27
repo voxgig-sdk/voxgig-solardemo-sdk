@@ -41,6 +41,59 @@ class MoonEntityTest < Minitest::Test
         return
       end
     end
+    if setup[:live] && ENV["VOXGIG_GETONLY_GUARD"] == "TRUE"
+      puts "LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}"
+      puts "LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}"
+      puts "LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}"
+      puts "LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}"
+    if setup[:live]
+      ["planet01"].each do |_live_key|
+        if setup[:synthetic_only] || setup[:idmap][_live_key].nil?
+          Runner.live_miss(LIVE_STRICT, "Live entity test blocked: needs #{_live_key} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
+        end
+      end
+    end
+    client = setup[:client]
+    if setup[:live]
+      _live_id = setup[:synthetic_only] ? nil : setup[:idmap]["moon01"]
+      Runner.live_pace
+      Runner.live_existing(setup, LIVE_STRICT, "moon", "id", _live_id) do
+        client.Moon(nil).list({"planet_id" => setup[:idmap]["planet01"]}, nil)
+      end
+    end
+
+    # Bootstrap entity data from existing test data.
+    moon_ref01_data_raw = Vs.items(Helpers.to_map(
+      Vs.getpath(setup[:data], "existing.moon")))
+    moon_ref01_data = nil
+    if moon_ref01_data_raw.length > 0
+      moon_ref01_data = Helpers.to_map(moon_ref01_data_raw[0][1])
+    end
+
+    Runner.live_pace if setup[:live]
+    # LIST
+    moon_ref01_ent = client.Moon(nil)
+    moon_ref01_match = {
+      "planet_id" => setup[:idmap]["planet01"],
+    }
+
+    moon_ref01_list_result = moon_ref01_ent.list(moon_ref01_match, nil)
+    assert moon_ref01_list_result.is_a?(Array)
+
+    Runner.live_pace if setup[:live]
+    # LOAD
+    moon_ref01_match_dt0 = {
+      "id" => moon_ref01_data["id"],
+    }
+    moon_ref01_match_dt0["planet_id"] = [String, Numeric, TrueClass, FalseClass].any? { |c| moon_ref01_data["planet_id"].is_a?(c) } ? moon_ref01_data["planet_id"] : (setup[:idmap]["planet_id"] || setup[:idmap]["planet01"])
+    moon_ref01_data_dt0_loaded = moon_ref01_ent.load(moon_ref01_match_dt0, nil)
+    moon_ref01_data_dt0_load_result = Helpers.to_map(moon_ref01_data_dt0_loaded.respond_to?(:data_get) ? moon_ref01_data_dt0_loaded.data_get : moon_ref01_data_dt0_loaded)
+    assert !moon_ref01_data_dt0_load_result.nil?
+    assert Runner.live_same_id(moon_ref01_data_dt0_load_result["id"], moon_ref01_data["id"])
+
+      return
+    end
+
     if setup[:live]
       ["planet01"].each do |_live_key|
         if setup[:synthetic_only] || setup[:idmap][_live_key].nil?
@@ -50,6 +103,7 @@ class MoonEntityTest < Minitest::Test
     end
     client = setup[:client]
 
+    Runner.live_pace if setup[:live]
     # CREATE
     moon_ref01_ent = client.Moon(nil)
     moon_ref01_data = Helpers.to_map(Vs.getprop(
@@ -61,6 +115,7 @@ class MoonEntityTest < Minitest::Test
     assert !moon_ref01_data.nil?
     assert !moon_ref01_data["id"].nil?
 
+    Runner.live_pace if setup[:live]
     # LIST
     moon_ref01_match = {
       "planet_id" => setup[:idmap]["planet01"],
@@ -74,6 +129,7 @@ class MoonEntityTest < Minitest::Test
       { "id" => moon_ref01_data["id"] })
     assert !Vs.isempty(found_item)
 
+    Runner.live_pace if setup[:live]
     # UPDATE
     moon_ref01_data_up0_up = {
       "id" => moon_ref01_data["id"],
@@ -87,19 +143,21 @@ class MoonEntityTest < Minitest::Test
     moon_ref01_resdata_up0_result = moon_ref01_ent.update(moon_ref01_data_up0_up, nil)
     moon_ref01_resdata_up0 = Helpers.to_map(moon_ref01_resdata_up0_result.respond_to?(:data_get) ? moon_ref01_resdata_up0_result.data_get : moon_ref01_resdata_up0_result)
     assert !moon_ref01_resdata_up0.nil?
-    assert_equal moon_ref01_resdata_up0["id"], moon_ref01_data_up0_up["id"]
+    assert Runner.live_same_id(moon_ref01_resdata_up0["id"], moon_ref01_data_up0_up["id"])
     assert_equal moon_ref01_resdata_up0[moon_ref01_markdef_up0_name], moon_ref01_markdef_up0_value
 
+    Runner.live_pace if setup[:live]
     # LOAD
     moon_ref01_match_dt0 = {
       "id" => moon_ref01_data["id"],
     }
-    moon_ref01_match_dt0["planet_id"] = setup[:idmap]["planet_id"] || setup[:idmap]["planet01"]
+    moon_ref01_match_dt0["planet_id"] = [String, Numeric, TrueClass, FalseClass].any? { |c| moon_ref01_data["planet_id"].is_a?(c) } ? moon_ref01_data["planet_id"] : (setup[:idmap]["planet_id"] || setup[:idmap]["planet01"])
     moon_ref01_data_dt0_loaded = moon_ref01_ent.load(moon_ref01_match_dt0, nil)
     moon_ref01_data_dt0_load_result = Helpers.to_map(moon_ref01_data_dt0_loaded.respond_to?(:data_get) ? moon_ref01_data_dt0_loaded.data_get : moon_ref01_data_dt0_loaded)
     assert !moon_ref01_data_dt0_load_result.nil?
-    assert_equal moon_ref01_data_dt0_load_result["id"], moon_ref01_data["id"]
+    assert Runner.live_same_id(moon_ref01_data_dt0_load_result["id"], moon_ref01_data["id"])
 
+    Runner.live_pace if setup[:live]
     # REMOVE
     moon_ref01_match_rm0 = {
       "id" => moon_ref01_data["id"],
@@ -107,6 +165,7 @@ class MoonEntityTest < Minitest::Test
     moon_ref01_match_rm0["planet_id"] = setup[:idmap]["planet_id"] || setup[:idmap]["planet01"]
     moon_ref01_ent.remove(moon_ref01_match_rm0, nil)
 
+    Runner.live_pace if setup[:live]
     # LIST
     moon_ref01_match_rt0 = {
       "planet_id" => setup[:idmap]["planet01"],

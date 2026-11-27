@@ -5,7 +5,7 @@
 The C++ SDK for the VoxgigSolardemo API — a header-only,
 entity-oriented client following idiomatic modern C++ (C++17) conventions.
 
-The SDK exposes the API as capitalised, semantic **Entities** — for example `client->moon()` — each
+The SDK exposes the API as semantic **Entities** — for example `client->moon()` — each
 carrying a small, uniform set of operations (`list`, `load`, `create`, `update`, `remove`) instead of raw URL
 paths and query strings. You work with named resources and verbs, which
 keeps the cognitive load low. Every value flows through a single dynamic
@@ -25,7 +25,7 @@ Releases are cut as the git tag `cpp/vX.Y.Z` (see
 
 ```bash
 # Add the SDK as a submodule (or copy the cpp/ directory into your tree).
-git submodule add <repo-url> third_party/voxgigsolardemo-sdk
+git submodule add https://github.com/voxgig-sdk/voxgig-solardemo-sdk third_party/voxgigsolardemo-sdk
 ```
 
 Then include the umbrella header and compile with C++17:
@@ -41,8 +41,7 @@ g++ -std=c++17 -Ithird_party/voxgigsolardemo-sdk/cpp your_app.cpp -o your_app
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -100,30 +99,33 @@ client->moon()->remove(vmap({{"id", getp(created->data(), "id")}, {"planet_id", 
 
 ## Error handling
 
-Entity operations reject on failure, so wrap them in `try` / `catch`:
+Entity operations throw `SdkErrorPtr` on failure, so wrap them in `try` / `catch`:
 
-```ts
+```cpp
 try {
-  const planets = await client.Planet().list()
-  console.log(planets.map((item) => item.data()))
-} catch (err) {
-  console.error('list failed:', err)
+  std::vector<SdkEntityPtr> planets = client->planet()->list(Value::undef(), Value::undef());
+  for (const auto& planet : planets) {
+    std::cout << Struct::jsonify(planet->data()) << std::endl;
+  }
+} catch (const SdkErrorPtr& err) {
+  std::cerr << "list failed: " << err->msg << std::endl;
 }
 ```
 
-The low-level `direct()` method does **not** throw — it returns the
-result envelope. Branch on `ok`; on failure `status` holds the HTTP status
-(for error responses) and `err` holds the error:
+`direct()` does **not** throw — it
+returns the result `Value`. Branch on `ok`; on failure `status` holds the HTTP
+status (for error responses) and `err` holds a transport error:
 
-```ts
-const result = await client.direct({
-  path: '/api/resource/{id}',
-  method: 'GET',
-  params: { id: 'example_id' },
-})
+```cpp
+Value result = client->direct(vmap({
+    {"path", Value("/api/planet/{planet_id}/moon")},
+    {"method", Value("GET")},
+    {"params", vmap({{"planet_id", Value("example_id")}})},
+}));
 
-if (!result.ok) {
-  console.error('request failed:', result.status, result.err)
+if (!(getp(result, "ok") == Value(true))) {
+  std::cerr << "request failed: " << Helpers::toInt(getp(result, "status")) << " "
+            << Struct::jsonify(getp(result, "err")) << std::endl;
 }
 ```
 
@@ -136,9 +138,9 @@ For endpoints not covered by entity methods:
 
 ```cpp
 Value result = client->direct(vmap({
-    {"path", Value("/api/resource/{id}")},
+    {"path", Value("/api/planet/{planet_id}/moon")},
     {"method", Value("GET")},
-    {"params", vmap({{"id", Value("example")}})},
+    {"params", vmap({{"planet_id", Value("example")}})},
 }));
 
 if (getp(result, "ok") == Value(true)) {
@@ -160,9 +162,9 @@ if (getp(result, "ok") == Value(true)) {
 ```cpp
 // prepare() returns the fetch definition and throws on error.
 Value fetchdef = client->prepare(vmap({
-    {"path", Value("/api/resource/{id}")},
-    {"method", Value("DELETE")},
-    {"params", vmap({{"id", Value("example")}})},
+    {"path", Value("/api/planet/{planet_id}/moon")},
+    {"method", Value("GET")},
+    {"params", vmap({{"planet_id", Value("example")}})},
 }));
 
 std::cout << Struct::stringify(getp(fetchdef, "url")) << std::endl;
@@ -195,6 +197,15 @@ Create a `.env.local` file at the project root:
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
+
+The SDK has no HTTP transport of its own: a client sends nothing until it
+is given a `system.fetch`. The entity tests build their live client from
+these variables without one, so a live run fails at its first request with
+`fetch_no_transport`.
+
 Then build and run the test suite:
 
 ```bash
@@ -221,8 +232,9 @@ Creates a new SDK client. `options` is an `sdk::Value` map.
 | `base` | `std::string` | Base URL of the API server. |
 | `prefix` | `std::string` | URL path prefix prepended to all requests. |
 | `suffix` | `std::string` | URL path suffix appended to all requests. |
+| `headers` | `Value` | Headers sent with every request. |
 | `feature` | `Value` | Feature activation flags. |
-| `system` | `Value` | System overrides. |
+| `system` | `Value` | System overrides, such as a custom fetch function. |
 
 ### testSDK
 
@@ -292,7 +304,7 @@ On error, `ok` is `false` and `err` contains the error value.
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -308,9 +320,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -325,11 +337,11 @@ Create an instance: `auto moon = client->moon();`
 
 | Method | Description |
 | --- | --- |
-| `create(data, ctrl) -> SdkEntityPtr` | Create a new entity with the given data. |
 | `list(match, ctrl) -> std::vector<SdkEntityPtr>` | List entities, optionally matching the given criteria: one entity per record. |
 | `load(match, ctrl) -> SdkEntityPtr` | Load a single entity by match criteria. |
-| `remove(match, ctrl) -> SdkEntityPtr` | Remove the matching entity, which is returned marked as deleted. |
+| `create(data, ctrl) -> SdkEntityPtr` | Create a new entity with the given data. |
 | `update(data, ctrl) -> SdkEntityPtr` | Update an existing entity. |
+| `remove(match, ctrl) -> SdkEntityPtr` | Remove the matching entity, which is returned marked as deleted. |
 
 #### Fields
 
@@ -378,11 +390,11 @@ Create an instance: `auto planet = client->planet();`
 
 | Method | Description |
 | --- | --- |
-| `create(data, ctrl) -> SdkEntityPtr` | Create a new entity with the given data. |
 | `list(match, ctrl) -> std::vector<SdkEntityPtr>` | List entities, optionally matching the given criteria: one entity per record. |
 | `load(match, ctrl) -> SdkEntityPtr` | Load a single entity by match criteria. |
-| `remove(match, ctrl) -> SdkEntityPtr` | Remove the matching entity, which is returned marked as deleted. |
+| `create(data, ctrl) -> SdkEntityPtr` | Create a new entity with the given data. |
 | `update(data, ctrl) -> SdkEntityPtr` | Update an existing entity. |
+| `remove(match, ctrl) -> SdkEntityPtr` | Remove the matching entity, which is returned marked as deleted. |
 
 #### Fields
 
@@ -425,12 +437,11 @@ SdkEntityPtr planet = client->planet()->create(vmap({
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -543,7 +554,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -594,16 +605,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -611,9 +618,9 @@ in this language.
 
 ### Features and hooks
 
-Features are the extension mechanism. A feature is an object with a
-`hooks` map. Each hook key is a pipeline stage name, and the value is
-a function that receives the context.
+Features are the extension mechanism. A feature is a class derived from
+`Feature` that overrides a method per pipeline stage (e.g. `prePoint`,
+`preSpec`). Each method receives the context.
 
 The SDK ships with built-in features:
 
@@ -635,7 +642,10 @@ were added, so later features can override earlier ones.
 The C++ SDK uses a single dynamic `sdk::Value` type (a JSON-like variant
 over string / number / bool / list / map) throughout rather than generated
 typed structs. This mirrors the dynamic nature of the API and keeps the
-SDK flexible — no code generation is needed when the API schema changes.
+SDK flexible: code that works with `sdk::Value` needs no regeneration
+when the API schema changes. The typed models in
+`voxgigsolardemo_types.hpp` follow the schema only when the
+SDK is regenerated.
 
 Build maps with `sdk::vmap({{"key", sdk::Value("v")}})` and lists with
 `sdk::vlist({...})`; read fields back with `sdk::getp(value, "key")`. Use
@@ -648,7 +658,7 @@ Build maps with `sdk::vmap({{"key", sdk::Value("v")}})` and lists with
 cpp/
 ├── core/                        -- Runtime type graph, config, generated client
 ├── entity/                      -- Per-entity client headers
-├── feature/                     -- Built-in features (Base, Test, Log, ...)
+├── feature/                     -- Feature implementations
 ├── utility/                     -- Operation pipeline + vendored struct library
 ├── test/                        -- Test suites
 ├── Makefile                     -- Build & run the tests (C++17)
@@ -663,15 +673,14 @@ client class. Everything lives in the `sdk` namespace.
 ### Entity state
 
 Entity instances are stateful. After a successful `list`, the entity
-stores the returned data and match criteria internally. Subsequent
-calls on the same instance can rely on this state.
+stores the returned data and match criteria internally.
 
-```ts
-const planet = client.Planet()
-await planet.list()
+```cpp
+auto planet = client->planet();
+planet->list(Value::undef(), Value::undef());
 
-// planet.data() now returns the planet data from the last `list`
-// planet.match() returns the last match criteria
+// planet->data() now returns the planet data from the last list
+// planet->match() returns the last match criteria
 ```
 
 Call `make()` to create a fresh instance with the same configuration
@@ -680,12 +689,13 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
-The `direct` method gives full control over the HTTP request. Use it
-for non-standard endpoints, bulk operations, or any path not modelled
-as an entity. The `prepare` method is useful for debugging — it
-shows exactly what `direct` would send.
+`direct()` gives full control over the HTTP request. Use it for
+non-standard endpoints, bulk operations, or any path not modelled as
+an entity. `prepare()` builds the request without sending it — useful
+for debugging or custom transport.
 
 
 ## Full Reference

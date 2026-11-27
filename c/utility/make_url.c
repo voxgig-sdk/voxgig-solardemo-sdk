@@ -58,15 +58,21 @@ char* make_url_util(Context* ctx, PNError** err) {
   char* url = str_append(NULL, joined ? joined : "");
   free(joined);
 
-  // A route the definition ends with a slash keeps it: a server such as a
-  // Django REST one redirects or refuses the route without it.
+  // A route ending in a slash keeps it, as defined or as passed to direct(), for
+  // Django, and a host with no path takes /, or luasocket reads a query as the host.
   voxgig_value* orig = getp(ctx->point, "orig");
-  if (voxgig_is_string(orig) && (NULL == spec->suffix || '\0' == spec->suffix[0])) {
-    const char* o = voxgig_as_string(orig);
-    size_t olen = strlen(o), ulen = strlen(url);
-    if (0 < olen && '/' == o[olen - 1] && (0 == ulen || '/' != url[ulen - 1])) {
+  if (NULL == spec->suffix || '\0' == spec->suffix[0]) {
+    const char* o = voxgig_is_string(orig) ? voxgig_as_string(orig) : "";
+    const char* p = NULL == spec->path ? "" : spec->path;
+    size_t olen = strlen(o), plen = strlen(p), ulen = strlen(url);
+    if (((0 < olen && '/' == o[olen - 1]) || (0 < plen && '/' == p[plen - 1])) &&
+        (0 == ulen || '/' != url[ulen - 1])) {
       url = str_append(url, "/");
     }
+  }
+  const char* authority = strstr(url, "://");
+  if (NULL != authority && url < authority && NULL == strpbrk(authority + 3, "/?#")) {
+    url = str_append(url, "/");
   }
 
   voxgig_value* resmatch = voxgig_new_map();
@@ -84,6 +90,15 @@ char* make_url_util(Context* ctx, PNError** err) {
         snprintf(pat, sizeof(pat), "\\{%s\\}", esc_key ? esc_key : key);
         free(esc_key);
         char* valstr = voxgig_stringify(val, -1);
+        // A whole . or .. is a dot segment, which moves the request to another route.
+        if (NULL != valstr && (0 == strcmp(valstr, ".") || 0 == strcmp(valstr, ".."))) {
+          char buf[512];
+          snprintf(buf, sizeof(buf), "URL path parameter %s cannot be \"%s\".", key, valstr);
+          free(valstr);
+          free(url);
+          *err = context_make_error(ctx, "url_param_invalid", buf);
+          return NULL;
+        }
         char* sub = voxgig_escurl(v_str(valstr ? valstr : ""));
         free(valstr);
         char* newurl = voxgig_re_replace(pat, url, sub ? sub : "");

@@ -18,12 +18,13 @@ native map with `VoxgigSolardemo.Helpers.deep/1`.
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `base` | `String.t()` | Base URL for API requests. |
-| `prefix` | `String.t()` | URL prefix appended after base. |
-| `suffix` | `String.t()` | URL suffix appended after path. |
-| `headers` | `map()` | Custom headers for all requests. |
-| `feature` | `map()` | Feature configuration. |
-| `system` | `map()` | System overrides (e.g. custom fetch). |
+| `base` | `String.t()` | Base URL of the API server. |
+| `prefix` | `String.t()` | URL path prefix prepended to all requests. |
+| `suffix` | `String.t()` | URL path suffix appended to all requests. |
+| `headers` | `map()` | Headers sent with every request. |
+| `feature` | `map()` | Feature activation flags. |
+| `extend` | `list()` | Additional feature instances to load. |
+| `system` | `map()` | System overrides, such as a custom fetch function. |
 
 
 ### Constructors
@@ -98,6 +99,22 @@ moon = VoxgigSolardemo.moon(sdk)
 
 ### Operations
 
+#### `list(entity, reqmatch \\ nil, ctrl \\ nil) :: list()`
+
+List entities matching the given criteria. The match must include `planet_id`. Returns a list of entities, one per record, and raises on error.
+
+```elixir
+moons = VoxgigSolardemo.Entity.Moon.list(moon, VoxgigSolardemo.Helpers.deep(%{"planet_id" => "example"}))
+```
+
+#### `load(entity, reqmatch, ctrl \\ nil) :: entity`
+
+Load a single entity matching the given criteria. Returns the entity, whose record `data_get/1` reads, and raises on error.
+
+```elixir
+moon = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
+```
+
 #### `create(entity, reqdata, ctrl \\ nil) :: entity`
 
 Create a new entity with the given data. Returns the created entity and raises on error.
@@ -112,30 +129,6 @@ moon = VoxgigSolardemo.Entity.Moon.create(moon, VoxgigSolardemo.Helpers.deep(%{
 }))
 ```
 
-#### `list(entity, reqmatch \\ nil, ctrl \\ nil) :: list()`
-
-List entities matching the given criteria. The match is optional — call `list(entity)` to list all records. Returns a list of entities, one per record, and raises on error.
-
-```elixir
-moons = VoxgigSolardemo.Entity.Moon.list(moon, VoxgigSolardemo.Helpers.deep(%{"planet_id" => "example"}))
-```
-
-#### `load(entity, reqmatch, ctrl \\ nil) :: entity`
-
-Load a single entity matching the given criteria. Returns the entity, whose record `data_get/1` reads, and raises on error.
-
-```elixir
-moon = VoxgigSolardemo.Entity.Moon.load(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
-```
-
-#### `remove(entity, reqmatch, ctrl \\ nil) :: entity`
-
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
-
-```elixir
-moon = VoxgigSolardemo.Entity.Moon.remove(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
-```
-
 #### `update(entity, reqdata, ctrl \\ nil) :: entity`
 
 Update an existing entity. The data must include the entity `id`. Returns the updated entity and raises on error.
@@ -146,6 +139,14 @@ moon = VoxgigSolardemo.Entity.Moon.update(moon, VoxgigSolardemo.Helpers.deep(%{
   "planet_id" => "planet_id",
   # Fields to update
 }))
+```
+
+#### `remove(entity, reqmatch, ctrl \\ nil) :: entity`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+
+```elixir
+moon = VoxgigSolardemo.Entity.Moon.remove(moon, VoxgigSolardemo.Helpers.deep(%{"id" => "moon_id", "planet_id" => "planet_id"}))
 ```
 
 ### Common Functions
@@ -197,19 +198,6 @@ planet = VoxgigSolardemo.planet(sdk)
 
 ### Operations
 
-#### `create(entity, reqdata, ctrl \\ nil) :: entity`
-
-Create a new entity with the given data. Returns the created entity and raises on error.
-
-```elixir
-planet = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
-  "diameter" => 1,  # float()
-  "id" => "example_id",  # String.t()
-  "kind" => "example_kind",  # String.t()
-  "name" => "example_name",  # String.t()
-}))
-```
-
 #### `list(entity, reqmatch \\ nil, ctrl \\ nil) :: list()`
 
 List entities matching the given criteria. The match is optional — call `list(entity)` to list all records. Returns a list of entities, one per record, and raises on error.
@@ -226,12 +214,17 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 planet = VoxgigSolardemo.Entity.Planet.load(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
 ```
 
-#### `remove(entity, reqmatch, ctrl \\ nil) :: entity`
+#### `create(entity, reqdata, ctrl \\ nil) :: entity`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```elixir
-planet = VoxgigSolardemo.Entity.Planet.remove(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
+planet = VoxgigSolardemo.Entity.Planet.create(planet, VoxgigSolardemo.Helpers.deep(%{
+  "diameter" => 1,  # float()
+  "id" => "example_id",  # String.t()
+  "kind" => "example_kind",  # String.t()
+  "name" => "example_name",  # String.t()
+}))
 ```
 
 #### `update(entity, reqdata, ctrl \\ nil) :: entity`
@@ -243,6 +236,14 @@ planet = VoxgigSolardemo.Entity.Planet.update(planet, VoxgigSolardemo.Helpers.de
   "id" => "planet_id",
   # Fields to update
 }))
+```
+
+#### `remove(entity, reqmatch, ctrl \\ nil) :: entity`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+
+```elixir
+planet = VoxgigSolardemo.Entity.Planet.remove(planet, VoxgigSolardemo.Helpers.deep(%{"id" => "planet_id"}))
 ```
 
 ### Common Functions
@@ -311,10 +312,10 @@ sdk = VoxgigSolardemo.new(VoxgigSolardemo.Helpers.deep(%{
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -325,10 +326,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -531,7 +532,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -544,6 +545,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -571,10 +573,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

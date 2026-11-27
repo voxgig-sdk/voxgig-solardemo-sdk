@@ -13,7 +13,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME             => 'VoxgigSolardemoSDK',
     VERSION_FROM     => 'lib/VoxgigSolardemoSDK.pm',
-    ABSTRACT         => 'Unofficial generated perl SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.',
+    ABSTRACT         => 'Unofficial generated Perl SDK for the Solar System public API. Not affiliated with or endorsed by the upstream API provider.',
     AUTHOR           => 'Voxgig',
     LICENSE          => 'mit',
     MIN_PERL_VERSION => '5.036',

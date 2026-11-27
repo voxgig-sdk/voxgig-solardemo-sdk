@@ -12,6 +12,10 @@ import {
   cmp,
   snakify,
   pointParts,
+  pointSlash,
+  pointPlaceholders,
+  pointIsGraphql,
+  graphqlDirectSkip,
 } from '@voxgig/sdkgen'
 
 
@@ -72,14 +76,9 @@ const TestDirect = cmp(function TestDirect(props: any) {
   const listOp = (entity.op as any)?.list
 
   const loadPoint = loadOp?.points?.[0]
-  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) : ''
+  const loadPath = loadPoint ? normalizePathParams(pointParts(loadPoint), loadPoint?.g?.params || [], loadPoint?.r?.param) + pointSlash(loadPoint) : ''
   const allLoadParams = loadPoint?.g?.params || []
-  const _pathPlaceholders = new Set<string>()
-  for (const part of pointParts(loadPoint)) {
-    if (typeof part === 'string' && part.startsWith('{') && part.endsWith('}')) {
-      _pathPlaceholders.add(part.slice(1, -1))
-    }
-  }
+  const _pathPlaceholders = new Set<string>(pointPlaceholders(loadPoint))
   const _renameMap = (loadPoint?.r?.param || {}) as Record<string, string>
   const _renamedPlaceholders = new Set<string>()
   for (const ph of _pathPlaceholders) {
@@ -92,10 +91,13 @@ const TestDirect = cmp(function TestDirect(props: any) {
     _renamedPlaceholders.has(p.n) || _renamedPlaceholders.has(p.or))
 
   const listPoint = listOp?.points?.[0]
-  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) : ''
+  const listPath = listPoint ? normalizePathParams(pointParts(listPoint), listPoint?.g?.params || [], listPoint?.r?.param) + pointSlash(listPoint) : ''
   const listParams = listPoint?.g?.params || []
 
   const evar = cppVarName(entity.name)
+
+  const listRest = hasList && null != listPoint && !pointIsGraphql(listPoint)
+  const loadRest = hasLoad && null != loadPoint && !pointIsGraphql(loadPoint)
 
   File({ name: entity.name + '_direct_test.cpp' }, () => {
 
@@ -106,7 +108,10 @@ const TestDirect = cmp(function TestDirect(props: any) {
 
 using namespace sdk;
 using namespace sdk::rs;
+`)
 
+    if (listRest || loadRest) {
+      Content(`
 struct ${entity.Name}DirectSetup {
   std::shared_ptr<${ProjectName}SDK> client;
   Value calls;
@@ -143,9 +148,17 @@ static ${entity.Name}DirectSetup ${evar}_direct_setup(const Value& mockres) {
   return s;
 }
 `)
+    }
 
     // ---- list test ----
-    if (hasList && listPoint) {
+    if (hasList && pointIsGraphql(listPoint)) {
+      Content(`
+static void ${evar}_direct_list() {
+  std::cerr << "skip: ${graphqlDirectSkip('list', entity.name)}\\n";
+}
+`)
+    }
+    else if (listRest) {
       Content(`
 static void ${evar}_direct_list() {
   auto setup = ${evar}_direct_setup(vlist({
@@ -195,7 +208,14 @@ static void ${evar}_direct_list() {
     }
 
     // ---- load test ----
-    if (hasLoad && loadPoint) {
+    if (hasLoad && pointIsGraphql(loadPoint)) {
+      Content(`
+static void ${evar}_direct_load() {
+  std::cerr << "skip: ${graphqlDirectSkip('load', entity.name)}\\n";
+}
+`)
+    }
+    else if (loadRest) {
       Content(`
 static void ${evar}_direct_load() {
   auto setup = ${evar}_direct_setup(vmap({{"id", Value("direct01")}}));
@@ -228,6 +248,8 @@ static void ${evar}_direct_load() {
     ASSERT_EQ((int)setup.calls.as_list()->size(), 1, "expected 1 call");
     Value call = (*setup.calls.as_list())[0];
     ASSERT_EQ_VAL(getp(getp(call, "init"), "method"), Value("GET"), "expected method GET");
+    ASSERT_EQ_VAL(getp(getp(getp(call, "init"), "headers"), "accept"), Value("application/json"),
+      "expected accept application/json");
     std::string url = as_str(getp(call, "url"));
 `)
       for (let i = 0; i < loadParams.length; i++) {

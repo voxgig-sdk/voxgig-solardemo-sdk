@@ -45,6 +45,60 @@ BASIC_FLOW: {
       last BASIC_FLOW;
     }
   }
+  if ($setup->{live} && ($ENV{VOXGIG_GETONLY_GUARD} // '') eq 'TRUE') {
+    note('LIVE STEP {"id":"moon.create.0","state":"excluded","attempted":false,"reason":"GET-only live run: needs POST /api/planet/{planet_id}/moon"}');
+    note('LIVE STEP {"id":"moon.update.2","state":"excluded","attempted":false,"reason":"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}"}');
+    note('LIVE STEP {"id":"moon.remove.4","state":"excluded","attempted":false,"reason":"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}"}');
+    note('LIVE STEP {"id":"moon.list.5","state":"excluded","attempted":false,"reason":"GET-only live run: checks a removal this run does not make"}');
+  if ($setup->{live}) {
+    my @missing = grep { $setup->{synthetic_only} || !defined $setup->{idmap}{$_} } ('planet01');
+    if (@missing) {
+      VoxgigSolardemoTestRunner::live_miss(LIVE_STRICT, 'moon: basic flow', 'Live entity test blocked: needs ' . join(', ', @missing) . ' via VOXGIG_SOLARDEMO_TEST_MOON_ENTID');
+      last BASIC_FLOW;
+    }
+  }
+  my $client = $setup->{client};
+  if ($setup->{live}) {
+    my $live_id = $setup->{synthetic_only} ? undef : $setup->{idmap}{'moon01'};
+    VoxgigSolardemoTestRunner::live_pace();
+    VoxgigSolardemoTestRunner::live_existing($setup, LIVE_STRICT, 'moon: basic flow', 'moon',
+      sub { $client->Moon(undef)->list({'planet_id' => $setup->{idmap}{'planet01'}}, undef) }, 'id', $live_id)
+      or last BASIC_FLOW;
+  }
+  my %V;
+
+  # Bootstrap entity data from existing test data.
+  $V{moon_ref01_data_raw} = Voxgig::Struct::items(VoxgigSolardemoHelpers::to_map(
+    VoxgigSolardemoHelpers::gpath($setup->{data}, 'existing.moon')));
+  $V{moon_ref01_data} = undef;
+  if (@{ $V{moon_ref01_data_raw} || [] }) {
+    $V{moon_ref01_data} = VoxgigSolardemoHelpers::to_map($V{moon_ref01_data_raw}[0][1]);
+  }
+
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
+  # LIST
+  $V{moon_ref01_ent} = $client->Moon(undef);
+  $V{moon_ref01_match} = {
+    'planet_id' => $setup->{idmap}{'planet01'},
+  };
+
+  $V{moon_ref01_list_result} = $V{moon_ref01_ent}->list($V{moon_ref01_match}, undef);
+  ok(Voxgig::Struct::islist($V{moon_ref01_list_result}), 'moon list: is array');
+
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
+  # LOAD
+  $V{moon_ref01_match_dt0} = {
+    'id' => $V{moon_ref01_data}{id},
+  };
+  $V{moon_ref01_match_dt0}{'planet_id'} = (defined $V{moon_ref01_data}{'planet_id'} && !ref $V{moon_ref01_data}{'planet_id'}) ? $V{moon_ref01_data}{'planet_id'} : ($setup->{idmap}{'planet_id'} // $setup->{idmap}{'planet01'});
+  $V{moon_ref01_data_dt0_loaded} = $V{moon_ref01_ent}->load($V{moon_ref01_match_dt0}, undef);
+  $V{moon_ref01_data_dt0_load_result} = VoxgigSolardemoHelpers::to_map(ref($V{moon_ref01_data_dt0_loaded}) && $V{moon_ref01_data_dt0_loaded}->can('data_get') ? $V{moon_ref01_data_dt0_loaded}->data_get : $V{moon_ref01_data_dt0_loaded});
+  ok(defined $V{moon_ref01_data_dt0_load_result}, 'moon load: data');
+  is($V{moon_ref01_data_dt0_load_result}{id}, $V{moon_ref01_data}{id}, 'moon load: id');
+
+    last BASIC_FLOW;
+  }
+
   if ($setup->{live}) {
     my @missing = grep { $setup->{synthetic_only} || !defined $setup->{idmap}{$_} } ('planet01');
     if (@missing) {
@@ -55,6 +109,7 @@ BASIC_FLOW: {
   my $client = $setup->{client};
   my %V;
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # CREATE
   $V{moon_ref01_ent} = $client->Moon(undef);
   $V{moon_ref01_data} = VoxgigSolardemoHelpers::to_map(VoxgigSolardemoHelpers::gp(
@@ -66,6 +121,7 @@ BASIC_FLOW: {
   ok(defined $V{moon_ref01_data}, 'moon create: data');
   ok(defined $V{moon_ref01_data}{id}, 'moon create: id');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # LIST
   $V{moon_ref01_match} = {
     'planet_id' => $setup->{idmap}{'planet01'},
@@ -79,6 +135,7 @@ BASIC_FLOW: {
     { 'id' => $V{moon_ref01_data}{id} });
   ok(!Voxgig::Struct::isempty($V{found_item}), 'moon list: item exists');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # UPDATE
   $V{moon_ref01_data_up0_up} = {
     'id' => $V{moon_ref01_data}{id},
@@ -95,16 +152,18 @@ BASIC_FLOW: {
   is($V{moon_ref01_resdata_up0}{id}, $V{moon_ref01_data_up0_up}{id}, 'moon update: id');
   is($V{moon_ref01_resdata_up0}{ $V{moon_ref01_markdef_up0_name} }, $V{moon_ref01_markdef_up0_value}, 'moon update: mark');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # LOAD
   $V{moon_ref01_match_dt0} = {
     'id' => $V{moon_ref01_data}{id},
   };
-  $V{moon_ref01_match_dt0}{'planet_id'} = $setup->{idmap}{'planet_id'} // $setup->{idmap}{'planet01'};
+  $V{moon_ref01_match_dt0}{'planet_id'} = (defined $V{moon_ref01_data}{'planet_id'} && !ref $V{moon_ref01_data}{'planet_id'}) ? $V{moon_ref01_data}{'planet_id'} : ($setup->{idmap}{'planet_id'} // $setup->{idmap}{'planet01'});
   $V{moon_ref01_data_dt0_loaded} = $V{moon_ref01_ent}->load($V{moon_ref01_match_dt0}, undef);
   $V{moon_ref01_data_dt0_load_result} = VoxgigSolardemoHelpers::to_map(ref($V{moon_ref01_data_dt0_loaded}) && $V{moon_ref01_data_dt0_loaded}->can('data_get') ? $V{moon_ref01_data_dt0_loaded}->data_get : $V{moon_ref01_data_dt0_loaded});
   ok(defined $V{moon_ref01_data_dt0_load_result}, 'moon load: data');
   is($V{moon_ref01_data_dt0_load_result}{id}, $V{moon_ref01_data}{id}, 'moon load: id');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # REMOVE
   $V{moon_ref01_match_rm0} = {
     'id' => $V{moon_ref01_data}{id},
@@ -113,6 +172,7 @@ BASIC_FLOW: {
   $V{moon_ref01_ent}->remove($V{moon_ref01_match_rm0}, undef);
   pass('moon remove: completed');
 
+  VoxgigSolardemoTestRunner::live_pace() if $setup->{live};
   # LIST
   $V{moon_ref01_match_rt0} = {
     'planet_id' => $setup->{idmap}{'planet01'},

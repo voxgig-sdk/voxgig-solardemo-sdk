@@ -14,7 +14,7 @@ type PlanetEntity struct {
 	client  *core.VoxgigSolardemoSDK
 	utility *core.Utility
 	entopts map[string]any
-	data    map[string]any
+	data    any
 	match   map[string]any
 	entctx  *core.Context
 	deleted bool
@@ -64,8 +64,12 @@ func (e *PlanetEntity) GoString() string {
 }
 
 func (e *PlanetEntity) MarshalJSON() ([]byte, error) {
+	data, ok := e.data.(map[string]any)
+	if !ok {
+		return json.Marshal(e.data)
+	}
 	out := map[string]any{}
-	for k, v := range e.data {
+	for k, v := range data {
 		out[k] = v
 	}
 	out["voxgig$entity"] = "Planet"
@@ -77,7 +81,7 @@ func (e *PlanetEntity) MarkDeleted() {
 }
 
 
-// Deleted reports whether a successful Remove has resolved on this instance.
+// Deleted reports whether a remove has marked this instance deleted.
 func (e *PlanetEntity) Deleted() bool {
 	return e.deleted
 }
@@ -93,10 +97,7 @@ func (e *PlanetEntity) Make() core.Entity {
 
 func (e *PlanetEntity) Data(args ...any) any {
 	if len(args) > 0 && args[0] != nil {
-		e.data = core.ToMapAny(vs.Clone(args[0]))
-		if e.data == nil {
-			e.data = map[string]any{}
-		}
+		e.data = vs.Clone(args[0])
 		e.utility.FeatureHook(e.entctx, "SetData")
 	}
 
@@ -175,13 +176,6 @@ func (e *PlanetEntity) Stream(action string, args map[string]any, callopts map[s
 	utility := e.utility
 	ctx := utility.MakeContext(ctxmap, e.entctx)
 	ctx.Meta["stream"] = callopts
-
-	// Outbound: expose the caller's payload so the request builder / transport
-	// can stream it as the request body.
-	if body := callopts["body"]; body != nil {
-		ctx.Reqdata["body$"] = body
-		ctx.Meta["stream_out"] = body
-	}
 
 	send := func(item core.StreamItem) bool {
 		select {
@@ -310,9 +304,9 @@ func (e *PlanetEntity) Load(reqmatch map[string]any, ctrl map[string]any) (any, 
 				e.match = ctx.Result.Resmatch
 			}
 			if ctx.Result.Resdata != nil {
-				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if e.data == nil {
-					e.data = map[string]any{}
+				e.data = map[string]any{}
+				if data := core.ToMapAny(vs.Clone(ctx.Result.Resdata)); data != nil {
+					e.data = data
 				}
 			}
 		}
@@ -379,9 +373,9 @@ func (e *PlanetEntity) Create(reqdata map[string]any, ctrl map[string]any) (any,
 	return e.runOp(ctx, func() {
 		if ctx.Result != nil {
 			if ctx.Result.Resdata != nil {
-				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if e.data == nil {
-					e.data = map[string]any{}
+				e.data = map[string]any{}
+				if data := core.ToMapAny(vs.Clone(ctx.Result.Resdata)); data != nil {
+					e.data = data
 				}
 			}
 		}
@@ -418,9 +412,9 @@ func (e *PlanetEntity) Update(reqdata map[string]any, ctrl map[string]any) (any,
 				e.match = ctx.Result.Resmatch
 			}
 			if ctx.Result.Resdata != nil {
-				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if e.data == nil {
-					e.data = map[string]any{}
+				e.data = map[string]any{}
+				if data := core.ToMapAny(vs.Clone(ctx.Result.Resdata)); data != nil {
+					e.data = data
 				}
 			}
 		}
@@ -462,9 +456,9 @@ func (e *PlanetEntity) Remove(reqmatch map[string]any, ctrl map[string]any) (any
 				e.match = ctx.Result.Resmatch
 			}
 			if ctx.Result.Resdata != nil {
-				e.data = core.ToMapAny(vs.Clone(ctx.Result.Resdata))
-				if e.data == nil {
-					e.data = map[string]any{}
+				e.data = map[string]any{}
+				if data := core.ToMapAny(vs.Clone(ctx.Result.Resdata)); data != nil {
+					e.data = data
 				}
 			}
 		}

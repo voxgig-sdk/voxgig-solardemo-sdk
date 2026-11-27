@@ -1,4 +1,4 @@
-// VoxgigSolardemo Ts SDK: generated schemas. Do not edit.
+// VoxgigSolardemo TypeScript SDK: generated schemas. Do not edit.
 //
 // Generated from the model: `main.kit.optspec` and each feature's
 // `config.options` for OPTSPEC; entity `fields{}.type` for ENTITYSPEC.
@@ -57,31 +57,49 @@ const OPTSPEC = {
       "active": false
     },
     "debug": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "max": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "redact": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "onEntry": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -89,16 +107,25 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "idempotency": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "header": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -107,17 +134,26 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "methods": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "ops": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "keygen": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -125,16 +161,25 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "metrics": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -142,16 +187,25 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "paging": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "afterVar": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -160,7 +214,10 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "cursorParam": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -169,7 +226,10 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "firstVar": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -178,7 +238,10 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "limitParam": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -187,7 +250,10 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "pageParam": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -196,17 +262,26 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "startPage": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "limit": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "ops": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ]
@@ -214,31 +289,49 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "ratelimit": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "burst": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "rate": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "sleep": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -246,46 +339,73 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "retry": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "factor": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "maxDelay": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "minDelay": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "retries": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "statuses": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "jitter": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "sleep": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -293,26 +413,41 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "secrets": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "cache": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "exchange": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$MAP`",
           "`$NIL`"
         ],
         "name": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -321,7 +456,10 @@ const OPTSPEC = {
           "`$NIL`"
         ],
         "providers": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ]
@@ -329,21 +467,33 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "test": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "entity": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$MAP`",
           "`$NIL`"
         ],
         "net": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$MAP`",
           "`$NIL`"
         ]
@@ -351,31 +501,49 @@ const OPTSPEC = {
       "`$NIL`"
     ],
     "timeout": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "ms": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "clearTimer": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "setTimer": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]

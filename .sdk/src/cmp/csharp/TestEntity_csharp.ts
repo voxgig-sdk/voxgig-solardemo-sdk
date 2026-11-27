@@ -1,4 +1,4 @@
-import { flowSteps, opReachable, invalidRequest } from '@voxgig/sdkgen'
+import { flowSteps, opReachable, invalidRequest, flowLoadRoute, flowLoadReadsRecord, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -18,14 +18,15 @@ import {
   each,
   buildIdNames,
   getMatchEntries,
-  isAuthActive, envName, envToken,
-  serverVarEnv,
-  serverVariables,
+  isAuthActive, entityRecordIdField,
   liveFlowNeeds, liveStrict, liveStrictNote,
+  liveGates, liveExcludedLines, liveExcludedSummary, LIVE_GETONLY_ENV,
+  liveRouteExamples, liveStepExamples,
+  liveEntity, liveIdentity, liveRepeatsId, liveLoadComparesId, liveUnrouted,
 } from '@voxgig/sdkgen'
 
 
-import { csVarName } from './utility_csharp'
+import { csVarName, formatCsValue } from './utility_csharp'
 
 
 // Convert a model name to a camelCase C# local (planet_ref01 -> planetRef01).
@@ -47,9 +48,16 @@ type OpGen = (ctx: GenCtx, step: ModelEntityFlowStep, index: number) => void
 // The live prologue of a flow built from offline fixtures: blocked without
 // the ids it binds, a create-less load reading the first listed record, and
 // a lenient run observing its checks rather than failing on them.
-function liveFlowGate(entity: any, needs: any, entidEnv: string, strict: boolean,
+function liveFlowGate(entity: any, needs: any, identity: any, entidEnv: string, strict: boolean,
   hasSteps: boolean): string {
   let out = ''
+  for (const [k, ex] of needs.examples || []) {
+    out += `        if (setup.Live && (setup.SyntheticOnly || StructUtils.GetProp(setup.Idmap, ${JSON.stringify(k)}) == null))
+        {
+            setup.Idmap[${JSON.stringify(k)}] = ${formatCsValue(ex)};
+        }
+`
+  }
   if (0 < needs.keys.length) {
     out += `        if (setup.Live)
         {
@@ -76,13 +84,36 @@ function liveFlowGate(entity: any, needs: any, entidEnv: string, strict: boolean
     return out
   }
   out += '        var client = setup.Client;\n'
-  if (null != needs.discover) {
-    const match = Object.entries(needs.discover)
-      .map(([k, v]: any) => ` [${JSON.stringify(k)}] = setup.Idmap[${JSON.stringify(v)}],`).join('')
+  if (null != needs.record) {
+    const id = `StructUtils.GetProp(setup.Idmap, ${JSON.stringify(needs.record)})`
     out += `        if (setup.Live && !TestRunner.LiveExisting(setup.Data, LIVE_STRICT, ${JSON.stringify(entity.name)},
-            () => client.${entity.Name}().List(new Dictionary<string, object?> {${match} }, null)))
+            ${JSON.stringify(identity.field)}, ${id},
+            () => new List<object?> { new Dictionary<string, object?> { ["id"] = ${id} } }))
         {
             return;
+        }
+`
+  }
+  if (null != needs.discover) {
+    const match = 'new Dictionary<string, object?> {' + Object.entries(needs.discover)
+      .map(([k, v]: any) => (needs.unrouted || []).some(([name]: [string, string]) => k === name) ?
+        ` [${JSON.stringify(k)}] = StructUtils.GetProp(setup.Idmap, ${JSON.stringify(v)}),` :
+        ` [${JSON.stringify(k)}] = setup.Idmap[${JSON.stringify(v)}],`)
+      .concat(liveRouteExamples(entity, 'list', Object.keys(needs.discover))
+        .map(([k, ex]) => ` [${JSON.stringify(k)}] = ${formatCsValue(ex)},`)).join('') + ' }'
+    const omit = needs.unrouted || []
+    out += `        if (setup.Live)
+        {
+            var liveId = setup.SyntheticOnly ? null : StructUtils.GetProp(setup.Idmap, ${JSON.stringify(identity.key)});
+${undefined === identity.ex ? '' : `            liveId ??= ${formatCsValue(identity.ex)};
+`}${0 === omit.length ? '' : `            var liveMatch = ${match};
+${liveOmit(omit, 'liveMatch', '            ')}`}            TestRunner.LivePace();
+            if (!TestRunner.LiveExisting(setup.Data, LIVE_STRICT, ${JSON.stringify(entity.name)},
+                ${JSON.stringify(identity.field)}, liveId,
+                () => client.${entity.Name}().List(${0 === omit.length ? match : 'liveMatch'}, null)))
+            {
+                return;
+            }
         }
 `
   }
@@ -98,7 +129,7 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const model: Model = ctx$.model
 
   const target = props.target
-  const entity: ModelEntity = props.entity
+  const entity: ModelEntity = liveEntity(ctx$, props.entity)
 
   const basicflow: ModelEntityFlow | undefined =
     getModelPath(model, `main.${KIT}.flow.Basic${nom(entity, 'Name')}Flow`)
@@ -107,29 +138,30 @@ const TestEntity = cmp(function TestEntity(props: any) {
   }
 
   const Name = model.const.Name
-  const PROJUPPER = envName(model)
-  const ENTUPPER = envToken(entity.name)
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJUPPER = ENVVAR.prefix
 
   const authActive = isAuthActive(model)
+  const authSecret = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n            ["${PROJUPPER}_APIKEY"] = "",`
+    ? `\n            ["${ENVVAR.apikey}"] = "",${authSecret ? `\n            ["${ENVVAR.secret}"] = "",` : ''}`
     : ''
   const apikeyLiveField = authActive
-    ? `\n                    ["apikey"] = env["${PROJUPPER}_APIKEY"],`
+    ? `\n                    ["apikey"] = env["${ENVVAR.apikey}"],${authSecret ? `\n                    ["secret"] = env["${ENVVAR.secret}"],` : ''}`
     : ''
 
   // A templated server URL (OpenAPI server variables) makes a LIVE client
   // impossible to construct without values: makeOptions raises rather than
   // request a URL with a literal `{account_id}` in it. So the live suite
   // takes them from the environment the same way it takes the apikey.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n            ["${serverVarEnv(PROJUPPER, v.name)}"] = ${JSON.stringify(v.dflt)},`).join('')
+    .map((v: any) => `\n            ["${ENVVAR.server[v.name]}"] = ${JSON.stringify(v.dflt)},`).join('')
   const serverLiveField = 0 === svars.length ? '' : `
                     ["server"] = new Dictionary<string, object?>
                     {${svars
       .map((v: any) => `
-                        ["${v.name}"] = env["${serverVarEnv(PROJUPPER, v.name)}"],`).join('')}
+                        ["${v.name}"] = env["${ENVVAR.server[v.name]}"],`).join('')}
                     },`
 
   const idnames = buildIdNames(entity, basicflow)
@@ -137,17 +169,15 @@ const TestEntity = cmp(function TestEntity(props: any) {
 
   // Get all update data entries for alias generation
   const allSteps = Object.values(flowSteps(basicflow)) as any[]
-  const updateStep = allSteps.find((s: any) => s.o === 'update')
-  const updateData = updateStep?.d
-    ? Object.entries(updateStep.d).filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
-    : []
+  const updateData = Object.entries(Object.assign({}, ...allSteps
+    .filter((s: any) => 'update' === s.o || 'patch' === s.o).map((s: any) => s.d || {})))
+    .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
   const aliases = updateData.map(([k, v]: any) => [k, v])
 
   const genCtx: GenCtx = { model, entity, flow: basicflow, PROJUPPER }
 
   const strict = liveStrict(model, target.name)
-  const needs = liveFlowNeeds(entity, basicflow)
-  const entidEnvVar = `${PROJUPPER}_TEST_${ENTUPPER}_ENTID`
+  const entidEnvVar = ENVVAR.entid[entity.name]
 
   const opNames = Array.from(new Set(
     (allSteps as any[]).map((s: any) => s.o).filter(Boolean)))
@@ -201,14 +231,19 @@ ${liveStrictNote(strict, '//', '    ')}
     public void Basic()
     {
         var setup = ${entity.Name}BasicSetup(null);
-${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length > 0)}`)
+${skipBlock}`)
 
-    // Check if the flow has a create step; if not, bootstrap entity data
-    const flowHasCreate = allSteps.some((s: any) => s.o === 'create')
-    if (!flowHasCreate) {
-      const preambleRef = entity.name + '_ref01'
-      const preambleVar = csVar(preambleRef)
-      Content(`        // Bootstrap entity data from existing test data (no create step in flow).
+    const flowBody = (flow: any) => {
+      const steps = flowSteps(flow) as any[]
+      Content(liveFlowGate(entity, liveFlowNeeds(entity, flow), liveIdentity(entity, flow), entidEnvVar, strict,
+        steps.length > 0))
+
+      // Check if the flow has a create step; if not, bootstrap entity data
+      const flowHasCreate = steps.some((s: any) => s.o === 'create')
+      if (!flowHasCreate) {
+        const preambleRef = entity.name + '_ref01'
+        const preambleVar = csVar(preambleRef)
+        Content(`        // Bootstrap entity data from existing test data (no create step in flow).
         var ${preambleVar}DataRaw = StructUtils.Items(
             Helpers.ToMapAny(StructUtils.GetPath(setup.Data, "existing.${entity.name}")));
         var ${preambleVar}Data = ${preambleVar}DataRaw.Count > 0
@@ -216,25 +251,56 @@ ${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length >
             : null;
 
 `)
-    }
-
-    // Model-driven step iteration
-    each(flowSteps(basicflow), (step: any, index: any) => {
-      const opgen: OpGen = GENERATE_OP[step.o]
-      if (opgen) {
-        opgen(genCtx, step, index)
-        Content('\n')
       }
-    })
 
-    Content(`${strict || 0 === allSteps.length ? '' : `        }
+      // Model-driven step iteration
+      each(steps, (step: any, index: any) => {
+        const opgen: OpGen = GENERATE_OP[step.o]
+        if (opgen) {
+          Content(LIVE_PACE)
+          opgen({ ...genCtx, flow }, step, index)
+          Content('\n')
+        }
+      })
+
+      Content(strict || 0 === steps.length ? '' : `        }
         catch (Exception liveErr)
         {
             TestRunner.LiveObserve(liveErr, setup.Live, LIVE_STRICT);
         }
-`}    }
+`)
+    }
+
+    // A C# local is in scope throughout its block, so the steps a live run
+    // keeps cannot share the method with the full flow's.
+    const gates = liveGates(entity, basicflow)
+    const method = (getOnly: boolean) => getOnly ? 'BasicGetOnly' : 'BasicLive'
+    for (const { getOnly, plan, runs } of gates) {
+      Content(`        if (setup.Live${getOnly ? ` && Environment.GetEnvironmentVariable(${formatCsValue(LIVE_GETONLY_ENV)}) == "TRUE"` : ''})
+        {
+${liveExcludedLines(plan).map((line) => '            Console.WriteLine(' + formatCsValue(line) + ');\n').join('')}${runs ?
+  '            ' + method(getOnly) + '(setup);\n' :
+  '            Console.WriteLine(' + formatCsValue('skip: ' + liveExcludedSummary(plan)) + ');\n'}            return;
+        }
 
 `)
+    }
+
+    flowBody(basicflow)
+
+    Content(`    }
+
+`)
+
+    for (const { getOnly, plan } of gates.filter((gate) => gate.runs)) {
+      Content(`    private static void ${method(getOnly)}(EntityTestSetup setup)
+    {
+`)
+      flowBody(plan.flow)
+      Content(`    }
+
+`)
+    }
 
     // The stream test lists with no match, so a bare call must reach a route.
     const flowHasList = allSteps.some((s: any) => s.o === 'list') &&
@@ -294,7 +360,7 @@ ${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length >
         TestRunner.LoadEnvLocal();
 
         var entityDataFile = Path.Combine(TestRunner.TestDir(),
-            "..", "..", ".sdk", "test", "entity", "${entity.name}",
+            "..", "${ctx$.stdrep.SDKREL}", ".sdk", "test", "entity", "${entity.name}",
             "${entity.Name}TestData.json");
 
         var entityDataEl = JsonSerializer.Deserialize<JsonElement>(
@@ -303,7 +369,7 @@ ${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length >
             as Dictionary<string, object?>
             ?? throw new InvalidOperationException(
                 "failed to parse ${entity.name} test data");
-
+${fixtureIdentity(entity)}
         var options = new Dictionary<string, object?>
         {
             ["entity"] = entityData["existing"],
@@ -330,18 +396,18 @@ ${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length >
         // Whether *_ENTID supplied the idmap, read before EnvOverride consumes
         // it: without it, the ids a live flow binds are the fixture's synthetic ones.
         var entidEnvRaw = Environment.GetEnvironmentVariable(
-            "${PROJUPPER}_TEST_${ENTUPPER}_ENTID") ?? "";
+            "${ENVVAR.entid[entity.name]}") ?? "";
         var idmapOverridden = entidEnvRaw != "" &&
             entidEnvRaw.Trim().StartsWith("{");
 
         var env = TestRunner.EnvOverride(new Dictionary<string, object?>
         {
-            ["${PROJUPPER}_TEST_${ENTUPPER}_ENTID"] = idmap,
-            ["${PROJUPPER}_TEST_LIVE"] = "FALSE",
+            ["${ENVVAR.entid[entity.name]}"] = idmap,
+            ["${ENVVAR.live}"] = "FALSE",
             ["${PROJUPPER}_TEST_EXPLAIN"] = "FALSE",${apikeyEnvEntry}${serverEnvEntry}
         });
 
-        var idmapResolved = Helpers.ToMapAny(env["${PROJUPPER}_TEST_${ENTUPPER}_ENTID"])
+        var idmapResolved = Helpers.ToMapAny(env["${ENVVAR.entid[entity.name]}"])
             ?? Helpers.ToMapAny(idmap)
             ?? new Dictionary<string, object?>();
 `)
@@ -358,7 +424,7 @@ ${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length >
     }
 
     Content(`
-        if (Equals(env["${PROJUPPER}_TEST_LIVE"], "TRUE"))
+        if (Equals(env["${ENVVAR.live}"], "TRUE"))
         {
             // 'extra ?? new ...', not a bare 'extra': Merge returns null when
             // the last entry is null, and BasicSetup is normally called with no
@@ -378,7 +444,7 @@ ${skipBlock}${liveFlowGate(entity, needs, entidEnvVar, strict, allSteps.length >
             client = new ${Name}SDK(Helpers.ToMapAny(mergedOpts));
         }
 
-        var live = Equals(env["${PROJUPPER}_TEST_LIVE"], "TRUE");
+        var live = Equals(env["${ENVVAR.live}"], "TRUE");
         return new EntityTestSetup
         {
             Client = client,
@@ -405,7 +471,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasDatvar = priorSteps.some((s: any) => {
     if ('create' === s.o) {
@@ -438,11 +504,11 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   Content(`
         var ${datavar}Result = ${entvar}.Create(${datavar}, null);
-        ${datavar} = Helpers.ToMapAny(${datavar}Result is IEntity ce ? ce.Data() : ${datavar}Result);
+        ${datavar} = Helpers.ToMapAny(${datavar}Result is IEntity ${datavar}Entity ? ${datavar}Entity.Data() : ${datavar}Result);
         Assert.True(${datavar} != null, "expected create result to be a map");
 `)
   if (null != ctx.entity.id) {
-    Content(`        Assert.True(${datavar}!["id"] != null, "expected created entity to have an id");
+    Content(`        Assert.True(${datavar}![${rid(ctx.entity)}] != null, "expected created entity to have an id");
 `)
   }
 }
@@ -457,7 +523,7 @@ const generateList: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`        // LIST
 `)
@@ -475,13 +541,17 @@ const generateList: OpGen = (ctx, step, index) => {
     Content(`        var ${matchvar} = new Dictionary<string, object?>
         {
 `)
+    // *_ENTID may not give a binding the live route does not take.
+    const unrouted = liveUnrouted(entity, step, flow).map(([name]) => name)
     for (const [key, val] of matchEntries) {
-      Content(`            ["${key}"] = setup.Idmap["${val}"],
+      Content(unrouted.includes(key) ? `            ["${key}"] = StructUtils.GetProp(setup.Idmap, "${val}"),
+` : `            ["${key}"] = setup.Idmap["${val}"],
 `)
     }
     Content(`        };
 `)
   }
+  Content(liveFill(entity, step, matchvar, flow))
 
   Content(`
         var ${listvar}Result = ${entvar}.List(${matchvar}, null);
@@ -503,7 +573,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
         var ${listvar}Found = StructUtils.Select(
             TestRunner.EntityListToData(${listvar}!),
-            new Dictionary<string, object?> { ["id"] = ${refDataVar}!["id"] });
+            new Dictionary<string, object?> { [${rid(entity)}] = ${refDataVar}![${rid(entity)}] });
         Assert.False(StructUtils.IsEmpty(${listvar}Found),
             "expected to find created entity in list");
 `)
@@ -512,7 +582,7 @@ const generateList: OpGen = (ctx, step, index) => {
         Content(`
         var ${listvar}NotFound = StructUtils.Select(
             TestRunner.EntityListToData(${listvar}!),
-            new Dictionary<string, object?> { ["id"] = ${refDataVar}!["id"] });
+            new Dictionary<string, object?> { [${rid(entity)}] = ${refDataVar}![${rid(entity)}] });
         Assert.True(StructUtils.IsEmpty(${listvar}NotFound),
             "expected removed entity to not be in list");
 `)
@@ -533,11 +603,11 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasEntIdU = null != entity.id
 
-  Content(`        // UPDATE
+  Content(`        // ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`        var ${entvar} = client.${entity.Name}();
@@ -547,7 +617,7 @@ const generateUpdate: OpGen = (ctx, step, index) => {
         {
 `)
   if (hasEntIdU) {
-    Content(`            ["id"] = ${srcdatavar}!["id"],
+    Content(`            ["id"] = ${srcdatavar}![${rid(entity)}],
 `)
   }
 
@@ -579,14 +649,13 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   }
 
   Content(`
-        var ${resdatavar}Result = ${entvar}.Update(${datavar}Up, null);
-        var ${resdatavar} = Helpers.ToMapAny(${resdatavar}Result is IEntity ue ? ue.Data() : ${resdatavar}Result);
-        Assert.True(${resdatavar} != null, "expected update result to be a map");
+        var ${resdatavar}Result = ${entvar}.${step.o[0].toUpperCase() + step.o.slice(1)}(${datavar}Up, null);
+        var ${resdatavar} = Helpers.ToMapAny(${resdatavar}Result is IEntity ${resdatavar}Entity ? ${resdatavar}Entity.Data() : ${resdatavar}Result);
+        Assert.True(${resdatavar} != null, "expected ${step.o} result to be a map");
 `)
   if (hasEntIdU) {
-    Content(`        Assert.True(StructRunner.DeepEqual(${resdatavar}!["id"], ${datavar}Up["id"]),
-            "expected update result id to match");
-`)
+    Content(sameId(liveRepeatsId(entity), `StructUtils.GetProp(${resdatavar}, ${rid(entity)})`, `${datavar}Up["id"]`,
+      'expected ' + step.o + ' result id to match'))
   }
 
   // Assert TextFieldMark
@@ -612,7 +681,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const hasEntVar = priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   // Check if srcdatavar was declared by a prior create step or preamble
   const flowHasCreate = Object.values(flowSteps(flow)).some((s: any) => (s as any).o === 'create')
@@ -635,7 +704,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
     Content(`        var ${entvar} = client.${entity.Name}();
 `)
   }
-  if (!hasSrcData && hasEntId) {
+  if (!hasSrcData && (hasEntId || flowLoadReadsRecord(entity, step))) {
     Content(`        var ${srcdatavar}Raw = StructUtils.Items(
             Helpers.ToMapAny(StructUtils.GetPath(setup.Data, "existing.${entity.name}")));
         var ${srcdatavar} = ${srcdatavar}Raw.Count > 0
@@ -646,18 +715,17 @@ const generateLoad: OpGen = (ctx, step, index) => {
   if (hasEntId) {
     Content(`        var ${matchvar} = new Dictionary<string, object?>
         {
-            ["id"] = ${srcdatavar}!["id"],
+            ["id"] = ${srcdatavar}![${rid(entity)}],
         };
-${parentMatch(step, matchvar)}        var ${datavar}Loaded = ${entvar}.Load(${matchvar}, null);
-        var ${datavar}LoadResult = Helpers.ToMapAny(${datavar}Loaded is IEntity le ? le.Data() : ${datavar}Loaded);
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}        var ${datavar}Loaded = ${entvar}.Load(${matchvar}, null);
+        var ${datavar}LoadResult = Helpers.ToMapAny(${datavar}Loaded is IEntity ${datavar}LoadedEntity ? ${datavar}LoadedEntity.Data() : ${datavar}Loaded);
         Assert.True(${datavar}LoadResult != null, "expected load result to be a map");
-        Assert.True(StructRunner.DeepEqual(${datavar}LoadResult!["id"], ${srcdatavar}["id"]),
-            "expected load result id to match");
-`)
+${sameId(liveLoadComparesId(entity, flow), `StructUtils.GetProp(${datavar}LoadResult, ${rid(entity)})`,
+  `StructUtils.GetProp(${srcdatavar}, ${rid(entity)})`, 'expected load result id to match')}`)
   }
   else {
     Content(`        var ${matchvar} = new Dictionary<string, object?>();
-${parentMatch(step, matchvar)}        var ${datavar}Loaded = ${entvar}.Load(${matchvar}, null);
+${loadMatch(entity, step, matchvar, srcdatavar)}${liveFill(entity, step, matchvar, flow)}        var ${datavar}Loaded = ${entvar}.Load(${matchvar}, null);
         Assert.True(${datavar}Loaded != null, "expected load result to be non-null");
 `)
   }
@@ -673,7 +741,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 
   const priorSteps = Object.values(flowSteps(flow)).slice(0, Number(index)) as any[]
   const needsEnt = !priorSteps.some((s: any) =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`        // REMOVE
 `)
@@ -684,16 +752,87 @@ const generateRemove: OpGen = (ctx, step, index) => {
   // Always match the prior-created entity by id to avoid mock-order flakes.
   Content(`        var ${matchvar} = new Dictionary<string, object?>
         {
-            ["id"] = ${srcdatavar}!["id"],
+            ["id"] = ${srcdatavar}![${rid(entity)}],
         };
 ${parentMatch(step, matchvar)}        ${entvar}.Remove(${matchvar}, null);
 `)
 }
 
 
+// The record field the entity's identity is read from, as a C# string.
+function rid(entity: any): string {
+  return JSON.stringify(entityRecordIdField(entity))
+}
+
+
+const LIVE_PACE = `        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+`
+
+
+// A result's identity matches the one asked for, live only as the live
+// entity harness compares it.
+function sameId(compares: boolean, result: string, expected: string, message: string): string {
+  const check = `Assert.True(TestRunner.LiveSameId(${result}, ${expected}), ${JSON.stringify(message)});`
+  return !compares ? `        if (!setup.Live)
+        {
+            ${check}
+        }
+` : `        ${check}
+`
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  const field = entityRecordIdField(entity)
+  return 'id' === field ? '' : `
+        if (entityData.TryGetValue("existing", out var fixtureExisting) &&
+            fixtureExisting is Dictionary<string, object?> fixtureEntities &&
+            fixtureEntities.TryGetValue(${JSON.stringify(entity.name)}, out var fixtureRecords) &&
+            fixtureRecords is Dictionary<string, object?> fixtureMap)
+        {
+            foreach (var fixtureRec in fixtureMap.Values)
+            {
+                if (fixtureRec is Dictionary<string, object?> fixtureRecMap &&
+                    fixtureRecMap.TryGetValue("id", out var fixtureId) && fixtureId != null)
+                {
+                    fixtureRecMap[${JSON.stringify(field)}] = fixtureRecMap["id"];
+                }
+            }
+        }
+`
+}
+
+
 // A child's route names its parents, and an entity no earlier step has
 // filled knows none of them, so the call itself gives each parent id. A live
 // ENTID may key a parent by its field name, the fixture by its own name.
+// A live step sends each example its route requires and the step leaves unbound.
+function liveFill(entity: any, step: any, matchvar: string, flow: any): string {
+  const fills = liveStepExamples(entity, step, flow)
+  const omit = liveUnrouted(entity, step, flow)
+  return 0 === fills.length + omit.length ? '' : `        if (setup.Live)
+        {
+${fills.map(([k, ex]) => `            ${matchvar}[${JSON.stringify(k)}] = ${formatCsValue(ex)};\n`).join('')}${liveOmit(omit, matchvar, '            ')}        }
+`
+}
+
+
+// A binding the live route does not take is sent only as *_ENTID gives it.
+function liveOmit(omit: [string, string][], matchvar: string, indent: string): string {
+  return omit.map(([name, key]) =>
+    `${indent}if (setup.SyntheticOnly || StructUtils.GetProp(setup.Idmap, ${JSON.stringify(key)}) == null)
+${indent}{
+${indent}    ${matchvar}.Remove(${JSON.stringify(name)});
+${indent}}
+`).join('')
+}
+
+
 function parentMatch(step: any, matchvar: string): string {
   return Object.entries(step.m || {})
     .filter(([k]: any) => k !== 'id' && !k.endsWith('$'))
@@ -702,10 +841,40 @@ function parentMatch(step: any, matchvar: string): string {
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding offline.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string): string {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar)
+  }
+  if (route.offline) {
+    const own = route.args.filter((arg) => null != arg.field)
+    return parentMatch(step, matchvar) + (0 === own.length ? '' : `        if (!setup.Live)
+        {
+${own.map((arg, i) => `            if (StructUtils.GetProp(${srcdatavar}, "${arg.field}") is System.IConvertible own${i})
+            {
+                ${matchvar}["${arg.name}"] = own${i};
+            }
+`).join('')}        }
+`)
+  }
+  return route.args.map((arg) => {
+    const bound = arg.idmap.map((key) => `StructUtils.GetProp(setup.Idmap, "${key}")`).join(' ?? ')
+    const own = `StructUtils.GetProp(${srcdatavar}, "${arg.field}")`
+    return `        ${matchvar}["${arg.name}"] = ${null == arg.field ? bound :
+      `${own} is System.IConvertible ? ${own} : ${bound}`};
+`
+  }).join('')
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }

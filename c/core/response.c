@@ -35,7 +35,7 @@ Response* response_new(voxgig_value* resmap) {
   return r;
 }
 
-static const char* header_value(voxgig_value* headers, const char* name) {
+const char* response_header(voxgig_value* headers, const char* name) {
   if (v_is_map(headers)) {
     voxgig_map* m = voxgig_as_map(headers);
     for (size_t i = 0; i < m->len; i++) {
@@ -52,6 +52,27 @@ static bool names_json(const char* type) {
     if (strncasecmp(type, "json", 4) == 0) return true;
   }
   return false;
+}
+
+// Text is no declared type, text/*, or a structured text format.
+bool response_is_binary(voxgig_value* point, const char* type) {
+  static const char* const TEXT_MEDIA[] = { "json", "xml", "html", "javascript",
+    "ecmascript", "yaml", "urlencoded", "graphql", NULL };
+  bool binary = false;
+  if (get_bool(getp(point, "response"), "binary", &binary) && binary) return true;
+
+  while (isspace((unsigned char)*type)) type++;
+  size_t len = strcspn(type, ";");
+  while (0 < len && isspace((unsigned char)type[len - 1])) len--;
+  if (0 == len || (5 <= len && strncasecmp(type, "text/", 5) == 0)) return false;
+
+  for (size_t i = 0; i < len; i++) {
+    for (const char* const* part = TEXT_MEDIA; *part; part++) {
+      size_t n = strlen(*part);
+      if (i + n <= len && strncasecmp(type + i, *part, n) == 0) return false;
+    }
+  }
+  return true;
 }
 
 // Whitespace runs as one space, trimmed. Returns malloc'd.
@@ -98,9 +119,11 @@ static char* body_preview(Context* ctx, voxgig_value* text) {
 
 PNError* unreadable_body(Context* ctx, int64_t status, voxgig_value* headers,
                          voxgig_value* text, voxgig_value* sent, PNError* failed) {
-  const char* type = header_value(headers, "content-type");
-  char* agent = clean_str(ctx, header_value(sent, "user-agent"));
-  char* preview = (v_is_noval(text) || v_is_null(text)) ? NULL : body_preview(ctx, text);
+  const char* type = response_header(headers, "content-type");
+  char* agent = clean_str(ctx, response_header(sent, "user-agent"));
+  // Only text is quoted: bytes are a file's.
+  char* preview = (v_is_noval(text) || v_is_null(text) || response_is_binary(ctx->point, type))
+    ? NULL : body_preview(ctx, text);
 
   size_t size = strlen(type) + strlen(agent) + (preview ? strlen(preview) : 0) + 128;
   char* detail = (char*)malloc(size);

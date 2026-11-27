@@ -1,46 +1,28 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, entityIdField, pickExampleEntity, opRequestShape } from '@voxgig/sdkgen'
+import { cmp, Content, pickExampleEntity, directRoute, cdTarget } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
-  nom,
 } from '@voxgig/apidef'
 
-import { hsVarName } from './utility_haskell'
-
-
-// A type-correct Haskell `Value` literal for a field's canonical type.
-function hsLit(type: any): string {
-  const k = canonKey(type)
-  if ('INTEGER' === k || 'NUMBER' === k) return 'VNum 1'
-  if ('BOOLEAN' === k) return 'VBool True'
-  if ('ARRAY' === k || 'OBJECT' === k) return 'VNoval'
-  return 'VStr "example"'
-}
+import { hsClient, hsString, hsTestCall, hsVarName } from './utility_haskell'
 
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
+  const client = hsClient(model)
+  const route = (method: string) => `  params <- jo [(${hsString(dx.param)}, VStr "example")]
+  args <- jo [("path", VStr ${hsString(dx.path)}), ("method", VStr ${hsString(method)}), ("params", params)]`
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op). primaryOp is null only
   // when NO entity exposes any op (a direct()-only SDK).
   const { entity: exampleEntity, primaryOp } = pickExampleEntity(entity)
-  const eName = exampleEntity ? nom(exampleEntity, 'Name') : 'Entity'
   const eFn = exampleEntity ? hsVarName(exampleEntity.name) : 'entity'
-  const idF = exampleEntity ? entityIdField(exampleEntity) : null
-  const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
-  let testArgExpr = 'emptyMap'
-  if (exampleEntity && isMatchOp) {
-    testArgExpr = idF ? `jo [("${idF}", VStr "test01")]` : 'emptyMap'
-  } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
-      .filter((it: any) => it.name !== idF && it.name !== 'id')
-    const required = items.filter((it: any) => !it.optional)
-    const chosen = required.length ? required : items.slice(0, 3)
-    testArgExpr = `jo [${chosen.map((it: any) => `("${it.name}", ${hsLit(it.type)})`).join(', ')}]`
-  }
+  const testCall = exampleEntity && primaryOp ? hsTestCall(exampleEntity, primaryOp, '  ') : null
+  const testArgExpr = testCall ? testCall.argExpr : 'emptyMap'
 
   // The op-driven test-mode line, shown only when the SDK has an entity op.
   const testModeExample = 'list' === primaryOp
@@ -59,13 +41,9 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   -- eDataGet reads its mock record.
   ${eFn} <- Sdk.e${primaryOp.charAt(0).toUpperCase() + primaryOp.slice(1)} ent arg ctrl
   putStrLn =<< stringify =<< Sdk.eDataGet ${eFn}`
-    : `  args <- jo [("path", VStr "/api/resource"), ("method", VStr "GET")]
+    : `  args <- jo [("path", VStr ${hsString(dx.path)}), ("method", VStr ${hsString(dx.method)})]
   result <- F.direct sdk args
   putStrLn =<< stringify result`
-
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
-    : ''
 
   Content(`### Make a direct HTTP request
 
@@ -73,16 +51,14 @@ For endpoints not covered by entity accessors, use \`direct\` — it never
 raises and returns a result \`Value\` you branch on via its \`ok\` field:
 
 \`\`\`haskell
-import qualified SdkClient as Sdk
+${client.imports}import qualified SdkClient as Sdk
 import qualified SdkFeatures as F
 import VoxgigStruct (Value (..), stringify)
 import SdkHelpers (jo, getp)
 
 main :: IO ()
 main = do
-  sdk <- Sdk.newSdk0
-  params <- jo [("id", VStr "example")]
-  args <- jo [("path", VStr "/api/resource/{id}"), ("method", VStr "GET"), ("params", params)]
+${client.lines}${route(dx.method)}
   result <- F.direct sdk args
   ok <- getp result "ok"
   case ok of
@@ -103,16 +79,14 @@ main = do
 ### Prepare a request without sending it
 
 \`\`\`haskell
-import qualified SdkClient as Sdk
+${client.imports}import qualified SdkClient as Sdk
 import qualified SdkFeatures as F
 import VoxgigStruct (Value (..), stringify)
 import SdkHelpers (jo, getp)
 
 main :: IO ()
 main = do
-  sdk <- Sdk.newSdk0
-  params <- jo [("id", VStr "example")]
-  args <- jo [("path", VStr "/api/resource/{id}"), ("method", VStr "DELETE"), ("params", params)]
+${client.lines}${route(dx.method)}
   -- prepare returns the fetch definition and raises on error.
   fetchdef <- F.prepare sdk args
   url <- getp fetchdef "url"
@@ -133,7 +107,11 @@ import SdkHelpers (jo)
 
 main :: IO ()
 main = do
-  sdk <- Sdk.testSdk0
+${testCall
+    ? `  -- The offline mock starts empty: seed the record the call reads.
+${testCall.seedLines}
+  sdk <- Sdk.testSdk seed VNoval`
+    : '  sdk <- Sdk.testSdk0'}
 ${testModeExample}
 \`\`\`
 
@@ -156,18 +134,13 @@ customClient = do
   Sdk.newSdk opts
 \`\`\`
 
-### Run live tests
+### Run the test suite
 
-Create a \`.env.local\` file at the project root:
-
-\`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
-\`\`\`
-
-Then run the suite (stock GHC, no third-party dependencies):
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 \`\`\`bash
-cd ${target.name} && make test
+${cdTarget(target)}make test
 \`\`\`
 
 `)

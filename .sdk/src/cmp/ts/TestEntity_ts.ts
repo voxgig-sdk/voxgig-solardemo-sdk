@@ -33,21 +33,40 @@ import {
   cmp,
   each,
   isAuthActive,
-  serverVarEnv,
-  serverVariables,
-  isHttpBasicAuth,
-  entityDataIdField, envName, envToken,
+  entityDataIdField, entityRecordIdField,
   jsKey,
   jsProp,
   hasLiveScenarios,
   liveStrict,
   liveStrictNote,
+  liveEntity,
+  liveGates,
+  liveFlowRoutes,
+  flowLoadRoute,
+  flowLoadReadsRecord,
+  LIVE_GETONLY_ENV,
+  templateSafe,
+  fact,
 } from '@voxgig/sdkgen'
+import type { LiveGate } from '@voxgig/sdkgen'
 
 
 import {
   projectPath
 } from './utility_ts'
+
+
+// The steps a live run leaves out, for the live harness: a GET-only run's
+// when the guard is set, else those any live run leaves out.
+function excludedArg(entity: any, flow: any): string {
+  const gates = liveGates(entity, flow)
+  const getOnly = gates.find((gate) => gate.getOnly)
+  const any = gates.find((gate) => !gate.getOnly)
+  const map = (gate?: LiveGate) => JSON.stringify(
+    Object.fromEntries((gate?.plan.excluded || []).map(({ id, reason }) => [id, reason])))
+  return null != getOnly ? `, 'TRUE' === process.env.${LIVE_GETONLY_ENV} ? ${map(getOnly)} : ${map(any)}` :
+    0 < (any?.plan.excluded.length || 0) ? ', ' + map(any) : ''
+}
 
 
 type GenCtx = {
@@ -68,33 +87,33 @@ const TestEntity = cmp(function TestEntity(props: any) {
   const target = props.target
   const entity: ModelEntity = props.entity
 
-  const PROJENVNAME = envName(model)
-  const ENTENVNAME = envToken(entity.name)
+  const ENVVAR = fact(model.main[KIT], 'env')
+  const PROJENVNAME = ENVVAR.prefix
   const authActive = isAuthActive(model)
-  const authBasic = authActive && isHttpBasicAuth(model)
+  const authBasic = authActive && fact(model.main[KIT], 'auth').secret
   const apikeyEnvEntry = authActive
-    ? `\n    '${PROJENVNAME}_APIKEY': '',${authBasic ? `\n    '${PROJENVNAME}_SECRET': '',` : ''}`
+    ? `\n    '${ENVVAR.apikey}': '',${authBasic ? `\n    '${ENVVAR.secret}': '',` : ''}`
     : ''
   const apikeyLiveField = authActive
     ? `
-        apikey: env.${PROJENVNAME}_APIKEY,${authBasic ? `
-        secret: env.${PROJENVNAME}_SECRET,` : ''}`
+        apikey: env.${ENVVAR.apikey},${authBasic ? `
+        secret: env.${ENVVAR.secret},` : ''}`
     : ''
 
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server')
   const serverEnvEntry = svars
-    .map((v: any) => `\n    '${serverVarEnv(PROJENVNAME, v.name)}': ${JSON.stringify(v.dflt)},`).join('')
+    .map((v: any) => `\n    '${ENVVAR.server[v.name]}': ${templateSafe('ts', JSON.stringify(v.dflt))},`).join('')
   const serverLiveField = 0 === svars.length ? '' : `
         server: {${svars
       .map((v: any) => `
-          ${jsKey(v.name)}: ${jsProp('env', serverVarEnv(PROJENVNAME, v.name))},`).join('')}
+          ${jsKey(v.name)}: ${jsProp('env', ENVVAR.server[v.name])},`).join('')}
         },`
 
   const ff = projectPath('src/cmp/ts/fragment/')
 
   Folder({ name: entity.name }, () => {
 
-    File({ name: nom(entity, 'Name') + 'Entity.test.' + target.name }, () => {
+    File({ name: nom(entity, 'Name') + 'Entity.test.' + target.ext }, () => {
 
       Fragment({
         from: ff + 'Entity.test.fragment.ts',
@@ -140,14 +159,14 @@ function basicSetup(extra?: any) {
   // TODO: needs test utility to resolve path
   const entityDataFile =
     Path.resolve(__dirname, 
-      '../../../../.sdk/test/entity/${entity.name}/${nom(entity, 'Name')}TestData.json')
+      '../../../${ctx$.stdrep.SDKREL}/.sdk/test/entity/${entity.name}/${nom(entity, 'Name')}TestData.json')
 
   // TODO: file ready util needed?
   const entityDataSource = Fs.readFileSync(entityDataFile).toString('utf8')
 
   // TODO: need a xlang JSON parse utility in voxgig/struct with better error msgs
   const entityData = JSON.parse(entityDataSource)
-
+${fixtureIdentity(entity)}
   options.entity = entityData.existing
 
   let client = ${model.Name}SDK.test(options, extra)
@@ -165,18 +184,18 @@ function basicSetup(extra?: any) {
     })
 
   const env = envOverride({
-    '${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID': idmap,
-    '${PROJENVNAME}_TEST_LIVE': 'FALSE',
+    '${ENVVAR.entid[entity.name]}': idmap,
+    '${ENVVAR.live}': 'FALSE',
     '${PROJENVNAME}_TEST_EXPLAIN': 'FALSE',${apikeyEnvEntry}${serverEnvEntry}
   })
 
-  idmap = env['${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID']
+  idmap = env['${ENVVAR.entid[entity.name]}']
 
-  const live = 'TRUE' === env.${PROJENVNAME}_TEST_LIVE
+  const live = 'TRUE' === env.${ENVVAR.live}
 
   const transport = createLiveTransport()
   if (live) {
-    const rawIds = process.env['${PROJENVNAME}_TEST_${ENTENVNAME}_ENTID']
+    const rawIds = process.env['${ENVVAR.entid[entity.name]}']
     idmap = rawIds && rawIds.trim() ? JSON.parse(rawIds) : {}
     if (!idmap || Array.isArray(idmap) || typeof idmap !== 'object') {
       throw new Error('Live ENTID must be a JSON object')
@@ -232,7 +251,7 @@ function basicSetup(extra?: any) {
           const flowOpsLiteral = '[' + flowOps.map((o: any) => `'${o}'`).join(', ') + ']'
 
           Content(`
-    const live = 'TRUE' === process.env.${PROJENVNAME}_TEST_LIVE
+    const live = 'TRUE' === process.env.${ENVVAR.live}
     for (const op of ${flowOpsLiteral}) {
       if (!live && maybeSkipControl(t, 'entityOp', '${entity.name}.' + op, live)) return
     }
@@ -240,7 +259,7 @@ function basicSetup(extra?: any) {
     ${hasLiveScenarios(model) ? `if (live) { t.skip('Covered by live operation scenarios'); return }` : ''}
     const setup = basicSetup()
     if (setup.live) {
-      return runLiveEntity(setup, ${JSON.stringify(entity)}, ${JSON.stringify(basicflow)}, '${nom(entity, 'Name')}', ${JSON.stringify(liveFacts)}, { strict: LIVE_STRICT, t })
+      return runLiveEntity(setup, ${templateSafe('ts', JSON.stringify(liveEntity(ctx$, entity)))}, ${templateSafe('ts', JSON.stringify(liveFlowRoutes(entity, basicflow)))}, '${nom(entity, 'Name')}', ${templateSafe('ts', JSON.stringify(liveFacts))}, { strict: LIVE_STRICT, t }${excludedArg(entity, basicflow)})
     }
     const client = setup.client
     const struct = setup.struct
@@ -292,7 +311,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
 
   const priorSteps = flowSteps(flow).slice(0, Number(index))
   const needsEnt = !priorSteps.some(s =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasDatvar = priorSteps.some(s => {
     if ('create' === s.o) {
@@ -329,7 +348,7 @@ const generateCreate: OpGen = (ctx, step, index) => {
     ${datavar} = (await ${entvar}.create(${datavar})).data()
 `)
   if (hasEntIdC) {
-    Content(`    assert(null != ${datavar}.id)
+    Content(`    assert(null != ${rid(entity, datavar)})
 `)
   }
   else {
@@ -349,7 +368,7 @@ const generateList: OpGen = (ctx, step, index) => {
 
   const priorSteps = flowSteps(flow).slice(0, Number(index))
   const needsEnt = !priorSteps.some(s =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   Content(`
     // LIST
@@ -378,12 +397,12 @@ const generateList: OpGen = (ctx, step, index) => {
 
     if ('ItemExists' === validator.apply && hasRefData && hasDataId) {
       Content(`
-    assert(!isempty(select(${listvar}, { id: ${validRef}_data.id })))
+    assert(!isempty(select(${listvar}, { ${jsKey(entityRecordIdField(entity))}: ${rid(entity, validRef + '_data')} })))
 `)
     }
     else if ('ItemNotExists' === validator.apply && hasRefData && hasDataId) {
       Content(`
-    assert(isempty(select(${listvar}, { id: ${validRef}_data.id })))
+    assert(isempty(select(${listvar}, { ${jsKey(entityRecordIdField(entity))}: ${rid(entity, validRef + '_data')} })))
 `)
     }
   }
@@ -401,12 +420,12 @@ const generateUpdate: OpGen = (ctx, step, index) => {
 
   const priorSteps = flowSteps(flow).slice(0, Number(index))
   const needsEnt = !priorSteps.some(s =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   const hasEntIdU = null != entity.id
 
   Content(`
-    // UPDATE
+    // ${step.o.toUpperCase()}
 `)
   if (needsEnt) {
     Content(`    const ${entvar} = client.${nom(entity, 'Name')}()
@@ -415,7 +434,7 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   Content(`    const ${datavar}: any = {}
 `)
   if (hasEntIdU) {
-    Content(`    ${datavar}.id = ${srcdatavar}.id
+    Content(`    ${datavar}.id = ${rid(entity, srcdatavar)}
 `)
   }
 
@@ -442,10 +461,10 @@ const generateUpdate: OpGen = (ctx, step, index) => {
   }
 
   Content(`
-    const ${resdatavar} = (await ${entvar}.update(${datavar})).data()
+    const ${resdatavar} = (await ${entvar}.${step.o}(${datavar})).data()
 `)
   if (hasEntIdU) {
-    Content(`    assert(${resdatavar}.id === ${datavar}.id)
+    Content(`    assert(${rid(entity, untyped(entity, resdatavar))} === ${datavar}.id)
 `)
   }
   else {
@@ -475,7 +494,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
 
   const priorSteps = flowSteps(flow).slice(0, Number(index))
   const hasEntVar = priorSteps.some(s =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   // Check if srcdatavar was declared by a prior create step or by the
   // preamble bootstrap (which runs when the flow has no create step)
@@ -497,7 +516,7 @@ const generateLoad: OpGen = (ctx, step, index) => {
   const loadPoint = loadOp?.points?.[0]
   const loadPathParams = loadPoint?.g?.params || []
   const loadHasRequiredParams = loadPathParams.some((p: any) => p.r !== false)
-  if (!hasEntId && loadHasRequiredParams) {
+  if (!hasEntId && loadHasRequiredParams && null == flowLoadRoute(entity, step)) {
     if (!hasEntVar) {
       Content(`
     // LOAD: skipped — no entity id field and load requires path params.
@@ -515,20 +534,23 @@ const generateLoad: OpGen = (ctx, step, index) => {
     Content(`    const ${entvar} = client.${nom(entity, 'Name')}()
 `)
   }
-  if (!hasSrcData && hasEntId) {
+  if (!hasSrcData && (hasEntId || flowLoadReadsRecord(entity, step))) {
     Content(`    const ${srcdatavar} = Object.values(setup.data.existing.${entity.name})[0] as any
 `)
   }
   Content(`    const ${matchvar}: any = {}
 `)
   if (hasEntId) {
-    Content(`    ${matchvar}.id = ${srcdatavar}.id
+    Content(`    ${matchvar}.id = ${rid(entity, srcdatavar)}
 `)
+    loadMatch(entity, step, matchvar, srcdatavar)
   }
-  parentMatch(step, matchvar)
+  else {
+    loadMatch(entity, step, matchvar, srcdatavar)
+  }
   if (hasEntId) {
     Content(`    const ${datavar} = (await ${entvar}.load(${matchvar})).data()
-    assert(${datavar}.id === ${srcdatavar}.id)
+    assert(${rid(entity, untyped(entity, datavar))} === ${rid(entity, srcdatavar)})
 `)
   }
   else {
@@ -548,7 +570,7 @@ const generateRemove: OpGen = (ctx, step, index) => {
 
   const priorSteps = flowSteps(flow).slice(0, Number(index))
   const needsEnt = !priorSteps.some(s =>
-    ['create', 'list', 'load', 'update', 'remove'].includes(s.o))
+    ['create', 'list', 'load', 'update', 'patch', 'remove'].includes(s.o))
 
   // "Remove what you created" needs the created record's id. An entity with
   // no DATA id field (entityDataIdField null — e.g. Multichannel's Template)
@@ -568,11 +590,35 @@ const generateRemove: OpGen = (ctx, step, index) => {
   // Always match the prior-created entity by id. The mock test feature
   // removes the first match in entmap, so without a specific id the
   // result depends on hash-sort order and flakes (see cheapshark).
-  Content(`    const ${matchvar}: any = { id: ${srcdatavar}.id }
+  Content(`    const ${matchvar}: any = { id: ${rid(entity, srcdatavar)} }
 `)
   parentMatch(step, matchvar)
   Content(`    await ${entvar}.remove(${matchvar})
   `)
+}
+
+
+// The record field the entity's identity is read from, on a record.
+function rid(entity: any, record: string): string {
+  return jsProp(record, entityRecordIdField(entity))
+}
+
+
+// A record type with no identity field has no member to read it from.
+function untyped(entity: any, record: string): string {
+  return null == entityDataIdField(entity) ? `(${record} as any)` : record
+}
+
+
+// The fixture keeps each record's key in `id`; an entity keeping its identity
+// in another field reads the key from there too.
+function fixtureIdentity(entity: any): string {
+  const field = entityRecordIdField(entity)
+  return 'id' === field ? '' : `
+  for (const rec of Object.values(entityData.existing?.[${JSON.stringify(entity.name)}] ?? {}) as any[]) {
+    if (null != rec?.id) ${jsProp('rec', field)} = rec.id
+  }
+`
 }
 
 
@@ -588,10 +634,39 @@ function parentMatch(step: any, matchvar: string) {
 }
 
 
+// A load of a known record fills its route from that record, and from the
+// step's binding where the record holds no scalar for it. A record only the
+// fixture holds replaces the step's binding, which the live harness keeps.
+function loadMatch(entity: any, step: any, matchvar: string, srcdatavar: string) {
+  const route = flowLoadRoute(entity, step)
+  if (null == route) {
+    return parentMatch(step, matchvar)
+  }
+  if (route.offline) {
+    parentMatch(step, matchvar)
+    for (const arg of route.args.filter((arg) => null != arg.field)) {
+      const own = `${srcdatavar}['${arg.field}']`
+      Content(`    if (['string', 'number', 'boolean'].includes(typeof ${own})) ${matchvar}['${arg.name}'] = ${own}
+`)
+    }
+    return
+  }
+  for (const arg of route.args) {
+    const bound = arg.idmap.map((key) => `setup.idmap['${key}']`).join(' ?? ')
+    const own = `${srcdatavar}['${arg.field}']`
+    Content(null == arg.field ? `    ${matchvar}['${arg.name}'] = ${bound}
+` : `    ${matchvar}['${arg.name}'] = ['string', 'number', 'boolean'].includes(typeof ${own}) ?
+      ${own} : ${bound}
+`)
+  }
+}
+
+
 const GENERATE_OP: Record<string, OpGen> = {
   create: generateCreate,
   list: generateList,
   update: generateUpdate,
+  patch: generateUpdate,
   load: generateLoad,
   remove: generateRemove,
 }
@@ -668,7 +743,7 @@ function validateTest(model: Model, entity: ModelEntity): string {
       return
     }
     const client = ${SDK}.test(undefined, { feature: { validate: { active: true } } })
-    await assert.rejects(client.${nom(entity, 'Name')}().${bad.op}(${JSON.stringify(bad.args)} as any),
+    await assert.rejects(client.${nom(entity, 'Name')}().${bad.op}(${templateSafe('ts', JSON.stringify(bad.args))} as any),
       (err: any) => 'validate_failed' === err.code)
   })
 `

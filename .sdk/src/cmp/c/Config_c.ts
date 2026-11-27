@@ -7,13 +7,9 @@ import {
   configDefinition,
   configReprSetting,
   each,
-  isAuthActive,
   isConfigData,
-  resolveAuthIn,
-  resolveAuthName,
-  isHttpBasicAuth,
-  resolveAuthPrefix,
   targetFeatures,
+  templateSafe,
 } from '@voxgig/sdkgen'
 
 
@@ -88,8 +84,8 @@ FEATURE_TEST_SRCS += $(wildcard tests/feature/${fname}/*.c)
             Content(`
 # No plugin group is active: the plugin layer (the kinds, the socket HTTP
 # client and its OpenSSL binding, the encoders, the clock and the
-# child-process launcher) is on disk but NOT compiled, and nothing beyond
-# libc is linked. A chain of built-ins needs none of it.
+# child-process launcher) is on disk but NOT compiled, and this feature adds
+# nothing to LDLIBS. A chain of built-ins needs none of it.
 `)
           }
           else {
@@ -147,20 +143,14 @@ ${syms.map((sym: string, i: number) => `  ${fname.toUpperCase()}_KINDS[${i}] = $
 
           if (0 === groups) {
             Content(`
-// THE EXCHANGE TRANSPORT OF LAST RESORT, when no plugin group is active:
-// there is none. The c core ships no HTTP client, and libcurl is bundled
-// with the plugin groups only (see tm/c/Makefile), so a token purchase
-// needs options.system.fetch - the seam every live c request already uses.
-// Reached only by an exchange whose caller supplied no transport; a chain
-// that resolves a static credential never comes here.
+// THE EXCHANGE TRANSPORT OF LAST RESORT, when no plugin group is active: the
+// SDK's own client (utility/http.c), called directly rather than through
+// the transport this feature wraps, which the token request must never pass
+// back through. Reached only by an exchange whose caller supplied no
+// system.fetch; a chain that resolves a static credential never comes here.
 voxgig_value* secrets_rawfetch(Context* ctx, const char* url,
                                voxgig_value* fetchdef, PNError** err) {
-  (void)url; (void)fetchdef;
-  *err = context_make_error(ctx, "secrets_no_transport",
-    "secrets: the token exchange has no HTTP transport: this SDK selected no "
-    "secrets plugin group, so libcurl is not linked; supply "
-    "options.system.fetch or activate a plugin group");
-  return NULL;
+  return http_fetch(ctx, url, fetchdef, err);
 }
 `)
             return
@@ -236,6 +226,7 @@ voxgig_value* secrets_rawfetch(Context* ctx, const char* url,
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, secrets_curl_write);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
   const char* reqbody = get_str(fetchdef, "body");
@@ -245,8 +236,13 @@ voxgig_value* secrets_rawfetch(Context* ctx, const char* url,
 
   CURLcode rc = curl_easy_perform(curl);
   long status = 0;
+  // Where a redirect points, resolved by curl, which follows none.
+  voxgig_value* rheaders = v_map();
   if (CURLE_OK == rc) {
+    char* location = NULL;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
+    curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &location);
+    if (NULL != location) setp(rheaders, "location", v_str(location));
   }
   curl_slist_free_all(hdrs);
   curl_easy_cleanup(curl);
@@ -265,7 +261,7 @@ voxgig_value* secrets_rawfetch(Context* ctx, const char* url,
   voxgig_value* out = cmap(5,
     "status", v_num((double)status),
     "statusText", v_str(status >= 400 ? "ERR" : "OK"),
-    "headers", v_map(),
+    "headers", rheaders,
     "json", json_thunk(parsed),
     "body", v_str(text));
   free(body.data);
@@ -296,21 +292,8 @@ const Config = cmp(async function Config(props: any) {
 
   const headers = getModelPath(model, `main.${KIT}.config.headers`) || {}
 
-  const authActive = isAuthActive(model)
-  const authPrefix = resolveAuthPrefix(model)
-  // `in` and `name` travel with the prefix now. They were resolved by apidef
-  // all along and dropped here, so an apiKey-in-query API got an
-  // Authorization header it does not read. Emitted only when they differ from
-  // the defaults, so a header/Authorization SDK's config.c is byte-identical
-  // to what it generated before (Config_ts and Config_go do the same).
-  const authIn = resolveAuthIn(model)
-  const authName = resolveAuthName(model)
-  const authBasic = isHttpBasicAuth(model)
-
-  let baseUrl = ''
-  try { baseUrl = getModelPath(model, `main.${KIT}.info.servers.0.url`) } catch (_e) { }
-
-  const { def: configDef, json: configJson } = configDefinition(model, target.name)
+  const { def: configDef, json } = configDefinition(model, target.name)
+  const configJson = templateSafe('json', json)
   const asData = isConfigData(configJson, configReprSetting(model))
 
   // The feature block comes from configDefinition's def, not from f.config,
@@ -327,7 +310,7 @@ const Config = cmp(async function Config(props: any) {
   })
 
   const options: any = {
-    base: baseUrl,
+    base: configDef.options.base,
     headers,
     entity: entityOptions,
   }
@@ -336,17 +319,8 @@ const Config = cmp(async function Config(props: any) {
   if (null != configDef.options.server) {
     options.server = configDef.options.server
   }
-  if (authActive) {
-    options.auth = { prefix: authPrefix }
-    if (authBasic) {
-      options.auth.basic = true
-    }
-    if ('header' !== authIn) {
-      options.auth.in = authIn
-    }
-    if ('Authorization' !== authName) {
-      options.auth.name = authName
-    }
+  if (null != configDef.options.auth) {
+    options.auth = configDef.options.auth
   }
 
   const entityConfig = configDef.entity
@@ -414,7 +388,7 @@ voxgig_value* shared_config(void) {
 #include <string.h>
 
 voxgig_value* make_config(void) {
-  return ${formatCValue(config, 1)};
+  return ${templateSafe('c', formatCValue(config, 1))};
 }
 
 // SHARED CONFIG (sdkgen rung L2).

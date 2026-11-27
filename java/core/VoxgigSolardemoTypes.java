@@ -38,9 +38,9 @@ public final class VoxgigSolardemoTypes {
 
   public record PlanetListMatch(Double diameter, String forbidReason, String forbidState, String id, String kind, String name, String terraformState) {}
 
-  public record PlanetCreateData(Double diameter, String forbidReason, String forbidState, String id, String kind, String name, String terraformState) {}
+  public record PlanetCreateData(Double diameter, String id, String kind, String name) {}
 
-  public record PlanetUpdateData(String id, Double diameter, String forbidReason, String forbidState, String kind, String name, String terraformState) {}
+  public record PlanetUpdateData(String id, Double diameter, String kind, String name) {}
 
   public record PlanetRemoveMatch(String id) {}
 

@@ -41,9 +41,13 @@ func TestMoonDirect(t *testing.T) {
 				}
 			}
 		}
+		if setup.live {
+			livePace()
+		}
 		client := setup.client
 
 		params := map[string]any{}
+		query := map[string]any{}
 		if setup.live {
 			params["planet_id"] = setup.idmap["planet01"]
 		} else {
@@ -54,6 +58,7 @@ func TestMoonDirect(t *testing.T) {
 			"path":   "api/planet/{planet_id}/moon",
 			"method": "GET",
 			"params": params,
+			"query":  query,
 		})
 		if setup.live {
 			if err != nil {
@@ -123,6 +128,9 @@ func TestMoonDirect(t *testing.T) {
 					return
 				}
 			}
+		}
+		if setup.live {
+			livePace()
 		}
 		client := setup.client
 
@@ -250,7 +258,7 @@ func moonDirectSetup(mockres any) *moonDirectSetupResult {
 		} {
 			mergedOpts[k] = v
 		}
-		client := sdk.NewVoxgigSolardemoSDK(mergedOpts)
+		client := newClient(mergedOpts)
 
 		idmap := map[string]any{}
 		if entidRaw, ok := env["VOXGIG_SOLARDEMO_TEST_MOON_ENTID"]; ok {
@@ -279,7 +287,7 @@ func moonDirectSetup(mockres any) *moonDirectSetupResult {
 		}, nil
 	}
 
-	client := sdk.NewVoxgigSolardemoSDK(map[string]any{
+	client := newClient(map[string]any{
 		"base": "http://localhost:8080",
 		"system": map[string]any{
 			"fetch": (func(string, map[string]any) (map[string]any, error))(mockFetch),

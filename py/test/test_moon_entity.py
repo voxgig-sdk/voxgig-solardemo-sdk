@@ -51,12 +51,21 @@ class TestMoonEntity:
             if _skip:
                 pytest.skip(_reason or "skipped via sdk-test-control.json")
                 return
+        if setup["live"] and os.environ.get("VOXGIG_GETONLY_GUARD") == "TRUE":
+            print("LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}")
+            print("LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}")
+            print("LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}")
+            print("LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}")
+            return self._run_get_only_flow(setup)
+
         if setup["live"]:
             for _live_key in ["planet01"]:
                 if setup.get("synthetic_only") or setup["idmap"].get(_live_key) is None:
                     runner.live_miss(LIVE_STRICT, f"Live entity test blocked: needs {_live_key} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
         client = setup["client"]
 
+        if setup["live"]:
+            runner.live_pace()
         # CREATE
         moon_ref01_ent = client.Moon(None)
         moon_ref01_data = helpers.to_map(vs.getprop(
@@ -67,6 +76,8 @@ class TestMoonEntity:
         assert moon_ref01_data is not None
         assert moon_ref01_data["id"] is not None
 
+        if setup["live"]:
+            runner.live_pace()
         # LIST
         moon_ref01_match = {
             "planet_id": setup["idmap"]["planet01"],
@@ -80,6 +91,8 @@ class TestMoonEntity:
             {"id": moon_ref01_data["id"]})
         assert not vs.isempty(found_item)
 
+        if setup["live"]:
+            runner.live_pace()
         # UPDATE
         moon_ref01_data_up0_up = {
             "id": moon_ref01_data["id"],
@@ -92,19 +105,23 @@ class TestMoonEntity:
 
         moon_ref01_resdata_up0 = helpers.to_map(runner.entity_data(moon_ref01_ent.update(moon_ref01_data_up0_up, None)))
         assert moon_ref01_resdata_up0 is not None
-        assert moon_ref01_resdata_up0["id"] == moon_ref01_data_up0_up["id"]
+        assert runner.live_same_id(moon_ref01_resdata_up0.get("id"), moon_ref01_data_up0_up["id"])
         assert moon_ref01_resdata_up0[moon_ref01_markdef_up0_name] == moon_ref01_markdef_up0_value
 
+        if setup["live"]:
+            runner.live_pace()
         # LOAD
         moon_ref01_match_dt0 = {
             "id": moon_ref01_data["id"],
         }
-        moon_ref01_match_dt0["planet_id"] = setup["idmap"].get("planet_id") or setup["idmap"].get("planet01")
+        moon_ref01_match_dt0["planet_id"] = moon_ref01_data.get("planet_id") if isinstance(moon_ref01_data.get("planet_id"), (str, int, float)) else setup["idmap"].get("planet_id") or setup["idmap"].get("planet01")
         moon_ref01_data_dt0_loaded = moon_ref01_ent.load(moon_ref01_match_dt0, None)
         moon_ref01_data_dt0_load_result = helpers.to_map(runner.entity_data(moon_ref01_data_dt0_loaded))
         assert moon_ref01_data_dt0_load_result is not None
-        assert moon_ref01_data_dt0_load_result["id"] == moon_ref01_data["id"]
+        assert runner.live_same_id(moon_ref01_data_dt0_load_result.get("id"), moon_ref01_data["id"])
 
+        if setup["live"]:
+            runner.live_pace()
         # REMOVE
         moon_ref01_match_rm0 = {
             "id": moon_ref01_data["id"],
@@ -112,6 +129,8 @@ class TestMoonEntity:
         moon_ref01_match_rm0["planet_id"] = setup["idmap"].get("planet_id") or setup["idmap"].get("planet01")
         moon_ref01_ent.remove(moon_ref01_match_rm0, None)
 
+        if setup["live"]:
+            runner.live_pace()
         # LIST
         moon_ref01_match_rt0 = {
             "planet_id": setup["idmap"]["planet01"],
@@ -124,6 +143,50 @@ class TestMoonEntity:
             runner.entity_list_to_data(moon_ref01_list_rt0_result),
             {"id": moon_ref01_data["id"]})
         assert vs.isempty(not_found_item)
+
+
+    def _run_get_only_flow(self, setup):
+        if setup["live"]:
+            for _live_key in ["planet01"]:
+                if setup.get("synthetic_only") or setup["idmap"].get(_live_key) is None:
+                    runner.live_miss(LIVE_STRICT, f"Live entity test blocked: needs {_live_key} via VOXGIG_SOLARDEMO_TEST_MOON_ENTID")
+        client = setup["client"]
+        if setup["live"]:
+            _live_id = None if setup.get("synthetic_only") else setup["idmap"].get("moon01")
+            runner.live_pace()
+            runner.live_existing(setup, LIVE_STRICT, "moon",
+                                 lambda: client.Moon(None).list({"planet_id": setup["idmap"].get("planet01")}, None),
+                                 "id", _live_id)
+
+        # Bootstrap entity data from existing test data.
+        moon_ref01_data_raw = vs.items(helpers.to_map(
+            vs.getpath(setup["data"], "existing.moon")))
+        moon_ref01_data = None
+        if len(moon_ref01_data_raw) > 0:
+            moon_ref01_data = helpers.to_map(moon_ref01_data_raw[0][1])
+
+        if setup["live"]:
+            runner.live_pace()
+        # LIST
+        moon_ref01_ent = client.Moon(None)
+        moon_ref01_match = {
+            "planet_id": setup["idmap"]["planet01"],
+        }
+
+        moon_ref01_list_result = moon_ref01_ent.list(moon_ref01_match, None)
+        assert isinstance(moon_ref01_list_result, list)
+
+        if setup["live"]:
+            runner.live_pace()
+        # LOAD
+        moon_ref01_match_dt0 = {
+            "id": moon_ref01_data["id"],
+        }
+        moon_ref01_match_dt0["planet_id"] = moon_ref01_data.get("planet_id") if isinstance(moon_ref01_data.get("planet_id"), (str, int, float)) else setup["idmap"].get("planet_id") or setup["idmap"].get("planet01")
+        moon_ref01_data_dt0_loaded = moon_ref01_ent.load(moon_ref01_match_dt0, None)
+        moon_ref01_data_dt0_load_result = helpers.to_map(runner.entity_data(moon_ref01_data_dt0_loaded))
+        assert moon_ref01_data_dt0_load_result is not None
+        assert runner.live_same_id(moon_ref01_data_dt0_load_result.get("id"), moon_ref01_data["id"])
 
 
 

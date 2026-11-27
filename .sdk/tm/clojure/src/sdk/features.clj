@@ -122,6 +122,13 @@
       (when (string? merge)
         (second (re-matches #"`\.([^.`$]+)`" merge))))))
 
+;; The entity's declared identity field (`entity.id.field`), where it names
+;; one other than the `id` every record already carries.
+(defn- declared-id-field [config entname]
+  (when (string? entname)
+    (let [field (vs/getpath config (vs/jt "entity" entname "id" "field"))]
+      (when (and (string? field) (not= field "") (not= field "id")) field))))
+
 (defn test-feature []
   (let [fa (new-feature "test" true "0.0.1")]
     (swap! fa assoc
@@ -133,7 +140,9 @@
                ;; Ensure entity ids are correct (id = key at depth 2).
                (vs/walk entity (fn [key val _parent path]
                                  (when (and (= (vs/size path) 2) (vs/ismap val) key)
-                                   (.put ^java.util.Map val "id" key))
+                                   (.put ^java.util.Map val "id" key)
+                                   (when-let [id-field (declared-id-field (core/oget ctx :config) (vs/getelem path 0))]
+                                     (.put ^java.util.Map val id-field key)))
                                  val))
                (let [test-fetcher
                      (fn [fctx _fullurl _fetchdef]
@@ -226,6 +235,9 @@
                                  (if (vs/ismap ent)
                                    (do (vs/delprop ent "$body")
                                        (.put ^java.util.Map ent "id" id)
+                                       (when-let [id-field (declared-id-field (core/oget fctx :config) (core/op-entity op))]
+                                         (when (nil? (vs/getprop ent id-field))
+                                           (.put ^java.util.Map ent id-field id)))
                                        (when (string? id) (.put ^java.util.Map entmap (str id) ent))
                                        (vs/delprop ent "$KEY")
                                        (respond 200 (vs/clone ent) nil))
@@ -465,8 +477,18 @@
         track! (fn [kind]
                  (let [t (track-ensure! fa "_cache" (vs/jm "hit" 0 "miss" 0 "bypass" 0))]
                    (.put ^java.util.Map t kind (inc (long (mget t kind))))))
+        ;; A body the transport could not read as JSON passes through, for the operation to report.
         cacheable? (fn [res] (and (vs/ismap res)
+                                  (not (true? (vs/getprop res "unreadable")))
                                   (let [s (vs/getprop res "status")] (and (number? s) (>= s 200) (< s 300)))))
+        json? (fn [res]
+                (let [h (vs/getprop res "headers")
+                      type (or (when (vs/ismap h)
+                                 (some (fn [item] (when (= "content-type" (str/lower-case (str (vs/getprop item 0))))
+                                                    (str (vs/getprop item 1))))
+                                       (or (vs/items h) [])))
+                               "")]
+                  (or (= "" type) (core/json-media? type))))
         snapshot (fn [res]
                    (let [jf (vs/getprop res "json")
                          data (when (fn? jf) (try (jf) (catch Throwable _ nil)))
@@ -495,14 +517,20 @@
                         (if (and (some? hit) (> (mget hit "expiry") now))
                           (do (track! "hit") [(replay (mget hit "snapshot")) nil])
                           (let [[res err] (inner ctx url fetchdef)]
-                            (if (and (nil? err) (cacheable? res))
+                            (cond
+                              ;; A body that declares another type than JSON passes by, unread.
+                              (and (nil? err) (cacheable? res) (not (json? res)))
+                              (do (track! "bypass") [res err])
+
+                              (and (nil? err) (cacheable? res))
                               (let [snap (snapshot res)
                                     ttl (opt fa "ttl" 5000)]
                                 (evict!)
                                 (swap! fa update :store assoc key (vs/jm "expiry" (+ now ttl) "snapshot" snap))
                                 (track! "miss")
                                 [(replay snap) nil])
-                              (do (track! "bypass") [res err]))))))))]
+
+                              :else (do (track! "bypass") [res err]))))))))]
     (swap! fa assoc
            "init" (fn [ctx options]
                     (swap! fa assoc :client (core/oget ctx :client)
@@ -1258,7 +1286,7 @@
     fa))
 
 ;; ---------------------------------------------------------------------------
-;; rbac — PrePoint short-circuit (gotcha #2).
+;; rbac — PrePoint short-circuit.
 ;; ---------------------------------------------------------------------------
 
 (defn rbac-feature []
@@ -1307,7 +1335,7 @@
     fa))
 
 ;; ---------------------------------------------------------------------------
-;; netsim — seeded LCG + exact error codes (gotcha #6).
+;; netsim — seeded LCG + exact error codes.
 ;; ---------------------------------------------------------------------------
 
 (defn netsim-feature []
@@ -1389,11 +1417,10 @@
 ;;
 ;; The specs are NOT written here and not written in the model either: every
 ;; entity field already carries a canonical type sentinel (`$STRING`,
-;; `$INTEGER`, the `$ONE` union for an OpenAPI multi-type), which is the same
-;; vocabulary vs/validate speaks. The generator maps them once
-;; (helpers/canonSpec) and emits sdk.schema's entityspec-data, so a field
-;; whose type changes in the API spec changes what this feature enforces with
-;; no edit anywhere.
+;; `$INTEGER`, a union for an OpenAPI multi-type). The generator maps them
+;; once (helpers/canonSpec) into the vocabulary vs/validate speaks and emits
+;; sdk.schema's entityspec-data, so a field whose type changes in the API
+;; spec changes what this feature enforces with no edit anywhere.
 ;;
 ;; WHAT IS CHECKED
 ;;   outbound (PreSpec)  the payload the caller asked to send, against

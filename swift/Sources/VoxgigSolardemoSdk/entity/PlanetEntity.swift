@@ -12,7 +12,7 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
   }
 
   public override func load(_ reqmatch: VMap?, _ ctrl: VMap?) throws -> Value {
-    var ctxmap: [String: Any?] = ["opname": "load", "match": match, "data": data]
+    var ctxmap: [String: Any?] = ["opname": "load", "match": match, "data": data.asMap ?? VMap()]
     if let ctrl = ctrl { ctxmap["ctrl"] = ctrl }
     if let reqmatch = reqmatch { ctxmap["reqmatch"] = reqmatch }
     let ctx = utility.makeContext(ctxmap, entctx)
@@ -21,14 +21,14 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
       if let result = ctx.result {
         if let rm = result.resmatch { self.match = rm }
         if !isNil(result.resdata) {
-          self.data = clone(result.resdata).asMap ?? VMap()
+          self.data = .map(clone(result.resdata).asMap ?? VMap())
         }
       }
     }
   }
 
   public override func list(_ reqmatch: VMap?, _ ctrl: VMap?) throws -> Value {
-    var ctxmap: [String: Any?] = ["opname": "list", "match": match, "data": data]
+    var ctxmap: [String: Any?] = ["opname": "list", "match": match, "data": data.asMap ?? VMap()]
     if let ctrl = ctrl { ctxmap["ctrl"] = ctrl }
     if let reqmatch = reqmatch { ctxmap["reqmatch"] = reqmatch }
     let ctx = utility.makeContext(ctxmap, entctx)
@@ -41,7 +41,7 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
   }
 
   public override func create(_ reqdata: VMap?, _ ctrl: VMap?) throws -> Value {
-    var ctxmap: [String: Any?] = ["opname": "create", "match": match, "data": data]
+    var ctxmap: [String: Any?] = ["opname": "create", "match": match, "data": data.asMap ?? VMap()]
     if let ctrl = ctrl { ctxmap["ctrl"] = ctrl }
     if let reqdata = reqdata { ctxmap["reqdata"] = reqdata }
     let ctx = utility.makeContext(ctxmap, entctx)
@@ -49,14 +49,14 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
     return try runOp(ctx) {
       if let result = ctx.result {
         if !isNil(result.resdata) {
-          self.data = clone(result.resdata).asMap ?? VMap()
+          self.data = .map(clone(result.resdata).asMap ?? VMap())
         }
       }
     }
   }
 
   public override func update(_ reqdata: VMap?, _ ctrl: VMap?) throws -> Value {
-    var ctxmap: [String: Any?] = ["opname": "update", "match": match, "data": data]
+    var ctxmap: [String: Any?] = ["opname": "update", "match": match, "data": data.asMap ?? VMap()]
     if let ctrl = ctrl { ctxmap["ctrl"] = ctrl }
     if let reqdata = reqdata { ctxmap["reqdata"] = reqdata }
     let ctx = utility.makeContext(ctxmap, entctx)
@@ -65,7 +65,7 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
       if let result = ctx.result {
         if let rm = result.resmatch { self.match = rm }
         if !isNil(result.resdata) {
-          self.data = clone(result.resdata).asMap ?? VMap()
+          self.data = .map(clone(result.resdata).asMap ?? VMap())
         }
       }
     }
@@ -74,7 +74,7 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
   // (patch not defined by this API - base class throws unsupportedOp)
 
   public override func remove(_ reqmatch: VMap?, _ ctrl: VMap?) throws -> Value {
-    var ctxmap: [String: Any?] = ["opname": "remove", "match": match, "data": data]
+    var ctxmap: [String: Any?] = ["opname": "remove", "match": match, "data": data.asMap ?? VMap()]
     if let ctrl = ctrl { ctxmap["ctrl"] = ctrl }
     if let reqmatch = reqmatch { ctxmap["reqmatch"] = reqmatch }
     let ctx = utility.makeContext(ctxmap, entctx)
@@ -83,7 +83,7 @@ public final class PlanetEntity: VoxgigSolardemoEntityBase {
       if let result = ctx.result {
         if let rm = result.resmatch { self.match = rm }
         if !isNil(result.resdata) {
-          self.data = clone(result.resdata).asMap ?? VMap()
+          self.data = .map(clone(result.resdata).asMap ?? VMap())
         }
       }
     }

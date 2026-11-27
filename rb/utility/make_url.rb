@@ -14,12 +14,16 @@ module VoxgigSolardemoUtilities
     # Sent with the request, never recorded as the entity's match.
     authquery = (spec.respond_to?(:authquery) ? spec.authquery : nil) || []
 
-    # A route the definition ends with a slash keeps it: a server such as a
-    # Django REST one redirects or refuses the route without it.
+    # A route ending in a slash keeps it, as defined or as passed to direct(), for
+    # Django, and a host with no path takes /, or luasocket reads a query as the host.
     orig = ctx.point ? VoxgigStruct.getprop(ctx.point, "orig") : nil
-    if orig.is_a?(String) && orig.end_with?("/") && spec.suffix.to_s.empty? && !url.end_with?("/")
+    slashed = (orig.is_a?(String) && orig.end_with?("/")) ||
+      (spec.path.is_a?(String) && spec.path.end_with?("/"))
+    if slashed && spec.suffix.to_s.empty? && !url.end_with?("/")
       url += "/"
     end
+    authority = url.index("://")
+    url += "/" if authority && 0 < authority && url[(authority + 3)..] !~ %r{[/?#]}
 
     param_items = VoxgigStruct.items(spec.params)
     if param_items
@@ -29,6 +33,10 @@ module VoxgigSolardemoUtilities
         if val && key.is_a?(String)
           placeholder = "{#{key}}"
           val_str = val.is_a?(String) ? val : val.to_s
+          # A whole . or .. is a dot segment, which moves the request to another route.
+          if [".", ".."].include?(val_str)
+            return "", ctx.make_error("url_param_invalid", "URL path parameter #{key} cannot be \"#{val_str}\".")
+          end
           encoded = VoxgigStruct.escurl(val_str)
           url = url.gsub(placeholder, encoded)
           resmatch[key] = val

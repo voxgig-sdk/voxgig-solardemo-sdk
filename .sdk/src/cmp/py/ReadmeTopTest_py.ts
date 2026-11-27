@@ -1,5 +1,5 @@
 
-import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, safeVarName, exampleVarName, requiredItems, litPair } from '@voxgig/sdkgen'
+import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, safeVarName, exampleVarName, requiredItems, litPair, matchExampleItems, requestExampleItems } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -41,8 +41,7 @@ client = ${model.const.Name}SDK.test()
     if (isMatchOp || ('list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length)) {
       // Every REQUIRED match key (id first) — the same shape that generates
       // the op's Match type, so the block also satisfies the mypy doc gate.
-      const items = (isMatchOp ? opRequestShape(exampleEntity, primaryOp).items
-        .filter((it: any) => !it.optional || it.name === idF) : requiredItems(exampleEntity, 'list'))
+      const items = (isMatchOp ? matchExampleItems(exampleEntity, primaryOp, idF) : requiredItems(exampleEntity, 'list'))
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       arg = 0 < items.length
@@ -50,7 +49,7 @@ client = ${model.const.Name}SDK.test()
           litPair('py', it.name, isMatchOp && it.name === idF ? '"test01"' : pyLit(it.type))).join(', ')}}`
         : ''
     } else if ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp) {
-      const items = opRequestShape(exampleEntity, primaryOp).items
+      const items = requestExampleItems(exampleEntity, primaryOp)
         .filter((it: any) => it.name !== idF && it.name !== 'id')
       const required = items.filter((it: any) => !it.optional)
       const chosen = required.length ? required : items.slice(0, 3)

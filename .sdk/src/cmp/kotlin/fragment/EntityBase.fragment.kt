@@ -19,7 +19,7 @@ abstract class EntityBase(nm: String, clientIn: SdkClient, entoptsIn: MutableMap
   protected var client: SdkClient
   protected var utility: Utility
   protected var entopts: MutableMap<String, Any?>
-  protected var data: MutableMap<String, Any?> = linkedMapOf()
+  protected var data: Any? = linkedMapOf<String, Any?>()
   protected var match: MutableMap<String, Any?> = linkedMapOf()
   protected var entctx: Context
 
@@ -48,8 +48,8 @@ abstract class EntityBase(nm: String, clientIn: SdkClient, entoptsIn: MutableMap
 
   override fun data(vararg args: Any?): Any? {
     if (args.isNotEmpty() && args[0] != null) {
-      val d = Helpers.toMapAny(Struct.clone(args[0]))
-      this.data = d ?: linkedMapOf()
+      val cloned = Struct.clone(args[0])
+      this.data = Helpers.toMapAny(cloned) ?: cloned
       this.utility.featureHook(this.entctx, "SetData")
     }
 
@@ -71,9 +71,9 @@ abstract class EntityBase(nm: String, clientIn: SdkClient, entoptsIn: MutableMap
   // runOp drives one operation through the pipeline: for each stage the
   // feature hook fires, then the stage runs; a failing stage routes through
   // makeError (which throws, or returns fallback data when ctrl.throw false).
-  // Every operation resolves to the entity; `remove` additionally marks
-  // it. The instance KEEPS the data it held — a caller can still read
-  // what was deleted — but it is no longer a live record. See AGENTS.md.
+  // Every operation resolves to the entity; a remove additionally marks it
+  // deleted. The instance KEEPS the data it held — a caller can still read
+  // what was deleted — but it is no longer a live record.
   private var deletedFlag: Boolean = false
 
   fun markDeleted() {
@@ -123,9 +123,9 @@ abstract class EntityBase(nm: String, clientIn: SdkClient, entoptsIn: MutableMap
       // instance, and the caller reaches the record through data(). Two
       // structural exceptions: `list` resolves to the ARRAY of entity
       // instances makeResult built, and a failed op with throwing disabled
-      // hands back the error payload unchanged. `remove` additionally marks
+      // hands back the error payload unchanged. A remove additionally marks
       // the entity deleted; it KEEPS its data, so a caller can still read
-      // what was removed. See AGENTS.md "Entity operations return ENTITIES".
+      // what was removed.
       val opname = ctx.op?.name
 
       if (ctx.result != null && ctx.result!!.ok && "list" != opname) {
@@ -167,12 +167,11 @@ abstract class EntityBase(nm: String, clientIn: SdkClient, entoptsIn: MutableMap
   /**
    * Streaming operations. Runs `action` through the full pipeline and returns
    * a Sequence over result items, so the streaming feature's incremental
-   * output is reachable from a generated entity (a normal op call materialises
-   * the whole result). `callopts` parameterises the call:
+   * output, when that feature is active, is reachable from a generated entity
+   * (a normal op call materialises the whole result). `callopts` parameterises
+   * the call:
    *   - inbound (download): iterate the yielded items/chunks (from the
    *     streaming feature when active, else the materialised items);
-   *   - outbound (upload): pass a streamable payload as callopts["body"] - it
-   *     is attached to the request so the transport can send it;
    *   - callopts["ctrl"] threads pipeline control and callopts["signal"] (a
    *     () -> Boolean that returns true when aborted) is honoured between
    *     yields.
@@ -200,14 +199,6 @@ abstract class EntityBase(nm: String, clientIn: SdkClient, entoptsIn: MutableMap
     }
 
     val ctx = this.utility.makeContext(ctxmap, this.entctx)
-
-    // Outbound: expose the caller's streamable payload so the request builder
-    // / transport can stream it as the request body.
-    val body = opts["body"]
-    if (body != null) {
-      ctx.reqdata["body\$"] = body
-      ctx.ctrl.streamOut = body
-    }
 
     // Run the same pipeline the op methods run.
     val materialised = runOp(ctx) {}

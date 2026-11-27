@@ -1,6 +1,8 @@
 package voxgig.voxgigsolardemosdk.feature
 
-import java.util.{LinkedHashMap, List => JList, Map => JMap}
+import java.net.URI
+import java.nio.charset.StandardCharsets
+import java.util.{Base64, LinkedHashMap, Locale, List => JList, Map => JMap}
 import java.util.function.{BiFunction, Supplier}
 
 import scala.collection.immutable.ListMap
@@ -78,6 +80,11 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
   // writes it - see the class note.
   private var liveopts: JMap[String, Object] = null
 
+  // What prepareAuth was generated from: the config declares auth only
+  // where it places a credential, and Basic only where it composes one.
+  private var declared: Boolean = false
+  private var basic: Boolean = false
+
   private var secretname: String = "apikey"
   private var docache: Boolean = true
   private var sek: Sekreto = null
@@ -97,6 +104,7 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
   private var xresponse: String = "access_token"
   private var xstatuses: List[Int] = List(401)
   private var xretries: Int = 1
+  private var xredirect: String = "refuse"
 
   // The refresh credential the chain resolved, for every later purchase.
   private var refresh: String = ""
@@ -136,6 +144,18 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     this.liveopts = ctx.options
     this.active = FeatureOptions.foptBool(options, "active", false)
 
+    val configopts = if (ctx.config == null) null else ctx.config.get("options")
+    val authdecl = configopts match {
+      case m: JMap[_, _] => m.get("auth")
+      case _ => null
+    }
+    authdecl match {
+      case m: JMap[_, _] =>
+        this.declared = true
+        this.basic = java.lang.Boolean.TRUE == m.get("basic")
+      case _ =>
+    }
+
     if (!this.active) return
 
     this.secretname = FeatureOptions.foptStr(options, "name", "apikey")
@@ -149,6 +169,9 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
       this.xrequest = FeatureOptions.foptStr(xopts, "request", "refresh_token")
       this.xresponse = FeatureOptions.foptStr(xopts, "response", "access_token")
       this.xretries = FeatureOptions.foptInt(xopts, "retries", 1)
+      this.xredirect =
+        if ("same-origin" == FeatureOptions.foptStr(xopts, "redirect", "refuse")) "same-origin"
+        else "refuse"
 
       val statuses = ListBuffer.empty[Int]
       val slist = FeatureOptions.foptList(xopts, "statuses")
@@ -293,11 +316,16 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     }
   }
 
+  // prepareAuth's decision: auth the config declares, not suppressed by
+  // `auth: null`.
+  private def authon(): Boolean =
+    this.declared && this.liveopts != null && this.liveopts.get("auth") != null
+
   // Resolve once, reporting whether a credential came out of it. That
   // boolean is the whole of what resolve() needs to tell a cacheable HIT
   // from a miss it must not keep.
   private def resolveonce(): Boolean = {
-    if (this.sek == null) return false
+    if (this.sek == null || !authon()) return false
 
     // tryget returns None for a MISS and RAISES for an ERROR. That is the
     // whole miss-vs-error rule, and it is sekreto's, not this feature's.
@@ -327,15 +355,6 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     // the same path expiry takes anyway.
     if ("" != this.cred) return true
 
-    // `auth: null` is the documented way to send NO credential, and a
-    // purchase is a credential-bearing call: the refresh token goes to the
-    // token endpoint in the request body. withrefresh honours suppression
-    // for the RETRY, but it runs after this - by then the refresh token has
-    // already left the process, and no later check can call it back. The
-    // suppression has to be honoured here, before the first purchase, or it
-    // only ever half-held.
-    if (this.liveopts == null || this.liveopts.get("auth") == null) return false
-
     buyonce()
 
     true
@@ -344,23 +363,20 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
   // Buy a token and try the request again when the API says the current one
   // is spent.
   //
-  // The retry rewrites the authorization header IN PLACE on the fetchdef,
+  // The retry rewrites the credential header IN PLACE on the fetchdef,
   // because the header was built by the synchronous prepareAuth before this
   // request left and it carries the token that just failed. Rebuilt the way
-  // prepareAuth builds it, from the same options auth.prefix, so the two
-  // cannot drift.
+  // prepareAuth builds it, from the same options auth name and prefix, so
+  // the two cannot drift.
   private def withrefresh(
     ctx: Context,
     url: String,
     fetchdef: JMap[String, Object],
     inner: FetcherFn,
   ): Object = {
-    // `auth: null` is the documented way to send NO credential, and
-    // prepareAuth honours it by removing the header. A refusal of a
-    // deliberately unauthenticated request is not an expired token and
-    // cannot be fixed by buying one - retrying would transmit exactly the
-    // credential the caller suppressed.
-    if (this.liveopts == null || this.liveopts.get("auth") == null) {
+    // A refusal of an unauthenticated request is not an expired token, and
+    // retrying would transmit the credential that auth off withholds.
+    if (!authon()) {
       return inner(ctx, url, fetchdef)
     }
 
@@ -423,17 +439,35 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     // Reached defensively on the exchange path - withrefresh does not retry
     // at all when auth is null - but this is the function that writes the
     // credential, so it is where the rule has to hold.
-    val rawauth = if (this.liveopts == null) null else this.liveopts.get("auth")
+    val rawauth = if (!authon()) null else this.liveopts.get("auth")
     rawauth match {
       case authmap: JMap[_, _] =>
+        // The header prepareAuth wrote: auth.name, lower-cased.
+        val name = authmap.asInstanceOf[JMap[String, Object]].get("name") match {
+          case s: String if s.nonEmpty => s.toLowerCase(java.util.Locale.ROOT)
+          case _ => "authorization"
+        }
+        val value =
+          if (this.basic && java.lang.Boolean.TRUE == authmap.get("basic")) pair(token) else token
         val prefix = authmap.asInstanceOf[JMap[String, Object]].get("prefix") match {
           case s: String => s
           case _ => ""
         }
-        if ("" == prefix) headers.put("authorization", token)
-        else headers.put("authorization", prefix + " " + token)
+        if ("" == prefix) headers.put(name, value)
+        else headers.put(name, prefix + " " + value)
       case _ => headers.remove("authorization")
     }
+  }
+
+  // Under Basic the token is the key half, as apikey is: prepareAuth's pair.
+  private def pair(token: String): String = {
+    val secret = this.liveopts.get("secret") match {
+      case s: String => s
+      case _ => ""
+    }
+    val pair = Base64.getEncoder.encodeToString((token + ":" + secret).getBytes(StandardCharsets.UTF_8))
+    register(pair)
+    pair
   }
 
   // ---- the access-token exchange -----------------------------------------
@@ -481,8 +515,21 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     fetchdef.put("method", this.xmethod)
     fetchdef.put("headers", headers)
     fetchdef.put("body", Struct.jsonify(bodymap, flags))
+    // Never followed by the client: a redirect would carry the refresh token on.
+    fetchdef.put("redirect", "manual")
 
-    val res = exchangefetch(url, fetchdef)
+    var res = exchangefetch(url, fetchdef)
+
+    // By option alone, and only while the exchange stays on its own origin.
+    var at = url
+    var hops = 0
+    var next = if ("same-origin" == this.xredirect) moved(url, at, res) else null
+    while (next != null && hops < SecretsFeature.REDIRECT_MAX) {
+      at = next
+      res = exchangefetch(at, fetchdef)
+      hops += 1
+      next = moved(url, at, res)
+    }
     if (res == null) {
       throw new SekretoError("secrets: token exchange failed: no response from " + url)
     }
@@ -550,6 +597,28 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     }
   }
 
+  // Where a 307 or 308 points, when that is on the exchange's own origin. Any
+  // other redirect would drop the body or leave the origin.
+  private def moved(url: String, at: String, res: JMap[String, Object]): String = {
+    val status = FeatureOptions.fresStatus(res)
+    if (307 != status && 308 != status) return null
+    val location = FeatureOptions.fresHeader(res, "location")
+    if ("" == location) return null
+    try {
+      val next = Fetcher.resolveLocation(URI.create(at), location)
+      val origin = originOf(next)
+      if (origin != null && origin == originOf(URI.create(url))) next.toString else null
+    }
+    catch { case _: RuntimeException => null }
+  }
+
+  private def originOf(uri: URI): String = {
+    if (uri.getScheme == null || uri.getHost == null) return null
+    val scheme = uri.getScheme.toLowerCase(Locale.ROOT)
+    val port = if (uri.getPort < 0) (if ("https" == scheme) 443 else 80) else uri.getPort
+    scheme + "://" + uri.getHost.toLowerCase(Locale.ROOT) + ":" + port
+  }
+
   // ---- support ------------------------------------------------------------
 
   private def optstr(map: JMap[String, Object], key: String): String = {
@@ -589,4 +658,8 @@ class SecretsFeature extends BaseFeature("secrets", "0.1.0", true) {
     // silently reading as absent.
     case other => VStr(String.valueOf(other))
   }
+}
+
+object SecretsFeature {
+  private val REDIRECT_MAX = 5
 }

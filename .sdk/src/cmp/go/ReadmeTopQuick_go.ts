@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, entityIdField, entityOps, opRequestShape, goModule, serverVariables, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, entityIdField, entityOps, opRequestShape, goModule, listMatchArg, matchExampleItems, requiredItems, litString, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -24,14 +24,14 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   // - the SDK refuses rather than request a URL with a literal
   // {account_id} in it - so a quickstart that omits them is a quickstart
   // that fails on its first line.
-  const svars = serverVariables(model)
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
   const goServerField = 0 === svars.length ? '' :
     `\n    "server": map[string]any{` +
     svars.map((v: any) => `\n        "${v.name}": "<${v.name}>",`).join('') +
     `\n    },`
 
   const ctor = authActive
-    ? `sdk.New${model.const.Name}SDK(map[string]any{\n    "apikey": os.Getenv("${envName(model)}_APIKEY"),${goServerField}\n})`
+    ? `sdk.New${model.const.Name}SDK(map[string]any{\n    "apikey": os.Getenv("${envName(model)}_APIKEY"),${fact(model.main[KIT], 'auth').secret ? `\n    "secret": os.Getenv("${envName(model)}_SECRET"),` : ''}${goServerField}\n})`
     : ('' === goServerField
       ? `sdk.New()`
       : `sdk.New${model.const.Name}SDK(map[string]any{${goServerField}\n})`)
@@ -39,7 +39,10 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   Content(`\`\`\`go
 import sdk "${gomodule}"
 
-client := ${ctor}
+client, err := ${ctor}
+if err != nil {
+    panic(err)
+}
 
 `)
 
@@ -80,12 +83,11 @@ for _, ${eVar} := range ${eVar}s.([]any) {
       // entity's own id last, each value a type-correct Go literal.
       const neIdF = entityIdField(nestedEntity)
       const neLoadOp = nestedEntity.op && nestedEntity.op.load
-      const neMatchPairs = opRequestShape(nestedEntity, 'load').items
-        .filter((it: any) => !it.optional)
+      const neMatchPairs = requiredItems(nestedEntity, 'load')
         .sort((a: any, b: any) =>
           (a.name === neIdF ? 1 : 0) - (b.name === neIdF ? 1 : 0))
         .map((it: any) =>
-          `"${it.name}": ${exampleValue(nestedEntity, neLoadOp, it.name,
+          `${litString('go', it.name)}: ${exampleValue(nestedEntity, neLoadOp, it.name,
             it.name === neIdF ? 'example_id' : 'example_' + it.name)}`)
 
       Content(`
@@ -103,13 +105,12 @@ fmt.Println(${neVar}.(sdk.Entity).Data())
 
     if (!hasCall && opnames.includes('load')) {
       const idF = entityIdField(exampleEntity)
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `map[string]any{${loadItems.map((it: any) =>
-          `"${it.name}": ${exampleValue(exampleEntity, exampleEntity.op && exampleEntity.op.load, it.name,
+          `${litString('go', it.name)}: ${exampleValue(exampleEntity, exampleEntity.op && exampleEntity.op.load, it.name,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')}}`
         : 'nil'
       Content(`// Load a specific ${eName.toLowerCase()} (returns the entity; err is non-nil on failure)

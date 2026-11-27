@@ -38,6 +38,13 @@
 // chains and `custom` providers here. The rule under test - the chain
 // answers when the option does not - is identical either way.
 
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+#define _DARWIN_C_SOURCE
+#endif
+
 #include "feature_harness.h" /* test_sdk + Fetcher helpers + ctest.h */
 
 #include "secrets.h"
@@ -47,12 +54,37 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(_WIN32)
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 static int CASES = 0;
 #define RUN(fn)                                                                 \
   do {                                                                         \
     CASES++;                                                                   \
     fn();                                                                      \
   } while (0)
+
+// The header the credential travels in: the DEFAULT client's auth.name,
+// lower-cased as prepare_auth sends it. Read from a default client because a
+// test's `auth: null` leaves no name to read. Computed once, held for the run.
+static const char* cred_header(void) {
+  static char* name = NULL;
+  if (NULL != name) return name;
+  voxgig_value* v = getpath2(sdk_options_map(test_sdk(NULL, NULL)), "auth", "name");
+  const char* given = voxgig_is_string(v) ? voxgig_as_string(v) : "";
+  name = strdup('\0' == given[0] ? "authorization" : given);
+  for (char* c = name; '\0' != *c; c++) {
+    if ('A' <= *c && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
+  }
+  return name;
+}
 
 // ---- the recording live transport ------------------------------------------
 
@@ -95,7 +127,7 @@ static voxgig_value* live_fetch(void* ud, voxgig_value* args) {
   voxgig_value* urlv = voxgig_getelem(args, v_int(0), voxgig_new_undef());
   voxgig_value* fetchdef = voxgig_getelem(args, v_int(1), voxgig_new_undef());
   const char* url = voxgig_is_string(urlv) ? voxgig_as_string(urlv) : "";
-  // A SNAPSHOT, not a share: the exchange rewrites the authorization header
+  // A SNAPSHOT, not a share: the exchange rewrites the credential header
   // of the SAME fetchdef in place before it retries, so a shared reference
   // would show the retry's token on the first attempt's record.
   voxgig_list_push(voxgig_as_list(r->calls),
@@ -119,28 +151,52 @@ static voxgig_value* call_fetchdef(Rec* r, int i) {
   return getp(voxgig_getelem(r->calls, v_int(i), voxgig_new_undef()), "fetchdef");
 }
 
-// The authorization header of call i, or NULL when absent. Presence is read
+// The credential header of call i, or NULL when absent. Presence is read
 // off the map directly: a present-but-EMPTY header is not suppression, and
 // get_str alone cannot tell the two apart.
 static const char* call_auth(Rec* r, int i, bool* present) {
   voxgig_value* headers = getp(call_fetchdef(r, i), "headers");
   if (present) {
     *present = voxgig_is_map(headers) &&
-      NULL != voxgig_map_get(voxgig_as_map(headers), "authorization");
+      NULL != voxgig_map_get(voxgig_as_map(headers), cred_header());
   }
-  return get_str(headers, "authorization");
+  return get_str(headers, cred_header());
 }
 
-// The Authorization header carries the SPEC's credential prefix, which a
-// TEMPLATE cannot know (a bearer scheme gives `Bearer <token>`, an apiKey
-// scheme the raw token). So assert on the CREDENTIAL and let the prefix be
-// whatever this SDK's API declares.
-static bool credential_is(const char* header, const char* token) {
+// The header value prepare_auth writes for a token, in the form the DEFAULT
+// client's auth gives: under Basic the token is the key half of the encoded
+// pair, and a prefix is space-joined.
+static bool paired_is(const char* header, const char* token, const char* secret) {
   if (NULL == header) return false;
-  size_t hl = strlen(header);
-  size_t tl = strlen(token);
-  if (0 == strcmp(header, token)) return true;
-  return hl > tl + 1 && ' ' == header[hl - tl - 1] && 0 == strcmp(header + hl - tl, token);
+  voxgig_value* auth = getp(sdk_options_map(test_sdk(NULL, NULL)), "auth");
+  const char* prefix = get_str(auth, "prefix");
+  bool basic = false;
+  get_bool(auth, "basic", &basic);
+
+  char* value = NULL;
+  if (basic) {
+    size_t n = strlen(token) + 1 + strlen(secret) + 1;
+    char* pair = (char*)malloc(n);
+    snprintf(pair, n, "%s:%s", token, secret);
+    value = clean_base64(pair);
+    free(pair);
+  } else {
+    value = strdup(token);
+  }
+
+  bool same;
+  if (NULL == prefix || '\0' == prefix[0]) {
+    same = 0 == strcmp(header, value);
+  } else {
+    size_t pl = strlen(prefix);
+    same = 0 == strncmp(header, prefix, pl) && ' ' == header[pl] && 0 == strcmp(header + pl + 1, value);
+  }
+  free(value);
+  return same;
+}
+
+static bool credential_is(const char* header, const char* token) {
+  return paired_is(header, token, "");
 }
 
 // ---- a LIVE client ----------------------------------------------------------
@@ -160,7 +216,7 @@ static VoxgigSolardemoSDK* live(Rec* r, voxgig_value* secretsopts, voxgig_value*
     voxgig_map* m = voxgig_as_map(extra);
     for (size_t i = 0; i < m->len; i++) setp(opts, m->entries[i].key, m->entries[i].value);
   }
-  return projectname_sdk_new(opts);
+  return projectname_sdk_new(opts, NULL);
 }
 
 static voxgig_value* direct(VoxgigSolardemoSDK* sdk) {
@@ -246,7 +302,7 @@ static void t_inactive_no_apikey_no_header(void) {
   bool present = true;
   call_auth(r, 0, &present);
   CHECK_INT_EQ(r->api, 1, "inactive: one call");
-  CHECK(!present, "inactive: no apikey means no authorization header");
+  CHECK(!present, "inactive: no apikey means no credential header");
 }
 
 // ---- active: the chain ------------------------------------------------------
@@ -290,6 +346,15 @@ static void t_empty_apikey_defers(void) {
                              cmap(1, "apikey", v_str("")));
   direct(sdk);
   CHECK(credential_is(call_auth(r, 0, NULL), "CHAIN01"), "active: an explicitly EMPTY apikey also defers");
+}
+
+static void t_resolved_key_paired(void) {
+  Rec* r = rec_new();
+  VoxgigSolardemoSDK* sdk = live(r, providers1(memory(NULL, "APIKEY", "CHAIN05")),
+                             cmap(1, "secret", v_str("PASS01")));
+  direct(sdk);
+  CHECK(paired_is(call_auth(r, 0, NULL), "CHAIN05", "PASS01"),
+        "active: a resolved key is placed as prepare_auth places it, the secret kept");
 }
 
 static void t_auth_null_suppresses(void) {
@@ -412,7 +477,7 @@ static void t_provider_error_fails_entity_op(void) {
   FhOpResult res2 = fh_op(&h2, o);
   CHECK(res2.ok, "control: the entity op with a working chain succeeds");
   CHECK_INT_EQ(rec_count(calls2), 1, "control: the entity op reached the transport once");
-  CHECK(credential_is(get_str(rec_headers(calls2, 0), "authorization"), "CUSTOM01"),
+  CHECK(credential_is(get_str(rec_headers(calls2, 0), cred_header()), "CUSTOM01"),
         "control: the entity op carried the credential");
 }
 
@@ -595,6 +660,7 @@ static void t_exchange_buys_and_carries(void) {
   CHECK(NULL != strstr(call_body(r, 0), "\"refresh_token\":\"REFRESH01\""), "exchange: the purchase carries the refresh token, marshalled");
   CHECK(credential_is(call_auth(r, 1, NULL), "ACCESS01"), "exchange: the request carries the bought access token");
   CHECK(NULL != strstr(get_str(call_fetchdef(r, 0), "method"), "POST"), "exchange: the purchase is a POST");
+  CHECK_STR_EQ(get_str(call_fetchdef(r, 0), "redirect"), "manual", "exchange: the purchase follows no redirect");
 }
 
 static void t_exchange_explicit_refresh_wins(void) {
@@ -623,6 +689,19 @@ static void t_exchange_401_rebuys_and_retries(void) {
   // calls: 0 token, 1 api(401), 2 token, 3 api(200)
   CHECK(credential_is(call_auth(r, 1, NULL), "ACCESS01"), "401: the first attempt carried the first token");
   CHECK(credential_is(call_auth(r, 3, NULL), "ACCESS02"), "401: the retry carried the fresh token, rebuilt from auth.prefix");
+}
+
+static void t_exchange_retry_paired(void) {
+  Rec* r = rec_new();
+  r->script[0] = 401;
+  VoxgigSolardemoSDK* sdk = live(r, exchange_opts(refresh_store(), v_undef()),
+                             cmap(1, "secret", v_str("PASS01")));
+  direct(sdk);
+  CHECK_INT_EQ(r->api, 2, "paired 401: the request was tried again once");
+  // calls: 0 token, 1 api(401), 2 token, 3 api(200)
+  CHECK(paired_is(call_auth(r, 1, NULL), "ACCESS01", "PASS01"), "paired 401: the first attempt kept the secret");
+  CHECK(paired_is(call_auth(r, 3, NULL), "ACCESS02", "PASS01"),
+        "paired 401: a token bought on a refusal is placed as prepare_auth places it");
 }
 
 static void t_exchange_retry_once_not_loop(void) {
@@ -724,6 +803,7 @@ static void t_exchange_auth_null_suppresses(void) {
   voxgig_value* res = direct(sdk);
   CHECK(!res_ok(res), "auth null + exchange: the refusal stands");
   CHECK_INT_EQ(r->api, 1, "auth null + exchange: a refusal of a deliberately unauthenticated request is not retried");
+  CHECK_INT_EQ(r->token, 0, "auth null + exchange: no token is bought");
   bool present = true;
   call_auth(r, r->token, &present); // the first API call follows any purchase
   CHECK(!present, "auth null + exchange: no credential on the wire, refusal or not");
@@ -753,17 +833,395 @@ static void t_exchange_test_mode_buys_nothing(void) {
   FhOpResult res = fh_op(&h, o);
   CHECK(res.ok, "test mode: the op succeeds");
   CHECK_INT_EQ(rec_count(calls), 1, "test mode: one call, and it is the API call");
-  CHECK(credential_is(get_str(rec_headers(calls, 0), "authorization"), "test-access_token"),
+  CHECK(credential_is(get_str(rec_headers(calls, 0), cred_header()), "test-access_token"),
         "test mode: buys nothing and carries the deterministic fake token");
   CHECK_INT_EQ(fh_track_int(feats[0].f, "buys"), 1, "test mode: counted as a (fake) purchase");
 }
 
+// The bundled transport hands the feature a Location already resolved, so
+// only a supplied system.fetch reaches the feature's own resolver with it raw.
+typedef struct {
+  voxgig_value* calls;
+  const char* exchange;
+  const char* next;
+} QueryFetch;
+
+static voxgig_value* query_fetch(void* ud, voxgig_value* args) {
+  QueryFetch* q = (QueryFetch*)ud;
+  voxgig_value* urlv = voxgig_getelem(args, v_int(0), voxgig_new_undef());
+  voxgig_value* fetchdef = voxgig_getelem(args, v_int(1), voxgig_new_undef());
+  const char* url = voxgig_is_string(urlv) ? voxgig_as_string(urlv) : "";
+  voxgig_list_push(voxgig_as_list(q->calls),
+                   cmap(2, "url", v_str(url), "fetchdef", voxgig_clone(fetchdef)));
+  if (0 == strcmp(url, q->exchange)) {
+    voxgig_value* moved = respond(307, v_map());
+    setp(moved, "headers", cmap(1, "location", v_str("?step=2")));
+    return moved;
+  }
+  if (0 == strcmp(url, q->next)) return respond(200, cmap(1, "access_token", v_str("MOVED01")));
+  return respond(200, cmap(1, "ok", v_bool(true)));
+}
+
+static void t_exchange_redirect_query_supplied(void) {
+  QueryFetch q = { v_list(), "http://api.test/auth/token", "http://api.test/auth/token?step=2" };
+  voxgig_value* exchange = cmap(3, "active", v_bool(true), "refresh", v_str("REFRESH01"),
+                                "redirect", v_str("same-origin"));
+  VoxgigSolardemoSDK* sdk = projectname_sdk_new(cmap(3,
+    "base", v_str("http://api.test"),
+    "system", cmap(1, "fetch", vfn(query_fetch, &q)),
+    "feature", cmap(1, "secrets", cmap(3,
+      "active", v_bool(true),
+      "name", v_str("refresh_token"),
+      "exchange", exchange))), NULL);
+  voxgig_value* res = direct(sdk);
+  voxgig_value* first = voxgig_getelem(q.calls, v_int(0), voxgig_new_undef());
+  voxgig_value* second = voxgig_getelem(q.calls, v_int(1), voxgig_new_undef());
+  CHECK(res_ok(res), res_err(res));
+  CHECK_INT_EQ((int)voxgig_list_len(voxgig_as_list(q.calls)), 3,
+               "query-only: the exchange, once again, then the API call");
+  CHECK_STR_EQ(get_str(first, "url"), q.exchange, "query-only: the exchange is asked first");
+  CHECK_STR_EQ(get_str(second, "url"), q.next, "query-only: asked again at its own path");
+  CHECK_STR_EQ(get_str(getp(second, "fetchdef"), "method"), get_str(getp(first, "fetchdef"), "method"),
+               "query-only: the same method");
+  CHECK_STR_EQ(get_str(getp(second, "fetchdef"), "body"), get_str(getp(first, "fetchdef"), "body"),
+               "query-only: the same body");
+  CHECK_STR_EQ(get_str(getp(first, "fetchdef"), "redirect"), "manual", "query-only: manual first");
+  CHECK_STR_EQ(get_str(getp(second, "fetchdef"), "redirect"), "manual", "query-only: manual again");
+}
+
+#if !defined(_WIN32)
+
+static int redirect_listener(int* port) {
+  struct sockaddr_in addr;
+  socklen_t len = sizeof(addr);
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  if (0 != bind(fd, (struct sockaddr*)&addr, sizeof(addr)) || 0 != listen(fd, 16)) return -1;
+  getsockname(fd, (struct sockaddr*)&addr, &len);
+  *port = ntohs(addr.sin_port);
+  return fd;
+}
+
+static void redirect_say(int c, const char* text) {
+  size_t n = strlen(text);
+  while (0 < n) {
+    ssize_t w = write(c, text, n);
+    if (w <= 0) return;
+    text += w;
+    n -= (size_t)w;
+  }
+}
+
+// A forked listener. The token path of the origin answers `moved`, with a
+// line to `count`; every other request is written to `log` as one line and
+// answered with a token.
+static pid_t redirect_serve(int fd, int log, int count, const char* moved) {
+  fflush(NULL);
+  pid_t pid = fork();
+  if (0 != pid) return pid;
+  signal(SIGPIPE, SIG_IGN);
+  for (;;) {
+    int c = accept(fd, NULL, NULL);
+    if (c < 0) continue;
+    char buf[8192];
+    size_t n = 0;
+    char* end = NULL;
+    while (NULL == end && n < sizeof(buf) - 1) {
+      ssize_t got = read(c, buf + n, sizeof(buf) - 1 - n);
+      if (got <= 0) break;
+      n += (size_t)got;
+      buf[n] = '\0';
+      end = strstr(buf, "\r\n\r\n");
+    }
+    if (NULL != end) {
+      *end = '\0';
+      char method[16] = "";
+      char target[512] = "";
+      sscanf(buf, "%15s %511s", method, target);
+      for (char* at = buf; '\0' != *at; at++) {
+        if ('A' <= *at && *at <= 'Z') *at = (char)(*at - 'A' + 'a');
+      }
+      const char* cl = strstr(buf, "\r\ncontent-length:");
+      size_t want = NULL == cl ? 0 : (size_t)strtoul(cl + 17, NULL, 10);
+      char* body = end + 4;
+      while ((size_t)(buf + n - body) < want && n < sizeof(buf) - 1) {
+        ssize_t got = read(c, buf + n, sizeof(buf) - 1 - n);
+        if (got <= 0) break;
+        n += (size_t)got;
+      }
+      if ((size_t)(buf + n - body) < want) want = (size_t)(buf + n - body);
+      body[want] = '\0';
+      if (NULL != moved && 0 == strcmp(target, "/api/auth/token")) {
+        redirect_say(count, "x\n");
+        redirect_say(c, moved);
+      } else {
+        char line[1024];
+        snprintf(line, sizeof(line), "%s %s %s\n", method, target, body);
+        redirect_say(log, line);
+        redirect_say(c, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+          "Content-Length: 30\r\nConnection: close\r\n\r\n{\"access_token\":\"ELSEWHERE01\"}");
+      }
+    }
+    shutdown(c, SHUT_WR);
+    close(c);
+  }
+}
+
+static int redirect_lines(int log, char* into, size_t size) {
+  size_t n = 0;
+  ssize_t got;
+  while (n < size - 1 && 0 < (got = read(log, into + n, size - 1 - n))) n += (size_t)got;
+  into[n] = '\0';
+  int lines = 0;
+  for (size_t i = 0; i < n; i++) lines += '\n' == into[i];
+  return lines;
+}
+
+enum { TO_MOVED, TO_AWAY, TO_MOVED_ABSOLUTE, TO_SELF, TO_QUERY };
+
+typedef struct {
+  voxgig_value* res;
+  char base[64];
+  char location[128];
+  char away[512];
+  char again[512];
+  int reached;
+  int after;
+  int exchanged;
+} RedirectRun;
+
+// One exchange, on a fresh client, against a fresh origin answering it with
+// `status` to `where`, and a fresh other origin.
+static void redirect_run(int status, int where, const char* redirect, RedirectRun* r) {
+  int port = 0;
+  int otherport = 0;
+  int fd = redirect_listener(&port);
+  int otherfd = redirect_listener(&otherport);
+  int elsewhere[2];
+  int beyond[2];
+  int count[2];
+  CHECK(0 <= fd && 0 <= otherfd && 0 == pipe(elsewhere) && 0 == pipe(beyond) &&
+        0 == pipe(count), "redirect: loopback listeners");
+
+  if (TO_AWAY == where) {
+    snprintf(r->location, sizeof(r->location), "http://127.0.0.1:%d/api/auth/token", otherport);
+  } else if (TO_MOVED_ABSOLUTE == where) {
+    snprintf(r->location, sizeof(r->location), "http://127.0.0.1:%d/api/moved/token", port);
+  } else if (TO_QUERY == where) {
+    snprintf(r->location, sizeof(r->location), "?step=2");
+  } else {
+    snprintf(r->location, sizeof(r->location), TO_SELF == where ? "/api/auth/token" : "/api/moved/token");
+  }
+  char moved[256];
+  snprintf(moved, sizeof(moved), "HTTP/1.1 %d Moved\r\nLocation: %s\r\n"
+    "Content-Length: 0\r\nConnection: close\r\n\r\n", status, r->location);
+
+  pid_t origin = redirect_serve(fd, beyond[1], count[1], moved);
+  pid_t other = redirect_serve(otherfd, elsewhere[1], -1, NULL);
+  close(fd);
+  close(otherfd);
+  close(beyond[1]);
+  close(elsewhere[1]);
+  close(count[1]);
+
+  snprintf(r->base, sizeof(r->base), "http://127.0.0.1:%d/api", port);
+  voxgig_value* exchange = cmap(2, "active", v_bool(true), "refresh", v_str("REFRESH01"));
+  if (NULL != redirect) setp(exchange, "redirect", v_str(redirect));
+  VoxgigSolardemoSDK* sdk = projectname_sdk_new(cmap(2,
+    "base", v_str(r->base),
+    "feature", cmap(1, "secrets", cmap(3,
+      "active", v_bool(true),
+      "name", v_str("refresh_token"),
+      "exchange", exchange))), NULL);
+  r->res = direct(sdk);
+
+  kill(origin, SIGTERM);
+  kill(other, SIGTERM);
+  waitpid(origin, NULL, 0);
+  waitpid(other, NULL, 0);
+
+  char counted[64];
+  r->reached = redirect_lines(elsewhere[0], r->away, sizeof(r->away));
+  r->after = redirect_lines(beyond[0], r->again, sizeof(r->again));
+  r->exchanged = redirect_lines(count[0], counted, sizeof(counted));
+  close(elsewhere[0]);
+  close(beyond[0]);
+  close(count[0]);
+}
+
+static int redirect_refused_with(RedirectRun* r, int status) {
+  char want[160];
+  snprintf(want, sizeof(want), "token exchange failed: %d from %s/auth/token", status, r->base);
+  return !res_ok(r->res) && NULL != strstr(res_err(r->res), want);
+}
+
+// Real listeners and the SDK's own exchange transport: a stub follows nothing.
+static void t_exchange_redirect_refused(void) {
+  struct { int status; int where; } cases[] =
+    { {307, TO_AWAY}, {308, TO_AWAY}, {302, TO_AWAY}, {307, TO_MOVED} };
+  char labels[4][1400];
+  int clean[4];
+  int refused = 0;
+  int followed = 0;
+  int ncases = (int)(sizeof(cases) / sizeof(cases[0]));
+
+  for (int i = 0; i < ncases; i++) {
+    RedirectRun r;
+    redirect_run(cases[i].status, cases[i].where, NULL, &r);
+    followed += r.reached + r.after;
+
+    int failed = redirect_refused_with(&r, cases[i].status);
+    refused += failed;
+
+    snprintf(labels[i], sizeof(labels[i]),
+             "redirect %d to %s: other origin got [%s], origin got [%s], ended: %s",
+             cases[i].status, r.location, r.away, r.again, res_err(r.res));
+    clean[i] = failed && 0 == r.reached && 0 == r.after;
+  }
+
+  printf("secrets: exchange refused %d redirect(s), %d followed\n", refused, followed);
+  for (int i = 0; i < ncases; i++) CHECK(clean[i], labels[i]);
+  CHECK_INT_EQ(refused, ncases, "redirect: every case is a failed exchange");
+  CHECK_INT_EQ(followed, 0, "redirect: nothing followed a refused exchange");
+}
+
+// Each case names the target the exchange is asked again at, or NULL when
+// refused; a Location of a query alone keeps the path that answered.
+static void t_exchange_redirect_same_origin(void) {
+  struct { int status; int where; const char* next; } cases[] = {
+    {307, TO_MOVED, "/api/moved/token"}, {308, TO_MOVED_ABSOLUTE, "/api/moved/token"},
+    {307, TO_QUERY, "/api/auth/token?step=2"}, {307, TO_AWAY, NULL},
+    {302, TO_MOVED, NULL}, {307, TO_SELF, NULL} };
+  char labels[6][1400];
+  int clean[6];
+  int followed = 0;
+  int refused = 0;
+  int elsewhere = 0;
+  int looped = 0;
+  int ncases = (int)(sizeof(cases) / sizeof(cases[0]));
+
+  for (int i = 0; i < ncases; i++) {
+    RedirectRun r;
+    redirect_run(cases[i].status, cases[i].where, "same-origin", &r);
+    elsewhere += r.reached;
+
+    if (NULL != cases[i].next) {
+      char want[160];
+      int wn = snprintf(want, sizeof(want), "POST %s {\"refresh_token\":\"REFRESH01\"}\n",
+                        cases[i].next);
+      clean[i] = res_ok(r.res) && 2 == r.after && 0 == strncmp(r.again, want, (size_t)wn);
+      followed += clean[i];
+    } else {
+      clean[i] = 0 == r.after && redirect_refused_with(&r, cases[i].status);
+      refused += clean[i];
+    }
+    if (TO_SELF == cases[i].where) looped = r.exchanged;
+
+    snprintf(labels[i], sizeof(labels[i]),
+             "same-origin %d to %s: other origin got [%s], origin got [%s], ended: %s",
+             cases[i].status, r.location, r.away, r.again, res_err(r.res));
+  }
+
+  printf("secrets: exchange opt-in followed %d redirect(s) on its own origin, "
+         "refused %d, %d elsewhere\n", followed, refused, elsewhere);
+  for (int i = 0; i < ncases; i++) CHECK(clean[i], labels[i]);
+  CHECK_INT_EQ(followed, 3, "same-origin: every redirect on the origin followed");
+  CHECK_INT_EQ(refused, 3, "same-origin: every other redirect refused");
+  CHECK_INT_EQ(elsewhere, 0, "same-origin: the other origin got nothing");
+  CHECK_INT_EQ(looped, 6, "same-origin: a redirect to itself is followed five times");
+}
+
+#else
+
+static void t_exchange_redirect_refused(void) {
+  printf("secrets: redirect skipped, this platform has no POSIX sockets\n");
+}
+
+static void t_exchange_redirect_same_origin(void) {
+  printf("secrets: redirect skipped, this platform has no POSIX sockets\n");
+}
+
+#endif
+
+// ---- auth off ----------------------------------------------------------------
+
+// Off by the config where it declares no auth, else by `auth: null`: either
+// way the feature places no credential, buys no token and retries nothing.
+static bool carries(Rec* r, int i) {
+  static const char* SECRETS[] = {"OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01", NULL};
+  bool present = false;
+  call_auth(r, i, &present);
+  if (present) return true;
+  voxgig_value* headers = getp(call_fetchdef(r, i), "headers");
+  if (!voxgig_is_map(headers)) return false;
+  voxgig_map* m = voxgig_as_map(headers);
+  for (size_t k = 0; k < m->len; k++) {
+    voxgig_value* v = m->entries[k].value;
+    if (!voxgig_is_string(v)) continue;
+    for (int s = 0; NULL != SECRETS[s]; s++) {
+      if (NULL != strstr(voxgig_as_string(v), SECRETS[s])) return true;
+    }
+  }
+  return false;
+}
+
+static void t_auth_off(void) {
+  bool declared = voxgig_is_map(getpath2(shared_config(), "options", "auth"));
+  int sent = 0;
+  int credentials = 0;
+  int bought = 0;
+
+  for (int scenario = 0; scenario < 3; scenario++) {
+    Rec* r = rec_new();
+    voxgig_value* fopts = v_map();
+    voxgig_value* extra = v_map();
+    if (0 == scenario) {
+      fopts = providers1(memory(NULL, "APIKEY", "OFFKEY01"));
+    } else if (1 == scenario) {
+      setp(extra, "apikey", v_str("OFFKEY02"));
+    } else {
+      r->script[0] = 401;
+      fopts = exchange_opts(clist(1, memory(NULL, "APIKEY", "OFFREFRESH01")), v_undef());
+    }
+    if (declared) setp(extra, "auth", voxgig_new_null());
+
+    VoxgigSolardemoSDK* sdk = live(r, fopts, extra);
+    direct(sdk);
+
+    CHECK_INT_EQ(r->api, 1, "auth off: one request, not retried");
+    CHECK_INT_EQ(r->token, 0, "auth off: no token bought");
+    CHECK(!carries(r, r->token), "auth off: no credential sent");
+    CHECK_STR_EQ(feature_secrets_credential(sdk_feature_secrets(sdk)), "", "auth off: nothing resolved");
+
+    for (int i = 0; i < r->api + r->token; i++) {
+      const char* url = get_str(voxgig_getelem(r->calls, v_int(i), voxgig_new_undef()), "url");
+      if (NULL != url && NULL == strstr(url, r->tokenpath) && carries(r, i)) credentials++;
+    }
+    sent += r->api;
+    bought += r->token;
+  }
+
+  printf("secrets: auth off by %s: %d request(s), %d credential(s), %d token(s)\n",
+         declared ? "option" : "config", sent, credentials, bought);
+}
+
 int main(void) {
+  // Read from the config, never from a probe: an SDK whose config declares no
+  // auth places no credential, and these tests assert on the one it places.
+  if (!voxgig_is_map(getpath2(shared_config(), "options", "auth"))) {
+    printf("SKIP [secrets]: this SDK's config declares no auth, so it places no credential\n");
+    RUN(t_auth_off);
+    TEST_SUMMARY("secrets");
+  }
+
   RUN(t_inactive_apikey_as_before);
   RUN(t_inactive_no_apikey_no_header);
   RUN(t_apikey_wins_over_chain);
   RUN(t_omitted_apikey_defers);
   RUN(t_empty_apikey_defers);
+  RUN(t_resolved_key_paired);
   RUN(t_auth_null_suppresses);
   RUN(t_custom_provider_verbatim);
   RUN(t_miss_everywhere_no_header);
@@ -783,6 +1241,7 @@ int main(void) {
   RUN(t_exchange_explicit_refresh_wins);
   RUN(t_exchange_one_purchase_many_requests);
   RUN(t_exchange_401_rebuys_and_retries);
+  RUN(t_exchange_retry_paired);
   RUN(t_exchange_retry_once_not_loop);
   RUN(t_exchange_other_status_not_expiry);
   RUN(t_exchange_statuses_configurable);
@@ -794,6 +1253,10 @@ int main(void) {
   RUN(t_exchange_auth_null_suppresses);
   RUN(t_exchange_off_leaves_feature_as_before);
   RUN(t_exchange_test_mode_buys_nothing);
+  RUN(t_exchange_redirect_refused);
+  RUN(t_exchange_redirect_same_origin);
+  RUN(t_exchange_redirect_query_supplied);
+  RUN(t_auth_off);
 
   // The generator's runtime lane reads this line: a suite that RAN fewer
   // cases than it declares was trimmed, not passed.

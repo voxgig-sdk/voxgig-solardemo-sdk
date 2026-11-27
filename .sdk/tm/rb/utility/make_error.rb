@@ -36,7 +36,7 @@ module VoxgigSolardemoUtilities
     # The context stays reachable for a debugger (`err.ctx`) and is left out
     # of every serialiser the error defines; result and spec are cleaned
     # COPIES, so masking them never masks the pipeline's own objects.
-    sdk_err = VoxgigSolardemoError.new("", msg, ctx)
+    sdk_err = VoxgigSolardemoError.new(msg, ctx: ctx)
     sdk_err.result = clean.call(ctx, result)
     sdk_err.spec = clean.call(ctx, spec)
 
@@ -49,11 +49,12 @@ module VoxgigSolardemoUtilities
 
     ctx.ctrl.err = sdk_err
 
-    # Fire PreUnexpected so observability features (metrics, telemetry, audit,
-    # debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-    # rbac short-circuit). Fires after ctx.ctrl.err is set so hooks can read the
-    # error; features guard against double-recording when PreDone already fired.
+    # Fire PreUnexpected so features hooked on it close/record error paths that
+    # never reach PreDone (e.g. a PrePoint short-circuit). Fires after
+    # ctx.ctrl.err is set so hooks can read the error; features guard against
+    # double-recording when PreDone already fired.
     if ctx.utility && ctx.utility.feature_hook
+      ctx.unexpected_fired = true
       ctx.utility.feature_hook.call(ctx, "PreUnexpected")
     end
 

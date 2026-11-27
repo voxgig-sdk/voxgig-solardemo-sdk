@@ -1,6 +1,6 @@
 // VoxgigSolardemo SDK test-runner SUPPORT (vendor-tag rollout): env overrides,
 // the sdk-test-control.json skip machinery, live pacing, the
-// ../../.sdk/test/test.json spec loader, and ctx/entity conversion
+// ../SDKREL/.sdk/test/test.json spec loader, and ctx/entity conversion
 // helpers. The corpus ENGINE that used to live beside them
 // (RunSet/MatchDeep/MatchString) is retired: both corpora now run on the
 // vendored omni runner through OmniResolver.cs. The class names are
@@ -44,11 +44,11 @@ public static class StructRunner
         => Path.GetDirectoryName(path)!;
 
     // The shared SDK test spec lives at <sdk-project>/.sdk/test/test.json,
-    // i.e. ../../.sdk/test/test.json relative to this test folder.
+    // i.e. ../SDKREL/.sdk/test/test.json relative to this test folder.
     public static string TestJsonPath()
     {
         return Path.GetFullPath(
-            Path.Combine(SourceDir(), "..", "..", ".sdk", "test", "test.json"));
+            Path.Combine(SourceDir(), "..", "SDKREL", ".sdk", "test", "test.json"));
     }
 
     // Convert a JsonElement tree into native C# types.
@@ -149,7 +149,7 @@ public static class TestRunner
             }
             _envLocalLoaded = true;
 
-            var envFile = Path.Combine(SourceDir(), "..", "..", ".env.local");
+            var envFile = Path.Combine(SourceDir(), "..", "SDKREL", ".env.local");
             if (!File.Exists(envFile))
             {
                 return;
@@ -555,10 +555,10 @@ public static class TestRunner
     }
 
     // The record a create-less flow reads live: the first its list returns,
-    // put where the flow reads the fixture's existing records. False once
-    // the test is settled and has to return.
+    // put where the flow reads the fixture's existing records, a record with
+    // no identity taking the fallback. False once the test is settled.
     public static bool LiveExisting(Dictionary<string, object?> data, bool strict, string name,
-        Func<object?> list)
+        string field, object? fallback, Func<object?> list)
     {
         object? found;
         try
@@ -581,6 +581,20 @@ public static class TestRunner
             return false;
         }
         var record = items[0] is IEntity ent ? ent.Data() : items[0];
+        var fields = record as Dictionary<string, object?>;
+        if (fields == null || !fields.TryGetValue(field, out var held) || held == null)
+        {
+            if (fallback == null)
+            {
+                LiveMiss(strict, "Live entity test blocked: the listed " + name + " record has no " + field
+                    + ", and neither *_ENTID nor the load route's example gives one");
+                return false;
+            }
+            var filled = fields == null
+                ? new Dictionary<string, object?>() : new Dictionary<string, object?>(fields);
+            filled[field] = fallback;
+            record = filled;
+        }
         if (!(data.TryGetValue("existing", out var existing) &&
             existing is Dictionary<string, object?> emap))
         {
@@ -589,6 +603,38 @@ public static class TestRunner
         }
         emap[name] = new Dictionary<string, object?> { ["live01"] = record };
         return true;
+    }
+
+    // Identities compared by their string forms: a route parameter's
+    // value is a string where the record may hold a number.
+    public static bool LiveSameId(object? a, object? b)
+    {
+        if (a == null || b == null)
+        {
+            return a == null && b == null;
+        }
+        return LiveIdString(a) == LiveIdString(b);
+    }
+
+    private static string LiveIdString(object v)
+    {
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        switch (v)
+        {
+            case bool flag:
+                return flag ? "true" : "false";
+            case double d when !double.IsInfinity(d) && d == Math.Round(d) && Math.Abs(d) < 9.0e15:
+                return ((long)d).ToString(invariant);
+            case IFormattable formattable:
+                return formattable.ToString(null, invariant);
+        }
+        return v.ToString() ?? "";
+    }
+
+    // Sleeps test.live.delayMs before a live request.
+    public static void LivePace()
+    {
+        System.Threading.Thread.Sleep(LiveDelayMs());
     }
 
     // In a lenient live run a failing check is reported and the test

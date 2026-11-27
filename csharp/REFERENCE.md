@@ -22,12 +22,13 @@ Create a new SDK client instance. `options` is a
 | Name | Type | Description |
 | --- | --- | --- |
 | `options` | `Dictionary` | SDK configuration options. |
-| `options["base"]` | `string` | Base URL for API requests. |
-| `options["prefix"]` | `string` | URL prefix appended after base. |
-| `options["suffix"]` | `string` | URL suffix appended after path. |
-| `options["headers"]` | `Dictionary` | Custom headers for all requests. |
-| `options["feature"]` | `Dictionary` | Feature configuration. |
-| `options["system"]` | `Dictionary` | System overrides (e.g. custom fetch). |
+| `options["base"]` | `string` | Base URL of the API server. |
+| `options["prefix"]` | `string` | URL path prefix prepended to all requests. |
+| `options["suffix"]` | `string` | URL path suffix appended to all requests. |
+| `options["headers"]` | `Dictionary` | Headers sent with every request. |
+| `options["feature"]` | `Dictionary` | Feature activation flags. |
+| `options["extend"]` | `List` | Additional feature instances to load. |
+| `options["system"]` | `Dictionary` | System overrides, such as a custom fetch function. |
 
 
 ### Static Methods
@@ -106,24 +107,9 @@ var moon = client.Moon();
 
 ### Operations
 
-#### `Create(reqdata, ctrl = null) -> object?`
-
-Create a new entity with the given data. Returns the created entity and raises on error.
-
-```csharp
-var result = client.Moon().Create(new Dictionary<string, object?>
-{
-    ["planet_id"] = "example_planet_id",  // string
-    ["diameter"] = 1.0,  // double
-    ["id"] = "example_id",  // string
-    ["kind"] = "example_kind",  // string
-    ["name"] = "example_name",  // string
-});
-```
-
 #### `List(reqmatch, ctrl = null) -> object?`
 
-List entities matching the given criteria. The match is optional — call `List(null)` to list all records. Returns a list of entities, one per record, and raises on error.
+List entities matching the given criteria. The match must include `planet_id`. Returns a list of entities, one per record, and raises on error.
 
 ```csharp
 var results = (List<object?>)client.Moon().List(new Dictionary<string, object?> { ["planet_id"] = "example" })!;
@@ -141,12 +127,19 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 var result = client.Moon().Load(new Dictionary<string, object?> { ["id"] = "moon_id", ["planet_id"] = "planet_id" });
 ```
 
-#### `Remove(reqmatch, ctrl = null) -> object?`
+#### `Create(reqdata, ctrl = null) -> object?`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```csharp
-var result = client.Moon().Remove(new Dictionary<string, object?> { ["id"] = "moon_id", ["planet_id"] = "planet_id" });
+var result = client.Moon().Create(new Dictionary<string, object?>
+{
+    ["planet_id"] = "example_planet_id",  // string
+    ["diameter"] = 1.0,  // double
+    ["id"] = "example_id",  // string
+    ["kind"] = "example_kind",  // string
+    ["name"] = "example_name",  // string
+});
 ```
 
 #### `Update(reqdata, ctrl = null) -> object?`
@@ -160,6 +153,14 @@ var result = client.Moon().Update(new Dictionary<string, object?>
     ["planet_id"] = "planet_id",
     // Fields to update
 });
+```
+
+#### `Remove(reqmatch, ctrl = null) -> object?`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+
+```csharp
+var result = client.Moon().Remove(new Dictionary<string, object?> { ["id"] = "moon_id", ["planet_id"] = "planet_id" });
 ```
 
 ### Common Methods
@@ -203,20 +204,6 @@ var planet = client.Planet();
 
 ### Operations
 
-#### `Create(reqdata, ctrl = null) -> object?`
-
-Create a new entity with the given data. Returns the created entity and raises on error.
-
-```csharp
-var result = client.Planet().Create(new Dictionary<string, object?>
-{
-    ["diameter"] = 1.0,  // double
-    ["id"] = "example_id",  // string
-    ["kind"] = "example_kind",  // string
-    ["name"] = "example_name",  // string
-});
-```
-
 #### `List(reqmatch, ctrl = null) -> object?`
 
 List entities matching the given criteria. The match is optional — call `List(null)` to list all records. Returns a list of entities, one per record, and raises on error.
@@ -237,12 +224,18 @@ Load a single entity matching the given criteria. Returns the entity, whose reco
 var result = client.Planet().Load(new Dictionary<string, object?> { ["id"] = "planet_id" });
 ```
 
-#### `Remove(reqmatch, ctrl = null) -> object?`
+#### `Create(reqdata, ctrl = null) -> object?`
 
-Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+Create a new entity with the given data. Returns the created entity and raises on error.
 
 ```csharp
-var result = client.Planet().Remove(new Dictionary<string, object?> { ["id"] = "planet_id" });
+var result = client.Planet().Create(new Dictionary<string, object?>
+{
+    ["diameter"] = 1.0,  // double
+    ["id"] = "example_id",  // string
+    ["kind"] = "example_kind",  // string
+    ["name"] = "example_name",  // string
+});
 ```
 
 #### `Update(reqdata, ctrl = null) -> object?`
@@ -255,6 +248,14 @@ var result = client.Planet().Update(new Dictionary<string, object?>
     ["id"] = "planet_id",
     // Fields to update
 });
+```
+
+#### `Remove(reqmatch, ctrl = null) -> object?`
+
+Remove the entity matching the given criteria. Returns the entity, marked as deleted, and raises on error.
+
+```csharp
+var result = client.Planet().Remove(new Dictionary<string, object?> { ["id"] = "planet_id" });
 ```
 
 ### Common Methods
@@ -317,10 +318,10 @@ var client = new VoxgigSolardemoSDK(new Dictionary<string, object?>
 ### Configuring features
 
 Each feature is inactive until switched on, and an SDK with no feature
-configured does no feature work at all. Every option below keeps its default
-unless you name it.
+configured does no feature work at all.
+Every option below keeps its default unless you name it.
 
-The array form of \`feature\` is significant: several features wrap the
+The array form of `feature` is significant: several features wrap the
 transport, and the order you list them in is the order they nest.
 
 #### Ordering
@@ -331,10 +332,10 @@ a feature activated later sits OUTSIDE one activated earlier, and sees the call
 first.
 
 That decides behaviour, not just sequence: a feature that short-circuits the
-call, such as a cache serving a hit, stops every feature nested inside it from
+call stops every feature nested inside it from
 ever seeing that call.
 
-`debug`, `idempotency`, `metrics`, `paging`, `test` attach to pipeline hooks
+`debug`, `idempotency`, `metrics`, `paging` attach to pipeline hooks
 rather than the transport, so their order does not affect what they observe.
 
 #### `debug`
@@ -537,7 +538,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -550,6 +551,7 @@ its default unless you name it.
 
 - Wraps the transport: its place in the activation order decides what it
   sees. See [Ordering](#ordering) above.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `test`
@@ -577,10 +579,9 @@ its default unless you name it.
 
 **Considerations**
 
-- Attaches to pipeline hooks, not the transport, so activation order does
-  not change what it observes.
 - Installs the BASE transport that the wrapping features wrap, so it must be
   activated before them.
+- Also attaches to pipeline hooks.
 - Inactive by default: leaving it out costs nothing at runtime.
 
 #### `timeout`

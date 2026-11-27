@@ -1,5 +1,5 @@
 
-import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, canonKey, canonScalarKey, entityIdField, pickExampleEntity, requiredItems, matchExampleItems, requestExampleItems, cdTarget, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -23,6 +23,7 @@ function cljLit(type: any): string {
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
   // Pick an entity with a real op (prefer a read op). primaryOp is null only
@@ -34,12 +35,16 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = 'nil'
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `(vs/jm "${idF}" "test01")` : 'nil'
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = 0 < items.length
+      ? `(vs/jm ${items.map((it: any) => `${cljString(it.name)} ${it.name === idF ? '"test01"' : cljLit(it.type)}`).join(' ')})`
+      : 'nil'
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
     const chosen = requiredItems(exampleEntity, 'list')
     testArg = `(vs/jm ${chosen.map((it: any) => `${cljString(it.name)} ${cljLit(it.type)}`).join(' ')})`
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -71,9 +76,9 @@ For endpoints not covered by entity operations:
 \`\`\`clojure
 (def result
   (api/direct client
-    (vs/jm "path" "/api/resource/{id}"
-           "method" "GET"
-           "params" (vs/jm "id" "example"))))
+    (vs/jm "path" "${dx.path}"
+           "method" "${dx.method}"
+           "params" (vs/jm "${dx.param}" "example"))))
 
 (if (vs/getprop result "ok")
   (do
@@ -90,9 +95,9 @@ For endpoints not covered by entity operations:
 ;; prepare returns the fetch definition and raises on error.
 (def fetchdef
   (api/prepare client
-    (vs/jm "path" "/api/resource/{id}"
-           "method" "DELETE"
-           "params" (vs/jm "id" "example"))))
+    (vs/jm "path" "${dx.path}"
+           "method" "${dx.method}"
+           "params" (vs/jm "${dx.param}" "example"))))
 
 (println (vs/getprop fetchdef "url"))
 (println (vs/getprop fetchdef "method"))
@@ -139,7 +144,7 @@ vendored struct corpus) runs offline through a single \`tools.deps\` entry
 point:
 
 \`\`\`bash
-cd ${target.name} && make test
+${cdTarget(target)}make test
 \`\`\`
 
 To exercise the SDK against the live API, construct a client with real

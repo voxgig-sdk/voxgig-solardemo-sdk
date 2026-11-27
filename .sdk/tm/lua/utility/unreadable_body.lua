@@ -1,19 +1,8 @@
 -- VoxgigSolardemo SDK utility: unreadable_body
 
+local media = require("utility.media")
+
 local PREVIEW_LENGTH = 160
-
-
-local function header_value(headers, name)
-  if type(headers) ~= "table" then
-    return ""
-  end
-  for k, v in pairs(headers) do
-    if string.lower(tostring(k)) == name then
-      return tostring(v)
-    end
-  end
-  return ""
-end
 
 
 -- Cleaned whole: a secret the bound would split could leave its prefix.
@@ -40,14 +29,15 @@ end
 -- response described; otherwise the code tells a wrong content type from
 -- malformed JSON.
 local function unreadable_body(ctx, status, headers, text, sent, failed)
-  local ctype = header_value(headers, "content-type")
-  local agent = ctx.utility.clean(ctx, header_value(sent, "user-agent"))
+  local ctype = media.header_value(headers, "content-type")
+  local agent = ctx.utility.clean(ctx, media.header_value(sent, "user-agent"))
   if agent == nil or agent == "" then
     agent = "transport default"
   end
   local detail = "HTTP " .. tostring(status) .. ", content-type " ..
     (ctype == "" and "none" or ctype) .. ", user-agent " .. tostring(agent)
-  if text ~= nil then
+  -- Only text is quoted: bytes are a file's, by the model or by their type.
+  if text ~= nil and not media.is_binary_response(ctx.point, ctype) then
     detail = detail .. ", body: " .. preview(ctx, text)
   end
 

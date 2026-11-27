@@ -34,6 +34,25 @@ class SecretsFeatureTest < Minitest::Test
   # changes.
   ENVPREFIX = "PROJECTENV_TEST_SECRETS_"
 
+  # The header the credential travels in: the DEFAULT client's auth.name,
+  # lower-cased as prepare_auth sends it. Read from a default client because
+  # a test's `auth: nil` leaves no name to read.
+  CREDHEADER = begin
+    auth = VoxgigSolardemoSDK.test(nil, nil).options_map["auth"]
+    name = auth.is_a?(Hash) ? auth["name"] : nil
+    name.is_a?(String) && !name.empty? ? name.downcase : "authorization"
+  end
+
+  # The form prepare_auth writes, from the DEFAULT client's auth: under Basic
+  # the token is the key half of the encoded pair, and a prefix is
+  # space-joined.
+  CREDFORM = begin
+    auth = VoxgigSolardemoSDK.test(nil, nil).options_map["auth"]
+    auth = {} unless auth.is_a?(Hash)
+    prefix = auth["prefix"].is_a?(String) ? auth["prefix"] : ""
+    { "prefix" => prefix, "basic" => auth["basic"] == true }
+  end
+
   # ---------------------------------------------------------------------
   # The recording transport: system.fetch for a LIVE client, scripting one
   # status per API call (the last repeating) and a token endpoint for the
@@ -64,9 +83,11 @@ class SecretsFeatureTest < Minitest::Test
         headers = fetchdef["headers"].is_a?(Hash) ? fetchdef["headers"] : {}
         @calls << {
           "url" => fullurl,
-          "auth" => headers["authorization"],
-          "has" => headers.key?("authorization"),
+          "auth" => headers[CREDHEADER],
+          "has" => headers.key?(CREDHEADER),
+          "values" => headers.values.map(&:to_s).join("\n"),
           "body" => fetchdef["body"],
+          "redirect" => fetchdef["redirect"],
         }
 
         if _istoken(fullurl)
@@ -193,7 +214,7 @@ class SecretsFeatureTest < Minitest::Test
         @lock.synchronize { @refresh = parsed["refresh_token"] }
         payload = '{"access_token": "RAWTOK01"}'
       else
-        @lock.synchronize { @auth = headers["authorization"] }
+        @lock.synchronize { @auth = headers[CREDHEADER] }
         payload = "{}"
       end
 
@@ -207,12 +228,15 @@ class SecretsFeatureTest < Minitest::Test
   # -------------------------------------------------------------------
   # Support.
 
-  # The Authorization header carries the SPEC's credential prefix, which a
-  # TEMPLATE cannot know - so assert on the CREDENTIAL and let the prefix be
-  # whatever this SDK's API declares.
-  def assert_credential(header, token)
-    ok = header == token || header.to_s.end_with?(" " + token)
-    assert ok, "expected the authorization header to carry #{token}, got: #{header.inspect}"
+  # The header value prepare_auth writes for a token.
+  def credential(token, secret = "")
+    value = CREDFORM["basic"] ? ["#{token}:#{secret}"].pack("m0") : token
+    CREDFORM["prefix"].empty? ? value : "#{CREDFORM["prefix"]} #{value}"
+  end
+
+  def assert_credential(header, token, secret = "")
+    assert_equal credential(token, secret), header,
+      "expected the #{CREDHEADER} header to carry #{token}"
   end
 
   def secrets_feature_of(client)
@@ -339,23 +363,33 @@ class SecretsFeatureTest < Minitest::Test
     ENV.delete(ENVPREFIX + name)
   end
 
+  # Read from the config, never from a probe: an SDK whose config declares no
+  # auth places no credential, and these tests assert on the one it places.
+  # The auth-off test asserts it places none.
+  def setup
+    return if name.start_with?("test_auth_off_")
+    unless VoxgigSolardemoConfig.shared_config["options"].key?("auth")
+      skip("this SDK's config declares no auth, so it places no credential")
+    end
+  end
+
   # -------------------------------------------------------------------
   # The feature-inactive baseline: bit-identical behaviour.
 
   def test_inactive_apikey_option_behaves_exactly_as_before
     client = VoxgigSolardemoSDK.test(nil, { "apikey" => "OPTKEY01" })
     fetchdef = client.prepare({ "path" => "/" })
-    assert_credential(fetchdef["headers"]["authorization"], "OPTKEY01")
+    assert_credential(fetchdef["headers"][CREDHEADER], "OPTKEY01")
 
     assert_nil secrets_feature_of(client),
       "no activation and no extend: the feature must not be installed"
   end
 
-  def test_inactive_no_apikey_means_no_authorization_header
+  def test_inactive_no_apikey_means_no_credential_header
     client = VoxgigSolardemoSDK.test(nil, nil)
     fetchdef = client.prepare({ "path" => "/" })
-    refute fetchdef["headers"].key?("authorization"),
-      "unexpected authorization header: #{fetchdef['headers']['authorization'].inspect}"
+    refute fetchdef["headers"].key?(CREDHEADER),
+      "unexpected #{CREDHEADER} header: #{fetchdef['headers'][CREDHEADER].inspect}"
   end
 
   # -------------------------------------------------------------------
@@ -395,6 +429,17 @@ class SecretsFeatureTest < Minitest::Test
     # crosses - so the credential is ON THE WIRE, not merely resolved.
     assert_credential(wire.api[0]["auth"], "ENVKEY02")
     assert_equal "ENVKEY02", secrets_feature_of(client).credential
+  ensure
+    clearenv("APIKEY")
+  end
+
+  def test_a_resolved_key_is_placed_as_prepare_auth_places_it_the_secret_kept
+    setenv("APIKEY", "ENVKEY04")
+    wire = Wire.new
+    client = secrets_client(wire, { "secret" => "PASS01", "feature" => secrets_opts })
+
+    drive_op(client, wire)
+    assert_credential(wire.api[0]["auth"], "ENVKEY04", "PASS01")
   ensure
     clearenv("APIKEY")
   end
@@ -750,12 +795,37 @@ class SecretsFeatureTest < Minitest::Test
     assert_equal 2, wire.token.length,
       "expected the initial purchase plus one rebuy, got #{wire.token.length}"
     assert_includes wire.token[0]["body"].to_s, "REFRESH01"
+    assert_equal "manual", wire.token[0]["redirect"],
+      "the exchange must ask system.fetch to follow no redirect"
 
     api = wire.api
     assert_equal 2, api.length, "expected the request to be retried exactly once"
     assert_credential(api[0]["auth"], "ACCESS01")
     # The retry must carry the NEW token, not the spent one.
     assert_credential(api[1]["auth"], "ACCESS02")
+  ensure
+    clearenv("REFRESH_TOKEN")
+  end
+
+  def test_a_token_bought_on_a_refusal_is_placed_as_prepare_auth_places_it
+    setenv("REFRESH_TOKEN", "REFRESH01")
+    wire = Wire.new
+    wire.apistatus = [401, 200]
+
+    client = secrets_client(wire, {
+      "secret" => "PASS01",
+      "feature" => secrets_opts({
+        "name" => "refresh_token",
+        "exchange" => { "active" => true },
+      }),
+    })
+
+    drive_op(client, wire)
+
+    api = wire.api
+    assert_equal 2, api.length, "expected the request to be retried exactly once"
+    assert_credential(api[0]["auth"], "ACCESS01", "PASS01")
+    assert_credential(api[1]["auth"], "ACCESS02", "PASS01")
   ensure
     clearenv("REFRESH_TOKEN")
   end
@@ -905,6 +975,190 @@ class SecretsFeatureTest < Minitest::Test
     assert_credential(server.auth, "RAWTOK01")
   end
 
+  # Real listeners and the raw fallback: a stub follows nothing. The
+  # origin answers the exchange as o["answer"] says and records what else it gets.
+  def with_origins
+    o = { "elsewhere" => [], "followed" => [], "exchanged" => 0, "answer" => [307, ""] }
+    lock = Mutex.new
+    o["lock"] = lock
+
+    listen = lambda do |&handle|
+      server = TCPServer.new("127.0.0.1", 0)
+      thread = Thread.new do
+        loop do
+          socket = begin
+            server.accept
+          rescue StandardError
+            break
+          end
+          begin
+            line = socket.gets.to_s.split(" ")
+            length = 0
+            while (h = socket.gets) && !h.chomp.empty?
+              k, v = h.split(":", 2)
+              length = v.to_i if "content-length" == k.to_s.downcase.strip
+            end
+            body = 0 < length ? socket.read(length) : ""
+            socket.print(handle.call(line[0].to_s, line[1].to_s, body))
+          ensure
+            socket.close rescue nil
+          end
+        end
+      end
+      [server, thread]
+    end
+
+    ok = lambda do |payload|
+      "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\n" \
+        "content-length: #{payload.bytesize}\r\nconnection: close\r\n\r\n#{payload}"
+    end
+
+    other, otherthread = listen.call do |method, path, body|
+      lock.synchronize { o["elsewhere"] << { "method" => method, "path" => path, "body" => body } }
+      ok.call('{"access_token":"ELSEWHERE01"}')
+    end
+    origin, originthread = listen.call do |method, path, body|
+      if "/api/auth/token" == path
+        status, location = lock.synchronize do
+          o["exchanged"] += 1
+          o["answer"]
+        end
+        "HTTP/1.1 #{status} Redirect\r\nlocation: #{location}\r\n" \
+          "content-length: 0\r\nconnection: close\r\n\r\n"
+      else
+        lock.synchronize { o["followed"] << "#{method} #{path} #{body}".strip }
+        ok.call('{"access_token":"MOVED01"}')
+      end
+    end
+
+    o["origin"] = "http://127.0.0.1:#{origin.addr[1]}"
+    o["base"] = o["origin"] + "/api"
+    o["away"] = "http://127.0.0.1:#{other.addr[1]}/api/auth/token"
+
+    begin
+      yield o
+    ensure
+      origin.close rescue nil
+      other.close rescue nil
+      originthread.join
+      otherthread.join
+    end
+  end
+
+  def redirect_client(o, exchange = {})
+    with_secrets do |extend_it|
+      opts = {
+        "base" => o["base"],
+        "allow" => { "op" => "direct" },
+        "feature" => { "secrets" => {
+          "active" => true,
+          "name" => "refresh_token",
+          "exchange" => { "active" => true, "refresh" => "REFRESH01" }.merge(exchange),
+        } },
+      }
+      opts["extend"] = [VoxgigSolardemoSecretsFeature.new] if extend_it
+      VoxgigSolardemoSDK.new(opts)
+    end
+  end
+
+  def redirect_probe(client)
+    res = client.direct({ "path" => "/probe" })
+    [res, res.is_a?(Hash) && !res["err"].nil? ? res["err"].to_s : res.inspect]
+  rescue StandardError => e
+    [nil, e.message]
+  end
+
+  def test_a_redirect_answering_the_exchange_is_a_failure_and_nothing_follows_it
+    with_origins do |o|
+      base = o["base"]
+      away = o["away"]
+      elsewhere = o["elsewhere"]
+      followed = o["followed"]
+
+      answers = [[307, away], [308, away], [302, away], [307, "/api/moved/token"]]
+      allowed = []
+      refused = 0
+
+      answers.each do |a|
+        o["lock"].synchronize { o["answer"] = a }
+        _res, message = redirect_probe(redirect_client(o))
+
+        if message.include?("token exchange failed: #{a[0]} from #{base}/auth/token")
+          refused += 1
+        else
+          allowed << "#{a[0]} to #{a[1]}: #{message}"
+        end
+      end
+
+      puts "secrets: exchange refused #{refused} redirect(s), " \
+        "#{elsewhere.length + followed.length} followed"
+
+      assert_equal [], elsewhere, "the exchange reached another origin"
+      assert_equal [], followed, "a request followed a refused exchange"
+      assert_equal [], allowed, "a redirect was not a failed exchange"
+      assert_equal answers.length, refused
+    end
+  end
+
+  def test_with_the_option_a_redirect_on_the_exchanges_own_origin_is_followed_and_no_other
+    with_origins do |o|
+      sent = ' {"refresh_token":"REFRESH01"}'
+      # Each case: the status, the Location, and the path the exchange is
+      # asked again at, or nil where the redirect is refused.
+      cases = [
+        [307, "/api/moved/token", "/api/moved/token"],
+        [308, o["origin"] + "/api/moved/token", "/api/moved/token"],
+        # A Location of a query alone keeps the path that answered.
+        [307, "?step=2", "/api/auth/token?step=2"],
+        [307, o["away"], nil],
+        [302, "/api/moved/token", nil],
+        [307, "/api/auth/token", nil],
+      ]
+
+      wrong = []
+      followed = 0
+      refused = 0
+      looped = 0
+
+      cases.each do |status, location, path|
+        o["lock"].synchronize do
+          o["answer"] = [status, location]
+          o["followed"].clear
+          o["exchanged"] = 0
+        end
+
+        res, message = redirect_probe(redirect_client(o, { "redirect" => "same-origin" }))
+        seen = "#{status} to #{location}: #{message} #{o['followed'].inspect}"
+
+        if path
+          if res.is_a?(Hash) && true == res["ok"] &&
+             "POST #{path}#{sent}" == o["followed"][0] && 2 == o["followed"].length
+            followed += 1
+          else
+            wrong << seen
+          end
+        elsif o["followed"].empty? &&
+              message.include?("token exchange failed: #{status} from #{o['base']}/auth/token")
+          refused += 1
+        else
+          wrong << seen
+        end
+
+        looped = o["exchanged"] if "/api/auth/token" == location
+      end
+
+      puts "secrets: exchange opt-in followed #{followed} redirect(s) on its own origin, " \
+        "refused #{refused}, #{o['elsewhere'].length} elsewhere"
+
+      assert_equal [], o["elsewhere"], "the exchange reached another origin"
+      assert_equal [], wrong
+      assert_equal 3, followed
+      assert_equal 3, refused
+      # A redirect to itself is followed up to the hop limit and no more.
+      assert_equal 6, looped
+    end
+  end
+
   # -------------------------------------------------------------------
   # The refusal is NOT retried. The gate lives at the transport, so a
   # provider ERROR must fail the operation once - never spin the chain, and
@@ -931,5 +1185,48 @@ class SecretsFeatureTest < Minitest::Test
     assert_equal 1, calls, "the refusal must not be retried"
     assert_equal 0, wire.calls.length,
       "a refused op must never yield a request: #{wire.calls.inspect}"
+  end
+
+  # -------------------------------------------------------------------
+  # Off by the config where it declares no auth, else by `auth: nil`: either
+  # way the feature places no credential, buys no token and retries nothing.
+
+  def test_auth_off_places_no_credential_and_buys_no_token
+    declared = VoxgigSolardemoConfig.shared_config["options"].key?("auth")
+    by = declared ? "option" : "config"
+    off = declared ? { "auth" => nil } : {}
+    secrets = ["OFFKEY01", "OFFKEY02", "OFFREFRESH01", "ACCESS01"]
+    carries = ->(call) { call["has"] || secrets.any? { |s| call["values"].include?(s) } }
+    sent = []
+    bought = 0
+
+    scenarios = [
+      ["a key the chain resolves", { "APIKEY" => "OFFKEY01" }, {}, {}, [200]],
+      ["an explicit apikey", {}, { "apikey" => "OFFKEY02" }, {}, [200]],
+      ["a refusal", { "REFRESH_TOKEN" => "OFFREFRESH01" }, {},
+       { "name" => "refresh_token", "exchange" => { "active" => true } }, [401]],
+    ]
+
+    scenarios.each do |what, env, sdkopts, fopts, statuses|
+      env.each { |k, v| setenv(k, v) }
+      wire = Wire.new
+      wire.apistatus = statuses
+      client = secrets_client(wire, sdkopts.merge(off).merge("feature" => secrets_opts(fopts)))
+      drive_op(client, wire)
+
+      assert_equal 1, wire.api.length, "#{what}: a request was retried with auth off"
+      assert_equal 0, wire.token.length, "#{what}: a token was bought with auth off"
+      refute carries.call(wire.api[0]), "#{what}: a credential was sent with auth off"
+      assert_equal "", secrets_feature_of(client).credential,
+        "#{what}: the feature resolved a credential with auth off"
+
+      sent.concat(wire.api)
+      bought += wire.token.length
+    ensure
+      env.each_key { |k| clearenv(k) }
+    end
+
+    puts "secrets: auth off by #{by}: #{sent.length} request(s), " \
+      "#{sent.count { |c| carries.call(c) }} credential(s), #{bought} token(s)"
   end
 end

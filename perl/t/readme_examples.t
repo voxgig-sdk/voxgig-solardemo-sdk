@@ -49,6 +49,11 @@ my %ENTITIES = (
   'Planet' => 'planet',
 );
 
+# Fixture key => the entity's declared identity field, where it is not "id".
+my %ID_FIELDS = (
+
+);
+
 # Documented SDK method names - used only to recognise the NARROW
 # signature/method-table "illustration" class.
 my @METHODS = qw(options_map get_utility prepare direct data_get data_set match_get match_set make get_name);
@@ -173,24 +178,25 @@ sub fixtures_literal {
   %refs = %ENTITIES unless %refs;
   my @pairs;
   for my $name (sort keys %refs) {
-    push @pairs, "'" . $refs{$name} . "' => { 'test01' => { 'id' => 'test01' } }";
+    my $storage = $refs{$name};
+    my $extra = exists $ID_FIELDS{$storage} ? ", '" . $ID_FIELDS{$storage} . "' => 'test01'" : '';
+    push @pairs, "'" . $storage . "' => { 'test01' => { 'id' => 'test01'" . $extra . " } }";
   }
   return "{ 'entity' => { " . join(', ', @pairs) . " } }";
 }
 
 
 # Rewrite a runnable block into an executable offline test-mode program: the
-# SDK lib is put on @INC by absolute path; any real ->new/->test constructor
-# becomes VoxgigSolardemoSDK->test(<fixtures>); a block that only uses $client gets
-# such a constructor prepended. The constructor arg match is deliberately
-# shallow (no nested parens) - runnable op blocks never build a client inline
-# with a paren-bearing argument.
+# SDK lib is put on @INC by absolute path; any real ->new/->test constructor,
+# its argument list matched to the parenthesis that balances it, becomes
+# VoxgigSolardemoSDK->test(<fixtures>); a block that only uses $client gets such a
+# constructor prepended.
 sub to_runner {
   my ($block) = @_;
   my $fixtures = fixtures_literal($block);
   my $body;
   if ($block =~ /\Q$SDK_CLASS\E->(?:new|test)\b/) {
-    ($body = $block) =~ s/\Q$SDK_CLASS\E->(?:new|test)(?:\s*\([^()]*\))?/$SDK_CLASS->test($fixtures)/g;
+    ($body = $block) =~ s/\Q$SDK_CLASS\E->(?:new|test)(?:\s*(?<args>\((?:[^()]++|(?&args))*\)))?/$SDK_CLASS->test($fixtures)/g;
   }
   else {
     $body = "my \$client = $SDK_CLASS->test($fixtures);\n" . $block;

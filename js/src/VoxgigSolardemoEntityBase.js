@@ -39,10 +39,10 @@ class VoxgigSolardemoEntityBase {
   }
 
 
-  // True once a successful `remove` resolves on this instance. `remove`
+  // True once a remove has marked this instance deleted. A remove
   // resolves to the entity like every other operation, and the instance KEEPS
   // the data it held — a caller can still read what was deleted — but it is
-  // no longer a live record. See AGENTS.md.
+  // no longer a live record.
   markDeleted() {
     this._deleted = true
   }
@@ -96,12 +96,11 @@ class VoxgigSolardemoEntityBase {
 
   // Streaming operations. Runs `action` through the full pipeline and returns
   // an async iterator over result items, so the `streaming` feature's
-  // incremental output is reachable from a generated entity (a normal op call
-  // materialises the whole result). `callopts` parameterises the call:
-  //   - inbound (download): iterate the yielded items/chunks (from the
-  //     streaming feature when active, else the materialised items);
-  //   - outbound (upload): pass an async-iterable `body` to stream a request
-  //     payload — it is attached to the request so the transport can send it;
+  // incremental output, when that feature is active, is reachable from a
+  // generated entity (a normal op call materialises the whole result).
+  // `callopts` parameterises the call:
+  //   - iterate the yielded items/chunks (from the streaming feature when
+  //     active, else the materialised items);
   //   - `ctrl` (pipeline control) and `signal` (AbortSignal) are honoured:
   //     an abort cancels the request and ends the iteration.
   async *stream(action, args, callopts) {
@@ -126,13 +125,6 @@ class VoxgigSolardemoEntityBase {
       data: this._data,
       ...(args || {}),
     }, this._entctx)
-
-    // Outbound: expose the caller's async-iterable payload so the request
-    // builder / transport can stream it as the request body.
-    if (null != callopts.body) {
-      ctx.reqdata = { ...(ctx.reqdata || {}), body$: callopts.body }
-      ctx.stream_out = callopts.body
-    }
 
     try {
       const failed = await this._streamSteps(ctx)
@@ -161,8 +153,10 @@ class VoxgigSolardemoEntityBase {
     catch (err) {
       // What a hook throws here must not escape the cleaning below.
       try {
-        const fres = featureHook(ctx, 'PreUnexpected')
-        if (fres instanceof Promise) { await fres }
+        if (!ctx.unexpectedFired) {
+          const fres = featureHook(ctx, 'PreUnexpected')
+          if (fres instanceof Promise) { await fres }
+        }
       }
       catch (hookerr) {
         err = hookerr

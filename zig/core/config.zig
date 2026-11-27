@@ -11,7 +11,7 @@ pub fn make_config() Value {
         .{ "main", h.jo(&.{
             .{ "name", h.vstr("VoxgigSolardemo") },
             .{ "slug", h.vstr("voxgig-solardemo") },
-            .{ "version", h.vstr("0.1.0") },
+            .{ "version", h.vstr("0.0.1") },
             .{ "target", h.vstr("zig") },
         }) },
         .{ "feature", h.jo(&.{
@@ -130,6 +130,7 @@ pub fn make_config() Value {
                         .{ "active", h.vbool(false) },
                         .{ "method", h.vstr("POST") },
                         .{ "path", h.vstr("auth/token") },
+                        .{ "redirect", h.vstr("refuse") },
                         .{ "refresh", h.vstr("") },
                         .{ "request", h.vstr("refresh_token") },
                         .{ "response", h.vstr("access_token") },

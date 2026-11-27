@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, entityIdField, pickExampleEntity, opRequestShape, elixirAccessor, entityCollection, exampleVarName, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, entityIdField, pickExampleEntity, elixirAccessor, entityCollection, exampleVarName, requiredItems, matchExampleItems, requestExampleItems, cdTarget, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -12,6 +12,7 @@ import { elixirLit, elixirString } from './utility_elixir'
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
 
   const Name = model.const.Name
   const entity = getModelPath(model, `main.${KIT}.entity`)
@@ -26,12 +27,15 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = 'H.deep(%{})'
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `H.deep(%{"${idF}" => "test01"})` : 'H.deep(%{})'
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = `H.deep(%{${items.map((it: any) =>
+      `${elixirString(it.name)} => ${it.name === idF ? '"test01"' : elixirLit(it.type)}`).join(', ')}})`
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
     const chosen = requiredItems(exampleEntity, 'list')
     testArg = `H.deep(%{${chosen.map((it: any) => `${elixirString(it.name)} => ${elixirLit(it.type)}`).join(', ')}})`
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -39,7 +43,7 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   }
 
   const testModeExample = primaryOp
-    ? `# Entity ops return the entity, and list one per record (raise on error).
+    ? `# Entity ops return the entity${'list' === primaryOp ? ', and list one per record' : ''} (raise on error).
 ${eVar} = ${Name}.${eCall}(sdk)
 ${'list' === primaryOp
   ? `${eVar}s = ${Name}.Entity.${eName}.list(${eVar}, ${testArg})
@@ -51,10 +55,6 @@ IO.puts(Voxgig.Struct.jsonify(${Name}.Entity.${eName}.data_get(${eVar})))`}`
     : `result = ${Name}.direct(sdk, H.deep(%{"path" => "/api/resource", "method" => "GET"}))
 IO.inspect(result)`
 
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
-    : ''
-
   Content(`### Make a direct HTTP request
 
 For endpoints not covered by entity operations. \`direct/2\` never raises —
@@ -65,9 +65,9 @@ alias Voxgig.Struct, as: S
 alias ${Name}.Helpers, as: H
 
 result = ${Name}.direct(sdk, H.deep(%{
-  "path" => "/api/resource/{id}",
-  "method" => "GET",
-  "params" => %{"id" => "example"}
+  "path" => "${dx.path}",
+  "method" => "${dx.method}",
+  "params" => %{"${dx.param}" => "example"}
 }))
 
 if S.getprop(result, "ok") do
@@ -87,9 +87,9 @@ alias ${Name}.Helpers, as: H
 
 # prepare/2 returns the fetch definition and raises on error.
 fetchdef = ${Name}.prepare(sdk, H.deep(%{
-  "path" => "/api/resource/{id}",
-  "method" => "DELETE",
-  "params" => %{"id" => "example"}
+  "path" => "${dx.path}",
+  "method" => "${dx.method}",
+  "params" => %{"${dx.param}" => "example"}
 }))
 
 IO.inspect(Voxgig.Struct.getprop(fetchdef, "url"))
@@ -133,18 +133,13 @@ sdk = ${Name}.new(H.deep(%{
 }))
 \`\`\`
 
-### Run live tests
+### Run the test suite
 
-Create a \`.env.local\` file at the project root:
-
-\`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
-\`\`\`
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 \`\`\`bash
-cd ${target.name} && mix test
+${cdTarget(target)}mix test
 \`\`\`
 
 `)

@@ -100,13 +100,17 @@ $REGISTRY{make_point} = sub {
       "Operation \"$op->{name}\" has no endpoint definitions."));
   }
 
-  if (1 == @{ $op->{points} }) {
+  my $reqselector = ('data' eq $op->{input}) ? $ctx->{reqdata} : $ctx->{reqmatch};
+  my $selector = ('data' eq $op->{input}) ? $ctx->{data} : $ctx->{match};
+
+  # A lone point still needs the call's action to agree with its own; the
+  # selection below refuses a mismatch either way.
+  if (1 == @{ $op->{points} } &&
+    VoxgigSolardemoHelpers::eqv(VoxgigSolardemoHelpers::gp($reqselector, '$action'),
+      VoxgigSolardemoHelpers::gp(VoxgigSolardemoHelpers::gp($op->{points}[0], 'select'), '$action'))) {
     $ctx->{point} = $op->{points}[0];
   }
   else {
-    my $reqselector = ('data' eq $op->{input}) ? $ctx->{reqdata} : $ctx->{reqmatch};
-    my $selector = ('data' eq $op->{input}) ? $ctx->{data} : $ctx->{match};
-
     my $point;
     my $matched = 0;
     for my $p (@{ $op->{points} }) {

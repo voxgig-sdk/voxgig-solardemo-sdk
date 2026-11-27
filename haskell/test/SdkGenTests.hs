@@ -74,7 +74,7 @@ moonBasicTest c = do
     setp em1 "planet_id" =<< getp rec0 "planet_id"
     lst <- eList ent em1 em2
     -- `list` resolves to one ENTITY per record; the record is reached
-    -- through eDataGet. See AGENTS.md "Entity operations return ENTITIES".
+    -- through eDataGet.
     ok <- mapM (\en -> ismap <$> eDataGet en) lst
     pure (all id ok)
   runTest c "moon.load" $ do
@@ -237,7 +237,7 @@ planetBasicTest c = do
     em1 <- emptyMap; em2 <- emptyMap
     lst <- eList ent em1 em2
     -- `list` resolves to one ENTITY per record; the record is reached
-    -- through eDataGet. See AGENTS.md "Entity operations return ENTITIES".
+    -- through eDataGet.
     ok <- mapM (\en -> ismap <$> eDataGet en) lst
     pure (all id ok)
   runTest c "planet.load" $ do

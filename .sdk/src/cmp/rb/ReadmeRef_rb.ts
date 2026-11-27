@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, canonToType, canonKey, canonScalarKey, File, isAuthActive, entityIdField, opRequestShape, safeVarName, exampleVarName , targetFeatures, opNeedsAction, bodyNote } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, canonKey, canonScalarKey, File, isAuthActive, entityIdField, safeVarName, exampleVarName, entityOps, bodyNote, matchExampleItems, litString, requestExampleItems, entityClassName, entityCollection, featureDocs, fact, clientOptions, requiredItems } from '@voxgig/sdkgen'
 import { ReadmeRefFeatures } from '@voxgig/sdkgen'
 
 import {
@@ -20,9 +20,11 @@ function rbLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k) return '[]'
   if ('OBJECT' === k) return '{}'
-  return `"${placeholder}"`
+  return litString('rb', placeholder)
 }
 
+
+const LIST_ALL = ' (call with no argument to list all).'
 
 const OP_SIGNATURES: Record<string, { sig: string, returns: string, desc: string }> = {
   load: {
@@ -33,7 +35,7 @@ const OP_SIGNATURES: Record<string, { sig: string, returns: string, desc: string
   list: {
     sig: 'list(reqmatch = nil, ctrl = nil) -> Array',
     returns: 'Array of entities, one per record',
-    desc: 'List entities matching the given criteria (call with no argument to list all). Returns an array of entities, one per record; `data_get` reads each record. Raises on error.',
+    desc: 'List entities matching the given criteria' + LIST_ALL + ' Returns an array of entities, one per record; `data_get` reads each record. Raises on error.',
   },
   create: {
     sig: 'create(reqdata, ctrl = nil) -> result',
@@ -58,13 +60,12 @@ const OP_SIGNATURES: Record<string, { sig: string, returns: string, desc: string
 }
 
 
+
 const ReadmeRef = cmp(function ReadmeRef(props: any) {
   const { target } = props
   const { model } = props.ctx$
 
   const entity = getModelPath(model, `main.${KIT}.entity`)
-  const feature = targetFeatures(model, target)
-
   const publishedEntities = each(entity).filter((e: any) => e.active !== false)
 
 
@@ -81,6 +82,10 @@ Complete API reference for the ${model.Name} ${target.title} SDK.
 
 `)
 
+    const OPTION_KIND: Record<string, string> = { string: 'String', map: 'Hash', list: 'Array' }
+    const optionRows = clientOptions(model)
+      .map((o: any) => '| `options["' + o.name + '"]` | `' + OPTION_KIND[o.kind] + '` | ' + o.desc + ' |\n').join('')
+
     Content(`\`\`\`ruby
 require_relative '${model.const.Name}_sdk'
 
@@ -94,13 +99,7 @@ Create a new SDK client instance.
 | Name | Type | Description |
 | --- | --- | --- |
 | \`options\` | \`Hash\` | SDK configuration options. |
-${isAuthActive(model) ? '| \`options["apikey"]\` | \`String\` | API key for authentication. |\n' : ''}| \`options["base"]\` | \`String\` | Base URL for API requests. |
-| \`options["prefix"]\` | \`String\` | URL prefix appended after base. |
-| \`options["suffix"]\` | \`String\` | URL suffix appended after path. |
-| \`options["headers"]\` | \`Hash\` | Custom headers for all requests. |
-| \`options["feature"]\` | \`Hash\` | Feature configuration. |
-| \`options["system"]\` | \`Hash\` | System overrides (e.g. custom fetch). |
-
+${optionRows}
 `)
 
 
@@ -176,7 +175,7 @@ same parameters as \`direct()\`. Raises on error.
 
     // Entity reference sections
     publishedEntities.map((ent: any) => {
-      const opnames = Object.keys(ent.op || {})
+      const opnames = entityOps(ent)
       const fields = Object.values(ent.fields || {})
       // Model-driven id key: null when this entity has no id-like field, in
       // which case load/remove match on no argument and update omits the id.
@@ -188,12 +187,12 @@ same parameters as \`direct()\`. Raises on error.
       Content(`
 ---
 
-## ${ent.Name}Entity
+## ${entityClassName(ent, entityCollection(model))}
 
 `)
 
-      if (ent.short) {
-        Content(`${ent.short}
+      if (fact(ent, 'desc').inline) {
+        Content(`${fact(ent, 'desc').inline}
 
 `)
       }
@@ -213,8 +212,8 @@ ${eVar} = client.${ent.Name}
 `)
         each(fields, (field: any) => {
           const req = field.r ? 'Yes' : 'No'
-          const desc = field.sh || ''
-          Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${req} | ${desc} |
+          const desc = fact(model.main[KIT], 'field')[ent.name]?.[field.n]?.desc.cell ?? ''
+          Content(`| \`${field.n}\` | \`${canonToType(field.t, 'rb').replace(/\|/g, '\\|')}\` | ${req} | ${desc} |
 `)
         })
 
@@ -227,7 +226,7 @@ ${eVar} = client.${ent.Name}
           // Only emit columns for operations this entity actually exposes —
           // never advertise a create/update/remove column the entity lacks.
           const opcols = ['load', 'list', 'create', 'update', 'patch', 'remove']
-            .filter((op: string) => opnames.includes(op) && ent.op[op]?.active !== false)
+            .filter((op: string) => opnames.includes(op))
           Content(`### Field Usage by Operation
 
 | Field | ${opcols.join(' | ')} |
@@ -259,28 +258,27 @@ ${eVar} = client.${ent.Name}
         opnames.map((opname: string) => {
           const info = OP_SIGNATURES[opname]
           if (!info) return
+          const needs = requiredItems(ent, opname).map((it: any) => it.name)
+          const desc = info.desc.replace(' The data must include the entity `id`.',
+            null != idF && needs.includes(idF) ? ' The data must include the entity `' + idF + '`.' : '')
+            .replace(LIST_ALL, 0 === needs.length ? LIST_ALL : '.' + ' The match must include ' + needs.map((n: string) => '`' + n + '`').join(', ') + '.')
 
           Content(`#### \`${info.sig}\`
 
-${info.desc}
+${desc}
 
 `)
-
-          if (opNeedsAction(ent.op[opname])) {
-            return
-          }
 
           if ('load' === opname || 'remove' === opname) {
             // The id key plus every REQUIRED match key (parent path params
             // like page_id) — the same shape the runtime resolves path
             // params from, so the example always works.
-            const matchItems = opRequestShape(ent, opname).items
-              .filter((it: any) => !it.optional || it.name === idF)
+            const matchItems = matchExampleItems(ent, opname, idF)
               .sort((a: any, b: any) =>
                 (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
             const arg = 0 < matchItems.length
               ? `{ ${matchItems.map((it: any) =>
-                `"${it.name}" => ${rbLit(it.type,
+                `${litString('rb', it.name)} => ${rbLit(it.type,
                   it.name === idF ? ent.name + '_id' : it.name)}`).join(', ')} }`
               : ''
             Content(`\`\`\`ruby
@@ -303,13 +301,13 @@ results.each { |item| puts item.data_get }
             // a required id and parent keys like page_id — with a real,
             // executable literal (the doc test RUNS this block, so a comment
             // placeholder would break it).
-            const createItems = opRequestShape(ent, 'create').items
+            const createItems = requestExampleItems(ent, 'create')
               .filter((it: any) => !it.optional)
             Content(`\`\`\`ruby
 result = client.${ent.Name}.create({
 `)
             createItems.map((it: any) => {
-              Content(`  "${it.name}" => ${rbLit(it.type, 'example_' + it.name)}, # ${canonToType(it.type, target.name)}
+              Content(`  ${litString('rb', it.name)} => ${rbLit(it.type, 'example_' + it.name)}, # ${canonToType(it.type, 'rb')}
 `)
             })
             Content(`})
@@ -320,13 +318,14 @@ result = client.${ent.Name}.create({
           else if ('update' === opname || 'patch' === opname) {
             // The id key plus every REQUIRED data member — the same shape the
             // runtime validates — then the patch-fields note.
-            const updateItems = opRequestShape(ent, opname).items
+            const updateItems = requestExampleItems(ent, opname)
               .filter((it: any) => !it.optional || it.name === idF)
               .sort((a: any, b: any) =>
                 (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
             const updateLines = updateItems.map((it: any) =>
-              `  "${it.name}" => ${rbLit(it.type,
+              `  ${litString('rb', it.name)} => ${rbLit(it.type,
                 it.name === idF ? ent.name + '_id' : it.name)},\n`).join('')
+
             Content(`\`\`\`ruby
 result = client.${ent.Name}.${opname}({
 ${updateLines}  # ${'patch' === opname ? 'Only the fields to change' : 'Fields to update'}
@@ -367,7 +366,7 @@ Set the entity match criteria.
 
 #### \`make -> Entity\`
 
-Create a new \`${ent.Name}Entity\` instance with the same client and
+Create a new \`${entityClassName(ent, entityCollection(model))}\` instance with the same client and
 options.
 
 #### \`get_name -> String\`
@@ -378,7 +377,7 @@ Return the entity name.
     })
 
 
-    const activeFeatures = each(feature).filter((f: any) => f.active)
+    const activeFeatures = featureDocs(model, target)
     if (activeFeatures.length > 0) {
       Content(`
 ---
@@ -390,7 +389,7 @@ Return the entity name.
 `)
 
       activeFeatures.map((f: any) => {
-        Content(`| \`${f.name}\` | ${f.version || '0.0.1'} | ${f.title || ''} |
+        Content(`| \`${f.name}\` | ${f.version} | ${f.titleCell} |
 `)
       })
 

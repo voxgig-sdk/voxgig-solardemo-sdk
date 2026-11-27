@@ -4,6 +4,10 @@
   ],
   "config": ".sdk/doc/qa/vale.ini",
   "routes": {},
+  "identifiers": [
+    "Moon",
+    "Planet"
+  ],
   "quoted": {
     "SUMMARY.md": [
       "Created",

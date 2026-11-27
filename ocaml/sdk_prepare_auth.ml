@@ -15,7 +15,7 @@ open Sdk_helpers
 (* THE PLACEMENT THIS SDK WAS GENERATED FOR, DECLARED rather than left
  * implicit in the code below.
  *
- *   cred_active  false only for main.kit.config.auth.active: false
+ *   cred_active  false when this SDK is configured with authentication off
  *   cred_where   header | query | cookie
  *   cred_name    the key used - ALREADY LOWER-CASED for a header, because
  *                every header key the runtime writes is; verbatim for a
@@ -27,43 +27,15 @@ open Sdk_helpers
  * SDK whose scheme is not a header - precisely the SDK this change exists to
  * make work. Reading them is not circular: the assertions still drive the
  * real prepare_auth and check the bag, key and value it actually wrote. *)
-let cred_active = true
+let cred_active = false
 let cred_where = "header"
 let cred_name = "authorization"
 
-let option_apikey = "apikey"
-let not_found = "__NOTFOUND__"
-
-(* The client's auth.name option, when set, replaces the name the API declares. *)
-let auth_name (options : value) : string =
-  match getpath_s options "auth.name" with
-  | Str s when s <> "" -> String.lowercase_ascii s
-  | _ -> cred_name
-
+(* This SDK is configured with authentication off, so there is no credential
+ * to place.
+ * The function stays in the pipeline because make_spec calls it
+ * unconditionally. *)
 let prepare_auth_util (ctx : ctx) : (spec option * sdk_error option) =
   match ctx.c_spec with
   | None -> (None, Some (ctx_make_error ctx "auth_no_spec" "Expected context spec property to be defined."))
-  | Some spec ->
-    let headers = spec.sp_headers in
-    let options = client_options_map (cc ctx) in
-    (match getp options "auth" with
-     (* `auth: null` is the documented suppression, and a public API that
-      * needs no auth omits the block entirely. Both land here. *)
-     | Noval | Null -> ignore (delprop headers (Str cred_name)); (Some spec, None)
-     | _ ->
-       let name = auth_name options in
-       (* A credential left under the declared name would travel beside the renamed one. *)
-       if name <> cred_name then ignore (delprop headers (Str cred_name));
-       let apikey = getprop ~alt:(Str not_found) options (Str option_apikey) in
-       let is_notfound = (match apikey with Str s -> s = not_found | _ -> false) in
-       let no_apikey = is_notfound || is_noval apikey || apikey = Str "" in
-       if no_apikey then
-         ignore (delprop headers (Str name))
-       else begin
-         let auth_prefix = match getpath_s options "auth.prefix" with Str s -> s | _ -> "" in
-         let apikey_val = match apikey with Str s -> s | _ -> "" in
-         (* Empty prefix (a raw apiKey credential) must not add a leading space. *)
-         let authval = if auth_prefix <> "" then auth_prefix ^ " " ^ apikey_val else apikey_val in
-         setp headers name (Str authval)
-       end;
-       (Some spec, None))
+  | Some spec -> (Some spec, None)

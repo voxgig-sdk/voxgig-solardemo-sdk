@@ -1,6 +1,6 @@
 # VoxgigSolardemo Lua — Agent Guide
 
-The Lua client for the VoxgigSolardemo API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
+The Lua client for the Solar System API. This directory is **generated** — do not edit it by hand; change the model/template/component in `.sdk/` and regenerate. See the [project guide](../AGENTS.md) for the full workflow and the aontu model language.
 
 > Paths below (`.sdk/…`) are relative to the **project root** — one level up
 > from this `lua/` directory.
@@ -12,6 +12,10 @@ cd ../.sdk
 npm run build        # only if you changed a component
 npm run generate     # refreshes this lua/ directory
 ```
+
+Each `npm run generate` rewrites every file it generates, so an edit
+made to generated output is lost, and deletes the files it generated before
+and no longer emits. A target or a phase switched off is left as it was.
 
 Then build and test the generated output:
 
@@ -34,24 +38,28 @@ make test
 Decision rule: *same for every API → template; depends on the API →
 component.* After editing a component run `npm run build` before
 `npm run generate`; template-only edits just need `npm run generate`.
+`target add` and `feature add` overwrite the templates and components
+in `.sdk/` (`main: kit: copies: 'overwrite'`): set `copies` to
+`'merge'` before customising them, so that an add merges toolchain updates
+into the edited copies.
 
 ## Features in this target
 
-Each feature is a flat file in the `feature/` package. Its hooks and
-default activation come from `.sdk/model/feature/<name>.aontu`; customise
-the runtime under `.sdk/tm/lua/feature/` and regenerate.
+Each feature's hooks and default activation come from
+`.sdk/model/feature/<name>.aontu`. Its runtime is generated from the template
+listed here: customise that and regenerate.
 
-| Feature | Runtime file | Active hooks |
+| Feature | Template | Active hooks |
 | --- | --- | --- |
-| **debug** — Debug capture | `feature/debug_feature.lua` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
-| **idempotency** — Idempotency | `feature/idempotency_feature.lua` | `PreRequest` |
-| **metrics** — Metrics | `feature/metrics_feature.lua` | `PreDone`, `PrePoint`, `PreUnexpected` |
-| **paging** — Paging | `feature/paging_feature.lua` | `PreRequest`, `PreResult` |
-| **ratelimit** — Rate limiting | `feature/ratelimit_feature.lua` | — |
-| **retry** — Retry | `feature/retry_feature.lua` | — |
-| **secrets** — Secrets | `feature/secrets_feature.lua` | `PreSpec` |
-| **test** — Test transport | `feature/test_feature.lua` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
-| **timeout** — Timeout | `feature/timeout_feature.lua` | — |
+| **debug** — Debug capture | `.sdk/tm/lua/feature/debug_feature.lua` | `PreDone`, `PreRequest`, `PreResponse`, `PreUnexpected` |
+| **idempotency** — Idempotency | `.sdk/tm/lua/feature/idempotency_feature.lua` | `PreRequest` |
+| **metrics** — Metrics | `.sdk/tm/lua/feature/metrics_feature.lua` | `PreDone`, `PrePoint`, `PreUnexpected` |
+| **paging** — Paging | `.sdk/tm/lua/feature/paging_feature.lua` | `PreRequest`, `PreResult` |
+| **ratelimit** — Rate limiting | `.sdk/tm/lua/feature/ratelimit_feature.lua` | — |
+| **retry** — Retry | `.sdk/tm/lua/feature/retry_feature.lua` | — |
+| **secrets** — Secrets | `.sdk/tm/lua/feature/secrets/` | `PreSpec` |
+| **test** — Test transport | `.sdk/tm/lua/feature/test_feature.lua` | `GetData`, `GetMatch`, `PostConstruct`, `PostConstructEntity`, `PrePoint`, `PreRequest`, `PreResponse`, `PreResult`, `PreSpec`, `SetData`, `SetMatch` |
+| **timeout** — Timeout | `.sdk/tm/lua/feature/timeout_feature.lua` | — |
 
 ---
 

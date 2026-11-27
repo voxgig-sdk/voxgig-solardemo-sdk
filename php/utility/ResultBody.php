@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 // VoxgigSolardemo SDK utility: result_body
 
+require_once __DIR__ . '/Media.php';
+
 class VoxgigSolardemoResultBody
 {
     public const PREVIEW_LENGTH = 160;
@@ -28,14 +30,15 @@ class VoxgigSolardemoResultBody
     public static function unreadable(VoxgigSolardemoContext $ctx, int $status, mixed $headers,
         mixed $text, mixed $sent, mixed $failed): mixed
     {
-        $type = self::header($headers, 'content-type');
-        $agent = (string)($ctx->utility->clean)($ctx, self::header($sent, 'user-agent'));
+        $type = VoxgigSolardemoMedia::headerValue($headers, 'content-type');
+        $agent = (string)($ctx->utility->clean)($ctx, VoxgigSolardemoMedia::headerValue($sent, 'user-agent'));
         if ('' === $agent) {
             $agent = 'transport default';
         }
         $detail = "HTTP {$status}, content-type " . ('' === $type ? 'none' : $type) .
             ", user-agent {$agent}";
-        if (null !== $text) {
+        // Only text is quoted: bytes are a file's, by the model or by their type.
+        if (null !== $text && !VoxgigSolardemoMedia::isBinaryResponse($ctx->point, $type)) {
             $detail .= ', body: ' . self::preview($ctx, $text);
         }
 
@@ -58,19 +61,6 @@ class VoxgigSolardemoResultBody
         }
         return $ctx->make_error('response_content_type',
             "response: expected JSON, got {$type} ({$detail})");
-    }
-
-    private static function header(mixed $headers, string $name): string
-    {
-        if (!is_array($headers)) {
-            return '';
-        }
-        foreach ($headers as $key => $val) {
-            if (strtolower((string)$key) === $name) {
-                return (string)$val;
-            }
-        }
-        return '';
     }
 
     // Cleaned whole: a secret the bound would split could leave its prefix.

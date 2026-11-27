@@ -1,5 +1,5 @@
 
-import { cmp, each, Content, canonToType, canonKey, entityIdField, opRequestShape, opNeedsAction, javaMap, javaMapOf } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonToType, canonKey, entityIdField, entityOps, javaMap, javaMapOf, matchExampleItems, javaMapItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -43,9 +43,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     const idF = entityIdField(entity)
     // Sanitise the local variable name — a camelCased Java keyword gets a
@@ -58,8 +56,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -94,8 +92,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
-        Content(`| \`${field.n}\` | \`${canonToType(field.t, target.name)}\` | ${desc} |
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
+        Content(`| \`${field.n}\` | \`${canonToType(field.t, 'java').replace(/\|/g, '\\|')}\` | ${desc} |
 `)
       })
 
@@ -103,17 +101,16 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
+    if (opnames.includes('load')) {
       // The id key plus every REQUIRED match key (parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = javaMapItems(matchExampleItems(entity, 'load', idF))
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? javaMapOf(loadItems.map((it: any) =>
-          `"${it.name}", ${javaLit(it.type,
+          `${JSON.stringify(it.name)}, ${javaLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)}`))
         : 'null'
       Content(`#### Example: Load
@@ -125,7 +122,7 @@ Object ${eVar} = client.${accessor}(null).load(${loadArg}, null);
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`java
@@ -135,11 +132,11 @@ Object ${eVar}List = client.${accessor}(null).list(${javaListMatch(entity)}, nul
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member must appear — including a
       // required id and parent keys like page_id — with a real literal.
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = javaMapItems(requestExampleItems(entity, 'create'))
         .filter((it: any) => !it.optional)
       const createMap = javaMap(createItems.length)
       Content(`#### Example: Create
@@ -149,7 +146,7 @@ Object ${eVar} = client.${accessor}(null).create(${createMap.open}
 `)
       createItems.map((it: any, i: number) => {
         const comma = i < createItems.length - 1 ? ',' : ''
-        Content(`    ${createMap.pair(`"${it.name}", ${javaLit(it.type, 'example_' + it.name)}`)}${comma}  // ${canonToType(it.type, target.name)}
+        Content(`    ${createMap.pair(`${JSON.stringify(it.name)}, ${javaLit(it.type, 'example_' + it.name)}`)}${comma}  // ${canonToType(it.type, 'java')}
 `)
       })
       Content(`), null);

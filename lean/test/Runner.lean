@@ -41,7 +41,7 @@ def check (cond : Bool) (msg : String) : SIO Unit := do
 -- The lean runtime carries the credential in the Authorization header
 -- whatever the model's placement says (its prepareAuth is header-only), so
 -- that is the slot asserted. Placement: header (authorization), basic: false.
-def authSuppressed : Bool := false
+def authSuppressed : Bool := true
 
 def canaryApikey : String := "CANARY-APIKEY-k9x2m7q4p1"
 def canarySecret : String := "CANARY-SECRET-w3e8r5t2y6"

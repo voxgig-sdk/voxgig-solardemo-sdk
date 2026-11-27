@@ -50,7 +50,7 @@ class Config {
   main = {
     name: 'VoxgigSolardemo',
         slug: "voxgig-solardemo",
-    version: "0.1.0",
+    version: "0.0.1",
     target: "ts",
 
   }
@@ -172,6 +172,7 @@ class Config {
           "active": false,
           "method": "POST",
           "path": "auth/token",
+          "redirect": "refuse",
           "refresh": "",
           "request": "refresh_token",
           "response": "access_token",

@@ -2,10 +2,15 @@ package utility
 
 import (
 	"bytes"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 
@@ -18,7 +23,7 @@ import (
 // fresh connection every call; a cached one pools like http.DefaultClient.
 var proxyClients sync.Map
 
-func clientFor(fetchdef map[string]any) *http.Client {
+func clientFor(ctx *core.Context, fetchdef map[string]any) *http.Client {
 	client := http.DefaultClient
 
 	if proxy, ok := fetchdef["proxy"].(string); ok && proxy != "" {
@@ -42,21 +47,106 @@ func clientFor(fetchdef map[string]any) *http.Client {
 	}
 
 	// A shallow copy shares the pooled Transport; only CheckRedirect differs.
+	policy := *client
+	policy.CheckRedirect = followRedirect(ctx)
 	if redirect, ok := fetchdef["redirect"].(string); ok && redirect == "manual" {
-		manual := *client
-		manual.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		policy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
-		client = &manual
 	}
 
-	return client
+	return &policy
 }
 
-func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, error) {
+const maxRedirects = 5
+
+var credentialHeaders = []string{"authorization", "cookie", "proxy-authorization"}
+
+// What another origin is not sent: the names every client drops, and
+// whatever the SDK holds as a secret, by its name or by its value.
+func isCredential(ctx *core.Context, name string, value string) bool {
+	for _, fixed := range credentialHeaders {
+		if strings.EqualFold(fixed, name) {
+			return true
+		}
+	}
+	return ctx != nil && ctx.Utility != nil && ctx.Utility.CleanSecret != nil &&
+		ctx.Utility.CleanSecret(ctx, name, value)
+}
+
+// Scheme, host and port; a URL that names no port is on its scheme's own.
+func originOf(u *url.URL) string {
+	scheme := strings.ToLower(u.Scheme)
+	port := u.Port()
+	if "" == port {
+		port = map[string]string{"http": "80", "https": "443"}[scheme]
+	}
+	return scheme + "://" + strings.ToLower(u.Hostname()) + ":" + port
+}
+
+// Each redirect passes the GET-only guard before it is sent; past
+// maxRedirects hops, or where a body would go on to another origin, the last
+// 3xx is the answer. net/http copies the first request's headers onto every
+// hop, its Authorization and Cookie too while the host is the same: so once
+// a chain has left its first origin, no request in it keeps a credential.
+func followRedirect(ctx *core.Context) func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if len(via) > maxRedirects {
+			return http.ErrUseLastResponse
+		}
+
+		home := originOf(via[0].URL)
+		left := home != originOf(req.URL)
+		for _, sent := range via {
+			left = left || home != originOf(sent.URL)
+		}
+
+		if left {
+			if nil != req.Body && http.NoBody != req.Body {
+				return http.ErrUseLastResponse
+			}
+			// net/http adds a Referer naming the URL it came from, query and all.
+			req.Header.Del("Referer")
+			for name, values := range req.Header {
+				if isCredential(ctx, name, strings.Join(values, ", ")) {
+					delete(req.Header, name)
+				}
+			}
+		}
+
+		return getOnlyRefusal(req.URL.String(), req.Method)
+	}
+}
+
+const getOnlyEnv = "VOXGIG_GETONLY_GUARD"
+
+// A GET-only live run refuses any other method before it is sent. The error
+// names the path alone: the query can carry a credential.
+func getOnlyRefusal(fullurl string, method string) error {
+	method = strings.ToUpper(method)
+	if os.Getenv(getOnlyEnv) != "TRUE" || method == "GET" {
+		return nil
+	}
+	rest := fullurl
+	if i := strings.Index(rest, "://"); i >= 0 {
+		rest = rest[i+3:]
+		rest = rest[strings.IndexAny(rest+"/", "/?#"):]
+	}
+	path := rest[:strings.IndexAny(rest+"?", "?#")]
+	if path == "" {
+		path = "/"
+	}
+	return core.NewVoxgigSolardemoError("fetch_getonly_block",
+		"[GET-ONLY GUARD] blocked "+method+" "+path, nil)
+}
+
+func defaultHTTPFetch(ctx *core.Context, fullurl string, fetchdef map[string]any) (map[string]any, error) {
 	method, _ := fetchdef["method"].(string)
 	if method == "" {
 		method = "GET"
+	}
+	if err := getOnlyRefusal(fullurl, method); err != nil {
+		return nil, err
 	}
 
 	var bodyReader io.Reader
@@ -88,8 +178,9 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 		}
 	}
 	// Default User-Agent — Go's net/http defaults to "Go-http-client/1.1"
-	// which some CDNs block. Use a Mozilla-shaped UA unless the caller
-	// already set one, and record it with the headers the request sent.
+	// which some CDNs block. Use the project's agent (main.kit.http.useragent,
+	// browser-shaped by default) unless the caller already set one, and record
+	// it with the headers the request sent.
 	if !hasUA {
 		agent := "Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)"
 		req.Header.Set("User-Agent", agent)
@@ -98,13 +189,17 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 		}
 	}
 
-	resp, err := clientFor(fetchdef).Do(req)
+	resp, err := clientFor(ctx, fetchdef).Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	bodyBytes, err = decodeBody(bodyBytes, resp.Header.Get("Content-Encoding"))
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +234,38 @@ func defaultHTTPFetch(fullurl string, fetchdef map[string]any) (map[string]any, 
 	}, nil
 }
 
+// A body net/http left encoded: it decodes gzip only when it asked for gzip
+// itself, and deflate never. Deflate is zlib-wrapped, or raw
+// as some servers send it.
+func decodeBody(body []byte, encoding string) ([]byte, error) {
+	encoding = strings.ToLower(strings.TrimSpace(encoding))
+	if len(body) == 0 {
+		return body, nil
+	}
+	var reader io.Reader
+	switch encoding {
+	case "gzip", "x-gzip":
+		zr, err := gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("response body is not valid %s data: %w", encoding, err)
+		}
+		reader = zr
+	case "deflate":
+		if zr, err := zlib.NewReader(bytes.NewReader(body)); err == nil {
+			reader = zr
+		} else {
+			reader = flate.NewReader(bytes.NewReader(body))
+		}
+	default:
+		return body, nil
+	}
+	out, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("response body is not valid %s data: %w", encoding, err)
+	}
+	return out, nil
+}
+
 func fetcherUtil(ctx *core.Context, fullurl string, fetchdef map[string]any) (any, error) {
 	if ctx.Client.Mode != "live" {
 		return nil, ctx.MakeError("fetch_mode_block",
@@ -156,7 +283,7 @@ func fetcherUtil(ctx *core.Context, fullurl string, fetchdef map[string]any) (an
 	sysFetch := vs.GetPath(options, []any{"system", "fetch"})
 
 	if sysFetch == nil {
-		return defaultHTTPFetch(fullurl, fetchdef)
+		return defaultHTTPFetch(ctx, fullurl, fetchdef)
 	}
 
 	if fetchFunc, ok := sysFetch.(func(string, map[string]any) (map[string]any, error)); ok {

@@ -10,5 +10,5 @@ FEATURE_TEST_SRCS += $(wildcard tests/feature/secrets/*.c)
 
 # No plugin group is active: the plugin layer (the kinds, the socket HTTP
 # client and its OpenSSL binding, the encoders, the clock and the
-# child-process launcher) is on disk but NOT compiled, and nothing beyond
-# libc is linked. A chain of built-ins needs none of it.
+# child-process launcher) is on disk but NOT compiled, and this feature adds
+# nothing to LDLIBS. A chain of built-ins needs none of it.

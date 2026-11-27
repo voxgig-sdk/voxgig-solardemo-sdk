@@ -1,6 +1,6 @@
 // Voxgig Struct corpus driver — C++ port.
 //
-// Drives the shared struct corpus (../.sdk/test/test.json, root key
+// Drives the shared struct corpus (SDKREL/.sdk/test/test.json, root key
 // "struct") against the vendored struct utility THROUGH the VENDORED omni
 // runner (test/omni_resolver.hpp over test/vendor/omni) — the engine half
 // of the retired test/struct_runner.hpp. Mirrors
@@ -64,7 +64,7 @@ const std::map<std::string, std::string>& category_to_file() {
 // One client + one corpus runner for the whole binary.
 res::Run& structRun() {
   static res::Run run =
-      res::makeRunner("../.sdk/test/test.json", sdk::VoxgigSolardemoSDK::testSDK())
+      res::makeRunner("SDKREL/.sdk/test/test.json", sdk::VoxgigSolardemoSDK::testSDK())
           .runner("struct", Value::undef());
   return run;
 }
@@ -128,6 +128,30 @@ void runflags(const std::string& cat, const std::string& name, bool null_flag,
 void run(const std::string& cat, const std::string& name, bool null_flag,
          const StructSubject& subject) {
   runflags(cat, name, null_flag, onearg(subject));
+}
+
+// Fails on a group the corpus holds in `cat` that no run above names.
+void runs_every_group(const std::string& cat) {
+  sdktest::tests()++;
+  sdktest::checks()++;
+  Value category = structRun().set(cat);
+  if (!category.is_map()) {
+    sdktest::record_fail(cat, "struct corpus category missing: " + cat);
+    return;
+  }
+  int found = 0;
+  for (const auto& [name, group] : *category.as_map()) {
+    if (!group.is_map())
+      continue;
+    found++;
+    std::string full = cat + "." + name;
+    if (0 == SCOREBOARD.count(full)) {
+      sdktest::record_fail(full, "the corpus holds this group, and nothing here runs it");
+      SCOREBOARD[full] = GroupResult{0, false};
+    }
+  }
+  if (0 == found)
+    sdktest::record_fail(cat, "the corpus holds no group in this category");
 }
 
 // Extract a named field from a test-spec object. This mirrors the canonical
@@ -498,7 +522,7 @@ int main() {
       [](const Value& in) { return validate(getp(in, "data"), getp(in, "spec")); });
   run("validate", "child", true,
       [](const Value& in) { return validate(getp(in, "data"), getp(in, "spec")); });
-  run("validate", "one", true,
+  run("validate", "nof", false,
       [](const Value& in) { return validate(getp(in, "data"), getp(in, "spec")); });
   run("validate", "exact", true,
       [](const Value& in) { return validate(getp(in, "data"), getp(in, "spec")); });
@@ -509,6 +533,11 @@ int main() {
     return inj_v.is_map() ? validate(getp(in, "data"), getp(in, "spec"), inj_v)
                           : validate(getp(in, "data"), getp(in, "spec"));
   });
+  for (const char* name : {"directive", "all", "len", "range", "rest", "like", "unknown"}) {
+    run("validate", name, false,
+        [](const Value& in) { return validate(getp(in, "data"), getp(in, "spec")); });
+  }
+  runs_every_group("validate");
 
   // ===== select =====
   run("select", "basic", true, [](const Value& in) {

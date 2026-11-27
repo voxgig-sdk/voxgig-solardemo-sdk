@@ -48,8 +48,8 @@ class VoxgigSolardemoSDK
 
     # Add features in the resolved order (make_options puts an explicit array
     # order first, else defaults to test-first). Ordering matters: the `test`
-    # feature installs the base mock transport and the transport features
-    # (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
+    # feature installs the base mock transport and the features whose model
+    # declares `transport: 'wrap'` wrap whatever is current, so `test`
     # must be added before them to sit at the base of the chain.
     feature_opts = VoxgigSolardemoHelpers.to_map(VoxgigStruct.getprop(@options, "feature"))
     if feature_opts
@@ -153,6 +153,13 @@ class VoxgigSolardemoSDK
       uh.each { |k, v| ctx.spec.headers[k] = v }
     end
 
+    # A raw request has no point to declare its response type, so it asks
+    # for the JSON it reads: an API that negotiates on Accept otherwise
+    # answers in its own default format. A caller's own accept wins.
+    unless ctx.spec.headers.keys.any? { |k| k.to_s.downcase == "accept" }
+      ctx.spec.headers["accept"] = "application/json"
+    end
+
     _, err = utility.prepare_auth.call(ctx)
     raise err if err
 
@@ -185,9 +192,9 @@ class VoxgigSolardemoSDK
     {
       "ok" => false,
       "err" => VoxgigSolardemoError.new(
-        "#{op}_allow",
         "VoxgigSolardemoSDK: #{op}: operation not allowed by" \
-        " SDK option allow.op value: \"#{allow_op}\""),
+        " SDK option allow.op value: \"#{allow_op}\"",
+        code: "#{op}_allow"),
     }
   end
 
@@ -281,8 +288,8 @@ class VoxgigSolardemoSDK
   # as a top-level `errors` array, so status alone would report a failed
   # query as ok.
   #
-  # NOTE: like direct, this bypasses the feature pipeline — no retry,
-  # ratelimit or paging features apply.
+  # NOTE: like direct, this bypasses the feature pipeline: no feature
+  # hook runs on this path.
   def graphql(query, variables = nil, ctrl = nil)
     return op_denied("graphql") unless op_allowed?("graphql")
 
@@ -306,7 +313,7 @@ class VoxgigSolardemoSDK
       msg = "graphql error" if msg.nil? || msg.to_s.empty?
       res["ok"] = false
       res["err"] = VoxgigSolardemoError.new(
-        "graphql_error", "VoxgigSolardemoSDK: graphql: #{msg}")
+        "VoxgigSolardemoSDK: graphql: #{msg}", code: "graphql_error")
       res["graphql"] = errors
     end
 

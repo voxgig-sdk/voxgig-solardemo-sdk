@@ -1,12 +1,12 @@
 
-import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, opRequestShape, opNeedsAction } from '@voxgig/sdkgen'
+import { cmp, each, Content, canonKey, canonScalarKey, entityIdField, entityOps, matchExampleItems, requestExampleItems, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
   getModelPath,
 } from '@voxgig/apidef'
 
-import { perlListArgs } from './utility_perl'
+import { perlListArgs, perlStringLiteral } from './utility_perl'
 
 
 // A type-correct, executable Perl literal for a field's canonical type. The
@@ -19,7 +19,7 @@ function perlLit(type: any, placeholder: string = 'example'): string {
   if ('BOOLEAN' === k) return '1'
   if ('ARRAY' === k) return '[]'
   if ('OBJECT' === k) return '{}'
-  return `'${placeholder}'`
+  return perlStringLiteral(placeholder)
 }
 
 
@@ -65,9 +65,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
   publishedEntities.map((entity: any) => {
-    const opnames = Object.keys(entity.op || {})
-    // An op that needs an action has no plain call to show.
-    const callable = opnames.filter((o: string) => !opNeedsAction(entity.op[o]))
+    const opnames = entityOps(entity)
     const fields = Object.values(entity.fields || {})
     const idF = entityIdField(entity)
     const eVar = entity.name
@@ -77,8 +75,8 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 
 `)
 
-    if (entity.short) {
-      Content(`${entity.short}
+    if (fact(entity, 'desc').inline) {
+      Content(`${fact(entity, 'desc').inline}
 
 `)
     }
@@ -113,7 +111,7 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
 
       each(fields, (field: any) => {
-        const desc = field.sh || ''
+        const desc = fact(model.main[KIT], 'field')[entity.name]?.[field.n]?.desc.cell ?? ''
         Content(`| \`${field.n}\` | \`${perlType(field.t)}\` | ${desc} |
 `)
       })
@@ -122,17 +120,16 @@ const ReadmeEntity = cmp(function ReadmeEntity(props: any) {
 `)
     }
 
-    if (callable.includes('load')) {
+    if (opnames.includes('load')) {
       // The id key plus every REQUIRED match key (parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(entity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(entity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `{ ${loadItems.map((it: any) =>
-          `'${it.name}' => ${perlLit(it.type,
+          `${perlStringLiteral(it.name)} => ${perlLit(it.type,
             it.name === idF ? entity.name + '_id' : it.name)}`).join(', ')} }`
         : ''
       Content(`#### Example: Load
@@ -144,7 +141,7 @@ my $${eVar} = $client->${entity.Name}->load(${loadArg});
 `)
     }
 
-    if (callable.includes('list')) {
+    if (opnames.includes('list')) {
       Content(`#### Example: List
 
 \`\`\`perl
@@ -156,12 +153,12 @@ print $_->data_get->{id}, "\\n" for @$${eVar}s;
 `)
     }
 
-    if (callable.includes('create')) {
+    if (opnames.includes('create')) {
       // Members come from the SAME shape the runtime validates
       // (opRequestShape): every required member must appear — including a
       // required id and parent keys like page_id — with a real, executable
       // literal.
-      const createItems = opRequestShape(entity, 'create').items
+      const createItems = requestExampleItems(entity, 'create')
         .filter((it: any) => !it.optional)
       Content(`#### Example: Create
 
@@ -169,7 +166,7 @@ print $_->data_get->{id}, "\\n" for @$${eVar}s;
 my $${eVar} = $client->${entity.Name}->create({
 `)
       createItems.map((it: any) => {
-        Content(`    '${it.name}' => ${perlLit(it.type, 'example_' + it.name)},  # ${perlType(it.type)}
+        Content(`    ${perlStringLiteral(it.name)} => ${perlLit(it.type, 'example_' + it.name)},  # ${perlType(it.type)}
 `)
       })
       Content(`});

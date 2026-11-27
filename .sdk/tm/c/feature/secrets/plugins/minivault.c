@@ -1,5 +1,5 @@
-// VENDORED: @voxgig/sekreto sdk-20260925-1316-0 (c/plugins/minivault.c)
-// Source: https://github.com/voxgig/sekreto @ 163f537960de6813cc393b89843949ca3afa8cfc  [tag: sdk-20260925-1316-0]
+// VENDORED: @voxgig/sekreto sdk-20261125-1959-0 (c/plugins/minivault.c)
+// Source: https://github.com/voxgig/sekreto @ ee837130bf444ca46a5a46181bdd6743e118898c  [tag: sdk-20261125-1959-0]
 // License: MIT (c) voxgig - see repository LICENSE. Do not edit: resync from upstream.
 /* A mini vault: every secret a project owns, encrypted, in ONE FILE.
  *
@@ -65,7 +65,8 @@
  * to agreement between implementations.
  */
 
-#define _POSIX_C_SOURCE 200809L
+/* realpath is XSI: glibc declares it under _XOPEN_SOURCE, not _POSIX_C_SOURCE. */
+#define _XOPEN_SOURCE 700
 
 #include <errno.h>
 #include <fcntl.h>

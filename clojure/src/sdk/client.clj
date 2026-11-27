@@ -43,8 +43,8 @@
     (core/oset! rootctx :options validated)
     ;; Add features in the resolved order (make-options records an explicit
     ;; array order, else defaults to test-first). Ordering matters: the `test`
-    ;; feature installs the base mock transport and the transport features
-    ;; (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so
+    ;; feature installs the base mock transport and the features whose model
+    ;; declares `transport: 'wrap'` wrap whatever is current, so
     ;; `test` must be added before them to sit at the base of the chain.
     (let [feature-opts (let [f (core/to-map (vs/getprop validated "feature"))] (or f (vs/jm)))
           feature-order (let [o (vs/getpath validated "__derived__.featureorder")]
@@ -97,6 +97,13 @@
       (when (vs/ismap uh)
         (doseq [item (or (vs/items uh) [])]
           (.put ^java.util.Map (core/oget spec :headers) (vs/getprop item 0) (vs/getprop item 1)))))
+    ;; A raw request has no point to declare its response type, so it asks
+    ;; for the JSON it reads: an API that negotiates on Accept otherwise
+    ;; answers in its own default format. A caller's own accept wins.
+    (let [^java.util.Map sh (core/oget spec :headers)]
+      (when (and (instance? java.util.Map sh)
+                 (not-any? #(= "accept" (.toLowerCase (str %) java.util.Locale/ROOT)) (.keySet sh)))
+        (.put sh "accept" "application/json")))
     (let [[_ err] ((core/uget ctx :prepare-auth) ctx)]
       (when err (core/sdk-throw err)))
     (let [[fetchdef fd-err] ((core/uget ctx :make-fetch-def) ctx)]
@@ -171,8 +178,8 @@
 ;; a top-level `errors` array, so status alone would report a failed query as
 ;; ok.
 ;;
-;; NOTE: like direct, this bypasses the feature pipeline — no retry, ratelimit
-;; or paging features apply.
+;; NOTE: like direct, this bypasses the feature pipeline: no feature hook runs
+;; on this path.
 (defn graphql
   ([client query] (graphql client query nil nil))
   ([client query variables] (graphql client query variables nil))

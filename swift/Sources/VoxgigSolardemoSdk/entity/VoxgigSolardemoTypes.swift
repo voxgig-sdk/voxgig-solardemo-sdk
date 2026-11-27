@@ -84,23 +84,17 @@ public struct PlanetListMatch {
 /// PlanetCreateData is the typed request payload for Planet.create.
 public struct PlanetCreateData {
   public var diameter: Double
-  public var forbidReason: String?
-  public var forbidState: String?
   public var id: String
   public var kind: String
   public var name: String
-  public var terraformState: String?
 }
 
 /// PlanetUpdateData is the typed request payload for Planet.update.
 public struct PlanetUpdateData {
   public var id: String
   public var diameter: Double?
-  public var forbidReason: String?
-  public var forbidState: String?
   public var kind: String?
   public var name: String?
-  public var terraformState: String?
 }
 
 /// PlanetRemoveMatch is the typed request payload for Planet.remove.

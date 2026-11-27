@@ -116,7 +116,7 @@ test "primary utility exists" {
     try testing.expect(utility.prepare_headers(ctx) == .object);
     try testing.expect(util.prepare_query_util(ctx) == .object);
     try testing.expect(util.prepare_params_util(ctx) == .object);
-    try testing.expect(utility.make_options(ctx) == .object);
+    try testing.expect((try utility.make_options(ctx)) == .object);
     _ = utility.clean(ctx, h.vstr("x"));
 }
 
@@ -143,7 +143,7 @@ test "primary make_options basic" {
     const client = baseClient();
     const utility = client.get_utility();
     const ctx = makeTestCtx(client, utility);
-    const opts = utility.make_options(ctx);
+    const opts = try utility.make_options(ctx);
     try testing.expect(opts == .object);
     try testing.expect(!h.is_noval(h.getp(opts, "base")));
 }
@@ -319,7 +319,7 @@ test "primary feature_init inactive" {
 
 test "primary fetcher live" {
     const rec = FetchRec.new();
-    const client = sdk.SDK.new(h.jo(&.{.{ "system", h.jo(&.{.{ "fetch", rec.fn_val() }}) }}));
+    const client = fh.live_client(h.jo(&.{.{ "system", h.jo(&.{.{ "fetch", rec.fn_val() }}) }}));
     const utility = client.get_utility();
     const ctx = utility.make_context(sdk.CtxSpec{ .opname = "load", .client = client, .utility = utility }, client.get_root_ctx());
     const fetchdef = h.jo(&.{ .{ "method", h.vstr("GET") }, .{ "headers", h.omap() } });
@@ -331,7 +331,7 @@ test "primary fetcher live" {
 
 test "primary fetcher blocked test mode" {
     const rec = FetchRec.new();
-    const client = sdk.SDK.new(h.jo(&.{.{ "system", h.jo(&.{.{ "fetch", rec.fn_val() }}) }}));
+    const client = fh.live_client(h.jo(&.{.{ "system", h.jo(&.{.{ "fetch", rec.fn_val() }}) }}));
     client.mode = "test";
     const utility = client.get_utility();
     const ctx = utility.make_context(sdk.CtxSpec{ .opname = "load", .client = client, .utility = utility }, client.get_root_ctx());
@@ -340,9 +340,40 @@ test "primary fetcher blocked test mode" {
     try testing.expect(std.ascii.indexOfIgnoreCase(ctx.pending_err.?.msg, "blocked") != null);
 }
 
+// Nothing listens on port 9; this target has no transport of its own, so a
+// request the guard let through fails as fetch_transport. The environment
+// std captured at startup is swapped for one that sets the flag.
+test "primary fetcher getonly guard" {
+    const threaded = std.Io.Threaded.global_single_threaded;
+    const saved = threaded.environ.process_environ;
+    if (@TypeOf(saved.block) != std.process.Environ.PosixBlock) return error.SkipZigTest;
+    const flagged = [_:null]?[*:0]const u8{"VOXGIG_GETONLY_GUARD=TRUE"};
+    threaded.environ.process_environ = .{ .block = .{ .slice = &flagged } };
+    defer threaded.environ.process_environ = saved;
+
+    const client = fh.live_client(h.jo(&.{.{ "base", h.vstr("http://127.0.0.1:9") }}));
+    const utility = client.get_utility();
+    const ctx = utility.make_context(sdk.CtxSpec{ .opname = "create", .client = client, .utility = utility }, client.get_root_ctx());
+    const url = "http://127.0.0.1:9/planet/p1?apikey=GUARDKEY01";
+
+    const post = h.jo(&.{ .{ "method", h.vstr("POST") }, .{ "headers", h.omap() } });
+    try testing.expectError(error.Sdk, utility.fetch(ctx, url, post));
+    const refused = ctx.pending_err.?;
+    try testing.expectEqualStrings("fetch_getonly_block", refused.code);
+    try testing.expect(std.mem.indexOf(u8, refused.msg, "[GET-ONLY GUARD] blocked POST /planet/p1") != null);
+    try testing.expect(std.mem.indexOf(u8, refused.msg, "GUARDKEY01") == null);
+
+    const get = h.jo(&.{ .{ "method", h.vstr("GET") }, .{ "headers", h.omap() } });
+    try testing.expectError(error.Sdk, utility.fetch(ctx, url, get));
+    try testing.expectEqualStrings("fetch_transport", ctx.pending_err.?.code);
+}
+
 test "primary new sdk smoke" {
-    const client = sdk.new();
-    try testing.expect(std.mem.eql(u8, client.mode, "live"));
+    // A templated base URL with no default refuses a client with no options.
+    switch (sdk.new()) {
+        .ok => |client| try testing.expect(std.mem.eql(u8, client.mode, "live")),
+        .err => |e| try testing.expectEqualStrings("server_var_required", e.code),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -513,7 +544,6 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
     defer run.deinit();
 
     setup_spec = try setupOpts(&run, "makeSpec");
-    setup_auth = try setupOpts(&run, "prepareAuth");
 
     const S = struct {
         fn ctxOf(a: std.mem.Allocator, args: []const StdJson) anyerror!*sdk.Context {
@@ -574,7 +604,6 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
         }
 
         fn makeOptions(a: std.mem.Allocator, args: []const StdJson, po: *?StdJson, em: *?[]const u8) anyerror!StdJson {
-            _ = em;
             // `in` is {config, options}, not a ctx — the utility reads them off
             // the context, so split them out rather than passing the wrapper.
             const inv = entryarg(args, 0);
@@ -583,7 +612,7 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
                 if (inv.object.get("config")) |c| ctx.config = try vs.fromStdJson(a, c);
                 if (inv.object.get("options")) |o| ctx.options = try vs.fromStdJson(a, o);
             }
-            const v = util.make_options_util(ctx);
+            const v = util.make_options_util(ctx) catch |er| return sdkfail(ctx, em, er);
             po.* = try publishCtx(a, ctx);
             return try vs.toStdJson(a, v);
         }
@@ -635,13 +664,6 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
             const v = util.param_util(ctx, pd);
             po.* = try publishCtx(a, ctx);
             return try vs.toStdJson(a, v);
-        }
-
-        fn auth(a: std.mem.Allocator, args: []const StdJson, po: *?StdJson, em: *?[]const u8) anyerror!StdJson {
-            const ctx = try corpusCtxOpts(a, entryarg(args, 0), setup_auth);
-            _ = util.prepare_auth_util(ctx) catch |er| return sdkfail(ctx, em, er);
-            po.* = try publishCtx(a, ctx);
-            return StdJson{ .null = {} };
         }
 
         fn body(a: std.mem.Allocator, args: []const StdJson, po: *?StdJson, em: *?[]const u8) anyerror!StdJson {
@@ -748,7 +770,6 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
     try run.runsetctx(run.group("makeUrl", "basic"), .{ .name = "makeUrl" }, S.url);
     try run.runsetctx(run.group("operator", "basic"), .{ .name = "operator" }, S.operator);
     try run.runsetctx(run.group("param", "basic"), .{ .name = "param" }, S.param);
-    try run.runsetctx(run.group("prepareAuth", "basic"), .{ .name = "prepareAuth" }, S.auth);
     try run.runsetctx(run.group("prepareBody", "basic"), .{ .name = "prepareBody" }, S.body);
     try run.runsetctx(run.group("prepareHeaders", "basic"), .{ .name = "prepareHeaders" }, S.headers);
     try run.runsetctx(run.group("prepareMethod", "basic"), .{ .name = "prepareMethod" }, S.method);
@@ -778,4 +799,130 @@ test "primary corpus: the shared cases drive this SDK's utilities" {
         );
         return error.CorpusUnderRun;
     }
+}
+
+// Where this SDK's prepare_auth puts the credential, probed once over empty
+// headers and query. `pair` is the `<scheme>=` lead-in of a cookie
+// credential, which rides the header bag under "cookie".
+const AuthCred = struct { query: bool, name: []const u8, pair: []const u8 };
+
+fn authCredential() ?AuthCred {
+    const client = sdk.test_sdk(vnull(), h.jo(&.{
+        .{ "apikey", h.vstr("PROBE") },
+        .{ "auth", h.jo(&.{ .{ "prefix", h.vstr("") }, .{ "basic", h.vbool(false) } }) },
+    }));
+    const ctx = makeTestCtx(client, client.get_utility());
+    const spec = sdk.Spec.make(h.jo(&.{
+        .{ "headers", h.omap() },
+        .{ "query", h.omap() },
+        .{ "step", h.vstr("s") },
+    }));
+    ctx.spec = spec;
+    _ = util.prepare_auth_util(ctx) catch return null;
+    for ([_]bool{ false, true }) |query| {
+        const bag = if (query) spec.query else spec.headers;
+        if (bag != .object) continue;
+        var it = bag.object.iterator();
+        const kv = it.next() orelse continue;
+        const name = kv.key_ptr.*;
+        const value = kv.value_ptr.*;
+        var pair: []const u8 = "";
+        if (!query and std.mem.eql(u8, name, "cookie") and value == .string and
+            std.mem.endsWith(u8, value.string, "=PROBE"))
+        {
+            pair = value.string[0 .. value.string.len - "PROBE".len];
+        }
+        return .{ .query = query, .name = name, .pair = pair };
+    }
+    return null;
+}
+
+// The corpus states the credential as `headers.authorization`, a placeholder
+// for wherever this SDK puts it. Only that entry moves, under the real name
+// and into the real container, and a cookie credential's value becomes its
+// pair: every other header and query parameter stays where it was.
+fn authRetarget(a: std.mem.Allocator, node: StdJson, cred: AuthCred) !StdJson {
+    switch (node) {
+        .array => |items| {
+            var out = std.json.Array.init(a);
+            for (items.items) |item| try out.append(try authRetarget(a, item, cred));
+            return StdJson{ .array = out };
+        },
+        .object => |entries| {
+            var out: std.json.ObjectMap = .empty;
+            var placed: ?StdJson = null;
+            var it = entries.iterator();
+            while (it.next()) |kv| {
+                const key = kv.key_ptr.*;
+                const val = kv.value_ptr.*;
+                if (!std.mem.eql(u8, key, "headers") or val != .object) {
+                    try out.put(a, key, try authRetarget(a, val, cred));
+                    continue;
+                }
+                var bag: std.json.ObjectMap = .empty;
+                var bit = val.object.iterator();
+                while (bit.next()) |bkv| {
+                    const bv = bkv.value_ptr.*;
+                    if (!std.mem.eql(u8, bkv.key_ptr.*, "authorization")) {
+                        try bag.put(a, bkv.key_ptr.*, bv);
+                    } else if (bv == .string) {
+                        placed = StdJson{ .string = try std.mem.concat(a, u8, &.{ cred.pair, bv.string }) };
+                    } else {
+                        placed = bv;
+                    }
+                }
+                try out.put(a, key, StdJson{ .object = bag });
+            }
+            if (placed) |value| {
+                const dest = if (cred.query) "query" else "headers";
+                if (out.getPtr(dest)) |slot| {
+                    if (slot.* == .object) {
+                        try slot.object.put(a, cred.name, value);
+                        return StdJson{ .object = out };
+                    }
+                }
+                var bag: std.json.ObjectMap = .empty;
+                try bag.put(a, cred.name, value);
+                try out.put(a, dest, StdJson{ .object = bag });
+            }
+            return StdJson{ .object = out };
+        },
+        else => return node,
+    }
+}
+
+fn authSubject(a: std.mem.Allocator, args: []const StdJson, po: *?StdJson, em: *?[]const u8) anyerror!StdJson {
+    const ctx = try corpusCtxOpts(a, entryarg(args, 0), setup_auth);
+    _ = util.prepare_auth_util(ctx) catch |er| {
+        if (ctx.pending_err) |pe| em.* = pe.msg;
+        return er;
+    };
+    po.* = try publishCtx(a, ctx);
+    return StdJson{ .null = {} };
+}
+
+// prepare_auth reads its defaults off the CLIENT, so the section's own
+// DEF.setup block configures it.
+// Read from the config, never from a probe: a probe that finds no credential
+// is the regression this section exists to catch.
+test "primary corpus: prepareAuth, on this SDK's own credential" {
+    if (h.getp(h.getp(sdk.make_config(), "options"), "auth") != .object) {
+        std.debug.print("\n  SKIP primary prepareAuth: this SDK's config declares no auth, so it places no credential\n", .{});
+        return error.SkipZigTest;
+    }
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    var run = try omnirun.makeRunner(testing.allocator, "primary");
+    defer run.deinit();
+
+    setup_auth = try setupOpts(&run, "prepareAuth");
+    const cred = authCredential() orelse {
+        std.debug.print("\n  prepare_auth placed no credential in headers or query\n", .{});
+        return error.NoCredentialPlaced;
+    };
+    const group = run.group("prepareAuth", "basic") orelse return error.SkipZigTest;
+
+    const before = omnirun.CASES;
+    try run.runsetctx(try authRetarget(arena.allocator(), group, cred), .{ .name = "prepareAuth" }, authSubject);
+    std.debug.print("\n  primary prepareAuth: {d} case(s)\n", .{omnirun.CASES - before});
 }

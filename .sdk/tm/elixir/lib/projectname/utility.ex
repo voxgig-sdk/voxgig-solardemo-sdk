@@ -17,7 +17,7 @@ defmodule VoxgigSolardemo.Utility do
   # src/cmp/elixir/PrepareAuth_elixir.ts into lib/<app>/prepare_auth.ex.
   alias VoxgigSolardemo.PrepareAuth
 
-  @default_user_agent "Mozilla/5.0 (compatible; VoxgigSolardemoSDK/1.0)"
+  @default_user_agent "PROJECTUSERAGENT"
 
   # Content type every GraphQL-over-HTTP request uses.
   @graphql_content_type "application/json"
@@ -32,6 +32,7 @@ defmodule VoxgigSolardemo.Utility do
     reg = [
       {"clean", &clean_impl/2},
       {"clean_add", &clean_add_impl/2},
+      {"clean_secret", &clean_secret_impl/3},
       {"done", &done_impl/1},
       {"make_error", &make_error_impl/2},
       {"feature_add", &feature_add_impl/2},
@@ -89,6 +90,13 @@ defmodule VoxgigSolardemo.Utility do
   def param(ctx, pd), do: u(ctx, "param").(ctx, pd)
   def clean(ctx, v), do: u(ctx, "clean").(ctx, v)
   def clean_add(ctx, v), do: u(ctx, "clean_add").(ctx, v)
+
+  # The shipped predicate where a caller-built utility carries none.
+  def clean_secret(ctx, k, v) do
+    f = u(ctx, "clean_secret")
+    if S.isfunc(f), do: f.(ctx, k, v), else: clean_secret_impl(ctx, k, v)
+  end
+
   def prepare_auth(ctx), do: u(ctx, "prepare_auth").(ctx)
   def prepare_body(ctx), do: u(ctx, "prepare_body").(ctx)
   def prepare_headers(ctx), do: u(ctx, "prepare_headers").(ctx)
@@ -334,16 +342,70 @@ defmodule VoxgigSolardemo.Utility do
     end
   end
 
+  # The live bodies of this call that are bytes, each with its type: the
+  # request body of a point the model marks binary, and a response body that
+  # is bytes, unsized, since text read from it does not say how many bytes it
+  # was. Text shorter than the registry accepts is not told from ordinary
+  # text; it is measured in bytes, which does not walk an upload.
+  defp binary_bodies(ctx, cfg) do
+    ctx = if S.ismap(ctx), do: ctx, else: nil
+    point = S.getprop(ctx, "point")
+    minlen = numof(S.getprop(cfg, "min"), 4)
+    live = fn values ->
+      Enum.reject(values, &(is_nil(&1) or (is_binary(&1) and byte_size(&1) < minlen and String.valid?(&1))))
+    end
+
+    body = S.getprop(point, "body")
+    media = S.getprop(body, "media")
+    response = S.getprop(ctx, "response")
+    type = body_header(S.getprop(response, "headers"), "content-type")
+
+    sent =
+      if S.getprop(body, "kind") == "raw" and S.getprop(body, "binary") == true do
+        bodies = [S.getprop(S.getprop(ctx, "spec"), "body"), raw_body(S.getprop(ctx, "reqdata"))]
+        [%{live: live.(bodies), type: if(is_binary(media), do: media, else: nil), sized: true}]
+      else
+        []
+      end
+
+    answered =
+      if response != nil and binary_response?(point, type) do
+        [%{live: live.([S.getprop(response, "body")]), type: if(type == "", do: nil, else: type), sized: false}]
+      else
+        []
+      end
+
+    Enum.reject(sent ++ answered, &(&1.live == []))
+  end
+
+  # Bytes are described, never copied (ADR-006): the kind, the size where it
+  # is known, and the media type. A binary is the only carrier here, and it
+  # is bytes only as a live body.
+  defp describe_binary(val, bins) do
+    case Enum.find(bins, &(val in &1.live)) do
+      nil ->
+        nil
+
+      bin ->
+        desc = S.jm(["binary$", "bytes"])
+        if bin.sized, do: S.setprop(desc, "size", byte_size(val))
+        if bin.type != nil, do: S.setprop(desc, "type", bin.type)
+        desc
+    end
+  end
+
   # A masked plain-data COPY: functions dropped, cycles cut, an SDK error as
   # its code and message, and nothing shared with the live value, whose spec
   # must stay raw.
-  defp clean_snapshot(cfg, val, key, depth, seen) do
+  defp clean_snapshot(cfg, bin, val, key, depth, seen) do
     cond do
       val == nil ->
         nil
 
       is_binary(val) ->
-        if sensitive_key?(cfg, key), do: mask_value(cfg, val), else: clean_string(cfg, val)
+        if sensitive_key?(cfg, key),
+          do: mask_value(cfg, val),
+          else: describe_binary(val, bin) || clean_string(cfg, val)
 
       is_function(val) ->
         :__drop__
@@ -361,7 +423,7 @@ defmodule VoxgigSolardemo.Utility do
         out = S.jm([])
 
         Enum.each(H.entries(val), fn {k, v} ->
-          c = clean_snapshot(cfg, v, k, depth + 1, [val | seen])
+          c = clean_snapshot(cfg, bin, v, k, depth + 1, [val | seen])
           if c != :__drop__, do: S.setprop(out, clean_name(cfg, out, k), c)
         end)
 
@@ -371,7 +433,7 @@ defmodule VoxgigSolardemo.Utility do
         out = S.jt([])
 
         Enum.each(H.entries(val), fn {i, v} ->
-          c = clean_snapshot(cfg, v, i, depth + 1, [val | seen])
+          c = clean_snapshot(cfg, bin, v, i, depth + 1, [val | seen])
           S.setprop(out, S.size(out), if(c == :__drop__, do: nil, else: c))
         end)
 
@@ -384,14 +446,14 @@ defmodule VoxgigSolardemo.Utility do
         S.jm(["message", clean_string(cfg, Exception.message(val))])
 
       is_struct(val) ->
-        clean_snapshot(cfg, Map.from_struct(val), key, depth, seen)
+        clean_snapshot(cfg, bin, Map.from_struct(val), key, depth, seen)
 
       is_map(val) ->
         out = S.jm([])
 
         # Sorted, so colliding masked names number the same way every run.
         Enum.each(Enum.sort_by(val, fn {k, _} -> strof(k) end), fn {k, v} ->
-          c = clean_snapshot(cfg, v, k, depth + 1, [val | seen])
+          c = clean_snapshot(cfg, bin, v, k, depth + 1, [val | seen])
           if c != :__drop__, do: S.setprop(out, clean_name(cfg, out, k), c)
         end)
 
@@ -402,7 +464,7 @@ defmodule VoxgigSolardemo.Utility do
         out = S.jt([])
 
         Enum.each(items, fn v ->
-          c = clean_snapshot(cfg, v, nil, depth + 1, [val | seen])
+          c = clean_snapshot(cfg, bin, v, nil, depth + 1, [val | seen])
           S.setprop(out, S.size(out), if(c == :__drop__, do: nil, else: c))
         end)
 
@@ -413,8 +475,8 @@ defmodule VoxgigSolardemo.Utility do
     end
   end
 
-  defp clean_field(cfg, v, key) do
-    case clean_snapshot(cfg, v, key, 1, []) do
+  defp clean_field(cfg, bin, v, key) do
+    case clean_snapshot(cfg, bin, v, key, 1, []) do
       :__drop__ -> nil
       c -> c
     end
@@ -423,13 +485,13 @@ defmodule VoxgigSolardemo.Utility do
   defp clean_code(cfg, code), do: if(is_binary(code), do: clean_string(cfg, code), else: code)
 
   # The error is a struct, so "in place" is a copy carrying the same ctx.
-  defp clean_error(cfg, err) do
+  defp clean_error(cfg, bin, err) do
     %{
       err
       | code: clean_code(cfg, err.code),
         msg: clean_string(cfg, strof(err.msg)),
-        result: clean_field(cfg, err.result, "result"),
-        spec: clean_field(cfg, err.spec, "spec")
+        result: clean_field(cfg, bin, err.result, "result"),
+        spec: clean_field(cfg, bin, err.spec, "spec")
     }
   end
 
@@ -439,8 +501,8 @@ defmodule VoxgigSolardemo.Utility do
     cond do
       S.getprop(cfg, "active") == false -> val
       is_binary(val) -> clean_string(cfg, val)
-      match?(%VoxgigSolardemo.Error{}, val) -> clean_error(cfg, val)
-      true -> clean_field(cfg, val, nil)
+      match?(%VoxgigSolardemo.Error{}, val) -> clean_error(cfg, binary_bodies(ctx, cfg), val)
+      true -> clean_field(cfg, binary_bodies(ctx, cfg), val, nil)
     end
   end
 
@@ -453,7 +515,7 @@ defmodule VoxgigSolardemo.Utility do
 
     cond do
       S.getprop(cfg, "active") == false -> e
-      match?(%VoxgigSolardemo.Error{}, e) -> clean_error(cfg, e)
+      match?(%VoxgigSolardemo.Error{}, e) -> clean_error(cfg, binary_bodies(ctx, cfg), e)
       true -> clean_foreign_exception(cfg, e)
     end
   end
@@ -494,6 +556,16 @@ defmodule VoxgigSolardemo.Utility do
     end
 
     nil
+  end
+
+  # Whether a named value is a secret: by its name, or by a registered value
+  # it holds. Answered with clean off too: a redirect asks, not a diagnostic.
+  def clean_secret_impl(ctx, key, value) do
+    cfg = clean_config(ctx)
+
+    sensitive_key?(cfg, key) or
+      (is_binary(value) and
+         Enum.any?(list_values(S.getprop(cfg, "values")), &(is_binary(&1) and String.contains?(value, &1))))
   end
 
   # ---- features ------------------------------------------------------------
@@ -812,11 +884,11 @@ defmodule VoxgigSolardemo.Utility do
             end
 
           # Station special case, mirroring test's: its transport wrap must
-          # sit immediately outside the base transport (inside retry/cache/
-          # netsim), so map-form activation hoists it to just after test -
-          # or first, when no test entry exists. Without this the sorted
-          # default would init station last and wrap OUTSIDE the recording
-          # features, turning its wire-truth events into fiction.
+          # sit immediately outside the base transport (inside every other
+          # transport wrap), so map-form activation hoists it to just after
+          # test - or first, when no test entry exists. Without this the
+          # sorted default would init station last and wrap OUTSIDE the
+          # recording features, turning its wire-truth events into fiction.
           if Enum.member?(names, "station") do
             rest = Enum.reject(names, &(&1 == "station"))
 
@@ -947,6 +1019,18 @@ defmodule VoxgigSolardemo.Utility do
     end
   end
 
+  # A lone point still needs the call's action to agree with its own; the
+  # selection below refuses a mismatch either way.
+  defp lone_point_agrees?(ctx, op, point) do
+    reqselector =
+      if S.getprop(op, "input") == "data",
+        do: S.getprop(ctx, "reqdata"),
+        else: S.getprop(ctx, "reqmatch")
+
+    S.getprop(reqselector, "$action") ==
+      S.getprop(H.to_map(S.getprop(point, "select")), "$action")
+  end
+
   def make_point_impl(ctx) do
     out = S.getprop(ctx, "out")
     pre = S.getprop(out, "point")
@@ -979,7 +1063,7 @@ defmodule VoxgigSolardemo.Utility do
            Context.make_error(ctx, "point_no_points",
              "Operation \"" <> opname <> "\" has no endpoint definitions.")}
 
-        npoints == 1 ->
+        npoints == 1 and lone_point_agrees?(ctx, op, S.getelem(points, 0)) ->
           S.setprop(ctx, "point", S.getelem(points, 0))
           {S.getprop(ctx, "point"), nil}
 
@@ -1154,7 +1238,7 @@ defmodule VoxgigSolardemo.Utility do
         if S.getprop(point, "kind") == "graphql" do
           # GraphQL addresses one endpoint: no path parts, no query string,
           # and the body carries the operation. prepare_body is skipped
-          # deliberately — it only emits a body for data-input ops, whereas
+          # deliberately — it builds only a REST body, whereas
           # every GraphQL op posts one, including load/list/remove.
           S.setprop(spec, "body", graphql_body(ctx))
           S.setprop(spec, "path", "")
@@ -1348,7 +1432,7 @@ defmodule VoxgigSolardemo.Utility do
                   Enum.map(0..(n - 1), fn i ->
                     entry = S.getelem(resdata, i)
                     ent = apply(mod, :make, [entity])
-                    if S.ismap(entry), do: apply(mod, :data_set, [ent, entry])
+                    apply(mod, :data_set, [ent, entry])
                     ent
                   end)
                 end
@@ -1444,11 +1528,14 @@ defmodule VoxgigSolardemo.Utility do
 
     S.setprop(ctrl, "err", sdk_err)
 
-    # Fire PreUnexpected so observability features (metrics, telemetry, audit,
-    # debug) close/record error paths that never reach PreDone (e.g. a PrePoint
-    # rbac short-circuit). Fires after ctrl.err is set so hooks can read the
-    # error; features guard against double-recording when PreDone already fired.
-    if S.getprop(ctx, "utility") != nil, do: feature_hook(ctx, "PreUnexpected")
+    # Fire PreUnexpected so features hooked on it close/record error paths that
+    # never reach PreDone (e.g. a PrePoint short-circuit). Fires after ctrl.err
+    # is set so hooks can read the error; features guard against
+    # double-recording when PreDone already fired.
+    if S.getprop(ctx, "utility") != nil do
+      S.setprop(ctx, "unexpected_fired", true)
+      feature_hook(ctx, "PreUnexpected")
+    end
 
     if S.getprop(ctrl, "throw_err") == false do
       S.getprop(result, "resdata")
@@ -1522,21 +1609,46 @@ defmodule VoxgigSolardemo.Utility do
             true
           )
 
-        # A route the definition ends with a slash keeps it: a server such as a
-        # Django REST one redirects or refuses the route without it.
+        # A route ending in a slash keeps it, as defined or as passed to direct(), for
+        # Django, and a host with no path takes /, or luasocket reads a query as the host.
         orig = S.getprop(S.getprop(ctx, "point"), "orig")
+        path = S.getprop(spec, "path")
         suffix = S.getprop(spec, "suffix")
 
+        slashed =
+          (is_binary(orig) and String.ends_with?(orig, "/")) or
+            (is_binary(path) and String.ends_with?(path, "/"))
+
         url0 =
-          if is_binary(orig) and String.ends_with?(orig, "/") and (suffix == nil or suffix == "") and
-               not String.ends_with?(joined, "/"),
-             do: joined <> "/",
-             else: joined
+          if slashed and (suffix == nil or suffix == "") and not String.ends_with?(joined, "/"),
+            do: joined <> "/",
+            else: joined
+        url0 =
+          case :binary.match(url0, "://") do
+            {authority, 3} when 0 < authority ->
+              rest = binary_part(url0, authority + 3, byte_size(url0) - authority - 3)
+              if String.contains?(rest, ["/", "?", "#"]), do: url0, else: url0 <> "/"
+
+            _ ->
+              url0
+          end
 
         resmatch = S.jm([])
 
         # Sent with the request, never recorded as the entity's match.
         authquery = for {_, name} <- H.entries(S.getprop(spec, "authquery")), do: name
+
+        # A whole . or .. is a dot segment, which moves the request to another route.
+        dot =
+          Enum.find_value(H.entries(S.getprop(spec, "params")), fn {key, val} ->
+            vstr = cond do
+              val == nil -> nil
+              is_binary(val) -> val
+              true -> S.stringify(val)
+            end
+
+            if is_binary(key) and vstr in [".", ".."], do: {key, vstr}
+          end)
 
         url1 =
           Enum.reduce(H.entries(S.getprop(spec, "params")), url0, fn {key, val}, acc ->
@@ -1568,12 +1680,19 @@ defmodule VoxgigSolardemo.Utility do
             end
           end)
 
-        if unfilled != [] do
-          {"", Context.make_error(ctx, "url_param_missing",
-            "URL path has no value for " <> Enum.join(unfilled, ", ") <> ".")}
-        else
-          S.setprop(result, "resmatch", resmatch)
-          {url2, nil}
+        cond do
+          dot != nil ->
+            {key, vstr} = dot
+            {"", Context.make_error(ctx, "url_param_invalid",
+              "URL path parameter " <> key <> " cannot be \"" <> vstr <> "\".")}
+
+          unfilled != [] ->
+            {"", Context.make_error(ctx, "url_param_missing",
+              "URL path has no value for " <> Enum.join(unfilled, ", ") <> ".")}
+
+          true ->
+            S.setprop(result, "resmatch", resmatch)
+            {url2, nil}
         end
     end
   end
@@ -1677,6 +1796,26 @@ defmodule VoxgigSolardemo.Utility do
       |> String.downcase()
 
     m == "application/json" or m == "text/json" or String.ends_with?(m, "+json")
+  end
+
+  @text_media ~w(json xml html javascript ecmascript yaml urlencoded graphql)
+
+  # A type whose body is text: none declared, text/*, or a structured text
+  # format. A body of any other type is bytes, which no message quotes.
+  def text_media?(media) do
+    m =
+      if(is_binary(media), do: media, else: "")
+      |> String.split(";", parts: 2)
+      |> hd()
+      |> String.trim()
+      |> String.downcase()
+
+    m == "" or String.starts_with?(m, "text/") or String.contains?(m, @text_media)
+  end
+
+  # A response whose body is bytes: by the model, or by the type it declares.
+  def binary_response?(point, type) do
+    S.getprop(S.getprop(point, "response"), "binary") == true or not text_media?(type)
   end
 
   # The declared JSON type alone, else every declared type in the model's
@@ -1871,9 +2010,51 @@ defmodule VoxgigSolardemo.Utility do
     op = S.getprop(ctx, "op")
 
     cond do
-      S.getprop(op, "input") != "data" -> nil
+      S.getprop(op, "input") != "data" -> match_body(ctx)
       raw_request?(S.getprop(ctx, "point")) -> raw_body(S.getprop(ctx, "reqdata"))
       true -> transform_request(ctx)
+    end
+  end
+
+  # A list, load or remove routed to a method with a body sends the match
+  # fields that body declares, never a path parameter, and never a header,
+  # cookie or query argument the body does not also declare as a field.
+  defp match_body(ctx) do
+    point = S.getprop(ctx, "point")
+
+    case point_names(point, "fields") do
+      [] ->
+        nil
+
+      fields ->
+        reqmatch = S.getprop(ctx, "reqmatch")
+
+        routed =
+          point_names(point, "params") ++
+            arg_names(point, "args.params") ++
+            Enum.flat_map(["header", "cookie", "query"], &unkept_arg_names(point, &1))
+
+        body = S.jm([])
+
+        Enum.each(fields, fn name ->
+          val = S.getprop(reqmatch, name)
+          if val != nil and name != "$action" and name not in routed, do: S.setprop(body, name, val)
+        end)
+
+        body
+    end
+  end
+
+  defp unkept_arg_names(point, kind) do
+    defs = S.getpath(point, "args." <> kind)
+
+    if S.islist(defs) and S.size(defs) > 0 do
+      0..(S.size(defs) - 1)
+      |> Enum.map(&S.getelem(defs, &1))
+      |> Enum.reject(&(true == S.getprop(&1, "field")))
+      |> Enum.map(&S.getprop(&1, "name"))
+    else
+      []
     end
   end
 
@@ -1926,6 +2107,17 @@ defmodule VoxgigSolardemo.Utility do
     S.join(parts, "/", true)
   end
 
+  # The names in one of a point's lists of names, as its params and fields are.
+  defp point_names(nil, _key), do: []
+
+  defp point_names(point, key) do
+    names = S.getprop(point, key)
+
+    if S.islist(names),
+      do: H.entries(names) |> Enum.map(&elem(&1, 1)) |> Enum.filter(&is_binary/1),
+      else: []
+  end
+
   # The names in one of a point's lists of argument definitions.
   defp arg_names(nil, _path), do: []
 
@@ -1961,13 +2153,16 @@ defmodule VoxgigSolardemo.Utility do
     # A path parameter travels in the path. The generated config lists them
     # as args.params, which prepare_params reads; params is the older list.
     # A header or cookie parameter travels in the headers, which prepare_headers
-    # fills, unless a query parameter shares its name: then both are sent.
+    # fills, and a field the point's body declares travels in the body, which
+    # prepare_body fills, unless a query parameter shares its name: then both
+    # are sent.
     declared = arg_names(point, "args.query")
 
+    elsewhere =
+      arg_names(point, "args.header") ++ arg_names(point, "args.cookie") ++ point_names(point, "fields")
+
     param_strs =
-      param_strs ++
-        arg_names(point, "args.params") ++
-        Enum.reject(arg_names(point, "args.header") ++ arg_names(point, "args.cookie"), &(&1 in declared))
+      param_strs ++ arg_names(point, "args.params") ++ Enum.reject(elsewhere, &(&1 in declared))
 
     # A query parameter travels under the name the definition gives it, its
     # orig, which the model may have renamed for the caller.
@@ -2234,10 +2429,13 @@ defmodule VoxgigSolardemo.Utility do
     type = body_header(headers, "content-type")
     agent = to_string(clean(ctx, body_header(sent, "user-agent")))
 
+    # Only text is quoted: bytes are a file's, by the model or by their type.
+    quoted = text != nil and not binary_response?(S.getprop(ctx, "point"), type)
+
     detail =
       "HTTP " <> to_string(status) <> ", content-type " <> if(type == "", do: "none", else: type) <>
         ", user-agent " <> if(agent == "", do: "transport default", else: agent) <>
-        if(text == nil, do: "", else: ", body: " <> body_preview(ctx, text))
+        if(quoted, do: ", body: " <> body_preview(ctx, text), else: "")
 
     cond do
       match?(%VoxgigSolardemo.Error{}, failed) ->
@@ -2423,12 +2621,112 @@ defmodule VoxgigSolardemo.Utility do
         sys_fetch = S.getpath(options, "system.fetch")
 
         cond do
-          sys_fetch == nil -> default_http_fetch(fullurl, fetchdef)
+          sys_fetch == nil -> getonly_refusal(ctx, fullurl, fetchdef) || follow_redirects(ctx, fullurl, fetchdef, 0)
           S.isfunc(sys_fetch) -> sys_fetch.(fullurl, fetchdef)
           true -> {nil, Context.make_error(ctx, "fetch_invalid", "system.fetch is not a valid function")}
         end
       end
     end
+  end
+
+  # A GET-only live run refuses any other method before it is sent. The error
+  # names the path alone: the query can carry a credential.
+  defp getonly_refusal(ctx, fullurl, fetchdef) do
+    method = H.or_(S.getprop(fetchdef, "method"), "GET") |> to_string() |> String.upcase()
+
+    if System.get_env("VOXGIG_GETONLY_GUARD") == "TRUE" and method not in ["", "GET"] do
+      rest =
+        case String.split(fullurl, "://", parts: 2) do
+          [_, tail] -> Regex.replace(~r/^[^\/?#]*/, tail, "")
+          [whole] -> whole
+        end
+
+      path = rest |> String.split(["?", "#"], parts: 2) |> hd()
+      path = if path == "", do: "/", else: path
+      {nil, Context.make_error(ctx, "fetch_getonly_block", "[GET-ONLY GUARD] blocked #{method} #{path}")}
+    end
+  end
+
+  @redirect_status [300, 301, 302, 303, 307, 308]
+  @redirect_max 5
+  @credential_headers ~w(authorization cookie proxy-authorization)
+
+  # :httpc follows a redirect with every header but authorization and cookie,
+  # and sends a POST's body on to wherever a 307 points. Followed here
+  # instead, where :httpc followed: each hop passes the GET-only guard; past
+  # @redirect_max hops, or where a body would go to another origin, the 3xx
+  # is the answer.
+  defp follow_redirects(ctx, url, fetchdef, hops) do
+    {res, err} = default_http_fetch(url, fetchdef)
+
+    case next_hop(ctx, url, fetchdef, res, err, hops) do
+      nil -> {res, err}
+      {next, nextdef} -> getonly_refusal(ctx, next, nextdef) || follow_redirects(ctx, next, nextdef, hops + 1)
+    end
+  end
+
+  # The request a redirect leads to, or nil where the response is the answer.
+  defp next_hop(ctx, url, fetchdef, res, err, hops) do
+    status = if err == nil and S.ismap(res), do: S.getprop(res, "status")
+    location = if status != nil, do: S.getprop(S.getprop(res, "headers"), "location")
+    method = H.or_(S.getprop(fetchdef, "method"), "GET") |> to_string() |> String.upcase()
+
+    # As :httpc: a 300 for any method, the others for these alone.
+    followed =
+      S.getprop(fetchdef, "redirect") != "manual" and status in @redirect_status and
+        is_binary(location) and location != "" and hops < @redirect_max and
+        (status == 300 or method in ["GET", "HEAD", "OPTIONS", "TRACE", "POST"])
+
+    next = if followed, do: resolve_location(url, location)
+
+    if next != nil do
+      # A POST answered by a 301, 302 or 303 becomes a GET without its body.
+      toget = method == "POST" and status in [301, 302, 303]
+      cross = origin_of(next) != origin_of(url)
+      body = if toget, do: nil, else: S.getprop(fetchdef, "body")
+
+      if cross and is_binary(body) and method in ["POST", "PUT", "PATCH", "DELETE"] do
+        nil
+      else
+        headers = S.jm([])
+
+        Enum.each(H.entries(H.or_(S.getprop(fetchdef, "headers"), S.jm([]))), fn {name, value} ->
+          dropped =
+            (toget and String.starts_with?(String.downcase(to_string(name)), "content-")) or
+              (cross and credential?(ctx, name, value))
+
+          if not dropped, do: S.setprop(headers, name, value)
+        end)
+
+        nextdef = S.jm([])
+
+        Enum.each(H.entries(fetchdef), fn {key, value} ->
+          if key not in ["method", "headers", "body"], do: S.setprop(nextdef, key, value)
+        end)
+
+        S.setprop(nextdef, "method", if(toget, do: "GET", else: method))
+        S.setprop(nextdef, "headers", headers)
+        if body != nil, do: S.setprop(nextdef, "body", body)
+        {next, nextdef}
+      end
+    end
+  end
+
+  defp resolve_location(url, location) do
+    URI.to_string(URI.merge(url, location))
+  rescue
+    _ -> nil
+  end
+
+  defp origin_of(url) do
+    uri = URI.parse(url)
+    {String.downcase(to_string(uri.scheme)), String.downcase(to_string(uri.host)), uri.port}
+  end
+
+  # What another origin is not sent: the names every client drops, and
+  # whatever the SDK holds as a secret, by its name or by its value.
+  defp credential?(ctx, name, value) do
+    String.downcase(to_string(name)) in @credential_headers or clean_secret(ctx, name, value) == true
   end
 
   defp default_http_fetch(fullurl, fetchdef) do
@@ -2479,49 +2777,89 @@ defmodule VoxgigSolardemo.Utility do
         {url, hlist}
       end
 
-    # A `redirect: "manual"` annotation (set by the station feature when a
-    # hosts egress policy is active - the same in-band channel go and rust
-    # use) disables :httpc's automatic redirect following, so a 3xx rides
-    # back as a normal response: a Location pointing off an egress
-    # allowlist must never pull an automatic credentialed follow-up
-    # request.
-    http_opts =
-      if S.getprop(fetchdef, "redirect") == "manual", do: [autoredirect: false], else: []
-
-    case :httpc.request(method, request, http_opts, body_format: :binary) do
+    # A 3xx rides back as a normal response: follow_redirects decides the
+    # next request, and a `redirect: "manual"` annotation (set by the station
+    # feature when a hosts egress policy is active) makes the 3xx the answer.
+    case :httpc.request(method, request, [autoredirect: false], body_format: :binary) do
       {:ok, {{_v, status, _reason}, resp_headers, resp_body}} ->
         rh =
           Enum.reduce(resp_headers, S.jm([]), fn {k, v}, acc ->
             S.setprop(acc, String.downcase(to_string(k)), to_string(v))
           end)
 
-        body_str = if is_binary(resp_body), do: resp_body, else: to_string(resp_body)
+        raw_body = if is_binary(resp_body), do: resp_body, else: to_string(resp_body)
 
-        {json_body, unreadable} =
-          if String.trim(body_str) != "" do
-            case safe_json(body_str) do
-              {:ok, v} -> {v, false}
-              _ -> {nil, true}
-            end
-          else
-            {nil, false}
-          end
+        case decode_body(raw_body, S.getprop(rh, "content-encoding")) do
+          {:ok, body_str} ->
+            {json_body, unreadable} =
+              if String.trim(body_str) != "" do
+                case safe_json(body_str) do
+                  {:ok, v} -> {v, false}
+                  _ -> {nil, true}
+                end
+              else
+                {nil, false}
+              end
 
-        status_text = if status < 400, do: "OK", else: "Error"
+            status_text = if status < 400, do: "OK", else: "Error"
 
-        {S.jm([
-           "status", status,
-           "statusText", status_text,
-           "headers", rh,
-           "json", fn -> json_body end,
-           "body", body_str,
-           "unreadable", unreadable
-         ]), nil}
+            {S.jm([
+               "status", status,
+               "statusText", status_text,
+               "headers", rh,
+               "json", fn -> json_body end,
+               "body", lossy_text(body_str),
+               "unreadable", unreadable
+             ]), nil}
+
+          {:error, message} ->
+            {nil, message}
+        end
 
       {:error, reason} ->
         {nil, inspect(reason)}
     end
   end
+
+  # :httpc decodes no Content-Encoding, and a server may compress its answer
+  # whatever the request asked for. Deflate is zlib-wrapped,
+  # or raw as some servers send it.
+  defp decode_body("", _encoding), do: {:ok, ""}
+
+  defp decode_body(body, encoding) do
+    enc = encoding |> to_string() |> String.trim() |> String.downcase()
+
+    try do
+      case enc do
+        e when e in ["gzip", "x-gzip"] ->
+          {:ok, :zlib.gunzip(body)}
+
+        "deflate" ->
+          {:ok,
+           try do
+             :zlib.uncompress(body)
+           rescue
+             _ -> :zlib.unzip(body)
+           end}
+
+        _ ->
+          {:ok, body}
+      end
+    rescue
+      e -> {:error, "response body is not valid " <> enc <> " data: " <> Exception.message(e)}
+    end
+  end
+
+  # A body that is not valid UTF-8 is kept as text, with a replacement
+  # character for each byte that does not decode: whatever reads the response
+  # afterwards serialises it, and a serialiser raises on such a binary.
+  defp lossy_text(body) do
+    if String.valid?(body), do: body, else: scrub(body, "")
+  end
+
+  defp scrub(<<char::utf8, rest::binary>>, text), do: scrub(rest, <<text::binary, char::utf8>>)
+  defp scrub(<<_, rest::binary>>, text), do: scrub(rest, <<text::binary, 0xFFFD::utf8>>)
+  defp scrub(<<>>, text), do: text
 
   # Parse a JSON string into struct nodes using the vendored struct's own
   # constructors (no third-party dep). Returns {:ok, node} | :error.

@@ -382,49 +382,31 @@ class PlanetListMatch {
 class PlanetCreateData {
   /// NUMBER (required at the API)
   num? diameter;
-  /// STRING
-  String? forbidReason;
-  /// STRING
-  String? forbidState;
   /// STRING (required at the API)
   String? id;
   /// STRING (required at the API)
   String? kind;
   /// STRING (required at the API)
   String? name;
-  /// STRING
-  String? terraformState;
 
   PlanetCreateData({
     this.diameter,
-    this.forbidReason,
-    this.forbidState,
     this.id,
     this.kind,
     this.name,
-    this.terraformState,
   });
 
   factory PlanetCreateData.fromMap(Map<String, dynamic> m) => PlanetCreateData(
         diameter: m['diameter'] is num ? m['diameter'] : null,
-        forbidReason: m['forbidReason'] is String ? m['forbidReason'] : null,
-        forbidState: m['forbidState'] is String ? m['forbidState'] : null,
         id: m['id'] is String ? m['id'] : null,
         kind: m['kind'] is String ? m['kind'] : null,
         name: m['name'] is String ? m['name'] : null,
-        terraformState: m['terraformState'] is String ? m['terraformState'] : null,
       );
 
   Map<String, dynamic> toMap() {
     final m = <String, dynamic>{};
     if (null != diameter) {
       m['diameter'] = diameter;
-    }
-    if (null != forbidReason) {
-      m['forbidReason'] = forbidReason;
-    }
-    if (null != forbidState) {
-      m['forbidState'] = forbidState;
     }
     if (null != id) {
       m['id'] = id;
@@ -434,9 +416,6 @@ class PlanetCreateData {
     }
     if (null != name) {
       m['name'] = name;
-    }
-    if (null != terraformState) {
-      m['terraformState'] = terraformState;
     }
     return m;
   }
@@ -448,34 +427,22 @@ class PlanetUpdateData {
   /// NUMBER
   num? diameter;
   /// STRING
-  String? forbidReason;
-  /// STRING
-  String? forbidState;
-  /// STRING
   String? kind;
   /// STRING
   String? name;
-  /// STRING
-  String? terraformState;
 
   PlanetUpdateData({
     this.id,
     this.diameter,
-    this.forbidReason,
-    this.forbidState,
     this.kind,
     this.name,
-    this.terraformState,
   });
 
   factory PlanetUpdateData.fromMap(Map<String, dynamic> m) => PlanetUpdateData(
         id: m['id'] is String ? m['id'] : null,
         diameter: m['diameter'] is num ? m['diameter'] : null,
-        forbidReason: m['forbidReason'] is String ? m['forbidReason'] : null,
-        forbidState: m['forbidState'] is String ? m['forbidState'] : null,
         kind: m['kind'] is String ? m['kind'] : null,
         name: m['name'] is String ? m['name'] : null,
-        terraformState: m['terraformState'] is String ? m['terraformState'] : null,
       );
 
   Map<String, dynamic> toMap() {
@@ -486,20 +453,11 @@ class PlanetUpdateData {
     if (null != diameter) {
       m['diameter'] = diameter;
     }
-    if (null != forbidReason) {
-      m['forbidReason'] = forbidReason;
-    }
-    if (null != forbidState) {
-      m['forbidState'] = forbidState;
-    }
     if (null != kind) {
       m['kind'] = kind;
     }
     if (null != name) {
       m['name'] = name;
-    }
-    if (null != terraformState) {
-      m['terraformState'] = terraformState;
     }
     return m;
   }

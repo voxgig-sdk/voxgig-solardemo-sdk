@@ -13,7 +13,7 @@ let make_config () : value =
     ("main", (jo [
       ("name", (Str "VoxgigSolardemo"));
       ("slug", (Str "voxgig-solardemo"));
-      ("version", (Str "0.1.0"));
+      ("version", (Str "0.0.1"));
       ("target", (Str "ocaml")) ]));
     ("feature", (jo [
       ("debug", (jo [
@@ -109,6 +109,7 @@ let make_config () : value =
             ("active", (Bool false));
             ("method", (Str "POST"));
             ("path", (Str "auth/token"));
+            ("redirect", (Str "refuse"));
             ("refresh", (Str ""));
             ("request", (Str "refresh_token"));
             ("response", (Str "access_token"));

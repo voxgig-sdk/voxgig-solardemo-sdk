@@ -22,8 +22,7 @@ export LUA_PATH="path/to/lua/?.lua;path/to/lua/?/init.lua;;"
 
 ## Tutorial: your first API call
 
-This tutorial walks through creating a client, listing entities, and
-loading a specific record.
+This tutorial walks through creating a client, listing entities, and loading a specific record.
 
 ### 1. Create a client
 
@@ -91,9 +90,9 @@ if err then error(err) end
 
 ```lua
 local result, err = client:direct({
-  path = "/api/resource/{id}",
+  path = "/api/planet/{planet_id}/moon",
   method = "GET",
-  params = { id = "example_id" },
+  params = { planet_id = "example_id" },
 })
 if err then error(err) end
 ```
@@ -107,9 +106,9 @@ For endpoints not covered by entity methods:
 
 ```lua
 local result, err = client:direct({
-  path = "/api/resource/{id}",
+  path = "/api/planet/{planet_id}/moon",
   method = "GET",
-  params = { id = "example" },
+  params = { planet_id = "example" },
 })
 if err then error(err) end
 
@@ -123,9 +122,9 @@ end
 
 ```lua
 local fetchdef, err = client:prepare({
-  path = "/api/resource/{id}",
-  method = "DELETE",
-  params = { id = "example" },
+  path = "/api/planet/{planet_id}/moon",
+  method = "GET",
+  params = { planet_id = "example" },
 })
 if err then error(err) end
 
@@ -144,6 +143,18 @@ local client = sdk.test()
 local result, err = client:Planet():list()
 -- result is an array of entities, one per mock record; err is set on failure
 ```
+
+### Verify the server over HTTPS
+
+An `https://` request goes through LuaSocket and LuaSec, and the SDK checks
+the server itself before any of the request is sent: its certificate against
+the system's trust store, and its name against the host (an address against
+the certificate's addresses). Nothing turns that off. `SSL_CERT_FILE` or
+`SSL_CERT_DIR` names the trust store, as for OpenSSL; with neither set and no
+system store found, an `https://` request fails rather than going unverified.
+`VOXGIG_SOLARDEMO_CA_BUNDLE` names a PEM file of roots added to the store,
+for a local service with its own certificate authority or a self-signed
+certificate. A different policy is a custom fetch function, described next.
 
 ### Use a custom fetch function
 
@@ -177,6 +188,10 @@ Create a `.env.local` file at the project root:
 VOXGIG_SOLARDEMO_TEST_LIVE=TRUE
 ```
 
+Each entity's tests also read `VOXGIG_SOLARDEMO_TEST_<ENTITY>_ENTID`, with the
+entity's name in capitals: a JSON object of the ids of existing records, for
+the tests that do not create their own.
+
 Then run:
 
 ```bash
@@ -200,9 +215,10 @@ Creates a new SDK client.
 | `base` | `string` | Base URL of the API server. |
 | `prefix` | `string` | URL path prefix prepended to all requests. |
 | `suffix` | `string` | URL path suffix appended to all requests. |
+| `headers` | `table` | Headers sent with every request. |
 | `feature` | `table` | Feature activation flags. |
-| `extend` | `table` | Additional Feature instances to load. |
-| `system` | `table` | System overrides (e.g. custom `fetch` function). |
+| `extend` | `table` | Additional feature instances to load. |
+| `system` | `table` | System overrides, such as a custom fetch function. |
 
 ### test
 
@@ -253,7 +269,7 @@ itself — there is no wrapper:
 
 Check `err` first (it is non-`nil` on failure), then use `value`:
 
-    local moon, err = client:Moon():load({ id = "example_id" })
+    local moon, err = client:Moon():load({ id = "example_id", planet_id = "example" })
     if err then error(err) end
     -- moon is the loaded entity
 
@@ -272,7 +288,7 @@ Only `direct()` returns a response envelope — a `table` with `ok`,
 | `name` |  |
 | `planet_id` |  |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
 API path: `/api/planet/{planet_id}/moon`
 
@@ -288,9 +304,9 @@ API path: `/api/planet/{planet_id}/moon`
 | `name` |  |
 | `terraformState` | Set by the terraform action, and absent until it first runs. |
 
-Operations: Create, List, Load, Remove, Update.
+Operations: list, load, create, update, remove.
 
-API path: `/api/planet/{planet_id}/forbid`
+API path: `/api/planet`
 
 
 
@@ -305,11 +321,11 @@ Create an instance: `local moon = client:Moon(nil)`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list(match)` | List entities matching the criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -354,11 +370,11 @@ Create an instance: `local planet = client:Planet(nil)`
 
 | Method | Description |
 | --- | --- |
-| `create(data)` | Create a new entity with the given data. |
 | `list(match)` | List entities matching the criteria. |
 | `load(match)` | Load a single entity by match criteria. |
-| `remove(match)` | Remove the matching entity. |
+| `create(data)` | Create a new entity with the given data. |
 | `update(data)` | Update an existing entity. |
+| `remove(match)` | Remove the matching entity. |
 
 #### Fields
 
@@ -397,12 +413,11 @@ local planet, err = client:Planet():create({
 
 ## Features
 
-This SDK ships 9 optional features. Each is **inactive until you
-switch it on**, so an SDK you have not configured behaves exactly as if none of
-them existed — no retries, no cache, no logging, no measurable overhead.
+This SDK ships 9 optional features.
+Each is **inactive until you switch it on**, so an SDK you have not
+configured behaves exactly as if none of them existed, with no measurable overhead.
 
-Activate a feature by name in the client options, alongside the options shown
-above:
+Activate a feature by name in the `feature` client option:
 
 | Feature | What it does |
 |---|---|
@@ -515,7 +530,7 @@ Secrets.
 |---|---|
 | `active` | `false` |
 | `cache` | `true` |
-| `exchange` | `{active: false, method: 'POST', path: 'auth/token', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
+| `exchange` | `{active: false, method: 'POST', path: 'auth/token', redirect: 'refuse', refresh: '', request: 'refresh_token', response: 'access_token', retries: 1, statuses: [401]}` |
 | `name` | `'apikey'` |
 | `providers` | `[]` |
 
@@ -566,16 +581,12 @@ feature hook before executing:
 PrePoint → PreSpec → PreRequest → PreResponse → PreResult → PreDone
 ```
 
-- **PrePoint**: Resolves which API endpoint to call based on the
-  operation name and entity configuration.
-- **PreSpec**: Builds the HTTP spec — URL, method, headers, body —
-  from the resolved point and the caller's parameters.
-- **PreRequest**: Sends the HTTP request. Features can intercept here
-  to replace the transport (as TestFeature does with mocks).
+- **PrePoint**: Resolves which API endpoint to call based on the operation name and entity configuration.
+- **PreSpec**: Builds the HTTP spec — URL, method, headers, body — from the resolved point and the caller's parameters.
+- **PreRequest**: Sends the HTTP request. Features can intercept here to replace the transport.
 - **PreResponse**: Parses the raw HTTP response.
 - **PreResult**: Extracts the business data from the parsed response.
-- **PreDone**: Final stage before returning to the caller. Entity
-  state (match, data) is updated here.
+- **PreDone**: Final stage before returning to the caller. Entity state (match, data) is updated here.
 
 If any stage errors, the pipeline short-circuits and the error surfaces
 to the caller — see [Error handling](#error-handling) for how that looks
@@ -606,8 +617,10 @@ were added, so later features can override earlier ones.
 
 The Lua SDK uses plain Lua tables throughout rather than typed
 objects. This mirrors the dynamic nature of the API and keeps the
-SDK flexible — no code generation is needed when the API schema
-changes.
+SDK flexible: code that works with the tables needs no regeneration
+when the API schema changes. The typed models in
+`voxgig-solardemo_types.lua` follow the schema only when the SDK is
+regenerated.
 
 Use `helpers.to_map()` to safely validate that a value is a table.
 
@@ -621,7 +634,7 @@ lua/
 ├── features.lua             -- Feature factory
 ├── core/                    -- Core types and context
 ├── entity/                  -- Entity implementations
-├── feature/                 -- Built-in features (Base, Test, Log)
+├── feature/                 -- Feature implementations
 ├── utility/                 -- Utility functions and struct library
 └── test/                    -- Test suites
 ```
@@ -649,7 +662,8 @@ but no stored state.
 ### Direct vs entity access
 
 The entity interface handles URL construction, parameter placement,
-and response parsing automatically. Use it for standard CRUD operations.
+and response parsing automatically. Use it for the operations each
+entity declares.
 
 `direct()` gives full control over the HTTP request. Use it for
 non-standard endpoints, bulk operations, or any path not modelled as

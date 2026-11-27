@@ -52,6 +52,9 @@ public class PlanetDirectTest {
     Assumptions.assumeTrue(reason == null,
         reason == null || "".equals(reason)
             ? "skipped via sdk-test-control.json" : reason);
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     VoxgigSolardemoSDK client = setup.client;
 
 
@@ -89,6 +92,9 @@ public class PlanetDirectTest {
     Assumptions.assumeTrue(reason == null,
         reason == null || "".equals(reason)
             ? "skipped via sdk-test-control.json" : reason);
+    if (setup.live) {
+      RunnerSupport.livePace();
+    }
     VoxgigSolardemoSDK client = setup.client;
 
     Map<String, Object> params = new LinkedHashMap<>();

@@ -40,6 +40,16 @@ public class MoonEntityTest
                 return; // skipped via sdk-test-control.json
             }
         }
+        if (setup.Live && Environment.GetEnvironmentVariable("VOXGIG_GETONLY_GUARD") == "TRUE")
+        {
+            Console.WriteLine("LIVE STEP {\"id\":\"moon.create.0\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs POST /api/planet/{planet_id}/moon\"}");
+            Console.WriteLine("LIVE STEP {\"id\":\"moon.update.2\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs PUT /api/planet/{planet_id}/moon/{moon_id}\"}");
+            Console.WriteLine("LIVE STEP {\"id\":\"moon.remove.4\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: needs DELETE /api/planet/{planet_id}/moon/{moon_id}\"}");
+            Console.WriteLine("LIVE STEP {\"id\":\"moon.list.5\",\"state\":\"excluded\",\"attempted\":false,\"reason\":\"GET-only live run: checks a removal this run does not make\"}");
+            BasicGetOnly(setup);
+            return;
+        }
+
         if (setup.Live)
         {
             foreach (var liveKey in new[] { "planet01" })
@@ -53,6 +63,10 @@ public class MoonEntityTest
         }
         var client = setup.Client;
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // CREATE
         var moonRef01Ent = client.Moon();
         var moonRef01Data = Helpers.ToMapAny(StructUtils.GetProp(
@@ -61,10 +75,14 @@ public class MoonEntityTest
         moonRef01Data!["planet_id"] = setup.Idmap["planet01"];
 
         var moonRef01DataResult = moonRef01Ent.Create(moonRef01Data, null);
-        moonRef01Data = Helpers.ToMapAny(moonRef01DataResult is IEntity ce ? ce.Data() : moonRef01DataResult);
+        moonRef01Data = Helpers.ToMapAny(moonRef01DataResult is IEntity moonRef01DataEntity ? moonRef01DataEntity.Data() : moonRef01DataResult);
         Assert.True(moonRef01Data != null, "expected create result to be a map");
         Assert.True(moonRef01Data!["id"] != null, "expected created entity to have an id");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // LIST
         var moonRef01Match = new Dictionary<string, object?>
         {
@@ -82,6 +100,10 @@ public class MoonEntityTest
         Assert.False(StructUtils.IsEmpty(moonRef01ListFound),
             "expected to find created entity in list");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // UPDATE
         var moonRef01DataUp0Up = new Dictionary<string, object?>
         {
@@ -94,25 +116,31 @@ public class MoonEntityTest
         moonRef01DataUp0Up[moonRef01MarkdefUp0Name] = moonRef01MarkdefUp0Value;
 
         var moonRef01ResdataUp0Result = moonRef01Ent.Update(moonRef01DataUp0Up, null);
-        var moonRef01ResdataUp0 = Helpers.ToMapAny(moonRef01ResdataUp0Result is IEntity ue ? ue.Data() : moonRef01ResdataUp0Result);
+        var moonRef01ResdataUp0 = Helpers.ToMapAny(moonRef01ResdataUp0Result is IEntity moonRef01ResdataUp0Entity ? moonRef01ResdataUp0Entity.Data() : moonRef01ResdataUp0Result);
         Assert.True(moonRef01ResdataUp0 != null, "expected update result to be a map");
-        Assert.True(StructRunner.DeepEqual(moonRef01ResdataUp0!["id"], moonRef01DataUp0Up["id"]),
-            "expected update result id to match");
+        Assert.True(TestRunner.LiveSameId(StructUtils.GetProp(moonRef01ResdataUp0, "id"), moonRef01DataUp0Up["id"]), "expected update result id to match");
         Assert.True(Equals(moonRef01ResdataUp0![moonRef01MarkdefUp0Name], moonRef01MarkdefUp0Value),
             $"expected {moonRef01MarkdefUp0Name} to be updated, got {moonRef01ResdataUp0[moonRef01MarkdefUp0Name]}");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // LOAD
         var moonRef01MatchDt0 = new Dictionary<string, object?>
         {
             ["id"] = moonRef01Data!["id"],
         };
-        moonRef01MatchDt0["planet_id"] = StructUtils.GetProp(setup.Idmap, "planet_id") ?? StructUtils.GetProp(setup.Idmap, "planet01");
+        moonRef01MatchDt0["planet_id"] = StructUtils.GetProp(moonRef01Data, "planet_id") is System.IConvertible ? StructUtils.GetProp(moonRef01Data, "planet_id") : StructUtils.GetProp(setup.Idmap, "planet_id") ?? StructUtils.GetProp(setup.Idmap, "planet01");
         var moonRef01DataDt0Loaded = moonRef01Ent.Load(moonRef01MatchDt0, null);
-        var moonRef01DataDt0LoadResult = Helpers.ToMapAny(moonRef01DataDt0Loaded is IEntity le ? le.Data() : moonRef01DataDt0Loaded);
+        var moonRef01DataDt0LoadResult = Helpers.ToMapAny(moonRef01DataDt0Loaded is IEntity moonRef01DataDt0LoadedEntity ? moonRef01DataDt0LoadedEntity.Data() : moonRef01DataDt0Loaded);
         Assert.True(moonRef01DataDt0LoadResult != null, "expected load result to be a map");
-        Assert.True(StructRunner.DeepEqual(moonRef01DataDt0LoadResult!["id"], moonRef01Data["id"]),
-            "expected load result id to match");
+        Assert.True(TestRunner.LiveSameId(StructUtils.GetProp(moonRef01DataDt0LoadResult, "id"), StructUtils.GetProp(moonRef01Data, "id")), "expected load result id to match");
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // REMOVE
         var moonRef01MatchRm0 = new Dictionary<string, object?>
         {
@@ -121,6 +149,10 @@ public class MoonEntityTest
         moonRef01MatchRm0["planet_id"] = StructUtils.GetProp(setup.Idmap, "planet_id") ?? StructUtils.GetProp(setup.Idmap, "planet01");
         moonRef01Ent.Remove(moonRef01MatchRm0, null);
 
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
         // LIST
         var moonRef01MatchRt0 = new Dictionary<string, object?>
         {
@@ -137,6 +169,72 @@ public class MoonEntityTest
             new Dictionary<string, object?> { ["id"] = moonRef01Data!["id"] });
         Assert.True(StructUtils.IsEmpty(moonRef01ListRt0NotFound),
             "expected removed entity to not be in list");
+
+    }
+
+    private static void BasicGetOnly(EntityTestSetup setup)
+    {
+        if (setup.Live)
+        {
+            foreach (var liveKey in new[] { "planet01" })
+            {
+                if (setup.SyntheticOnly || StructUtils.GetProp(setup.Idmap, liveKey) == null)
+                {
+                    TestRunner.LiveMiss(LIVE_STRICT, "Live entity test blocked: needs " + liveKey + " via VOXGIG_SOLARDEMO_TEST_MOON_ENTID");
+                    return;
+                }
+            }
+        }
+        var client = setup.Client;
+        if (setup.Live)
+        {
+            var liveId = setup.SyntheticOnly ? null : StructUtils.GetProp(setup.Idmap, "moon01");
+            TestRunner.LivePace();
+            if (!TestRunner.LiveExisting(setup.Data, LIVE_STRICT, "moon",
+                "id", liveId,
+                () => client.Moon().List(new Dictionary<string, object?> { ["planet_id"] = setup.Idmap["planet01"], }, null)))
+            {
+                return;
+            }
+        }
+
+        // Bootstrap entity data from existing test data (no create step in flow).
+        var moonRef01DataRaw = StructUtils.Items(
+            Helpers.ToMapAny(StructUtils.GetPath(setup.Data, "existing.moon")));
+        var moonRef01Data = moonRef01DataRaw.Count > 0
+            ? Helpers.ToMapAny(moonRef01DataRaw[0][1])
+            : null;
+
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+        // LIST
+        var moonRef01Ent = client.Moon();
+        var moonRef01Match = new Dictionary<string, object?>
+        {
+            ["planet_id"] = setup.Idmap["planet01"],
+        };
+
+        var moonRef01ListResult = moonRef01Ent.List(moonRef01Match, null);
+        var moonRef01List = moonRef01ListResult as List<object?>;
+        Assert.True(moonRef01List != null,
+            $"expected list result to be a list, got {moonRef01ListResult?.GetType()}");
+
+        if (setup.Live)
+        {
+            TestRunner.LivePace();
+        }
+        // LOAD
+        var moonRef01MatchDt0 = new Dictionary<string, object?>
+        {
+            ["id"] = moonRef01Data!["id"],
+        };
+        moonRef01MatchDt0["planet_id"] = StructUtils.GetProp(moonRef01Data, "planet_id") is System.IConvertible ? StructUtils.GetProp(moonRef01Data, "planet_id") : StructUtils.GetProp(setup.Idmap, "planet_id") ?? StructUtils.GetProp(setup.Idmap, "planet01");
+        var moonRef01DataDt0Loaded = moonRef01Ent.Load(moonRef01MatchDt0, null);
+        var moonRef01DataDt0LoadResult = Helpers.ToMapAny(moonRef01DataDt0Loaded is IEntity moonRef01DataDt0LoadedEntity ? moonRef01DataDt0LoadedEntity.Data() : moonRef01DataDt0Loaded);
+        Assert.True(moonRef01DataDt0LoadResult != null, "expected load result to be a map");
+        Assert.True(TestRunner.LiveSameId(StructUtils.GetProp(moonRef01DataDt0LoadResult, "id"), StructUtils.GetProp(moonRef01Data, "id")), "expected load result id to match");
 
     }
 

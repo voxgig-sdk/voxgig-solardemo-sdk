@@ -71,31 +71,49 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "active": false
     },
     "debug": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "max": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "redact": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "onEntry": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -103,16 +121,25 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "idempotency": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "header": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -121,17 +148,26 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "methods": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "ops": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "keygen": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -139,16 +175,25 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "metrics": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -156,16 +201,25 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "paging": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "afterVar": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -174,7 +228,10 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "cursorParam": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -183,7 +240,10 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "firstVar": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -192,7 +252,10 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "limitParam": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -201,7 +264,10 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "pageParam": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -210,17 +276,26 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "startPage": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "limit": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "ops": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ]
@@ -228,31 +303,49 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "ratelimit": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "burst": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "rate": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "sleep": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -260,46 +353,73 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "retry": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "factor": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "maxDelay": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "minDelay": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "retries": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "statuses": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ],
         "jitter": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "sleep": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]
@@ -307,26 +427,41 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "secrets": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "cache": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "exchange": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$MAP`",
           "`$NIL`"
         ],
         "name": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$STRING`",
           [
             "`$EXACT`",
@@ -335,7 +470,10 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
           "`$NIL`"
         ],
         "providers": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$LIST`",
           "`$NIL`"
         ]
@@ -343,21 +481,33 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "test": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "entity": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$MAP`",
           "`$NIL`"
         ],
         "net": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$MAP`",
           "`$NIL`"
         ]
@@ -365,31 +515,49 @@ my $OPTSPEC_JSON = <<'END_OPTSPEC_JSON';
       "`$NIL`"
     ],
     "timeout": [
-      "`$ONE`",
+      "`$NOF`",
+      {
+        "min": 1
+      },
       {
         "`$OPEN`": true,
         "active": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$BOOLEAN`",
           "`$NIL`"
         ],
         "ms": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$NUMBER`",
           "`$NIL`"
         ],
         "clearTimer": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "now": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ],
         "setTimer": [
-          "`$ONE`",
+          "`$NOF`",
+          {
+            "min": 1
+          },
           "`$FUNCTION`",
           "`$NIL`"
         ]

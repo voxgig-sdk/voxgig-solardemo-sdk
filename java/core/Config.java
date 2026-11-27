@@ -79,7 +79,7 @@ public final class Config {
     b.append(" \"main\": {");
     b.append("  \"name\": \"VoxgigSolardemo\",");
     b.append("  \"slug\": \"voxgig-solardemo\",");
-    b.append("  \"version\": \"0.1.0\",");
+    b.append("  \"version\": \"0.0.1\",");
     b.append("  \"target\": \"java\"");
     b.append(" },");
     b.append(" \"feature\": {");
@@ -198,6 +198,7 @@ public final class Config {
     b.append("     \"active\": false,");
     b.append("     \"method\": \"POST\",");
     b.append("     \"path\": \"auth/token\",");
+    b.append("     \"redirect\": \"refuse\",");
     b.append("     \"refresh\": \"\",");
     b.append("     \"request\": \"refresh_token\",");
     b.append("     \"response\": \"access_token\",");

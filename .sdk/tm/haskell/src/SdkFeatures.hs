@@ -14,7 +14,7 @@ import Control.Concurrent (threadDelay)
 import Control.Exception
   ( SomeAsyncException, SomeException, displayException, fromException, throwIO
   , toException, try )
-import Control.Monad (forM_, unless, when)
+import Control.Monad (foldM, forM_, unless, when)
 import Data.Bits ((.&.))
 import Data.IORef
 import Data.Maybe (isJust, isNothing)
@@ -1021,7 +1021,7 @@ itemEnvelopeKey restf = do
 -- `transform.res: `body.item`` describes an API that answers {"item": {...}},
 -- and a list read by the transform above answers items of {"<key>": {...}}.
 -- Returning the bare payload gives the response transform nothing to read.
--- Like the dart and lean mocks, a string transform is exactly `body.<key>`.
+-- A string transform `body.<a>.<b>` answers {"<a>": {"<b>": ...}}.
 mockEnvelope :: Context -> Value -> IO Value
 mockEnvelope fctx dat
   | isNullish dat = pure dat
@@ -1035,7 +1035,7 @@ mockEnvelope fctx dat
         (_, _, VStr s)
           | length s > 7, take 6 s == "`body.", last s == '`'
           , let inner = take (length s - 7) (drop 6 s)
-          , not (null inner), '.' `notElem` inner -> jo [(inner, dat)]
+          , not (null inner) -> foldM (\acc seg -> jo [(seg, acc)]) dat (reverse (splitOnChar '.' inner))
         _ -> pure dat
 
 testFeature :: IO Feature
@@ -1187,9 +1187,9 @@ makeClientBase config makeFeature options = do
   writeIORef (cOptions rootctx) opts
   -- Add features in the resolved order (makeOptions records an explicit array
   -- order, else defaults to test-first). Ordering matters: the `test` feature
-  -- installs the base mock transport and the transport features
-  -- (retry/cache/netsim/proxy/ratelimit) wrap whatever is current, so `test`
-  -- must be added before them to sit at the base of the wrapper chain.
+  -- installs the base mock transport and the features whose model declares
+  -- `transport: 'wrap'` wrap whatever is current, so `test` must be added
+  -- before them to sit at the base of the wrapper chain.
   featureOpts <- do fmV <- toMap <$> getp opts "feature"; case fmV of VMap _ -> pure fmV; _ -> emptyMap
   orderV <- getpathS opts "__derived__.featureorder"
   order <- case orderV of VList ref -> readIORef ref; _ -> pure []
@@ -1270,8 +1270,8 @@ direct client fetchargs = do
 -- a top-level `errors` array, so status alone would report a failed query as
 -- ok.
 --
--- NOTE: like direct, this bypasses the feature pipeline — no retry, ratelimit
--- or paging features apply.
+-- NOTE: like direct, this bypasses the feature pipeline: no feature hook runs
+-- on this path.
 graphql :: Client -> String -> Value -> Value -> IO Value
 graphql client query variables ctrl = do
   allowed <- opAllowed client "graphql"

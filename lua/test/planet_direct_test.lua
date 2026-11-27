@@ -31,14 +31,19 @@ describe("PlanetDirect", function()
       pending(_reason or "skipped via sdk-test-control.json")
       return
     end
+    if setup.live then
+      runner.live_pace()
+    end
     local client = setup.client
 
     local params = {}
+    local query = {}
 
     local result, err = client:direct({
       path = "api/planet",
       method = "GET",
       params = params,
+      query = query,
     })
     if setup.live then
       if not live_ok(result, err) then
@@ -65,6 +70,9 @@ describe("PlanetDirect", function()
       pending(_reason or "skipped via sdk-test-control.json")
       return
     end
+    if setup.live then
+      runner.live_pace()
+    end
     local client = setup.client
 
     local params = {}
@@ -86,7 +94,7 @@ describe("PlanetDirect", function()
         runner.live_empty(pending, "The account has no planet record to load")
       end
       local first = type(records[1]) == "table" and records[1] or {}
-      local found = first["id"] or first["id"]
+      local found = first["id"]
       if found == nil then
         runner.live_miss(pending, LIVE_STRICT, "Live load blocked: discovery returned no usable identity")
       end

@@ -38,11 +38,42 @@ const { Sekreto, envkey } = require('./sekreto')
 // bypasses feature hooks entirely, so it awaits client._secrets.resolve()
 // itself — which is what defends the raw direct()/graphql() paths, since
 // both reach the wire through prepare().
+const REDIRECT_MAX = 5
+
+
+// The next URL of a redirect that keeps its method, when that URL is on the
+// exchange's own origin. Any other redirect would drop the body or leave it.
+function moved(url, at, res) {
+  const status = null == res ? 0 : res.status
+  if (307 !== status && 308 !== status) {
+    return undefined
+  }
+
+  const headers = res.headers
+  const location = null == headers ? undefined :
+    'function' === typeof headers.get ? headers.get('location') : headers.location
+
+  if ('string' !== typeof location || '' === location) {
+    return undefined
+  }
+
+  try {
+    const next = new URL(location, at)
+    return next.origin === new URL(url).origin ? next.href : undefined
+  }
+  catch (_err) {
+    return undefined
+  }
+}
+
+
 class SecretsFeature extends BaseFeature {
   version = '0.1.0'
   name = 'secrets'
 
   _client
+  _declared = false
+  _basic = false
   _sekreto
   _secretname = 'apikey'
   _resolving
@@ -81,6 +112,13 @@ class SecretsFeature extends BaseFeature {
     const plugins = require('../../Config').FEATURE_PLUGINS || {}
 
     this._client = client
+
+    // What PrepareAuth was generated from: the config declares auth only
+    // where it places a credential, and Basic only where it composes one.
+    const declared = ctx.config?.options?.auth
+    this._declared = null != declared
+    this._basic = true === declared?.basic
+
     this._secretname = 'string' === typeof fopts.name &&
       '' !== fopts.name ? fopts.name : 'apikey'
 
@@ -94,6 +132,7 @@ class SecretsFeature extends BaseFeature {
       response: 'string' === typeof xopts.response ? xopts.response : 'access_token',
       statuses: Array.isArray(xopts.statuses) ? xopts.statuses : [401],
       retries: 'number' === typeof xopts.retries ? xopts.retries : 1,
+      redirect: 'same-origin' === xopts.redirect ? 'same-origin' : 'refuse',
     } : null
 
     const providers = []
@@ -164,6 +203,12 @@ class SecretsFeature extends BaseFeature {
   }
 
 
+  // PrepareAuth's decision: auth the config declares, not suppressed by `auth: null`.
+  _authon() {
+    return this._declared && null != this._client._options.auth
+  }
+
+
   // Every value this feature resolves or buys is a secret the SDK handles,
   // and none arrives under an option key the intake registration saw.
   _register(value) {
@@ -223,7 +268,7 @@ class SecretsFeature extends BaseFeature {
   // boolean is the whole of what resolve() needs to tell a cacheable HIT
   // from a miss it must not retain.
   async _resolveonce() {
-    if (null == this._sekreto) {
+    if (null == this._sekreto || !this._authon()) {
       return false
     }
 
@@ -252,17 +297,6 @@ class SecretsFeature extends BaseFeature {
       // API answers 401 and the transport wrapper buys another, which is
       // the same path expiry takes anyway.
       return true
-    }
-
-    // `auth: null` is the documented way to send NO credential, and a
-    // purchase is a credential-bearing call: the refresh token goes to the
-    // token endpoint in the request body. _withRefresh honours suppression
-    // for the RETRY, but it runs after this — by then the refresh token has
-    // already left the process, and no later check can call it back. The
-    // suppression has to be honoured here, before the first purchase, or it
-    // only ever half-held.
-    if (null == this._client.options().auth) {
-      return false
     }
 
     this._client._options.apikey = await this._buy()
@@ -337,11 +371,26 @@ class SecretsFeature extends BaseFeature {
     // feature wraps, and sending the token request back through it would
     // recurse on the first 401 — and would route the exchange through the
     // test mock, which knows nothing about it.
-    const res = await fetch(url, {
+    const fetchdef = {
       method: x.method,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ [x.request]: this._refresh }),
-    })
+      // Never followed by the client: a redirect would carry the refresh token on.
+      redirect: 'manual',
+    }
+
+    let res = await fetch(url, fetchdef)
+
+    // By option alone, and only while the exchange stays on its own origin.
+    let at = url
+    for (let hops = 0; 'same-origin' === x.redirect && hops < REDIRECT_MAX; hops++) {
+      const next = moved(url, at, res)
+      if (null == next) {
+        break
+      }
+      at = next
+      res = await fetch(at, fetchdef)
+    }
 
     const status = null == res ? 0 : res.status
 
@@ -367,21 +416,18 @@ class SecretsFeature extends BaseFeature {
   // Buy a token and try the request again when the API says the current one
   // is spent. Wraps the transport; installed only when exchanging.
   //
-  // The retry rewrites the Authorization header IN PLACE on the fetchdef,
+  // The retry rewrites the credential header IN PLACE on the fetchdef,
   // because the header was built by the synchronous prepareAuth before this
   // request left, and it carries the token that just failed. Rebuilt the
-  // way prepareAuth builds it, from the same options.auth.prefix, so the
-  // two cannot drift.
+  // way prepareAuth builds it, from the same options.auth name and prefix,
+  // so the two cannot drift.
   async _withRefresh(ctx, url, fetchdef, inner) {
     const x = this._exchange
     const max = null == x ? 0 : x.retries
 
-    // `auth: null` is the documented way to send NO credential, and
-    // prepareAuth honours it by removing the header. A refusal of a
-    // deliberately unauthenticated request is not an expired token and
-    // cannot be fixed by buying one — retrying would transmit exactly the
-    // credential the caller suppressed.
-    if (null == this._client.options().auth) {
+    // A refusal of an unauthenticated request is not an expired token, and
+    // retrying would transmit the credential that auth off withholds.
+    if (!this._authon()) {
       return inner(ctx, url, fetchdef)
     }
 
@@ -446,19 +492,29 @@ class SecretsFeature extends BaseFeature {
       return
     }
 
-    const auth = this._client.options().auth
-
-    // Suppressed auth means NO header, the same answer prepareAuth gives.
-    // Reached defensively - _withRefresh does not retry at all when auth
-    // is null - but this is the function that writes the credential, so
-    // it is where the rule has to hold.
-    if (null == auth) {
+    if (!this._authon()) {
       delete fetchdef.headers.authorization
       return
     }
 
+    const auth = this._client._options.auth
+
+    // The header prepareAuth wrote: auth.name, lower-cased.
+    const name = 'string' === typeof auth.name && '' !== auth.name ?
+      auth.name.toLowerCase() : 'authorization'
+
+    const value = this._basic && true === auth.basic ? this._pair(token) : token
     const prefix = auth.prefix
-    fetchdef.headers.authorization = prefix ? prefix + ' ' + token : token
+    fetchdef.headers[name] = prefix ? prefix + ' ' + value : value
+  }
+
+
+  // Under Basic the token is the key half, as apikey is: prepareAuth's pair.
+  _pair(token) {
+    const secret = this._client._options.secret
+    const pair = Buffer.from(token + ':' + (null == secret ? '' : secret)).toString('base64')
+    this._register(pair)
+    return pair
   }
 }
 

@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, entityIdField, opRequestShape, javaMapOf } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, entityIdField, opRequestShape, javaMapOf, matchExampleItems, javaMapItems, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -22,31 +22,34 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const authActive = isAuthActive(model)
 
   const shown = null != exampleEntity &&
-    ['list', 'load'].some((op: string) => Object.keys(exampleEntity.op || {}).includes(op))
+    ['list', 'load'].some((op: string) => entityOps(exampleEntity).includes(op))
 
   Content(`\`\`\`scala
 import ${scalaPackage(model)}.core.${SDK}
 ${shown ? `import ${scalaPackage(model)}.core.SdkEntity\n` : ''}
 `)
 
-  if (authActive) {
-    Content(`val options = new java.util.LinkedHashMap[String, Object]()
-options.put("apikey", System.getenv("${envName(model)}_APIKEY"))
-val client = new ${SDK}(options)
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorLines = [
+    ...(authActive ? [`options.put("apikey", System.getenv("${envName(model)}_APIKEY"))`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`options.put("secret", System.getenv("${envName(model)}_SECRET"))`] : []),
+    ...(0 === svars.length ? [] : ['val server = new java.util.LinkedHashMap[String, Object]()',
+      ...svars.map((v: any) => `server.put("${v.name}", "<${v.name}>")`), 'options.put("server", server)']),
+  ]
+  const ctor = 0 === ctorLines.length
+    ? `val client = new ${SDK}()`
+    : ['val options = new java.util.LinkedHashMap[String, Object]()', ...ctorLines,
+      `val client = new ${SDK}(options)`].join('\n')
+
+  Content(`${ctor}
 
 `)
-  }
-  else {
-    Content(`val client = new ${SDK}()
-
-`)
-  }
 
   if (exampleEntity) {
     const eVar = scalaVarName(exampleEntity.name)
     const accessor = scalaVarName(exampleEntity.name)
     const eNameLower = nom(exampleEntity, 'Name').toLowerCase()
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     const idF = entityIdField(exampleEntity)
 
     if (opnames.includes('list')) {
@@ -60,13 +63,12 @@ ${eVar}List.forEach(${eVar}Item => println(${eVar}Item.data()))
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = javaMapItems(matchExampleItems(exampleEntity, 'load', idF))
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? javaMapOf(loadItems.map((it: any) =>
-          `"${it.name}", ${scalaLit(it.type,
+          `${JSON.stringify(it.name)}, ${scalaLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`), 'java.util.')
         : 'null'
       Content(`

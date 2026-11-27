@@ -90,7 +90,10 @@ object MoonEntityTest {
       // LOAD
       val moonRef01MatchDt0 = new LinkedHashMap[String, Object]()
       moonRef01MatchDt0.put("id", moonRef01Data.get("id"))
-      moonRef01MatchDt0.put("planet_id", Option(idmap.get("planet_id")).getOrElse(idmap.get("planet01")))
+      moonRef01MatchDt0.put("planet_id", moonRef01Data.get("planet_id") match {
+        case v @ (_: String | _: java.lang.Number | _: java.lang.Boolean) => v
+        case _ => Option(idmap.get("planet_id")).getOrElse(idmap.get("planet01"))
+      })
       val moonRef01DataDt0Loaded = moonRef01Ent.load(moonRef01MatchDt0, null)
       val moonRef01DataDt0LoadResult = Helpers.toMapAny(moonRef01DataDt0Loaded match { case e: SdkEntity => e.data(); case o => o })
       rep.check("moon.load.map", moonRef01DataDt0LoadResult != null, "expected load result to be a map")

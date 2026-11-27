@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, pickExampleEntity, opRequestShape, requiredItems } from '@voxgig/sdkgen'
+import { cmp, Content, canonScalarKey, entityIdField, pickExampleEntity, requiredItems, matchExampleItems, requestExampleItems, cdTarget, directRoute } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -24,6 +24,7 @@ function swiftLit(type: any): string {
 
 const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const { target, ctx$: { model } } = props
+  const dx = directRoute(model)
 
   const SDK = model.const.Name + 'SDK'
 
@@ -39,13 +40,18 @@ const ReadmeHowto = cmp(function ReadmeHowto(props: any) {
   const isMatchOp = 'load' === primaryOp || 'remove' === primaryOp
   let testArg = 'nil'
   if (exampleEntity && isMatchOp) {
-    testArg = idF ? `VMap([("${idF}", .string("test01"))])` : 'nil'
+    const items = matchExampleItems(exampleEntity, primaryOp, idF)
+      .sort((a: any, b: any) => (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
+    testArg = 0 < items.length
+      ? `VMap([${items.map((it: any) =>
+        `(${swiftString(it.name)}, ${it.name === idF ? '.string("test01")' : swiftLit(it.type)})`).join(', ')}])`
+      : 'nil'
   } else if (exampleEntity && 'list' === primaryOp && 0 < requiredItems(exampleEntity, 'list').length) {
     const chosen = requiredItems(exampleEntity, 'list')
     testArg = `VMap([${chosen.map((it: any) =>
       `(${swiftString(it.name)}, ${swiftLit(it.type)})`).join(', ')}])`
   } else if (exampleEntity && ('create' === primaryOp || 'update' === primaryOp || 'patch' === primaryOp)) {
-    const items = opRequestShape(exampleEntity, primaryOp).items
+    const items = requestExampleItems(exampleEntity, primaryOp)
       .filter((it: any) => it.name !== idF && it.name !== 'id')
     const required = items.filter((it: any) => !it.optional)
     const chosen = required.length ? required : items.slice(0, 3)
@@ -76,19 +82,15 @@ if let ${eVar}Entity = ${eVar}.asNative as? Entity {
 ]))
 print(result)`
 
-  const apikeyEnvLine = isAuthActive(model)
-    ? `\n${envName(model)}_APIKEY=<your-key>`
-    : ''
-
   Content(`### Make a direct HTTP request
 
 For endpoints not covered by entity methods:
 
 \`\`\`swift
 let result = client.direct(VMap([
-    ("path", .string("/api/resource/{id}")),
-    ("method", .string("GET")),
-    ("params", .map([("id", .string("example"))])),
+    ("path", .string("${dx.path}")),
+    ("method", .string("${dx.method}")),
+    ("params", .map([("${dx.param}", .string("example"))])),
 ]))
 
 if result.entries["ok"] == .bool(true) {
@@ -108,9 +110,9 @@ else {
 \`\`\`swift
 // prepare() returns the fetch definition and throws on error.
 let fetchdef = try client.prepare(VMap([
-    ("path", .string("/api/resource/{id}")),
-    ("method", .string("DELETE")),
-    ("params", .map([("id", .string("example"))])),
+    ("path", .string("${dx.path}")),
+    ("method", .string("${dx.method}")),
+    ("params", .map([("${dx.param}", .string("example"))])),
 ]))
 
 print(fetchdef.entries["url"] ?? .noval)
@@ -150,18 +152,13 @@ options.entries["system"] = .map(system)
 let client = ${SDK}(options)
 \`\`\`
 
-### Run live tests
+### Run the test suite
 
-Create a \`.env.local\` file at the project root:
-
-\`\`\`
-${envName(model)}_TEST_LIVE=TRUE${apikeyEnvLine}
-\`\`\`
-
-Then run:
+The generated suite runs offline, against the mock transport. This SDK
+has no live tests.
 
 \`\`\`bash
-cd swift && make test
+${cdTarget(target)}make test
 \`\`\`
 
 `)

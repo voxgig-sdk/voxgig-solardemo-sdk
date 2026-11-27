@@ -1,5 +1,5 @@
 
-import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, phpEntityAccessor, listMatchArg } from '@voxgig/sdkgen'
+import { cmp, Content, isAuthActive, envName, canonKey, canonScalarKey, entityIdField, opRequestShape, phpEntityAccessor, listMatchArg, matchExampleItems, litString, entityOps, fact } from '@voxgig/sdkgen'
 
 import {
   KIT,
@@ -17,7 +17,7 @@ function phpLit(type: any, placeholder: string = 'example'): string {
   if ('INTEGER' === k || 'NUMBER' === k) return '1'
   if ('BOOLEAN' === k) return 'true'
   if ('ARRAY' === k || 'OBJECT' === k) return '[]'
-  return `"${placeholder}"`
+  return litString('php', placeholder)
 }
 
 
@@ -29,9 +29,16 @@ const ReadmeTopQuick = cmp(function ReadmeTopQuick(props: any) {
   const exampleEntity = Object.values(entity).find((e: any) => e.active !== false) as any
 
   const authActive = isAuthActive(model)
-  const ctor = authActive
-    ? `new ${model.const.Name}SDK([\n    "apikey" => getenv("${envName(model)}_APIKEY"),\n])`
-    : `new ${model.const.Name}SDK()`
+  const svars = fact(model.main[KIT], 'server').filter((v: any) => v.required)
+  const ctorFields = [
+    ...(authActive ? [`"apikey" => getenv("${envName(model)}_APIKEY"),`] : []),
+    ...(fact(model.main[KIT], 'auth').secret ? [`"secret" => getenv("${envName(model)}_SECRET"),`] : []),
+    ...(0 === svars.length ? [] : [`"server" => [` +
+      svars.map((v: any) => `\n        "${v.name}" => "<${v.name}>",`).join('') + `\n    ],`]),
+  ]
+  const ctor = 0 === ctorFields.length
+    ? `new ${model.const.Name}SDK()`
+    : `new ${model.const.Name}SDK([${ctorFields.map((f: string) => '\n    ' + f).join('')}\n])`
 
   Content(`\`\`\`php
 <?php
@@ -43,7 +50,7 @@ $client = ${ctor};
 
   if (exampleEntity) {
     const eName = nom(exampleEntity, 'Name')
-    const opnames = Object.keys(exampleEntity.op || {})
+    const opnames = entityOps(exampleEntity)
     // Model-driven id key: null when the entity has no id-like field, in which
     // case the load example takes no match argument.
     const idF = entityIdField(exampleEntity)
@@ -62,13 +69,12 @@ print_r(array_map(fn($item) => $item->data_get(), $${eName.toLowerCase()}s));
       // Every REQUIRED load-match key (id first, then parent path params like
       // page_id) — the same shape the runtime resolves path params from, so
       // the example always works.
-      const loadItems = opRequestShape(exampleEntity, 'load').items
-        .filter((it: any) => !it.optional || it.name === idF)
+      const loadItems = matchExampleItems(exampleEntity, 'load', idF)
         .sort((a: any, b: any) =>
           (a.name === idF ? 0 : 1) - (b.name === idF ? 0 : 1))
       const loadArg = 0 < loadItems.length
         ? `[${loadItems.map((it: any) =>
-          `"${it.name}" => ${phpLit(it.type,
+          `${litString('php', it.name)} => ${phpLit(it.type,
             it.name === idF ? 'example_id' : 'example_' + it.name)}`).join(', ')}]`
         : ''
       Content(`

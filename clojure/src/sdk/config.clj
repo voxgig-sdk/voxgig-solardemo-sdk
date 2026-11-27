@@ -660,6 +660,7 @@
             "active" false
             "method" "POST"
             "path" "auth/token"
+            "redirect" "refuse"
             "refresh" ""
             "request" "refresh_token"
             "response" "access_token"
@@ -693,7 +694,7 @@
       "name" "VoxgigSolardemo"
       "slug" "voxgig-solardemo"
       "target" "clojure"
-      "version" "0.1.0")
+      "version" "0.0.1")
     "options" (vs/jm
       "base" "http://localhost:8901"
       "entity" (vs/jm

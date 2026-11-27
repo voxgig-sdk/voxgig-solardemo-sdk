@@ -10,6 +10,7 @@ use Scalar::Util ();
 my $__dir;
 BEGIN { $__dir = File::Basename::dirname(Cwd::abs_path(__FILE__)) }
 require(Cwd::abs_path("$__dir/../core/helpers.pm"));
+require(Cwd::abs_path("$__dir/media.pm"));
 
 package VoxgigSolardemoUtilities;
 
@@ -38,12 +39,14 @@ use constant BODY_PREVIEW_LENGTH => 160;
 # malformed JSON.
 sub unreadable_body {
   my ($ctx, $status, $headers, $text, $sent, $failed) = @_;
-  my $type = _body_header($headers, 'content-type');
-  my $agent = $ctx->{utility}{clean}->($ctx, _body_header($sent, 'user-agent'));
+  my $type = header_value($headers, 'content-type');
+  my $agent = $ctx->{utility}{clean}->($ctx, header_value($sent, 'user-agent'));
   $agent = 'transport default' unless defined $agent && length $agent;
   my $detail = 'HTTP ' . (defined $status ? $status : -1) . ', content-type '
     . (length $type ? $type : 'none') . ", user-agent $agent";
-  $detail .= ', body: ' . _body_preview($ctx, $text) if defined $text;
+  # Only text is quoted: bytes are a file's, by the model or by their type.
+  $detail .= ', body: ' . _body_preview($ctx, $text)
+    if defined $text && !is_binary_response($ctx->{point}, $type);
 
   if (defined $failed) {
     if (Scalar::Util::blessed($failed) && 'HASH' eq Scalar::Util::reftype($failed)
@@ -60,16 +63,6 @@ sub unreadable_body {
   }
   return $ctx->make_error('response_content_type',
     "response: expected JSON, got $type ($detail)");
-}
-
-sub _body_header {
-  my ($headers, $name) = @_;
-  return '' unless Voxgig::Struct::ismap($headers);
-  for my $k (keys %$headers) {
-    next unless lc("$k") eq $name;
-    return defined $headers->{$k} ? "$headers->{$k}" : '';
-  }
-  return '';
 }
 
 # Cleaned whole: a secret the bound would split could leave its prefix.
